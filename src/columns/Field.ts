@@ -2,6 +2,7 @@ import Entity from "../entity";
 import Query from "../query/Query";
 
 type SetupFunction = (parent: typeof Entity, key: string) => Field;
+type Class = new (...args: any[]) => any;
 
 const INSTRUCTION = new Map<symbol, SetupFunction>();
 
@@ -16,6 +17,16 @@ namespace Field {
   export type Type<T> = { [TYPE]?: T };
 
   export type Callback<T extends Field> = (field: T, key: string) => void;
+
+  export type Parameters<T extends new (...args: any) => any> =
+    T extends new (parent: typeof Entity, property: string, ...args: infer P) => any ? P : never;
+
+  export interface Options {
+    name?: string;
+    unique?: boolean;
+    default?: any;
+    nullable?: boolean;
+  }
 
   export interface Where {
     /** Select rows where this column is equal to value. */
@@ -38,28 +49,23 @@ abstract class Field {
   abstract assert(key: string, query: Query<any>): any;
 
   constructor(
+    public parent: typeof Entity,
     public property: string,
-    public parent: typeof Entity
+    public options: Field.Options = {}
   ){
-    this.name = property;
+    this.name = options.name || property;
   }
 
-  static create<T extends typeof Field>(
-    this: T,
-    callback?: Field.Callback<InstanceType<T>>){
+  static create<T extends Class>(
+    this: T, ...args: Field.Parameters<T>){
 
     const placeholder = Symbol(`column`);
   
     INSTRUCTION.set(placeholder, (parent, key) => {
-      const field = new (this as any)(key, parent) as InstanceType<T>;
-
-      if(callback)
-        callback(field, key);
-
-      return field;
+      return new this(parent, key, ...args) as InstanceType<T>;
     });
   
-    return placeholder as unknown as T;
+    return placeholder as any;
   }
 
   static assign(

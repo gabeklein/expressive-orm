@@ -30,8 +30,8 @@ declare namespace Bool {
 function Bool(): Bool.Value;
 function Bool(options: Bool.Nullable): Bool.Optional;
 function Bool(options: Bool.Options): Bool.Value;
-function Bool(options?: Bool.Options): any {
-  return BooleanColumn.create();
+function Bool(options: Bool.Options = {}){
+  return BooleanColumn.create(options);
 }
 
 class BooleanColumn extends Field {

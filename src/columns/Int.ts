@@ -23,8 +23,8 @@ declare namespace Int {
 function Int(): Int.Value;
 function Int(options: Int.Nullable): Int.Optional;
 function Int(options: Int.Options): Int.Value;
-function Int(options?: Int.Options): any {
-  return IntergerColumn.create();
+function Int(options: Int.Options = {}){
+  return IntergerColumn.create(options);
 }
 
 class IntergerColumn extends Field {

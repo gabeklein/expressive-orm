@@ -23,11 +23,8 @@ declare namespace VarChar {
 function VarChar(): VarChar.Value;
 function VarChar(options: VarChar.Nullable): VarChar.Optional;
 function VarChar(options: VarChar.Options): VarChar.Value;
-function VarChar(options: VarChar.Options = {}): any {
-  return VarCharColumn.create(column => {
-    if(options.name)
-      column.name = options.name;
-  });
+function VarChar(options: VarChar.Options = {}){
+  return VarCharColumn.create(options);
 }
 
 class VarCharColumn extends Field {
