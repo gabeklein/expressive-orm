@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Current TS File",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceRoot}",
+      "console": "integratedTerminal",
+      "sourceMaps": true,
+      "args": ["${relativeFile}"],
+      "runtimeArgs": ["--nolazy", "-r", "${workspaceFolder}/node_modules/ts-node/register/transpile-only"],
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  ]
+}

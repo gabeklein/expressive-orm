@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "outDir": "lib/",
+        "target": "ES6",
+        "types": ["node"],
+        "sourceMap": true,
+        "moduleResolution": "node",
+        "noUnusedLocals": true,
+        "strict": true,
+        "esModuleInterop": true,
+        "lib": ["ES2018"]
+    },
+    "include": [
+        "src"
+    ]
+}
