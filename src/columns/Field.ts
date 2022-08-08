@@ -89,10 +89,12 @@ function basicAssertions<T extends Entity>(
   key: string, query: Query<T>): Field.Where {
 
   function addWhere(value: any, op: string){
-    if(typeof value != 'string')
-      value = String(value);
-
-    value = `'${value.replace("'", "\'")}'`;
+    if(typeof value != 'number'){
+      if(typeof value != 'string')
+        value = String(value);
+  
+      value = `'${value.replace("'", "\'")}'`;
+    }
 
     query.where.add([key, op, value]);
   }
