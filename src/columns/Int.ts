@@ -18,13 +18,6 @@ declare namespace Int {
   interface Nullable extends Options {
     nullable: true;
   }
-
-  interface Where {
-    is(value: number): void;
-    isNot(value: number): void;
-    isLess(value: number): void;
-    isMore(value: number): void;
-  }
 }
 
 function Int(): Int.Value;
