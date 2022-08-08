@@ -47,28 +47,16 @@ abstract class Query<T extends Entity, S = any> {
   applyQuery(from: Query.WhereFunction<T>){
     const proxy = {} as Query.Where<T>;
 
-    for(const [ key, field ] of this.fields){
-      const assert = field.assert(key, this);
-      const value = {} as any;
-  
-      Object.entries(assert).forEach(([key, assertion]) => {
-        value[key] = (...args: any[]) => {
-          this.where.add((assertion as any)(...args))
-        }
-      })
-  
-      Object.defineProperty(proxy, key, { value });
-    }
+    for(const [ key, field ] of this.fields)
+      Object.defineProperty(proxy, key, {
+        get: () => field.assert(key, this)
+      });
 
     from.call(proxy, proxy);
   }
 
-  applySelection(
-    from: Query.SelectFunction<T, S>){
-
-    const proxy = createProxy<T>(
-      this.selects, this.fields, []
-    );
+  applySelection(from: Query.SelectFunction<T, S>){
+    const proxy = createProxy<T>(this.selects, this.fields, []);
 
     from.call(proxy, proxy);
   }
