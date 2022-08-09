@@ -13,10 +13,12 @@ declare namespace Many {
 
 function Many<T extends typeof Entity>(type: T): Many.Entites<InstanceOf<T>>;
 function Many(type: typeof Entity){
-  return ManyToOneRelation.create();
+  return ManyToOneRelation.create({ type });
 }
 
 class ManyToOneRelation extends Field {
+  type!: typeof Entity;
+
   assert(){};
 }
 

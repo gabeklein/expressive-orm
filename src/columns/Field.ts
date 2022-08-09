@@ -18,16 +18,6 @@ namespace Field {
 
   export type Callback<T extends Field> = (field: T, key: string) => void;
 
-  export type Parameters<T extends new (...args: any) => any> =
-    T extends new (parent: typeof Entity, property: string, ...args: infer P) => any ? P : never;
-
-  export interface Options {
-    name?: string;
-    unique?: boolean;
-    default?: any;
-    nullable?: boolean;
-  }
-
   export interface Where {
     /** Select rows where this column is equal to value. */
     is(value: any): void;
@@ -45,24 +35,26 @@ namespace Field {
 
 abstract class Field {
   name: string;
+  unique?: boolean;
+  default?: any;
+  nullable?: boolean;
 
   abstract assert(key: string, query: Query<any>): any;
 
   constructor(
     public parent: typeof Entity,
-    public property: string,
-    public options: Field.Options = {}
+    public property: string
   ){
-    this.name = options.name || property;
+    this.name = property;
   }
 
   static create<T extends Class>(
-    this: T, ...args: Field.Parameters<T>){
+    this: T, options?: Partial<InstanceType<T>>){
 
     const placeholder = Symbol(`column`);
   
-    INSTRUCTION.set(placeholder, (parent, key) => {
-      return new this(parent, key, ...args) as InstanceType<T>;
+    INSTRUCTION.set(placeholder, (parent, key): InstanceType<T> => {
+      return Object.assign(new this(parent, key), options);
     });
   
     return placeholder as any;
