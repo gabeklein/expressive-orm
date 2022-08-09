@@ -13,6 +13,9 @@ namespace Query {
     select?: SelectFunction<T, R>;
   }
 
+  type WhereClause<T> =
+    T extends Field.Assertions<infer A> ? A : never;
+
   export type Where<T extends {}> = {
     [K in Exclude<keyof T, keyof Entity>]: WhereClause<T[K]>;
   } & {
@@ -23,12 +26,6 @@ namespace Query {
     (row: { [selection: string]: any }, output: any) => void;
 
   export type Select<T extends Entity> = Entity.Pure<T>;
-
-  type WhereClause<T> =
-    T extends Field.Type<{
-      assert(key: any, query: any): infer X
-    }>
-    ? X : never;
 }
 
 abstract class Query<T extends Entity, S = any> {

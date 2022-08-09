@@ -1,4 +1,4 @@
-import Field, { basicAssertions, TYPE } from './Field';
+import Field, { basicAssertions, TYPE, WHERE } from './Field';
 
 declare namespace VarChar {
   type Value = string & TypeDef;
@@ -6,6 +6,7 @@ declare namespace VarChar {
 
   interface TypeDef {
     [TYPE]?: VarCharColumn;
+    [WHERE]?: Field.Where<string>;
   }
 
   interface Options {

@@ -12,24 +12,33 @@ const INSTRUCTION = new Map<symbol, SetupFunction>();
  */
 export declare const TYPE: unique symbol;
 
+/**
+ * Non-existant symbol lets us associate a
+ * Field class with an entity-compatible type.
+ */
+export declare const WHERE: unique symbol;
+
 namespace Field {
-  /** Using our above symbol, we infer Field for a given entity-property. */
+  /** Using symbol, infer Field type for a given property. */
   export type Type<T> = { [TYPE]?: T };
+
+  /** Using symbol, infer assertions for a given property. */
+  export type Assertions<T> = { [WHERE]?: T };
 
   export type Callback<T extends Field> = (field: T, key: string) => void;
 
-  export interface Where {
+  export interface Where<T = any> {
     /** Select rows where this column is equal to value. */
-    is(value: any): void;
+    is(value: T): void;
 
     /** Select rows where this column is not equal to value. */
-    isNot(value: any): void;
+    isNot(value: T): void;
 
     /** Select rows where this colum is less-than value. */
-    isLess(value: any): void;
+    isLess(value: T): void;
 
     /** Select rows where this colum is greater-than value. */
-    isMore(value: any): void;
+    isMore(value: T): void;
   }
 }
 

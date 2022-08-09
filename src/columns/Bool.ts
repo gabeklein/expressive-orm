@@ -1,5 +1,5 @@
 import Query from "../query/Query";
-import Field, { TYPE } from "./Field";
+import Field, { TYPE, WHERE } from "./Field";
 
 declare namespace Bool {
   type Value = boolean & TypeDef;
@@ -7,6 +7,7 @@ declare namespace Bool {
 
   interface TypeDef {
     [TYPE]?: BooleanColumn;
+    [WHERE]?: Where;
   }
 
   interface Options {

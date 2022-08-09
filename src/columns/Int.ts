@@ -1,4 +1,4 @@
-import Field, { TYPE, basicAssertions } from "./Field";
+import Field, { TYPE, basicAssertions, WHERE } from "./Field";
 
 declare namespace Int {
   type Value = number & TypeDef;
@@ -6,6 +6,7 @@ declare namespace Int {
 
   interface TypeDef {
     [TYPE]?: IntergerColumn;
+    [WHERE]?: Field.Where<number>;
   }
 
   interface Options {
