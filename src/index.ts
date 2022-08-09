@@ -19,8 +19,21 @@ class Book extends Entity {
 }
 
 Author.register();
+Book.register();
 
-export async function something(){
+export async function getBook(){
+  return Book.getOne({
+    where(){
+      this.title.is("1984");
+      this.author.age.isMore(50);
+    },
+    select(){
+      return this.title;
+    }
+  })
+}
+
+export async function getAuthor(){
   return Author.getOne({
     where(){
       this.name.isNot("gabe");
@@ -39,4 +52,4 @@ export async function something(){
 }
 
 console.clear()
-something();
+getBook();
