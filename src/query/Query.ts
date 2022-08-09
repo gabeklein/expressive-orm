@@ -9,8 +9,8 @@ namespace Query {
     (this: Entity.Pure<T>, thisArg: Entity.Pure<T>) => R;
 
   export type Options<T extends Entity, R> = {
-    where: WhereFunction<T>;
-    select: SelectFunction<T, R>;
+    where?: WhereFunction<T>;
+    select?: SelectFunction<T, R>;
   }
 
   export type Where<T extends {}> = {

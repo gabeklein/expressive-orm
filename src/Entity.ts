@@ -43,9 +43,11 @@ abstract class Entity {
   ){
     const query = new this.connection.queryBuilder(this);
 
-    query.applyQuery(from.where);
-    query.applySelection(from.select);
-    query.print();
+    if(from.where)
+      query.applyQuery(from.where);
+
+    if(from.select)
+      query.applySelection(from.select);
 
     return {} as R;
   }
