@@ -1,14 +1,14 @@
 import Entity from '../entity';
-import Field, { TYPE } from "./Field";
+import Query from '../query/Query';
+import Field, { TYPE, WHERE } from "./Field";
 
 type InstanceOf<T> =
   T extends { prototype: infer U } ? U : never;
 
 namespace One {
-  export type Field<T extends Entity> = T & TypeDef;
-
-  interface TypeDef {
+  export type Field<T extends Entity> = T & {
     [TYPE]?: OneToManyRelation;
+    [WHERE]?: Query.Where<T>
   }
 }
 
@@ -22,7 +22,18 @@ function One(type: typeof Entity){
 class OneToManyRelation extends Field {
   type!: typeof Entity;
 
-  assert(){};
+  assert(path: string, query: Query<any>){
+    const proxy = {} as Query.Where<any>;
+
+    for(const [ key, field ] of this.type.fields)
+      Object.defineProperty(proxy, key, {
+        get(){
+          return field.assert(path + "." + key, query)
+        }
+      });
+
+    return proxy;
+  };
 }
 
 export default One;
