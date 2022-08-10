@@ -88,7 +88,7 @@ class Query<T extends Entity, S = any> {
     let item = this.assertions.get(field);
 
     if(!item){
-      item = field.assert(path, this);
+      item = field.use(path, this);
       this.assertions.set(field, item);
     }
 

@@ -29,7 +29,7 @@ function VarChar(options: VarChar.Options = {}){
 }
 
 class VarCharColumn extends Field {
-  assert = basicAssertions;
+  use = basicAssertions;
 }
 
 export default VarChar;

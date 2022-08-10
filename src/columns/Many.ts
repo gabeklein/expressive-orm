@@ -20,7 +20,7 @@ function Many(type: typeof Entity){
 class ManyToOneRelation extends Field {
   type!: typeof Entity;
 
-  assert(){};
+  use(){};
 }
 
 export default Many;

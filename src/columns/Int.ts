@@ -29,7 +29,7 @@ function Int(options: Int.Options = {}){
 }
 
 class IntergerColumn extends Field {
-  assert = basicAssertions;
+  use = basicAssertions;
 }
 
 export default Int;

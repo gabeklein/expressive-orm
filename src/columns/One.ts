@@ -22,7 +22,7 @@ function One(type: typeof Entity){
 class OneToManyRelation extends Field {
   type!: typeof Entity;
 
-  assert(path: string, query: Query<any>){
+  use(path: string, query: Query<any>){
     const proxy = {} as Query.Where<any>;
     const table = this.type.tableName;
 

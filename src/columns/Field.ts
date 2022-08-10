@@ -48,7 +48,7 @@ abstract class Field {
   default?: any;
   nullable?: boolean;
 
-  abstract assert(key: string, query: Query<any>): any;
+  abstract use(key: string, query: Query<any>): any;
 
   constructor(
     public parent: typeof Entity,
