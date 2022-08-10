@@ -76,7 +76,7 @@ abstract class Entity {
 }
 
 function getClassName(subject: any){
-  return /class (\w+?) /.exec(subject.toString())![1].toLowerCase();
+  return /class (\w+?) /.exec(subject.toString())![1];
 }
 
 export default Entity;
