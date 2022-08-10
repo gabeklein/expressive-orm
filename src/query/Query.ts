@@ -29,9 +29,11 @@ namespace Query {
 }
 
 abstract class Query<T extends Entity, S = any> {
-  fields: Map<string, Field>;
-  selects = new Map<string, Query.Normalize>();
-  where = new Set<[string, string, { toString(): string }]>();
+  private fields: Map<string, Field>;
+  private assertions = new WeakMap<Field>();
+  private selects = new Map<string, Query.Normalize>();
+
+  public where = new Set<[string, string, { toString(): string }]>();
 
   constructor(type: typeof Entity){
     const Type = type as unknown as typeof Entity;
@@ -41,44 +43,52 @@ abstract class Query<T extends Entity, S = any> {
   abstract print(): void;
   abstract get(limit?: number): Promise<S[]>;
 
+  assert(field: Field, path: string): any {
+    let item = this.assertions.get(field);
+
+    if(!item){
+      item = field.assert(path, this);
+      this.assertions.set(field, item);
+    }
+
+    return item;
+  }
+
   applyQuery(from: Query.WhereFunction<T>){
     const proxy = {} as Query.Where<T>;
 
-    for(const [ key, field ] of this.fields)
+    this.fields.forEach((type, key) => {
       Object.defineProperty(proxy, key, {
-        get: () => field.assert(key, this)
-      });
+        get: () => this.assert(type, key)
+      })
+    })
 
     from.call(proxy, proxy);
   }
 
-  applySelection(from: Query.SelectFunction<T, S>){
-    const proxy = createProxy<T>(this.selects, this.fields, []);
+  applySelection(
+    from: Query.SelectFunction<T, S>,
+    path: string[] = []){
+
+    const proxy = {} as Query.Select<T>;
+
+    this.fields.forEach((type, key) => {
+      Object.defineProperty(proxy, key, {
+        get: () => {
+          const { name } = type;
+
+          this.selects.set(name, (from, to) => {
+            for(const key of path)
+              to = to[key];
+
+            to[key] = from[name];
+          })
+        }
+      })
+    })
 
     from.call(proxy, proxy);
   }
-}
-
-function createProxy<T extends Entity>(
-  selects: Map<string, Query.Normalize>,
-  fields: Map<string, Field>,
-  path: string[]){
-
-  const proxy = {} as Query.Select<T>;
-
-  for(const [key, { name }] of fields)
-    Object.defineProperty(proxy, key, {
-      get: () => {
-        selects.set(name, (from, to) => {
-          for(const key of path)
-            to = to[key];
-
-          to[key] = from[name];
-        })
-      }
-    });
-
-  return proxy;
 }
 
 export default Query;
