@@ -34,17 +34,17 @@ namespace Query {
 }
 
 class Query<T extends Entity, S = any> {
-  private tableName: string;
-  private fields: Map<string, Field>;
   private assertions = new WeakMap<Field>();
   private selects = new Map<string, Query.Normalize>();
 
-  public where = new Set<[string, string, { toString(): string }]>();
+  public builder: Knex.QueryBuilder;
 
-  constructor(type: typeof Entity){
-    const Type = type as unknown as typeof Entity;
-    this.fields = Type.fields;
-    this.tableName = Type.tableName;
+  constructor(private type: typeof Entity){
+    this.builder = KNEX.from(type.tableName);
+  }
+
+  where(...args: any[]){
+    this.builder.whereRaw(args.join(" "));
   }
 
   print(){
@@ -53,18 +53,16 @@ class Query<T extends Entity, S = any> {
   }
 
   commit(){
-    const builder = KNEX.from(this.tableName);
-
-    for(const clause of this.where)
-      builder.whereRaw(clause.join(" "));
-
     for(const key of this.selects.keys())
-      builder.select(key);
+      this.builder.select(key);
 
-    return builder;
+    return this.builder;
+  }
+
+  select(key: string){
+    this.builder.select(key)
   }
   
-
   async get(limit: number){
     const qb = this.commit();
 
@@ -100,7 +98,7 @@ class Query<T extends Entity, S = any> {
   applyQuery(from: Query.WhereFunction<T>){
     const proxy = {} as Query.Where<T>;
 
-    this.fields.forEach((type, key) => {
+    this.type.fields.forEach((type, key) => {
       Object.defineProperty(proxy, key, {
         get: () => this.assert(type, key)
       })
@@ -115,7 +113,7 @@ class Query<T extends Entity, S = any> {
 
     const proxy = {} as Query.Select<T>;
 
-    this.fields.forEach((type, key) => {
+    this.type.fields.forEach((type, key) => {
       Object.defineProperty(proxy, key, {
         get: () => {
           const { name } = type;

@@ -97,7 +97,7 @@ function basicAssertions<T extends Entity>(
       value = `'${value.replace("'", "\'")}'`;
     }
 
-    query.where.add([key, op, value]);
+    query.where(key, op, value);
   }
 
   return {

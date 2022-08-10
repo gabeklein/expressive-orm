@@ -39,10 +39,10 @@ class BooleanColumn extends Field {
   assert(key: string, query: Query<any>): Bool.Where {
     return {
       is(value: boolean){
-        query.where.add([key, "=", value]);
+        query.where(key, "=", value);
       },
       isNot(value: boolean){
-        query.where.add([key, "<>", value]);
+        query.where(key, "<>", value);
       }
     }
   };
