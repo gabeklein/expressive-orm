@@ -8,7 +8,7 @@
       "cwd": "${workspaceRoot}",
       "console": "integratedTerminal",
       "sourceMaps": true,
-      "args": ["${relativeFile}"],
+      "args": ["src/index.ts"],
       "runtimeArgs": ["--nolazy", "-r", "${workspaceFolder}/node_modules/ts-node/register/transpile-only"],
       "envFile": "${workspaceFolder}/.env",
       "env": {
