@@ -1,5 +1,4 @@
 import Field from "./columns/Field";
-import KnexQuery from "./query/KnexQuery";
 import Query from "./query/Query";
 
 const describe = Object.getOwnPropertyDescriptor;
@@ -7,9 +6,7 @@ const describe = Object.getOwnPropertyDescriptor;
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
 declare namespace Entity {
-  interface Connection {
-    queryBuilder: new <T extends typeof Entity>(type: T) => Query<InstanceOf<T>>
-  }
+  interface Connection {}
 
   type List<T extends Entity> = T[];
 
@@ -41,7 +38,7 @@ abstract class Entity {
   static async getOne<T extends typeof Entity, R>(
     this: T, from: Query.Options<InstanceOf<T>, R>
   ){
-    const query = new this.connection.queryBuilder(this);
+    const query = new Query(this) as Query<InstanceOf<T>>;
 
     if(from.where)
       query.applyQuery(from.where);
@@ -74,9 +71,7 @@ abstract class Entity {
       this.tableName = sample.tableName || getClassName(this);
     }
 
-    this.connection = connection || {
-      queryBuilder: KnexQuery
-    };
+    this.connection = connection || {};
   }
 }
 

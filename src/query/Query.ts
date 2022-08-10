@@ -1,5 +1,10 @@
+import knex, { Knex } from 'knex';
+import { format } from 'sql-formatter';
+
 import Field from '../columns/Field';
 import Entity from '../Entity';
+
+const KNEX = knex({ client: "mysql" });
 
 namespace Query {
   export type WhereFunction<T extends Entity> =
@@ -28,7 +33,8 @@ namespace Query {
   export type Select<T extends Entity> = Entity.Pure<T>;
 }
 
-abstract class Query<T extends Entity, S = any> {
+class Query<T extends Entity, S = any> {
+  private tableName: string;
   private fields: Map<string, Field>;
   private assertions = new WeakMap<Field>();
   private selects = new Map<string, Query.Normalize>();
@@ -38,10 +44,47 @@ abstract class Query<T extends Entity, S = any> {
   constructor(type: typeof Entity){
     const Type = type as unknown as typeof Entity;
     this.fields = Type.fields;
+    this.tableName = Type.tableName;
   }
 
-  abstract print(): void;
-  abstract get(limit?: number): Promise<S[]>;
+  print(){
+    const qb = this.commit();
+    logSQL(qb);
+  }
+
+  commit(){
+    const builder = KNEX.from(this.tableName);
+
+    for(const clause of this.where)
+      builder.whereRaw(clause.join(" "));
+
+    for(const key of this.selects.keys())
+      builder.select(key);
+
+    return builder;
+  }
+  
+
+  async get(limit: number){
+    const qb = this.commit();
+
+    if(limit)
+      qb.limit(limit);
+
+    logSQL(qb);
+
+    const results = [] as any[];
+
+    return results.map(row => {
+      const item = {} as any;
+
+      this.selects.forEach(apply => {
+        apply(row, item);
+      });
+      
+      return item;
+    });
+  }
 
   assert(field: Field, path: string): any {
     let item = this.assertions.get(field);
@@ -89,6 +132,10 @@ abstract class Query<T extends Entity, S = any> {
 
     from.call(proxy, proxy);
   }
+}
+
+function logSQL(qb: Knex.QueryBuilder){
+  return console.log(format(qb.toString()), "\n");
 }
 
 export default Query;
