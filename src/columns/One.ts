@@ -24,10 +24,13 @@ class OneToManyRelation extends Field {
 
   assert(path: string, query: Query<any>){
     const proxy = {} as Query.Where<any>;
+    const table = this.type.tableName;
+
+    query.builder.leftJoin(table, `${table}.id`, `authorID`);
 
     this.type.fields.forEach((field, key) => {
       Object.defineProperty(proxy, key, {
-        get: () => query.assert(field, path + "." + key)
+        get: () => query.assert(field, table + "." + key)
       });
     })
 
