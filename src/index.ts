@@ -3,7 +3,7 @@ import Int from './columns/Int';
 import Many from './columns/Many';
 import One from './columns/One';
 import VarChar from './columns/VarChar';
-import Entity from './entity';
+import Entity from './Entity';
 
 class Author extends Entity {
   name = VarChar();

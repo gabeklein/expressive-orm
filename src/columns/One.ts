@@ -1,4 +1,4 @@
-import Entity from '../entity';
+import Entity from '../Entity';
 import Query from '../query/Query';
 import Field, { TYPE, WHERE } from "./Field";
 

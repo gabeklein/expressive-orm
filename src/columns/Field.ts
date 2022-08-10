@@ -1,4 +1,4 @@
-import Entity from "../entity";
+import Entity from "../Entity";
 import Query from "../query/Query";
 
 type SetupFunction = (parent: typeof Entity, key: string) => Field;
