@@ -25,12 +25,11 @@ class OneToManyRelation extends Field {
   assert(path: string, query: Query<any>){
     const proxy = {} as Query.Where<any>;
 
-    for(const [ key, field ] of this.type.fields)
+    this.type.fields.forEach((field, key) => {
       Object.defineProperty(proxy, key, {
-        get(){
-          return field.assert(path + "." + key, query)
-        }
+        get: () => query.assert(field, path + "." + key)
       });
+    })
 
     return proxy;
   };
