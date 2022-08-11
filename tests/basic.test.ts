@@ -51,16 +51,15 @@ it("will create book query", () => {
 it("will create author query", () => {
   const query = Author.query({
     where(){
-      this.name.isNot("gabe");
-      this.nickname.is("gabe");
+      this.name.isNot("Robert");
+      this.nickname.is("Bob");
       this.age.isMore(3);
       this.active.is(true);
     },
     select(){
       return {
         name: this.nickname,
-        age: this.age,
-        status: this.active ? "active" : "inactive"
+        age: this.age
       } as const
     }
   });
@@ -70,13 +69,12 @@ it("will create author query", () => {
   expect(sql).toMatchInlineSnapshot(`
     "select
       \`nickname\`,
-      \`age\`,
-      \`active\`
+      \`age\`
     from
       \`Author\`
     where
-      name <> 'gabe'
-      and nickname = 'gabe'
+      name <> 'Robert'
+      and nickname = 'Bob'
       and age > 3
       and active = true"
   `);
