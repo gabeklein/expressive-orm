@@ -41,7 +41,7 @@ class Query<T extends Entity, S = any> {
     this.builder = KNEX.from(type.tableName);
   }
 
-  toSQL(){
+  toString(){
     return format(this.builder.toString());
   }
 

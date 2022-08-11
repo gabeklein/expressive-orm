@@ -34,7 +34,7 @@ it("will create book query", () => {
     }
   })
 
-  const sql = query.toSQL();
+  const sql = query.toString();
 
   expect(sql).toMatchInlineSnapshot(`
     "select
@@ -64,7 +64,7 @@ it("will create author query", () => {
     }
   });
 
-  const sql = query.toSQL();
+  const sql = query.toString();
 
   expect(sql).toMatchInlineSnapshot(`
     "select
