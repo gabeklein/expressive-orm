@@ -34,9 +34,8 @@ namespace Query {
 }
 
 class Query<T extends Entity, S = any> {
-  private assertions = new WeakMap<Field>();
-  private selects = new Map<string, Query.Normalize>();
-
+  public assertions = new WeakMap<Field>();
+  public selects = new Map<string, Query.Normalize>();
   public builder: Knex.QueryBuilder;
 
   constructor(private type: typeof Entity){
