@@ -48,6 +48,8 @@ abstract class Field {
   default?: any;
   nullable?: boolean;
 
+  context = new WeakMap<Query<any>, any>();
+
   abstract use(key: string, query: Query<any>): any;
 
   constructor(
@@ -55,6 +57,17 @@ abstract class Field {
     public property: string
   ){
     this.name = property;
+  }
+
+  access(query: Query<any>, path: string){
+    let item = this.context.get(query);
+
+    if(!item){
+      item = this.use(path, query);
+      this.context.set(query, item);
+    }
+
+    return item;
   }
 
   static create<T extends Class>(

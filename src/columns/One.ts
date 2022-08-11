@@ -30,7 +30,7 @@ class OneToManyRelation extends Field {
 
     this.type.fields.forEach((field, key) => {
       Object.defineProperty(proxy, key, {
-        get: () => query.assert(field, table + "." + key)
+        get: () => field.access(query, table + "." + key)
       });
     })
 

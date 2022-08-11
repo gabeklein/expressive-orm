@@ -34,7 +34,6 @@ namespace Query {
 }
 
 class Query<T extends Entity, S = any> {
-  public assertions = new WeakMap<Field>();
   public selects = new Map<string, Query.Normalize>();
   public builder: Knex.QueryBuilder;
 
@@ -83,23 +82,12 @@ class Query<T extends Entity, S = any> {
     });
   }
 
-  assert(field: Field, path: string): any {
-    let item = this.assertions.get(field);
-
-    if(!item){
-      item = field.use(path, this);
-      this.assertions.set(field, item);
-    }
-
-    return item;
-  }
-
   applyQuery(from: Query.WhereFunction<T>){
     const proxy = {} as Query.Where<T>;
 
     this.type.fields.forEach((type, key) => {
       Object.defineProperty(proxy, key, {
-        get: () => this.assert(type, key)
+        get: () => type.access(this, key)
       })
     })
 
