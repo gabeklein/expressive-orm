@@ -59,7 +59,7 @@ abstract class Field {
     this.name = property;
   }
 
-  access(query: Query<any>, path: string){
+  touch(query: Query<any>, path: string){
     let item = this.context.get(query);
 
     if(!item){

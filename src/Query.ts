@@ -34,8 +34,8 @@ namespace Query {
 }
 
 class Query<T extends Entity, S = any> {
-  public selects = new Map<string, Query.Normalize>();
   public builder: Knex.QueryBuilder;
+  public selects = new Map<string, Query.Normalize>();
 
   constructor(private type: typeof Entity){
     this.builder = KNEX.from(type.tableName);
@@ -81,9 +81,9 @@ class Query<T extends Entity, S = any> {
   applyQuery(from: Query.WhereFunction<T>){
     const proxy = {} as Query.Where<T>;
 
-    this.type.fields.forEach((type, key) => {
+    this.type.fields.forEach((field, key) => {
       Object.defineProperty(proxy, key, {
-        get: () => type.access(this, key)
+        get: () => field.touch(this, key)
       })
     })
 
