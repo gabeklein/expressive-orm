@@ -49,20 +49,19 @@ class Query<T extends Entity, S = any> {
     this.builder.whereRaw(args.join(" "));
   }
 
-  commit(){
-    for(const key of this.selects.keys())
-      this.builder.select(key);
+  select(name: string, path: string[]){
+    this.builder.select(name);
+    this.selects.set(name, (from, to) => {
+      const key = path.pop()!;
 
-    return this;
-  }
+      for(const key of path)
+        to = to[key];
 
-  select(key: string){
-    this.builder.select(key)
+      to[key] = from[key];
+    })
   }
   
   async get(limit: number){
-    this.commit();
-
     if(limit)
       this.builder.limit(limit);
 
@@ -99,16 +98,7 @@ class Query<T extends Entity, S = any> {
 
     this.type.fields.forEach((type, key) => {
       Object.defineProperty(proxy, key, {
-        get: () => {
-          const { name } = type;
-
-          this.selects.set(name, (from, to) => {
-            for(const key of path)
-              to = to[key];
-
-            to[key] = from[name];
-          })
-        }
+        get: () => this.select(type.name, [...path, key])
       })
     })
 
