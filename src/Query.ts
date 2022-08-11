@@ -83,7 +83,7 @@ class Query<T extends Entity, S = any> {
 
     this.type.fields.forEach((field, key) => {
       Object.defineProperty(proxy, key, {
-        get: field.touch(this, key)
+        get: () => field.touch(this, key)
       })
     })
 

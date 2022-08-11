@@ -30,7 +30,7 @@ class OneToManyRelation extends Field {
 
     this.type.fields.forEach((field, key) => {
       Object.defineProperty(proxy, key, {
-        get: field.touch(query, table + "." + key)
+        get: () => field.touch(query, table + "." + key)
       });
     })
 

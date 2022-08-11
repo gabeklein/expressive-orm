@@ -60,16 +60,14 @@ abstract class Field {
   }
 
   touch(query: Query<any>, path: string){
-    return () => {
-      let item = this.context.get(query);
+    let item = this.context.get(query);
 
-      if(!item){
-        item = this.use(path, query);
-        this.context.set(query, item);
-      }
-
-      return item;
+    if(!item){
+      item = this.use(path, query);
+      this.context.set(query, item);
     }
+
+    return item;
   }
 
   static create<T extends Class>(
