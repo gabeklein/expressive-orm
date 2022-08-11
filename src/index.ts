@@ -18,8 +18,8 @@ class Book extends Entity {
   author = One(Author); 
 }
 
-Author.register();
-Book.register();
+Author.init();
+Book.init();
 
 export async function getBook(){
   return Book.getOne({
