@@ -102,22 +102,24 @@ abstract class Field {
 function basicAssertions<T extends Entity>(
   key: string, query: Query<T>): Field.Where {
 
-  function addWhere(value: any, op: string){
-    if(typeof value != 'number'){
-      if(typeof value != 'string')
-        value = String(value);
+  function compare(operator: string){
+    return (value: any) => {
+      if(typeof value != 'number'){
+        if(typeof value != 'string')
+          value = String(value);
+    
+        value = `'${value.replace("'", "\'")}'`;
+      }
   
-      value = `'${value.replace("'", "\'")}'`;
+      query.where(key, operator, value);
     }
-
-    query.where(key, op, value);
   }
 
   return {
-    is: (value: any) => addWhere(value, "="),
-    isNot: (value: any) => addWhere(value, "<>"),
-    isLess: (value: any) => addWhere(value, "<"),
-    isMore: (value: any) => addWhere(value, ">"),
+    is: compare("="),
+    isNot: compare("<>"),
+    isLess: compare("<"),
+    isMore: compare(">"),
   }
 }
 
