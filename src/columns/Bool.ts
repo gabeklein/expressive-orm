@@ -1,4 +1,4 @@
-import Query from "../query/Query";
+import Query from "../Query";
 import Field, { TYPE, WHERE } from "./Field";
 
 declare namespace Bool {

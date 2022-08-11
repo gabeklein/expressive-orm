@@ -1,8 +1,8 @@
 import knex, { Knex } from 'knex';
 import { format } from 'sql-formatter';
 
-import Field from '../columns/Field';
-import Entity from '../Entity';
+import Field from './columns/Field';
+import Entity from './Entity';
 
 const KNEX = knex({ client: "mysql" });
 

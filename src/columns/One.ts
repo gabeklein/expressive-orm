@@ -1,5 +1,5 @@
 import Entity from '../Entity';
-import Query from '../query/Query';
+import Query from '../Query';
 import Field, { TYPE, WHERE } from "./Field";
 
 type InstanceOf<T> =
