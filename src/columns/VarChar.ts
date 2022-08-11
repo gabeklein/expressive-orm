@@ -1,4 +1,4 @@
-import Field, { basicAssertions, TYPE, WHERE } from './Field';
+import Field, { TYPE, WHERE } from './Field';
 
 declare namespace VarChar {
   type Value = string & TypeDef;
@@ -28,8 +28,6 @@ function VarChar(options: VarChar.Options = {}){
   return VarCharColumn.create(options);
 }
 
-class VarCharColumn extends Field {
-  use = basicAssertions;
-}
+class VarCharColumn extends Field {}
 
 export default VarChar;

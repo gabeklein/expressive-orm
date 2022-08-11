@@ -1,4 +1,4 @@
-import Field, { TYPE, basicAssertions, WHERE } from "./Field";
+import Field, { TYPE, WHERE } from './Field';
 
 declare namespace Int {
   type Value = number & TypeDef;
@@ -28,8 +28,6 @@ function Int(options: Int.Options = {}){
   return IntergerColumn.create(options);
 }
 
-class IntergerColumn extends Field {
-  use = basicAssertions;
-}
+class IntergerColumn extends Field {}
 
 export default Int;

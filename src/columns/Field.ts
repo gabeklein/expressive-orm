@@ -50,7 +50,27 @@ abstract class Field {
 
   context = new WeakMap<Query<any>, any>();
 
-  abstract use(key: string, query: Query<any>): any;
+  use(key: string, query: Query<any>){
+    function compare(operator: string){
+      return (value: any) => {
+        if(typeof value != 'number'){
+          if(typeof value != 'string')
+            value = String(value);
+      
+          value = `'${value.replace("'", "\'")}'`;
+        }
+    
+        query.where(key, operator, value);
+      }
+    }
+  
+    return {
+      is: compare("="),
+      isNot: compare("<>"),
+      isLess: compare("<"),
+      isMore: compare(">"),
+    }
+  }
 
   constructor(
     public parent: typeof Entity,
@@ -99,29 +119,4 @@ abstract class Field {
   }
 }
 
-function basicAssertions<T extends Entity>(
-  key: string, query: Query<T>): Field.Where {
-
-  function compare(operator: string){
-    return (value: any) => {
-      if(typeof value != 'number'){
-        if(typeof value != 'string')
-          value = String(value);
-    
-        value = `'${value.replace("'", "\'")}'`;
-      }
-  
-      query.where(key, operator, value);
-    }
-  }
-
-  return {
-    is: compare("="),
-    isNot: compare("<>"),
-    isLess: compare("<"),
-    isMore: compare(">"),
-  }
-}
-
 export default Field;
-export { basicAssertions }
