@@ -22,10 +22,10 @@ namespace Query {
     T extends Field.Assertions<infer A> ? A : never;
 
   export type Where<T extends {}> =
-   & { [K in Exclude<keyof T, keyof Entity>]: WhereClause<T[K]> }
-   & {
-    has(values: Partial<T>): void;
-  }
+    & { [K in Exclude<keyof T, keyof Entity>]: WhereClause<T[K]> }
+    & {
+      has(values: Partial<T>): void;
+    }
 
   export type Normalize =
     (row: { [selection: string]: any }, output: any) => void;
