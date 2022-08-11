@@ -2,7 +2,7 @@
     "compilerOptions": {
         "outDir": "lib/",
         "target": "ES6",
-        "types": ["node"],
+        "types": ["node", "jest"],
         "sourceMap": true,
         "moduleResolution": "node",
         "noUnusedLocals": true,
@@ -11,6 +11,7 @@
         "lib": ["ES2018"]
     },
     "include": [
-        "src"
+        "src",
+        "tests"
     ]
 }

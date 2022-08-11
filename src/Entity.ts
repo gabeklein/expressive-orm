@@ -38,6 +38,14 @@ abstract class Entity {
   static async getOne<T extends typeof Entity, R>(
     this: T, from: Query.Options<InstanceOf<T>, R>
   ){
+    this.query(from);
+
+    return {} as R;
+  }
+
+  static query<T extends typeof Entity, R>(
+    this: T, from: Query.Options<InstanceOf<T>, R>
+  ){
     const query = new Query(this) as Query<InstanceOf<T>>;
 
     if(from.where)
@@ -46,10 +54,10 @@ abstract class Entity {
     if(from.select)
       query.applySelection(from.select);
 
-    return {} as R;
+    return query;
   }
 
-  static register(connection?: Entity.Connection){
+  static init(connection?: Entity.Connection){
     let register = this.fields;
 
     if(!register){

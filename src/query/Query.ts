@@ -41,20 +41,19 @@ class Query<T extends Entity, S = any> {
     this.builder = KNEX.from(type.tableName);
   }
 
-  where(...args: any[]){
-    this.builder.whereRaw(args.join(" "));
+  toSQL(){
+    return format(this.builder.toString());
   }
 
-  print(){
-    const qb = this.commit();
-    logSQL(qb);
+  where(...args: any[]){
+    this.builder.whereRaw(args.join(" "));
   }
 
   commit(){
     for(const key of this.selects.keys())
       this.builder.select(key);
 
-    return this.builder;
+    return this;
   }
 
   select(key: string){
@@ -62,12 +61,10 @@ class Query<T extends Entity, S = any> {
   }
   
   async get(limit: number){
-    const qb = this.commit();
+    this.commit();
 
     if(limit)
-      qb.limit(limit);
-
-    logSQL(qb);
+      this.builder.limit(limit);
 
     const results = [] as any[];
 
@@ -117,10 +114,6 @@ class Query<T extends Entity, S = any> {
 
     from.call(proxy, proxy);
   }
-}
-
-function logSQL(qb: Knex.QueryBuilder){
-  return console.log(format(qb.toString()), "\n");
 }
 
 export default Query;
