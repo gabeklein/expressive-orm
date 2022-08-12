@@ -90,8 +90,10 @@ class Query<T extends Entity, S = any> {
     from: Query.SelectFunction<T, S>,
     path: string[] = []){
 
-    const proxy = this.type.map((type, key) => {
-      return this.select(type.name, [...path, key])
+    const proxy = this.type.map((field, key) => {
+      return field.select
+        ? field.select(this, [...path, key])
+        : this.select(field.name, [...path, key]);
     })
 
     from.call(proxy, proxy);

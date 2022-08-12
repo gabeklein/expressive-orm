@@ -70,6 +70,8 @@ abstract class Field {
     }
   }
 
+  select?(query: Query<any>, path: string[]): any;
+
   static create<T extends Class>(
     this: T, options?: Partial<InstanceType<T>>){
 
