@@ -45,8 +45,8 @@ class Query<T extends Entity, S = any> {
     return format(this.builder.toString());
   }
 
-  where(...args: any[]){
-    this.builder.whereRaw(args.join(" "));
+  where(a: any, b: any, c: any){
+    this.builder.where(a, b, c);
   }
 
   select(name: string, path: string[]){

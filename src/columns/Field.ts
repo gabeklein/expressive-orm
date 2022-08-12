@@ -58,13 +58,6 @@ abstract class Field {
   where(query: Query<any>, key: string): any {
     function compare(operator: string){
       return (value: any) => {
-        if(typeof value != 'number'){
-          if(typeof value != 'string')
-            value = String(value);
-      
-          value = `'${value.replace("'", "\'")}'`;
-        }
-    
         query.where(key, operator, value);
       }
     }
