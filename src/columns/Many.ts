@@ -19,8 +19,6 @@ function Many(type: typeof Entity){
 
 class ManyToOneRelation extends Field {
   type!: typeof Entity;
-
-  use(){};
 }
 
 export default Many;

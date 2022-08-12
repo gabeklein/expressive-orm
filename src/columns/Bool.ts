@@ -36,8 +36,8 @@ function Bool(options: Bool.Options = {}){
 }
 
 class BooleanColumn extends Field {
-  use(key: string, query: Query<any>): Bool.Where {
-    return {
+  where(query: Query<any>, key: string){
+    return <Bool.Where>{
       is(value: boolean){
         query.where(key, "=", value);
       },

@@ -79,8 +79,8 @@ class Query<T extends Entity, S = any> {
   }
 
   applyQuery(from: Query.WhereFunction<T>){
-    const proxy = this.type.map((key, type) => {
-      return type.touch(this, key)
+    const proxy = this.type.map((key, field) => {
+      return field.where(this, key)
     });
 
     from.call(proxy, proxy);

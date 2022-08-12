@@ -22,10 +22,10 @@ function One(type: typeof Entity){
 class OneToManyRelation extends Field {
   type!: typeof Entity;
 
-  use(path: string, query: Query<any>){
+  where(query: Query<any>, path: string){
     const table = this.type.tableName;
     const proxy = this.type.map((key, field) => {
-      return field.touch(query, table + "." + key);
+      return field.where(query, table + "." + key);
     })
 
     query.builder.leftJoin(table, `${table}.id`, `authorID`);

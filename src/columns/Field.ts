@@ -48,8 +48,6 @@ abstract class Field {
   default?: any;
   nullable?: boolean;
 
-  context = new WeakMap<Query<any>, any>();
-
   constructor(
     public parent: typeof Entity,
     public property: string
@@ -57,7 +55,7 @@ abstract class Field {
     this.name = property;
   }
 
-  use(key: string, query: Query<any>): any {
+  where(query: Query<any>, key: string): any {
     function compare(operator: string){
       return (value: any) => {
         if(typeof value != 'number'){
@@ -77,17 +75,6 @@ abstract class Field {
       isLess: compare("<"),
       isMore: compare(">"),
     }
-  }
-
-  touch(query: Query<any>, path: string){
-    let item = this.context.get(query);
-
-    if(!item){
-      item = this.use(path, query);
-      this.context.set(query, item);
-    }
-
-    return item;
   }
 
   static create<T extends Class>(
