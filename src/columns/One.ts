@@ -22,16 +22,37 @@ function One(type: typeof Entity){
 class OneToManyRelation extends Field {
   type!: typeof Entity;
 
+  alias = new WeakMap<Query<any>, string>();
+
+  join(query: Query<any>){
+    let name = this.alias.get(query);
+
+    if(!name){
+      name = this.type.tableName;
+      query.builder.leftJoin(name, `${name}.id`, `authorID`);
+      this.alias.set(query, name);
+    }
+
+    return name;
+  }
+
   where(query: Query<any>, path: string){
-    const table = this.type.tableName;
-    const proxy = this.type.map((field, key) => {
-      return field.where(query, table + "." + key);
+    const table = this.join(query);
+
+    return this.type.map((field) => {
+      return field.where(query, table + "." + field.name);
     })
-
-    query.builder.leftJoin(table, `${table}.id`, `authorID`);
-
-    return proxy;
   };
+
+  select(query: Query<any>, path: string[]){
+    const table = this.join(query);
+
+    return this.type.map((field, key) => {
+      const column = table + "." + field.name;
+
+      query.select(column, [...path, key]);
+    })
+  }
 }
 
 export default One;
