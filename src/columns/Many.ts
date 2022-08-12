@@ -10,11 +10,15 @@ declare namespace Many {
   interface TypeDef {
     [TYPE]?: ManyToOneRelation;
   }
+
+  interface Options {
+
+  }
 }
 
 function Many<T extends typeof Entity>(type: T): Many.Entites<InstanceOf<T>>;
-function Many(type: typeof Entity){
-  return ManyToOneRelation.create({ type });
+function Many(type: typeof Entity, options?: Many.Options){
+  return ManyToOneRelation.create({ type, ...options });
 }
 
 class ManyToOneRelation extends Field {
