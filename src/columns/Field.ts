@@ -1,5 +1,5 @@
-import Entity from "../Entity";
-import Query from "../Query";
+import Entity from '../Entity';
+import Query from '../Query';
 
 type SetupFunction = (parent: typeof Entity, key: string) => Field;
 type Class = new (...args: any[]) => any;

@@ -1,6 +1,6 @@
 import Entity from '../Entity';
 import Query from '../Query';
-import Field, { TYPE, WHERE } from "./Field";
+import Field, { TYPE, WHERE } from './Field';
 
 type InstanceOf<T> =
   T extends { prototype: infer U } ? U : never;

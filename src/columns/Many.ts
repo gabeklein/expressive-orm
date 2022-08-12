@@ -1,5 +1,5 @@
 import Entity from '../Entity';
-import Field, { TYPE } from "./Field";
+import Field, { TYPE } from './Field';
 
 type InstanceOf<T> =
   T extends { prototype: infer U } ? U : never;
