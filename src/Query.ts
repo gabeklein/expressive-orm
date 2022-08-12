@@ -79,13 +79,9 @@ class Query<T extends Entity, S = any> {
   }
 
   applyQuery(from: Query.WhereFunction<T>){
-    const proxy = {} as Query.Where<T>;
-
-    this.type.fields.forEach((field, key) => {
-      Object.defineProperty(proxy, key, {
-        get: () => field.touch(this, key)
-      })
-    })
+    const proxy = this.type.map((key, type) => {
+      return type.touch(this, key)
+    });
 
     from.call(proxy, proxy);
   }
@@ -94,12 +90,8 @@ class Query<T extends Entity, S = any> {
     from: Query.SelectFunction<T, S>,
     path: string[] = []){
 
-    const proxy = {} as Query.Select<T>;
-
-    this.type.fields.forEach((type, key) => {
-      Object.defineProperty(proxy, key, {
-        get: () => this.select(type.name, [...path, key])
-      })
+    const proxy = this.type.map((key, type) => {
+      return this.select(type.name, [...path, key])
     })
 
     from.call(proxy, proxy);

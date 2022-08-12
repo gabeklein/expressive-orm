@@ -20,6 +20,9 @@ declare namespace Entity {
   type Pure<T extends Entity> = {
     [K in Exclude<keyof T, keyof Entity>]-?: DataRecusive<T[K]>;
   }
+
+  type Property<T extends typeof Entity> =
+    Exclude<keyof InstanceOf<T>, keyof Entity>;
 }
 
 abstract class Entity {
@@ -34,6 +37,24 @@ abstract class Entity {
   has!: never;
   
   protected constructor(){}
+
+  /**
+   * Create an arbitary map of managed fields.
+   */
+  static map<T extends typeof Entity>(
+    this: T,
+    getFunction: (key: string, type: Field) => any
+  ){
+    const proxy = {} as any;
+
+    this.fields.forEach((type, key) => {
+      Object.defineProperty(proxy, key, {
+        get: () => getFunction(key as any, type)
+      })
+    })
+    
+    return proxy;
+  }
 
   static async getOne<T extends typeof Entity, R>(
     this: T, from: Query.Options<InstanceOf<T>, R>

@@ -23,16 +23,12 @@ class OneToManyRelation extends Field {
   type!: typeof Entity;
 
   use(path: string, query: Query<any>){
-    const proxy = {} as Query.Where<any>;
     const table = this.type.tableName;
+    const proxy = this.type.map((key, field) => {
+      return field.touch(query, table + "." + key);
+    })
 
     query.builder.leftJoin(table, `${table}.id`, `authorID`);
-
-    this.type.fields.forEach((field, key) => {
-      Object.defineProperty(proxy, key, {
-        get: () => field.touch(query, table + "." + key)
-      });
-    })
 
     return proxy;
   };
