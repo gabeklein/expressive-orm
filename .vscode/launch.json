@@ -12,14 +12,13 @@
       "runtimeExecutable": "/usr/local/bin/node"
     },
     {
-      "name": "Run index file",
+      "name": "Run development",
       "type": "node",
       "request": "launch",
-      "cwd": "${workspaceRoot}",
+      "program": "${workspaceFolder}/node_modules/ts-node-dev/lib/bin.js",
       "console": "integratedTerminal",
       "sourceMaps": true,
-      "args": ["src/index.ts"],
-      "runtimeArgs": ["--nolazy", "-r", "${workspaceFolder}/node_modules/ts-node/register/transpile-only"],
+      "args": ["--transpile-only", "--clear", "src/develop.ts"],
       "envFile": "${workspaceFolder}/.env",
       "env": {
         "NODE_ENV": "development"
