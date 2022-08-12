@@ -50,7 +50,14 @@ abstract class Field {
 
   context = new WeakMap<Query<any>, any>();
 
-  use(key: string, query: Query<any>){
+  constructor(
+    public parent: typeof Entity,
+    public property: string
+  ){
+    this.name = property;
+  }
+
+  use(key: string, query: Query<any>): any {
     function compare(operator: string){
       return (value: any) => {
         if(typeof value != 'number'){
@@ -70,13 +77,6 @@ abstract class Field {
       isLess: compare("<"),
       isMore: compare(">"),
     }
-  }
-
-  constructor(
-    public parent: typeof Entity,
-    public property: string
-  ){
-    this.name = property;
   }
 
   touch(query: Query<any>, path: string){
