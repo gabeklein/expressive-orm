@@ -24,7 +24,7 @@ class OneToManyRelation extends Field {
 
   where(query: Query<any>, path: string){
     const table = this.type.tableName;
-    const proxy = this.type.map((key, field) => {
+    const proxy = this.type.map((field, key) => {
       return field.where(query, table + "." + key);
     })
 

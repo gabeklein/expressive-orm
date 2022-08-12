@@ -79,7 +79,7 @@ class Query<T extends Entity, S = any> {
   }
 
   applyQuery(from: Query.WhereFunction<T>){
-    const proxy = this.type.map((key, field) => {
+    const proxy = this.type.map((field, key) => {
       return field.where(this, key)
     });
 
@@ -90,7 +90,7 @@ class Query<T extends Entity, S = any> {
     from: Query.SelectFunction<T, S>,
     path: string[] = []){
 
-    const proxy = this.type.map((key, type) => {
+    const proxy = this.type.map((type, key) => {
       return this.select(type.name, [...path, key])
     })
 

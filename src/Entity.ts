@@ -43,13 +43,13 @@ abstract class Entity {
    */
   static map<T extends typeof Entity>(
     this: T,
-    getFunction: (key: string, type: Field) => any
+    getValue: (type: Field, key: string) => any
   ){
     const proxy = {} as any;
 
     this.fields.forEach((type, key) => {
       Object.defineProperty(proxy, key, {
-        get: () => getFunction(key as any, type)
+        get: () => getValue(type, key as any)
       })
     })
     
