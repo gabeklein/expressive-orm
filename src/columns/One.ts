@@ -24,12 +24,18 @@ class OneToManyRelation extends Field {
 
   alias = new WeakMap<Query<any>, string>();
 
+  get referenceColumn(){
+    return this.type.tableName.replace(/(^[A-Z])/i,
+      (str: string, n1: string) => n1.toLowerCase()
+    ) + "Id";
+  }
+
   join(query: Query<any>){
     let name = this.alias.get(query);
 
     if(!name){
       name = this.type.tableName;
-      query.builder.leftJoin(name, `${name}.id`, `authorID`);
+      query.builder.leftJoin(name, `${name}.id`, this.referenceColumn);
       this.alias.set(query, name);
     }
 
