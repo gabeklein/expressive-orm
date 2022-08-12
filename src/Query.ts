@@ -65,17 +65,25 @@ class Query<T extends Entity, S = any> {
     if(limit)
       this.builder.limit(limit);
 
-    const results = [] as any[];
+    const rows = [] as any[];
+    const ops = [] as any[];
 
-    return results.map(row => {
-      const item = {} as any;
+    const results = rows.map(row => {
+      const output = {} as any;
 
       this.selects.forEach(apply => {
-        apply(row, item);
+        const maybePromise: unknown = apply(row, output);
+
+        if(maybePromise instanceof Promise)
+          ops.push(maybePromise);
       });
       
-      return item;
+      return output;
     });
+
+    await Promise.all(ops);
+    
+    return results;
   }
 
   applyQuery(from: Query.WhereFunction<T>){
