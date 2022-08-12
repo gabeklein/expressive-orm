@@ -79,11 +79,9 @@ abstract class Entity {
   }
 
   static init(connection?: Entity.Connection){
-    let register = this.fields;
-
-    if(!register){
+    if(!this.fields){
       const sample = new (this as any)();
-      register = this.fields = new Map()
+      const fields = this.fields = new Map()
       
       for(const key in sample){
         const { value } = describe(sample, key)!;      
@@ -94,7 +92,7 @@ abstract class Entity {
         const field = Field.assign(this, key, value);
 
         if(field)
-          register.set(key, field);
+          fields.set(key, field);
       }
 
       this.tableName = sample.tableName || getClassName(this);
