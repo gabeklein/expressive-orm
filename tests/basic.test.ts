@@ -50,28 +50,6 @@ it("will create book query", () => {
   `);
 })
 
-
-it("will query nested relationships", () => {
-  const query = Book.query({
-    where(){
-      this.author.publisher.name.is("Foobar Books");
-    }
-  })
-
-  const sql = query.toString();
-
-  expect(sql).toMatchInlineSnapshot(`
-    "select
-      *
-    from
-      \`Book\`
-      left join \`Author\` on \`Author\`.\`id\` = \`authorId\`
-      left join \`Publisher\` on \`Publisher\`.\`id\` = \`publisherId\`
-    where
-      \`Publisher\`.\`name\` = 'Foobar Books'"
-  `);
-})
-
 it("will create author query", () => {
   const query = Author.query({
     where(){
