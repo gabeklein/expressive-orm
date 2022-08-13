@@ -13,6 +13,11 @@ class Author extends Entity {
   nickname = VarChar({ nullable: true });
   active = Bool();
   books = Many(Book);
+  publisher = One(Publisher);
+}
+
+class Publisher extends Entity {
+  name = VarChar();
 }
 
 class Book extends Entity {
@@ -20,6 +25,7 @@ class Book extends Entity {
   author = One(Author); 
 }
 
+Publisher.init();
 Author.init();
 Book.init();
 
@@ -41,10 +47,10 @@ it("will create book query", () => {
       \`title\`
     from
       \`Book\`
-      left join \`Author\` on \`Author\`.\`id\` = \`authorID\`
+      left join \`Author\` on \`Author\`.\`id\` = \`authorId\`
     where
-      title = '1984'
-      and Author.age > 50"
+      \`title\` = '1984'
+      and \`Author\`.\`age\` > 50"
   `);
 })
 
@@ -73,9 +79,9 @@ it("will create author query", () => {
     from
       \`Author\`
     where
-      name <> 'Robert'
-      and nickname = 'Bob'
-      and age > 3
-      and active = true"
+      \`name\` <> 'Robert'
+      and \`nickname\` = 'Bob'
+      and \`age\` > 3
+      and \`active\` = true"
   `);
 })
