@@ -1,10 +1,7 @@
-import Entity from '../Entity';
+import Entity, { INSTRUCTION } from '../Entity';
 import Query from '../Query';
 
-type SetupFunction = (parent: typeof Entity, key: string) => Field;
 type Class = new (...args: any[]) => any;
-
-const INSTRUCTION = new Map<symbol, SetupFunction>();
 
 /**
  * Non-existant symbol lets us associate a
@@ -82,22 +79,6 @@ abstract class Field {
     });
   
     return placeholder as any;
-  }
-
-  static assign(
-    entity: typeof Entity,
-    key: string,
-    placeholder: symbol){
-  
-    const instruction = INSTRUCTION.get(placeholder);
-  
-    if(!instruction)
-      return;
-  
-    delete (entity as any)[key];
-    INSTRUCTION.delete(placeholder);
-  
-    return instruction(entity, key);
   }
 }
 

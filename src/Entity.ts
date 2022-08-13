@@ -3,6 +3,9 @@ import Query from './Query';
 
 const describe = Object.getOwnPropertyDescriptor;
 
+export const INSTRUCTION = new Map<symbol, SetupFunction>();
+
+type SetupFunction = (parent: typeof Entity, key: string) => Field;
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
 declare namespace Entity {
@@ -87,12 +90,16 @@ abstract class Entity {
     const fields = this.fields = new Map()
     
     for(const key in sample){
-      const { value } = describe(sample, key)!;      
+      const { value } = describe(sample, key)!;
+      const instruction = INSTRUCTION.get(value);    
 
-      if(typeof value != "symbol")
+      if(!instruction)
         continue;
 
-      const field = Field.assign(this, key, value);
+      delete (sample as any)[key];
+      INSTRUCTION.delete(value);
+
+      const field = instruction(sample, key);
 
       if(field)
         fields.set(key, field);
@@ -103,6 +110,8 @@ abstract class Entity {
 
     return this;
   }
+
+
 }
 
 function getClassName(subject: any){
