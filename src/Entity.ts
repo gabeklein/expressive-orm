@@ -1,4 +1,4 @@
-import Field from './columns/Field';
+import Field from './instruction/Field';
 import Query from './Query';
 
 const describe = Object.getOwnPropertyDescriptor;

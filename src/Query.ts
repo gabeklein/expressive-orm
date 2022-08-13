@@ -1,7 +1,7 @@
 import knex, { Knex } from 'knex';
 import { format } from 'sql-formatter';
 
-import Field from './columns/Field';
+import Field from './instruction/Field';
 import Entity from './Entity';
 
 const KNEX = knex({ client: "mysql" });
