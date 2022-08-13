@@ -25,10 +25,6 @@ class Book extends Entity {
   author = One(Author); 
 }
 
-Publisher.init();
-Author.init();
-Book.init();
-
 it("will create book query", () => {
   const query = Book.query({
     where(){

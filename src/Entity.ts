@@ -38,6 +38,10 @@ abstract class Entity {
   
   protected constructor(){}
 
+  static ensure<T extends typeof Entity>(this: T): T {
+    return this.fields ? this : this.init();
+  }
+
   /**
    * Create an arbitary map of managed fields.
    */
@@ -78,27 +82,29 @@ abstract class Entity {
     return query;
   }
 
-  static init(connection?: Entity.Connection){
-    if(!this.fields){
-      const sample = new (this as any)();
-      const fields = this.fields = new Map()
-      
-      for(const key in sample){
-        const { value } = describe(sample, key)!;      
+  static init<T extends typeof Entity>(
+    this: T,
+    connection?: Entity.Connection){
 
-        if(typeof value != "symbol")
-          return;
+    const sample = new (this as any)();
+    const fields = this.fields = new Map()
+    
+    for(const key in sample){
+      const { value } = describe(sample, key)!;      
 
-        const field = Field.assign(this, key, value);
+      if(typeof value != "symbol")
+        continue;
 
-        if(field)
-          fields.set(key, field);
-      }
+      const field = Field.assign(this, key, value);
 
-      this.tableName = sample.tableName || getClassName(this);
+      if(field)
+        fields.set(key, field);
     }
 
+    this.tableName = sample.tableName || getClassName(this);
     this.connection = connection || {};
+
+    return this;
   }
 }
 

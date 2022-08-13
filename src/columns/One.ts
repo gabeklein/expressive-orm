@@ -16,6 +16,7 @@ type One<T extends Entity> = One.Field<T>;
 
 function One<T extends typeof Entity>(type: T): One<InstanceOf<T>>;
 function One(type: typeof Entity){
+  type.ensure();
   return OneToManyRelation.create({ type });
 }
 
