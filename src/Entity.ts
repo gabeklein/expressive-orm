@@ -3,7 +3,7 @@ import Query from './Query';
 
 const describe = Object.getOwnPropertyDescriptor;
 
-export const INSTRUCTION = new Map<symbol, SetupFunction>();
+const INSTRUCTION = new Map<symbol, SetupFunction>();
 
 type SetupFunction = (parent: typeof Entity, key: string) => Field;
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
@@ -111,7 +111,11 @@ abstract class Entity {
     return this;
   }
 
-
+  static apply(instruction: SetupFunction){
+    const placeholder = Symbol(`ORM instruction`);
+    INSTRUCTION.set(placeholder, instruction);
+    return placeholder as any;
+  }
 }
 
 function getClassName(subject: any){

@@ -1,4 +1,4 @@
-import Entity, { INSTRUCTION } from '../Entity';
+import Entity from '../Entity';
 import Query from '../Query';
 
 type Class = new (...args: any[]) => any;
@@ -72,13 +72,9 @@ abstract class Field {
   static create<T extends Class>(
     this: T, options?: Partial<InstanceType<T>>){
 
-    const placeholder = Symbol(`column`);
-  
-    INSTRUCTION.set(placeholder, (parent, key): InstanceType<T> => {
+    return Entity.apply((parent, key) => {
       return Object.assign(new this(parent, key), options);
-    });
-  
-    return placeholder as any;
+    })
   }
 }
 
