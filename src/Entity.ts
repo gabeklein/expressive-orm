@@ -33,9 +33,6 @@ abstract class Entity {
   /** Name of entity. Infered by classname if not defined. */
   tableName!: string;
 
-  /** Reserved for query */
-  has!: never;
-  
   protected constructor(){}
 
   static ensure<T extends typeof Entity>(this: T): T {
