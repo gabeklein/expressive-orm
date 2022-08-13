@@ -1,17 +1,12 @@
 import Field from './instruction/Field';
 import Query from './Query';
-
-const describe = Object.getOwnPropertyDescriptor;
+import Table from './Table';
 
 const REGISTER = new Map<typeof Entity, Table>();
-const INSTRUCTION = new Map<symbol, SetupFunction>();
 
-type SetupFunction = (parent: typeof Entity, key: string) => Field;
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
 declare namespace Entity {
-  interface Connection {}
-
   type List<T extends Entity> = T[];
 
   type DataRecusive<T> =
@@ -29,48 +24,10 @@ declare namespace Entity {
     Exclude<keyof InstanceOf<T>, keyof Entity>;
 }
 
-class Table {
-  entity: typeof Entity;
-  fields: Map<string, Field>;
-  connection?: Entity.Connection;
-  name: string;
-
-  constructor(
-    entity: typeof Entity,
-    connection?: Entity.Connection){
-
-    const fields = this.fields = new Map();
-
-    this.entity = entity;
-    this.name = /class (\w+?) /.exec(entity.toString())![1];
-    this.connection = connection;
-
-    const sample = new (entity as any)();
-    
-    for(const key in sample){
-      const { value } = describe(sample, key)!;
-      const instruction = INSTRUCTION.get(value);    
-
-      if(!instruction)
-        continue;
-
-      delete (sample as any)[key];
-      INSTRUCTION.delete(value);
-
-      const field = instruction(sample, key);
-
-      if(field)
-        fields.set(key, field);
-    }
-  }
-}
-
 abstract class Entity {
   static get table(){
     return REGISTER.get(this) || this.init();
   }
-
-  // table: Info;
 
   protected constructor(){}
 
@@ -115,17 +72,11 @@ abstract class Entity {
   }
 
   static init<T extends typeof Entity>(
-    this: T, connection?: Entity.Connection){
+    this: T, connection?: Table.Connection){
 
     const info = new Table(this, connection);
     REGISTER.set(this, info);
     return info;
-  }
-
-  static apply(instruction: SetupFunction){
-    const placeholder = Symbol(`ORM instruction`);
-    INSTRUCTION.set(placeholder, instruction);
-    return placeholder as any;
   }
 }
 

@@ -1,5 +1,6 @@
 import Entity from '../Entity';
 import Query from '../Query';
+import Table from '../Table';
 
 type Class = new (...args: any[]) => any;
 
@@ -72,7 +73,7 @@ abstract class Field {
   static create<T extends Class>(
     this: T, options?: Partial<InstanceType<T>>){
 
-    return Entity.apply((parent, key) => {
+    return Table.apply((parent, key) => {
       return Object.assign(new this(parent, key), options);
     })
   }
