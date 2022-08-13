@@ -16,7 +16,6 @@ type One<T extends Entity> = One.Field<T>;
 
 function One<T extends typeof Entity>(type: T): One<InstanceOf<T>>;
 function One(type: typeof Entity){
-  type.ensure();
   return OneToManyRelation.create({ type });
 }
 
@@ -26,7 +25,7 @@ class OneToManyRelation extends Field {
   alias = new WeakMap<Query<any>, string>();
 
   get referenceColumn(){
-    return this.type.tableName.replace(/(^[A-Z])/i,
+    return this.type.table.name.replace(/(^[A-Z])/i,
       (str: string, n1: string) => n1.toLowerCase()
     ) + "Id";
   }
@@ -35,7 +34,7 @@ class OneToManyRelation extends Field {
     let name = this.alias.get(query);
 
     if(!name){
-      name = this.type.tableName;
+      name = this.type.table.name;
       query.builder.leftJoin(name, `${name}.id`, this.referenceColumn);
       this.alias.set(query, name);
     }

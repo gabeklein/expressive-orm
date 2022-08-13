@@ -3,6 +3,7 @@ import Query from './Query';
 
 const describe = Object.getOwnPropertyDescriptor;
 
+const REGISTER = new Map<typeof Entity, Table>();
 const INSTRUCTION = new Map<symbol, SetupFunction>();
 
 type SetupFunction = (parent: typeof Entity, key: string) => Field;
@@ -28,19 +29,50 @@ declare namespace Entity {
     Exclude<keyof InstanceOf<T>, keyof Entity>;
 }
 
-abstract class Entity {
-  static fields: Map<string, Field>;
-  static connection: Entity.Connection;
-  static tableName: string;
+class Table {
+  entity: typeof Entity;
+  fields: Map<string, Field>;
+  connection?: Entity.Connection;
+  name: string;
 
-  /** Name of entity. Infered by classname if not defined. */
-  tableName!: string;
+  constructor(
+    entity: typeof Entity,
+    connection?: Entity.Connection){
+
+    const fields = this.fields = new Map();
+
+    this.entity = entity;
+    this.name = /class (\w+?) /.exec(entity.toString())![1];
+    this.connection = connection;
+
+    const sample = new (entity as any)();
+    
+    for(const key in sample){
+      const { value } = describe(sample, key)!;
+      const instruction = INSTRUCTION.get(value);    
+
+      if(!instruction)
+        continue;
+
+      delete (sample as any)[key];
+      INSTRUCTION.delete(value);
+
+      const field = instruction(sample, key);
+
+      if(field)
+        fields.set(key, field);
+    }
+  }
+}
+
+abstract class Entity {
+  static get table(){
+    return REGISTER.get(this) || this.init();
+  }
+
+  // table: Info;
 
   protected constructor(){}
-
-  static ensure<T extends typeof Entity>(this: T): T {
-    return this.fields ? this : this.init();
-  }
 
   /**
    * Create an arbitary map of managed fields.
@@ -51,7 +83,7 @@ abstract class Entity {
   ){
     const proxy = {} as any;
 
-    this.fields.forEach((type, key) => {
+    this.table.fields.forEach((type, key) => {
       Object.defineProperty(proxy, key, {
         get: () => getValue(type, key as any)
       })
@@ -83,32 +115,11 @@ abstract class Entity {
   }
 
   static init<T extends typeof Entity>(
-    this: T,
-    connection?: Entity.Connection){
+    this: T, connection?: Entity.Connection){
 
-    const sample = new (this as any)();
-    const fields = this.fields = new Map()
-    
-    for(const key in sample){
-      const { value } = describe(sample, key)!;
-      const instruction = INSTRUCTION.get(value);    
-
-      if(!instruction)
-        continue;
-
-      delete (sample as any)[key];
-      INSTRUCTION.delete(value);
-
-      const field = instruction(sample, key);
-
-      if(field)
-        fields.set(key, field);
-    }
-
-    this.tableName = sample.tableName || getClassName(this);
-    this.connection = connection || {};
-
-    return this;
+    const info = new Table(this, connection);
+    REGISTER.set(this, info);
+    return info;
   }
 
   static apply(instruction: SetupFunction){
@@ -116,10 +127,6 @@ abstract class Entity {
     INSTRUCTION.set(placeholder, instruction);
     return placeholder as any;
   }
-}
-
-function getClassName(subject: any){
-  return /class (\w+?) /.exec(subject.toString())![1];
 }
 
 export default Entity;

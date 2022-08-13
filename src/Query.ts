@@ -36,11 +36,9 @@ namespace Query {
 class Query<T extends Entity, S = any> {
   public builder: Knex.QueryBuilder;
   public selects = new Map<string, Query.Normalize>();
-  private type: typeof Entity;
 
-  constructor(type: typeof Entity){
-    this.type = type.ensure();
-    this.builder = KNEX.from(type.tableName);
+  constructor(private type: typeof Entity){
+    this.builder = KNEX.from(type.table.name);
   }
 
   toString(){
