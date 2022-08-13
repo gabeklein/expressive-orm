@@ -25,11 +25,11 @@ declare namespace Entity {
 }
 
 abstract class Entity {
+  protected constructor(){}
+
   static get table(){
     return REGISTER.get(this) || this.init();
   }
-
-  protected constructor(){}
 
   /**
    * Create an arbitary map of managed fields.

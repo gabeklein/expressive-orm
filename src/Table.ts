@@ -12,22 +12,19 @@ namespace Table {
 }
 
 class Table {
-  entity: typeof Entity;
-  fields: Map<string, Field>;
-  connection?: Table.Connection;
+  fields = new Map<string, Field>();
   name: string;
 
   constructor(
-    entity: typeof Entity,
-    connection?: Table.Connection){
+    public entity: typeof Entity,
+    public connection?: Table.Connection){
 
-    const fields = this.fields = new Map();
-
-    this.entity = entity;
     this.name = /class (\w+?) /.exec(entity.toString())![1];
-    this.connection = connection;
+    this.init();
+  }
 
-    const sample = new (entity as any)();
+  private init(){
+    const sample = new (this.entity as any)();
     
     for(const key in sample){
       const { value } = describe(sample, key)!;
@@ -42,7 +39,7 @@ class Table {
       const field = instruction(sample, key);
 
       if(field)
-        fields.set(key, field);
+        this.fields.set(key, field);
     }
   }
 
