@@ -65,10 +65,12 @@ class Query<T extends Entity, S = any> {
     if(limit)
       this.builder.limit(limit);
 
-    const rows = [] as any[];
-    const ops = [] as any[];
+    return this.hydrate([]);
+  }
 
-    const results = rows.map(row => {
+  async hydrate(raw: any[]){
+    const ops = [] as any[];
+    const results = raw.map(row => {
       const output = {} as any;
 
       this.selects.forEach(apply => {
