@@ -2,18 +2,37 @@ import Entity from '../Entity';
 import Query from '../Query';
 import Field, { TYPE, WHERE } from './Field';
 
-namespace One {
-  export type Field<T extends Entity> = T & {
+declare namespace One {
+  type Field<T extends Entity> = T & {
     [TYPE]?: OneToManyRelation;
     [WHERE]?: Query.Where<T>
+  }
+
+  type Optional<T extends Entity> = Field<T> | undefined | null;
+
+  interface Options<T extends Entity> {
+    type?: Entity.Type<T>;
+    name?: string;
+    nullable?: boolean;
+  }
+
+  interface Nullable<T> extends Options<T> {
+    nullable: true;
   }
 }
 
 type One<T extends Entity> = One.Field<T>;
 
-function One<T extends Entity>(type: Entity.Type<T>): One<T>;
-function One(type: Entity.Type){
-  return OneToManyRelation.create({ type });
+function One<T>(type: Entity.Type<T>): One.Field<T>;
+function One<T>(type: Entity.Type<T>, options: One.Nullable<T>): One.Optional<T>;
+function One<T>(type: Entity.Type<T>, options: One.Options<T>): One.Field<T>;
+function One<T>(options: One.Nullable<T>): One.Optional<T>;
+function One<T>(options: One.Options<T>): One.Field<T>;
+function One<T>(arg1: any, arg2?: any): any {
+  if(typeof arg1 == "function")
+    arg1 = { type: arg1 };
+
+  return OneToManyRelation.create({ ...arg2, ...arg1 });
 }
 
 class OneToManyRelation extends Field {
