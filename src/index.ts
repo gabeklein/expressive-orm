@@ -4,3 +4,4 @@ export { default as Many } from './instruction/Many';
 export { default as One } from './instruction/One';
 export { default as VarChar } from './instruction/VarChar';
 export { default as Entity } from './Entity';
+export { default as Query } from './Query';

@@ -6,7 +6,7 @@ const describe = Object.getOwnPropertyDescriptor;
 const INSTRUCTION = new Map<symbol, Table.Instruction>();
 
 namespace Table {
-  export type Instruction = (parent: typeof Entity, key: string) => Field | void;
+  export type Instruction = (parent: Entity.Type, key: string) => Field | void;
 
   export interface Connection {}
 }
@@ -16,7 +16,7 @@ class Table {
   name: string;
 
   constructor(
-    public entity: typeof Entity,
+    public entity: Entity.Type,
     public connection?: Table.Connection){
 
     this.name = /class (\w+?) /.exec(entity.toString())![1];

@@ -47,7 +47,7 @@ abstract class Field {
   nullable?: boolean;
 
   constructor(
-    public parent: typeof Entity,
+    public parent: Entity.Type,
     public property: string
   ){
     this.name = property;

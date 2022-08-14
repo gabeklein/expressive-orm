@@ -2,9 +2,6 @@ import Entity from '../Entity';
 import Query from '../Query';
 import Field, { TYPE, WHERE } from './Field';
 
-type InstanceOf<T> =
-  T extends { prototype: infer U } ? U : never;
-
 namespace One {
   export type Field<T extends Entity> = T & {
     [TYPE]?: OneToManyRelation;
@@ -14,13 +11,13 @@ namespace One {
 
 type One<T extends Entity> = One.Field<T>;
 
-function One<T extends typeof Entity>(type: T): One<InstanceOf<T>>;
-function One(type: typeof Entity){
+function One<T extends Entity>(type: Entity.Type<T>): One<T>;
+function One(type: Entity.Type){
   return OneToManyRelation.create({ type });
 }
 
 class OneToManyRelation extends Field {
-  type!: typeof Entity;
+  type!: Entity.Type;
 
   alias = new WeakMap<Query<any>, string>();
 

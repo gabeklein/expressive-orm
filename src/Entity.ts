@@ -2,11 +2,14 @@ import Field from './instruction/Field';
 import Query from './Query';
 import Table from './Table';
 
-const REGISTER = new Map<typeof Entity, Table>();
+const REGISTER = new Map<Entity.Type, Table>();
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
 declare namespace Entity {
+  type Type<T extends Entity = Entity> =
+    typeof Entity & (abstract new () => T);
+
   type List<T extends Entity> = T[];
 
   type DataRecusive<T> =
@@ -19,23 +22,20 @@ declare namespace Entity {
   type Pure<T extends Entity> = {
     [K in Exclude<keyof T, keyof Entity>]-?: DataRecusive<T[K]>;
   }
-
-  type Property<T extends typeof Entity> =
-    Exclude<keyof InstanceOf<T>, keyof Entity>;
 }
 
 abstract class Entity {
-  protected constructor(){}
+  constructor(){}
 
-  static get table(){
+  static get table(): Table {
     return REGISTER.get(this) || this.init();
   }
 
   /**
    * Create an arbitary map of managed fields.
    */
-  static map<T extends typeof Entity>(
-    this: T,
+  static map<T extends Entity>(
+    this: Entity.Type<T>,
     getValue: (type: Field, key: string) => any
   ){
     const proxy = {} as any;
@@ -49,18 +49,20 @@ abstract class Entity {
     return proxy;
   }
 
-  static async getOne<T extends typeof Entity, R>(
-    this: T, from: Query.Options<InstanceOf<T>, R>
+  static async getOne<T extends Entity, R>(
+    this: Entity.Type<T>,
+    from: Query.Options<T, R>
   ){
     this.query(from);
 
     return {} as R;
   }
 
-  static query<T extends typeof Entity, R>(
-    this: T, from: Query.Options<InstanceOf<T>, R>
+  static query<T extends Entity, R>(
+    this: Entity.Type<T>,
+    from: Query.Options<T, R>
   ){
-    const query = new Query(this) as Query<InstanceOf<T>>;
+    const query = new Query(this) as Query<T>;
 
     if(from.where)
       query.where(from.where);
@@ -68,11 +70,12 @@ abstract class Entity {
     if(from.select)
       query.select(from.select);
 
-    return query as Query<InstanceOf<T>, R>;
+    return query as Query<T, R>;
   }
 
-  static init<T extends typeof Entity>(
-    this: T, connection?: Table.Connection){
+  static init<T extends Entity>(
+    this: Entity.Type<T>,
+    connection?: Table.Connection){
 
     const info = new Table(this, connection);
     REGISTER.set(this, info);

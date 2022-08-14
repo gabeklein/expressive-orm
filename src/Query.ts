@@ -33,11 +33,11 @@ namespace Query {
   export type Select<T extends Entity> = Entity.Pure<T>;
 }
 
-class Query<T extends Entity, S = any> {
+class Query<T extends Entity, S = unknown> {
   public builder: Knex.QueryBuilder;
   public selects = new Map<string, Query.Normalize>();
 
-  constructor(private type: typeof Entity){
+  constructor(private type: Entity.Type<T>){
     this.builder = KNEX.from(type.table.name);
   }
 
@@ -98,8 +98,17 @@ class Query<T extends Entity, S = any> {
     return this;
   }
 
-  select(
-    from: Query.SelectFunction<T, S>,
+  select<R>(
+    this: Query<T, unknown>,
+    from: Query.SelectFunction<T, R>): Query<T, R>;
+
+  select<R>(
+    this: Query<T, R>,
+    from: Query.SelectFunction<T, R>): this;
+
+  select<R>(
+    this: Query<T, unknown>,
+    from: Query.SelectFunction<T, R>,
     path: string[] = []){
 
     const proxy = this.type.map((field, key) => {
