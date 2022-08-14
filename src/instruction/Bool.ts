@@ -39,10 +39,10 @@ class BooleanColumn extends Field {
   where(query: Query<any>, key: string){
     return <Bool.Where>{
       is(value: boolean){
-        query.where(key, "=", value);
+        query.addWhere(key, "=", value);
       },
       isNot(value: boolean){
-        query.where(key, "<>", value);
+        query.addWhere(key, "<>", value);
       }
     }
   };

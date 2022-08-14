@@ -58,7 +58,7 @@ class OneToManyRelation extends Field {
 
       return field.select
         ? field.select(query, [...path, key])
-        : query.select(column, [...path, key]);
+        : query.addSelect(column, [...path, key]);
     })
   }
 }

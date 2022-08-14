@@ -45,11 +45,11 @@ class Query<T extends Entity, S = any> {
     return format(this.builder.toString());
   }
 
-  where(a: any, b: any, c: any){
+  addWhere(a: any, b: any, c: any){
     this.builder.where(a, b, c);
   }
 
-  select(name: string, path: string[]){
+  addSelect(name: string, path: string[]){
     this.builder.select(name);
     this.selects.set(name, (from, to) => {
       const key = path.pop()!;
@@ -88,25 +88,29 @@ class Query<T extends Entity, S = any> {
     return results;
   }
 
-  applyQuery(from: Query.WhereFunction<T>){
+  where(from: Query.WhereFunction<T>){
     const proxy = this.type.map((field, key) => {
       return field.where(this, key)
     });
 
     from.call(proxy, proxy);
+
+    return this;
   }
 
-  applySelection(
+  select(
     from: Query.SelectFunction<T, S>,
     path: string[] = []){
 
     const proxy = this.type.map((field, key) => {
       return field.select
         ? field.select(this, [...path, key])
-        : this.select(field.name, [...path, key]);
+        : this.addSelect(field.name, [...path, key]);
     })
 
     from.call(proxy, proxy);
+
+    return this;
   }
 }
 

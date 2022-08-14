@@ -63,10 +63,10 @@ abstract class Entity {
     const query = new Query(this) as Query<InstanceOf<T>>;
 
     if(from.where)
-      query.applyQuery(from.where);
+      query.where(from.where);
 
     if(from.select)
-      query.applySelection(from.select);
+      query.select(from.select);
 
     return query as Query<InstanceOf<T>, R>;
   }

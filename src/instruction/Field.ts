@@ -56,7 +56,7 @@ abstract class Field {
   where(query: Query<any>, key: string): any {
     function compare(operator: string){
       return (value: any) => {
-        query.where(key, operator, value);
+        query.addWhere(key, operator, value);
       }
     }
   
