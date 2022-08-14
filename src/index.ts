@@ -1,7 +1,18 @@
-export { default as Bool } from './instruction/Bool';
-export { default as Int } from './instruction/Int';
-export { default as Many } from './instruction/Many';
-export { default as One } from './instruction/One';
-export { default as VarChar } from './instruction/VarChar';
-export { default as Entity } from './Entity';
-export { default as Query } from './Query';
+import Bool from './instruction/Bool';
+import Int from './instruction/Int';
+import Many from './instruction/Many';
+import One from './instruction/One';
+import VarChar from './instruction/VarChar';
+import Entity from './Entity';
+import Query from './Query';
+
+export {
+  Bool,
+  Int,
+  Many,
+  One,
+  VarChar,
+  VarChar as String,
+  Entity,
+  Query
+}
