@@ -41,9 +41,8 @@ class OneToManyRelation extends Field {
   alias = new WeakMap<Query<any>, string>();
 
   get referenceColumn(){
-    return this.type.table.name.replace(/(^[A-Z])/i,
-      (str: string, n1: string) => n1.toLowerCase()
-    ) + "Id";
+    const lower = (str: string, n1: string) => n1.toLowerCase();
+    return this.type.table.name.replace(/(^[A-Z])/i, lower) + "Id";
   }
 
   join(query: Query<any>){
