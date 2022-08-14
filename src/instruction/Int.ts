@@ -1,10 +1,10 @@
 import Field, { TYPE, WHERE } from './Field';
 
 declare namespace Int {
-  type Value = number & TypeDef;
+  type Value = number & MetaData;
   type Optional = Value | undefined | null;
 
-  interface TypeDef {
+  interface MetaData {
     [TYPE]?: IntergerColumn;
     [WHERE]?: Field.Where<number>;
   }

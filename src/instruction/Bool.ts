@@ -2,10 +2,10 @@ import Query from '../Query';
 import Field, { TYPE, WHERE } from './Field';
 
 declare namespace Bool {
-  type Value = boolean & TypeDef;
+  type Value = boolean & MetaData;
   type Optional = Value | undefined | null;
 
-  interface TypeDef {
+  interface MetaData {
     [TYPE]?: BooleanColumn;
     [WHERE]?: Where;
   }

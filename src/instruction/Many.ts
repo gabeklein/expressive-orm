@@ -2,9 +2,9 @@ import Entity from '../Entity';
 import Field, { TYPE } from './Field';
 
 declare namespace Many {
-  export type Entites<T extends Entity> = T[] & TypeDef;
+  export type Entites<T extends Entity> = T[] & MetaData;
 
-  interface TypeDef {
+  interface MetaData {
     [TYPE]?: ManyToOneRelation;
   }
 

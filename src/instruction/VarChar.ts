@@ -1,10 +1,10 @@
 import Field, { TYPE, WHERE } from './Field';
 
 declare namespace VarChar {
-  type Value = string & TypeDef;
+  type Value = string & MetaData;
   type Optional = Value | undefined | null;
 
-  interface TypeDef {
+  interface MetaData {
     [TYPE]?: VarCharColumn;
     [WHERE]?: Field.Where<string>;
   }
