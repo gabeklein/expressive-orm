@@ -62,7 +62,7 @@ abstract class Entity {
     this: Entity.Type<T>,
     from: Query.Options<T, R>
   ){
-    const query = new Query(this) as Query<T>;
+    const query = new Query(this);
 
     if(from.where)
       query.where(from.where);
