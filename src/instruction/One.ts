@@ -12,7 +12,7 @@ declare namespace One {
 
   interface Options<T extends Entity> {
     type?: Entity.Type<T>;
-    name?: string;
+    column?: string;
     nullable?: boolean;
   }
 
@@ -62,7 +62,7 @@ class OneToManyRelation extends Field {
     const table = this.join(query);
 
     return this.type.map((field) => {
-      return field.where(query, table + "." + field.name);
+      return field.where(query, table + "." + field.column);
     })
   };
 
@@ -70,7 +70,7 @@ class OneToManyRelation extends Field {
     const table = this.join(query);
 
     return this.type.map((field, key) => {
-      const column = table + "." + field.name;
+      const column = table + "." + field.column;
 
       return field.select
         ? field.select(query, [...path, key])

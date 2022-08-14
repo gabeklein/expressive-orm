@@ -41,7 +41,7 @@ namespace Field {
 }
 
 abstract class Field {
-  name: string;
+  column: string;
   unique?: boolean;
   default?: any;
   nullable?: boolean;
@@ -50,7 +50,7 @@ abstract class Field {
     public parent: Entity.Type,
     public property: string
   ){
-    this.name = property;
+    this.column = property;
   }
 
   where(query: Query<any>, key: string): any {

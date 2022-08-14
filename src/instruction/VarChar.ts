@@ -10,7 +10,7 @@ declare namespace VarChar {
   }
 
   interface Options {
-    name?: string;
+    column?: string;
     unique?: boolean;
     default?: string;
     nullable?: boolean;

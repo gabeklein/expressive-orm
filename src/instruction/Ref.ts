@@ -12,7 +12,7 @@ declare namespace Ref {
 
   interface Options<T extends Entity> {
     type?: Entity.Type<T>;
-    name?: string;
+    column?: string;
     nullable?: boolean;
   }
 

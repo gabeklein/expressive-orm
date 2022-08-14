@@ -11,7 +11,7 @@ declare namespace Bool {
   }
 
   interface Options {
-    name?: string;
+    column?: string;
     nullable?: boolean;
   }
 

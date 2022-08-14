@@ -110,7 +110,7 @@ class Query<T extends Entity, S = unknown> {
     const proxy = this.type.map((field, key) => {
       return field.select
         ? field.select(this, [key])
-        : this.addSelect(field.name, [key]);
+        : this.addSelect(field.column, [key]);
     })
 
     from.call(proxy, proxy);

@@ -10,7 +10,7 @@ declare namespace Int {
   }
 
   interface Options {
-    name?: string;
+    column?: string;
     unique?: boolean;
     default?: number;
     nullable?: boolean;
