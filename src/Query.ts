@@ -98,23 +98,13 @@ class Query<T extends Entity, S = unknown> {
     return this;
   }
 
-  select<R>(
-    this: Query<T, unknown>,
-    from: Query.SelectFunction<T, R>): Query<T, R>;
-
-  select<R>(
-    this: Query<T, R>,
-    from: Query.SelectFunction<T, R>): this;
-
-  select<R>(
-    this: Query<T, unknown>,
-    from: Query.SelectFunction<T, R>,
-    path: string[] = []){
-
+  select<R>(from: Query.SelectFunction<T, R>): Query<T, R>;
+  select(from: Query.SelectFunction<T, S>): this;
+  select(from: Query.SelectFunction<T, any>){
     const proxy = this.type.map((field, key) => {
       return field.select
-        ? field.select(this, [...path, key])
-        : this.addSelect(field.name, [...path, key]);
+        ? field.select(this, [key])
+        : this.addSelect(field.name, [key]);
     })
 
     from.call(proxy, proxy);
