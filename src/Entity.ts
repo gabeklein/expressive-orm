@@ -1,4 +1,5 @@
 import Field from './instruction/Field';
+import Primary from './instruction/Primary';
 import Query from './Query';
 import Table from './Table';
 
@@ -25,6 +26,8 @@ declare namespace Entity {
 }
 
 abstract class Entity {
+  id = Primary();
+
   constructor(){}
 
   static get table(): Table {
