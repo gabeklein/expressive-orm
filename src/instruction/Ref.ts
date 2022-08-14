@@ -21,10 +21,7 @@ declare namespace Ref {
   }
 
   export interface Where<T> {
-    /** Select rows where this column is equal to value. */
     is(value: T | number): void;
-
-    /** Select rows where this column is not equal to value. */
     isNot(value: T | number): void;
   }
 }
