@@ -60,12 +60,18 @@ class Query<T extends Entity, S = unknown> {
       to[key] = from[key];
     })
   }
+
+  async fetch(){
+    return [] as unknown[];
+  }
   
   async get(limit: number): Promise<S[]> {
     if(limit)
       this.builder.limit(limit);
 
-    return this.hydrate([]);
+    const results = await this.fetch();
+
+    return this.hydrate(results);
   }
 
   async hydrate(raw: any[]){
