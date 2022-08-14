@@ -68,7 +68,7 @@ abstract class Entity {
     if(from.select)
       query.applySelection(from.select);
 
-    return query;
+    return query as Query<InstanceOf<T>, R>;
   }
 
   static init<T extends typeof Entity>(

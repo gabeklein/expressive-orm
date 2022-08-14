@@ -61,7 +61,7 @@ class Query<T extends Entity, S = any> {
     })
   }
   
-  async get(limit: number){
+  async get(limit: number): Promise<S[]> {
     if(limit)
       this.builder.limit(limit);
 
