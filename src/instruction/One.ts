@@ -16,19 +16,19 @@ declare namespace One {
     nullable?: boolean;
   }
 
-  interface Nullable<T> extends Options<T> {
+  interface Nullable<T extends Entity> extends Options<T> {
     nullable: true;
   }
 }
 
 type One<T extends Entity> = One.Field<T>;
 
-function One<T>(type: Entity.Type<T>): One.Field<T>;
-function One<T>(type: Entity.Type<T>, options: One.Nullable<T>): One.Optional<T>;
-function One<T>(type: Entity.Type<T>, options: One.Options<T>): One.Field<T>;
-function One<T>(options: One.Nullable<T>): One.Optional<T>;
-function One<T>(options: One.Options<T>): One.Field<T>;
-function One<T>(arg1: any, arg2?: any): any {
+function One<T extends Entity>(type: Entity.Type<T>): One.Field<T>;
+function One<T extends Entity>(type: Entity.Type<T>, options: One.Nullable<T>): One.Optional<T>;
+function One<T extends Entity>(type: Entity.Type<T>, options: One.Options<T>): One.Field<T>;
+function One<T extends Entity>(options: One.Nullable<T>): One.Optional<T>;
+function One<T extends Entity>(options: One.Options<T>): One.Field<T>;
+function One<T extends Entity>(arg1: any, arg2?: any): any {
   if(typeof arg1 == "function")
     arg1 = { type: arg1 };
 

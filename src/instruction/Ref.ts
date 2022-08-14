@@ -16,7 +16,7 @@ declare namespace Ref {
     nullable?: boolean;
   }
 
-  interface Nullable<T> extends Options<T> {
+  interface Nullable<T extends Entity> extends Options<T> {
     nullable: true;
   }
 
@@ -26,12 +26,12 @@ declare namespace Ref {
   }
 }
 
-function Ref<T>(type: Entity.Type<T>): Ref.Value<T>;
-function Ref<T>(type: Entity.Type<T>, options: Ref.Nullable<T>): Ref.Optional<T>;
-function Ref<T>(type: Entity.Type<T>, options: Ref.Options<T>): Ref.Value<T>;
-function Ref<T>(options: Ref.Nullable<T>): Ref.Optional<T>;
-function Ref<T>(options: Ref.Options<T>): Ref.Value<T>;
-function Ref<T>(arg1: any, arg2?: any): any {
+function Ref<T extends Entity>(type: Entity.Type<T>): Ref.Value<T>;
+function Ref<T extends Entity>(type: Entity.Type<T>, options: Ref.Nullable<T>): Ref.Optional<T>;
+function Ref<T extends Entity>(type: Entity.Type<T>, options: Ref.Options<T>): Ref.Value<T>;
+function Ref<T extends Entity>(options: Ref.Nullable<T>): Ref.Optional<T>;
+function Ref<T extends Entity>(options: Ref.Options<T>): Ref.Value<T>;
+function Ref<T extends Entity>(arg1: any, arg2?: any): any {
   if(typeof arg1 == "function")
     arg1 = { type: arg1 };
 
