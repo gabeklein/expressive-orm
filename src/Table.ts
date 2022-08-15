@@ -36,7 +36,7 @@ class Table {
       delete (sample as any)[key];
       INSTRUCTION.delete(value);
 
-      const field = instruction(sample, key);
+      const field = instruction(this.entity, key);
 
       if(field)
         this.fields.set(key, field);
