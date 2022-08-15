@@ -49,8 +49,7 @@ class OneToManyRelation extends Field {
     let name = this.alias.get(query);
 
     if(!name){
-      name = this.type.table.name;
-      query.builder.leftJoin(name, `${name}.id`, this.referenceColumn);
+      name = query.join(this.type, this.referenceColumn);
       this.alias.set(query, name);
     }
 

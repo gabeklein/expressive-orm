@@ -34,11 +34,24 @@ namespace Query {
 }
 
 class Query<T extends Entity, S = unknown> {
-  public builder: Knex.QueryBuilder;
+  protected builder: Knex.QueryBuilder;
   public selects = new Map<string, Query.Normalize>();
+  public tables = new Map<Field | undefined, () => string>();
 
-  constructor(private type: Entity.Type<T>){
+  constructor(protected type: Entity.Type<T>){
     this.builder = KNEX.from(type.table.name);
+  }
+
+  join(type: typeof Entity, on: string, foreignKey?: string){
+    const { name } = type.table;
+
+    // TODO: pull this from actual entity.
+    if(!foreignKey)
+      foreignKey = "id";
+    
+    this.builder.leftJoin(name, `${name}.${foreignKey}`, on);
+
+    return name;
   }
 
   toString(){
