@@ -61,6 +61,20 @@ abstract class Entity {
     return {} as R;
   }
 
+  static where<T extends Entity, R>(
+    this: Entity.Type<T>,
+    from: Query.WhereFunction<T>
+  ){
+    return new Query(this).where(from);
+  }
+
+  static select<T extends Entity, R>(
+    this: Entity.Type<T>,
+    from: Query.SelectFunction<T, R>
+  ){
+    return new Query(this).select(from);
+  }
+
   static query<T extends Entity, R>(
     this: Entity.Type<T>,
     from: Query.Options<T, R>
