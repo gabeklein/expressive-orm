@@ -71,13 +71,34 @@ class Query<T extends Entity, S = unknown> {
     return [] as unknown[];
   }
   
-  async get(limit: number): Promise<S[]> {
-    if(limit)
+  async get(limit?: number): Promise<S[]> {
+    if(typeof limit == "number")
       this.builder.limit(limit);
 
     const results = await this.fetch();
 
     return this.hydrate(results);
+  }
+  
+  async getOne(orFail: false): Promise<S | undefined>;
+  async getOne(orFail?: boolean): Promise<S>;
+  async getOne(orFail?: boolean){
+    this.builder.limit(1);
+
+    const results = await this.fetch();
+
+    if(results.length < 1 && orFail)
+      throw new Error("No result found.");
+
+    const output = await this.hydrate(results);
+
+    return output[0];
+  }
+  
+  async findOne(orFail: true): Promise<S>;
+  async findOne(orFail?: boolean): Promise<S | undefined>;
+  async findOne(orFail?: boolean){
+    return this.getOne(orFail || false);
   }
 
   async hydrate(raw: any[]){
