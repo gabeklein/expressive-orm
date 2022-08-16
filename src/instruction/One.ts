@@ -68,14 +68,7 @@ class OneToManyRelation extends Field {
     const table = this.join(query);
 
     return this.type.map((field, key) => {
-      const loc = path.concat(key);
-
-      if(field.select)
-        return field.select(query, loc);
-
-      const column = table + "." + field.column;
-
-      return query.addSelect(column, loc);
+      return field.select(query, [...path, key], table);
     })
   }
 }

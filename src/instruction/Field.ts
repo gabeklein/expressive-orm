@@ -68,7 +68,25 @@ abstract class Field {
     }
   }
 
-  select?(query: Query<any>, path: string[]): any;
+  select(
+    query: Query<any>,
+    path: string[],
+    prefix?: string){
+
+    let { column } = this;
+
+    if(prefix)
+      column = prefix + "." + column;
+
+    return query.addSelect(column, (from, to) => {
+      const key = path.pop()!;
+
+      for(const key of path)
+        to = to[key];
+
+      to[key] = from[key];
+    });
+  };
 
   static create<T extends Class>(
     this: T, options?: Partial<InstanceType<T>>){

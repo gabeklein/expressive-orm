@@ -62,16 +62,9 @@ class Query<T extends Entity, S = unknown> {
     this.builder.where(a, b, c);
   }
 
-  addSelect(name: string, path: string[]){
+  addSelect(name: string, path: Query.Normalize){
     this.builder.select(name);
-    this.selects.set(name, (from, to) => {
-      const key = path.pop()!;
-
-      for(const key of path)
-        to = to[key];
-
-      to[key] = from[key];
-    })
+    this.selects.set(name, path);
   }
 
   async fetch(){
@@ -121,9 +114,7 @@ class Query<T extends Entity, S = unknown> {
   select(from: Query.SelectFunction<T, S>): this;
   select(from: Query.SelectFunction<T, any>){
     const proxy = this.type.map((field, key) => {
-      return field.select
-        ? field.select(this, [key])
-        : this.addSelect(field.column, [key]);
+      return field.select(this, [key])
     })
 
     from.call(proxy, proxy);
