@@ -60,7 +60,7 @@ abstract class Field {
         let key = escape(this.column);
 
         if(parent)
-          key = parent + "." + key;
+          key = escape(parent) + "." + key;
 
         query.compare(key, value, operator);
       }
