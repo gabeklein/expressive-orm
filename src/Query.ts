@@ -1,8 +1,10 @@
 import knex, { Knex } from 'knex';
 import { format } from 'sql-formatter';
 
-import Field from './instruction/Field';
 import Entity from './Entity';
+import Field from './instruction/Field';
+import Table from './Table';
+import { escape, escapeString } from './utility';
 
 const KNEX = knex({ client: "mysql" });
 
@@ -28,30 +30,33 @@ namespace Query {
     }
 
   export type Normalize =
-    (row: { [selection: string]: any }, output: any) => void;
+    (row: { [select: string]: any }, output: any) => void;
 
   export type Select<T extends Entity> = Entity.Pure<T>;
 }
 
 class Query<T extends Entity, S = unknown> {
   protected builder: Knex.QueryBuilder;
+
+  public table: Table;
   public selects = new Map<string, Query.Normalize>();
   public tables = new Map<Field | undefined, () => string>();
 
   constructor(protected type: Entity.Type<T>){
+    this.table = type.table;
     this.builder = KNEX.from(type.table.name);
   }
 
   join(type: typeof Entity, on: string, foreignKey?: string){
-    const { name } = type.table;
+    const foreign = type.table.name;
 
-    // TODO: pull this from actual entity.
-    if(!foreignKey)
-      foreignKey = "id";
-    
-    this.builder.leftJoin(name, `${name}.${foreignKey}`, on);
+    // TODO: pull default from actual entity.
+    const fk = escape(foreign, foreignKey || "id");
+    const lk = escape(this.table.name, on);
 
-    return name;
+    this.builder.joinRaw(`LEFT JOIN ${escape(foreign)} ON ${fk} = ${lk}`)
+
+    return foreign;
   }
 
   toString(){
@@ -59,12 +64,25 @@ class Query<T extends Entity, S = unknown> {
   }
 
   addWhere(a: any, b: any, c: any){
-    this.builder.where(a, b, c);
+    this.builder.whereRaw(`${a} ${b} ${c}`);
   }
 
   addSelect(name: string, path: Query.Normalize){
     this.builder.select(name);
     this.selects.set(name, path);
+  }
+
+  compare(
+    left: Field | string,
+    right: string | number | Field,
+    op: string){
+  
+    if(typeof right === "string")
+      right = escapeString(right);
+    
+    this.builder.whereRaw(
+      `${left.toString()} ${op} ${right.toString()}`
+    );
   }
 
   async fetch(){
@@ -122,8 +140,8 @@ class Query<T extends Entity, S = unknown> {
   }
 
   where(from: Query.WhereFunction<T>){
-    const proxy = this.type.map((field, key) => {
-      return field.where(this, key)
+    const proxy = this.type.map((field) => {
+      return field.where(this);
     });
 
     from.call(proxy, proxy);

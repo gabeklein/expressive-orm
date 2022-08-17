@@ -1,6 +1,7 @@
 import Entity from '../Entity';
 import Query from '../Query';
 import Table from '../Table';
+import { escape } from '../utility';
 
 type Class = new (...args: any[]) => any;
 
@@ -53,12 +54,16 @@ abstract class Field {
     this.column = property;
   }
 
-  where(query: Query<any>, key: string): any {
-    function compare(operator: string){
-      return (value: any) => {
-        query.addWhere(key, operator, value);
+  where(query: Query<any>, parent?: string): any {
+    const compare = (operator: string) =>
+      (value: any) => {
+        let key = escape(this.column);
+
+        if(parent)
+          key = parent + "." + key;
+
+        query.compare(key, value, operator);
       }
-    }
   
     return {
       is: compare("="),

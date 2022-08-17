@@ -56,11 +56,11 @@ class OneToManyRelation extends Field {
     return name;
   }
 
-  where(query: Query<any>, path: string){
+  where(query: Query<any>){
     const table = this.join(query);
 
     return this.type.map((field) => {
-      return field.where(query, table + "." + field.column);
+      return field.where(query, table);
     })
   };
 
