@@ -67,9 +67,9 @@ class Query<T extends Entity, S = unknown> {
     this.builder.whereRaw(`${a} ${b} ${c}`);
   }
 
-  addSelect(name: string, path: Query.Normalize){
+  addSelect(name: string, callback: Query.Normalize){
     this.builder.select(name);
-    this.selects.set(name, path);
+    this.selects.set(name, callback);
   }
 
   compare(
