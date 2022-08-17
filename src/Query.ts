@@ -141,7 +141,7 @@ class Query<T extends Entity, S = unknown> {
 
   where(from: Query.WhereFunction<T>){
     const proxy = this.type.map((field) => {
-      return field.where(this);
+      return field.where(this, this.table.name);
     });
 
     from.call(proxy, proxy);
@@ -153,7 +153,7 @@ class Query<T extends Entity, S = unknown> {
   select(from: Query.SelectFunction<T, S>): this;
   select(from: Query.SelectFunction<T, any>){
     const proxy = this.type.map((field, key) => {
-      return field.select(this, [key])
+      return field.select(this, [key], this.table.name)
     })
 
     from.call(proxy, proxy);
