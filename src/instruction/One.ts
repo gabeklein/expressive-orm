@@ -38,15 +38,16 @@ function One<T extends Entity>(arg1: any, arg2?: any): any {
 class OneToManyRelation extends Field {
   type!: Entity.Type;
 
+  get column(){
+    const lowerCase = (str: string, n1: string) => n1.toLowerCase();
+    return this.type.table.name.replace(/(^[A-Z])/i, lowerCase) + "Id";
+  }
+
   join(query: Query<any>){
     let name = query.tables.get(this);
 
     if(!name){
-      const { table } = this.type;
-      const lowerCase = (str: string, n1: string) => n1.toLowerCase();
-      const ref = table.name.replace(/(^[A-Z])/i, lowerCase) + "Id";
-
-      name = query.join(this.type, ref);
+      name = query.join(this.type, this.column);
       query.tables.set(this, name);
     }
 

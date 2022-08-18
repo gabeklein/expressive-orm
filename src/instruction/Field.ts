@@ -50,8 +50,10 @@ abstract class Field {
   constructor(
     public parent: Entity.Type,
     public property: string
-  ){
-    this.column = property;
+  ){}
+
+  get column(){
+    return this.property;
   }
 
   where(query: Query<any>, parent?: string): any {
