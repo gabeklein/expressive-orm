@@ -42,10 +42,13 @@ namespace Field {
 }
 
 abstract class Field {
-  column: string;
   unique?: boolean;
   default?: any;
   nullable?: boolean;
+  primary?: boolean;
+  increment?: boolean;
+
+  abstract datatype: string | undefined;
 
   constructor(
     public parent: Entity.Type,

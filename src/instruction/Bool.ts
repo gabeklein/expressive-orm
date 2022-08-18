@@ -36,6 +36,8 @@ function Bool(options: Bool.Options = {}){
 }
 
 class BooleanColumn extends Field {
+  datatype = "TINYINT";
+
   where(query: Query<any>, key: string){
     return <Bool.Where>{
       is(value: boolean){

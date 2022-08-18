@@ -28,6 +28,8 @@ function Int(options: Int.Options = {}){
   return IntergerColumn.create(options);
 }
 
-class IntergerColumn extends Field {}
+class IntergerColumn extends Field {
+  datatype = "INT";
+}
 
 export default Int;

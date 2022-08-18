@@ -23,6 +23,10 @@ function Primary(arg1?: any, arg2?: any){
   return PrimaryKeyColumn.create({ ...arg2, ...arg1 });
 }
 
-export class PrimaryKeyColumn extends Field {}
+export class PrimaryKeyColumn extends Field {
+  datatype = "INT";
+  primary = true;
+  increment = true;
+}
 
 export default Primary;

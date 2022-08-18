@@ -39,6 +39,9 @@ function Ref<T extends Entity>(arg1: any, arg2?: any): any {
 }
 
 class ForeignKeyColumn extends Field {
+  // todo: depends on corresponding field.
+  datatype = "INT";
+
   where(query: Query<any>, key: string){
     function compare(operator: string){
       return (value: object | number) => {

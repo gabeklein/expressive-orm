@@ -28,6 +28,12 @@ function VarChar(options: VarChar.Options = {}){
   return VarCharColumn.create(options);
 }
 
-class VarCharColumn extends Field {}
+class VarCharColumn extends Field {
+  length = 255;
+
+  get datatype(){
+    return `VARCHAR(${this.length})`;
+  }
+}
 
 export default VarChar;

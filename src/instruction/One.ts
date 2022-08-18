@@ -37,6 +37,7 @@ function One<T extends Entity>(arg1: any, arg2?: any): any {
 
 class OneToManyRelation extends Field {
   type!: Entity.Type;
+  datatype = "INT";
 
   get column(){
     const lowerCase = (str: string, n1: string) => n1.toLowerCase();

@@ -19,6 +19,7 @@ function Many(type: Entity.Type, options?: Many.Options){
 }
 
 class ManyToOneRelation extends Field {
+  datatype = undefined;
   type!: Entity.Type;
 }
 
