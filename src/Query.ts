@@ -92,25 +92,25 @@ class Query<T extends Entity, S = unknown> {
     );
   }
 
-  async fetch(){
-    return [] as unknown[];
-  }
-  
-  async get(limit?: number): Promise<S[]> {
+  async fetch(limit?: number){
+    const qs = this.builder.toString();
+
     if(typeof limit == "number")
       this.builder.limit(limit);
 
-    const results = await this.fetch();
-
-    return this.hydrate(results);
+    return this.table.connection!.query(qs);
+  }
+  
+  async get(limit?: number): Promise<S[]> {
+    return this.hydrate(
+      await this.fetch(limit)
+    );
   }
   
   async getOne(orFail: false): Promise<S | undefined>;
   async getOne(orFail?: boolean): Promise<S>;
   async getOne(orFail?: boolean){
-    this.builder.limit(1);
-
-    const results = await this.fetch();
+    const results = await this.fetch(1);
 
     if(results.length < 1 && orFail)
       throw new Error("No result found.");
@@ -160,9 +160,9 @@ class Query<T extends Entity, S = unknown> {
   select<R>(from: Query.SelectFunction<T, R>): Query<T, R>;
   select(from: Query.SelectFunction<T, S>): this;
   select(from: Query.SelectFunction<T, any>){
-    const alias = this.getTableName();
+    const table = this.getTableName();
     const proxy = this.type.map((field, key) => {
-      return field.select(this, [key], alias);
+      return field.select(this, [key], table);
     })
 
     from.call(proxy, proxy);

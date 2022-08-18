@@ -1,3 +1,4 @@
+import Connection from './Connection';
 import Field from './instruction/Field';
 import Primary from './instruction/Primary';
 import Query from './Query';
@@ -92,7 +93,7 @@ abstract class Entity {
 
   static init<T extends Entity>(
     this: Entity.Type<T>,
-    connection?: Table.Connection){
+    connection?: Connection){
 
     const info = new Table(this, connection);
     REGISTER.set(this, info);

@@ -1,5 +1,6 @@
-import Entity from "./Entity";
-import Field from "./instruction/Field";
+import Connection from './Connection';
+import Entity from './Entity';
+import Field from './instruction/Field';
 
 const describe = Object.getOwnPropertyDescriptor;
 
@@ -7,8 +8,6 @@ const INSTRUCTION = new Map<symbol, Table.Instruction>();
 
 namespace Table {
   export type Instruction = (parent: Entity.Type, key: string) => Field | void;
-
-  export interface Connection {}
 }
 
 class Table {
@@ -17,7 +16,7 @@ class Table {
 
   constructor(
     public entity: Entity.Type,
-    public connection?: Table.Connection){
+    public connection?: Connection){
 
     this.name = /class (\w+?) /.exec(entity.toString())![1];
     this.init();
