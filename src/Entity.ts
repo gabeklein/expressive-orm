@@ -29,8 +29,6 @@ declare namespace Entity {
 abstract class Entity {
   id = Primary();
 
-  constructor(){}
-
   static get table(): Table {
     return REGISTER.get(this) || this.init();
   }
