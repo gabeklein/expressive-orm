@@ -3,7 +3,7 @@ export function escape(...args: string[]){
     return text.startsWith("`") ? text : '`' + text + '`';
   };
 
-  return args.map(backtick).join(".");
+  return args.filter(x => x).map(backtick).join(".");
 }
 
 export function escapeString(text: string){

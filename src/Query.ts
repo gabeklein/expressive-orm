@@ -40,21 +40,28 @@ class Query<T extends Entity, S = unknown> {
 
   public table: Table;
   public selects = new Map<string, Query.Normalize>();
-  public tables = new Map<Field | undefined, () => string>();
+  public tables = new Map<Field | undefined, string>();
 
   constructor(protected type: Entity.Type<T>){
     this.table = type.table;
     this.builder = KNEX.from(type.table.name);
   }
 
+  getTableName(from?: Field){
+    return this.tables.get(from) || "";
+  }
+
   join(type: typeof Entity, on: string, foreignKey?: string){
     const foreign = type.table.name;
+    const local = this.getTableName();
 
     // TODO: pull default from actual entity.
     const fk = escape(foreign, foreignKey || "id");
-    const lk = escape(this.table.name, on);
+    const lk = escape(local, on);
 
-    this.builder.joinRaw(`LEFT JOIN ${escape(foreign)} ON ${fk} = ${lk}`)
+    this.builder.joinRaw(
+      `LEFT JOIN ${escape(foreign)} ON ${fk} = ${lk}`
+    )
 
     return foreign;
   }
@@ -140,8 +147,9 @@ class Query<T extends Entity, S = unknown> {
   }
 
   where(from: Query.WhereFunction<T>){
+    const table = this.getTableName();
     const proxy = this.type.map((field) => {
-      return field.where(this, this.table.name);
+      return field.where(this, table);
     });
 
     from.call(proxy, proxy);
@@ -152,8 +160,9 @@ class Query<T extends Entity, S = unknown> {
   select<R>(from: Query.SelectFunction<T, R>): Query<T, R>;
   select(from: Query.SelectFunction<T, S>): this;
   select(from: Query.SelectFunction<T, any>){
+    const alias = this.getTableName();
     const proxy = this.type.map((field, key) => {
-      return field.select(this, [key], this.table.name)
+      return field.select(this, [key], alias);
     })
 
     from.call(proxy, proxy);
