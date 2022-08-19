@@ -1,5 +1,5 @@
-export function escape(...args: string[]){
-  const backtick = (text: string) => {
+export function escape(...args: (string | undefined)[]){
+  const backtick: any = (text: string) => {
     return text.startsWith("`") ? text : '`' + text + '`';
   };
 

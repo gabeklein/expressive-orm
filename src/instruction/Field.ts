@@ -60,13 +60,9 @@ abstract class Field {
   }
 
   where(query: Query<any>, parent?: string): any {
+    const key = escape(parent!, this.column);
     const compare = (operator: string) =>
       (value: any) => {
-        let key = escape(this.column);
-
-        if(parent)
-          key = escape(parent) + "." + key;
-
         query.compare(key, value, operator);
       }
   
