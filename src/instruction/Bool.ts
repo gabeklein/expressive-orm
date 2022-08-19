@@ -1,4 +1,5 @@
 import Query from '../Query';
+import { escape } from '../utility';
 import Field, { TYPE, WHERE } from './Field';
 
 declare namespace Bool {
@@ -38,14 +39,16 @@ function Bool(options: Bool.Options = {}){
 class BooleanColumn extends Field {
   datatype = "TINYINT";
 
-  where(query: Query<any>, key: string){
-    return <Bool.Where>{
-      is(value: boolean){
-        query.addWhere(key, "=", value);
-      },
-      isNot(value: boolean){
-        query.addWhere(key, "<>", value);
+  where(query: Query<any>, parent?: string){
+    const key = escape(parent, this.column);
+    const compare = (operator: string) =>
+      (value: boolean) => {
+        query.compare(key, value ? 1 : 0, operator);
       }
+
+    return <Bool.Where>{
+      is: compare("="),
+      isNot: compare("<>"),
     }
   };
 }
