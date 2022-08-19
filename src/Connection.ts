@@ -22,36 +22,13 @@ class Connection {
   apply(from: { [key: string | number]: typeof Entity }): void;
   apply(from: {}){
     const entities = Object.values<typeof Entity>(from);
-    const commands = [];
 
     for(const type of entities){
       const table = type.init(this);
-      const tableName = table.name;
-
-      if(this.options.sync){
-        if(this.options.nuke)
-          commands.splice(commands.length / 2, 0,
-            `DROP TABLE IF EXISTS ${tableName};`
-          )
-
-        const statements = [] as string[];
-
-        table.fields.forEach(field => {
-          const sql = createColumnMySQL(field);
-    
-          if(sql)
-            statements.push(sql);
-        });
-    
-        commands.push(
-          `CREATE TABLE IF NOT EXISTS ${tableName} (${statements.join(",")});`
-        )
-      }
-      
       this.managed.set(type, table);
     }
 
-    const sql = commands.join("\n ");
+    const sql = createTableMySQL(this.managed.values());
 
     this.query(sql);
   }
@@ -82,6 +59,36 @@ class Connection {
   close(){
     this.connection.end();
   }
+}
+
+export function createTableMySQL(
+  tables: Iterable<Table>, nuke?: boolean){
+
+  const commands = [];
+
+  for(const table of tables){
+    const tableName = table.name;
+
+    if(nuke)
+      commands.splice(commands.length / 2, 0,
+        `DROP TABLE IF EXISTS ${tableName};`
+      )
+
+    const statements = [] as string[];
+
+    table.fields.forEach(field => {
+      const sql = createColumnMySQL(field);
+
+      if(sql)
+        statements.push(sql);
+    });
+
+    commands.push(
+      `CREATE TABLE IF NOT EXISTS ${tableName} (${statements.join(",")});`
+    )
+  }
+
+  return commands.join("\n ");
 }
 
 export function createColumnMySQL(from: Field){
