@@ -62,9 +62,7 @@ abstract class Field {
   where(query: Query<any>, parent?: string): any {
     const key = qualify(parent!, this.column);
     const compare = (operator: string) =>
-      (value: any) => {
-        query.compare(key, value, operator);
-      }
+      (value: any) => query.compare(key, value, operator);
   
     return {
       is: compare("="),

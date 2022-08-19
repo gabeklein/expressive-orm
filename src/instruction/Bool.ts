@@ -42,11 +42,10 @@ class BooleanColumn extends Field {
   where(query: Query<any>, parent?: string){
     const key = qualify(parent, this.column);
     const compare = (operator: string) =>
-      (value: boolean) => {
+      (value: boolean) =>
         query.compare(key, value ? 1 : 0, operator);
-      }
 
-    return <Bool.Where>{
+    return {
       is: compare("="),
       isNot: compare("<>"),
     }
