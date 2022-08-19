@@ -1,4 +1,4 @@
-export function escape(...args: (string | undefined)[]){
+export function qualify(...args: (string | undefined)[]){
   const backtick: any = (text: string) => {
     return text.startsWith("`") ? text : '`' + text + '`';
   };

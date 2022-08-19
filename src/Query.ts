@@ -4,7 +4,7 @@ import { format } from 'sql-formatter';
 import Entity from './Entity';
 import Field from './instruction/Field';
 import Table from './Table';
-import { escape, escapeString } from './utility';
+import { qualify, escapeString } from './utility';
 
 const KNEX = knex({ client: "mysql" });
 
@@ -56,11 +56,11 @@ class Query<T extends Entity, S = unknown> {
     const local = this.getTableName();
 
     // TODO: pull default from actual entity.
-    const fk = escape(foreign, foreignKey || "id");
-    const lk = escape(local, on);
+    const fk = qualify(foreign, foreignKey || "id");
+    const lk = qualify(local, on);
 
     this.builder.joinRaw(
-      `LEFT JOIN ${escape(foreign)} ON ${fk} = ${lk}`
+      `LEFT JOIN ${qualify(foreign)} ON ${fk} = ${lk}`
     )
 
     return foreign;

@@ -1,5 +1,5 @@
 import Query from '../Query';
-import { escape } from '../utility';
+import { qualify } from '../utility';
 import Field, { TYPE, WHERE } from './Field';
 
 declare namespace Bool {
@@ -40,7 +40,7 @@ class BooleanColumn extends Field {
   datatype = "TINYINT";
 
   where(query: Query<any>, parent?: string){
-    const key = escape(parent, this.column);
+    const key = qualify(parent, this.column);
     const compare = (operator: string) =>
       (value: boolean) => {
         query.compare(key, value ? 1 : 0, operator);

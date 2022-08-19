@@ -3,7 +3,7 @@ import mysql from 'mysql';
 import Entity from './Entity';
 import Field from './instruction/Field';
 import Table from './Table';
-import { escape, escapeString } from './utility';
+import { qualify, escapeString } from './utility';
 
 declare namespace Connection {
   interface Config extends mysql.ConnectionConfig {
@@ -95,7 +95,7 @@ export function createColumnMySQL(from: Field){
   if(from.datatype === undefined)
     return undefined;
 
-  const statement = [escape(from.column), from.datatype];
+  const statement = [qualify(from.column), from.datatype];
 
   if(!from.nullable)
     statement.push("NOT NULL");

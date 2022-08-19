@@ -1,7 +1,7 @@
 import Entity from '../Entity';
 import Query from '../Query';
 import Table from '../Table';
-import { escape } from '../utility';
+import { qualify } from '../utility';
 
 type Class = new (...args: any[]) => any;
 
@@ -60,7 +60,7 @@ abstract class Field {
   }
 
   where(query: Query<any>, parent?: string): any {
-    const key = escape(parent!, this.column);
+    const key = qualify(parent!, this.column);
     const compare = (operator: string) =>
       (value: any) => {
         query.compare(key, value, operator);
