@@ -1,4 +1,3 @@
-import Entity from '../Entity';
 import Query from '../Query';
 import Table from '../Table';
 import { qualify } from '../utility';
@@ -51,12 +50,17 @@ abstract class Field {
   abstract datatype: string | undefined;
 
   constructor(
-    public parent: Entity.Type,
+    public table: Table,
     public property: string
   ){}
 
   get column(){
     return this.property;
+  }
+
+  init(key: string, options?: Partial<this>){
+    this.table.fields.set(key, this);
+    Object.assign(this, options);
   }
 
   where(query: Query<any>, parent?: string): any {
@@ -96,7 +100,9 @@ abstract class Field {
     this: T, options?: Partial<InstanceType<T>>){
 
     return Table.apply((parent, key) => {
-      return Object.assign(new this(parent, key), options);
+      const instance = new this(parent, key) as Field;
+      instance.init(key, options);
+      return instance;
     })
   }
 }

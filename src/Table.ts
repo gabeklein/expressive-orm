@@ -7,7 +7,7 @@ const describe = Object.getOwnPropertyDescriptor;
 const INSTRUCTION = new Map<symbol, Table.Instruction>();
 
 namespace Table {
-  export type Instruction = (parent: Entity.Type, key: string) => Field | void;
+  export type Instruction = (parent: Table, key: string) => void;
 }
 
 class Table {
@@ -40,16 +40,10 @@ class Table {
       const { value } = describe(sample, key)!;
       const instruction = INSTRUCTION.get(value);    
 
-      if(!instruction)
-        continue;
-
-      delete (sample as any)[key];
-      INSTRUCTION.delete(value);
-
-      const field = instruction(this.entity, key);
-
-      if(field)
-        this.fields.set(key, field);
+      if(instruction){
+        INSTRUCTION.delete(value);
+        instruction(this, key);
+      }
     }
   }
 
