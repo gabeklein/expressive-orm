@@ -42,12 +42,10 @@ class OneToManyRelation extends Field {
   init(options: Partial<this>){
     super.init(options);
 
-    if(options.column)
-      return;
-
-    const { name } = this.type.table;
-    const lowerCase = (_: string, n1: string) => n1.toLowerCase();
-    this.column = name.replace(/(^[A-Z])/i, lowerCase) + "Id";
+    if(!options.column){
+      const { name } = this.type.table;
+      this.column = name[0].toLowerCase() + name.slice(1) + "Id";
+    }
   }
 
   join(query: Query<any>){
