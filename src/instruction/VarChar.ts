@@ -2,7 +2,7 @@ import Field, { TYPE, WHERE } from './Field';
 
 declare namespace VarChar {
   type Value = string & MetaData;
-  type Optional = Value | undefined | null;
+  type Nullable = Value | undefined | null;
 
   interface MetaData {
     [TYPE]?: VarCharColumn;
@@ -16,13 +16,13 @@ declare namespace VarChar {
     nullable?: boolean;
   }
 
-  interface Nullable extends Options {
+  interface Optional extends Options {
     nullable: true;
   }
 }
 
 function VarChar(): VarChar.Value;
-function VarChar(options: VarChar.Nullable): VarChar.Optional;
+function VarChar(options: VarChar.Optional): VarChar.Nullable;
 function VarChar(options: VarChar.Options): VarChar.Value;
 function VarChar(options: VarChar.Options = {}){
   return VarCharColumn.create(options);

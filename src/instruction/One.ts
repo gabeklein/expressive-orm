@@ -8,7 +8,7 @@ declare namespace One {
     [WHERE]?: Query.Where<T>
   }
 
-  type Optional<T extends Entity> = Field<T> | undefined | null;
+  type Nullable<T extends Entity> = Field<T> | undefined | null;
 
   interface Options<T extends Entity> {
     type?: Entity.Type<T>;
@@ -16,7 +16,7 @@ declare namespace One {
     nullable?: boolean;
   }
 
-  interface Nullable<T extends Entity> extends Options<T> {
+  interface Optional<T extends Entity> extends Options<T> {
     nullable: true;
   }
 }
@@ -24,9 +24,9 @@ declare namespace One {
 type One<T extends Entity> = One.Field<T>;
 
 function One<T extends Entity>(type: Entity.Type<T>): One.Field<T>;
-function One<T extends Entity>(type: Entity.Type<T>, options: One.Nullable<T>): One.Optional<T>;
+function One<T extends Entity>(type: Entity.Type<T>, options: One.Optional<T>): One.Nullable<T>;
 function One<T extends Entity>(type: Entity.Type<T>, options: One.Options<T>): One.Field<T>;
-function One<T extends Entity>(options: One.Nullable<T>): One.Optional<T>;
+function One<T extends Entity>(options: One.Optional<T>): One.Nullable<T>;
 function One<T extends Entity>(options: One.Options<T>): One.Field<T>;
 function One<T extends Entity>(arg1: any, arg2?: any): any {
   if(typeof arg1 == "function")

@@ -4,7 +4,7 @@ import Field, { TYPE, WHERE } from './Field';
 
 declare namespace Bool {
   type Value = boolean & MetaData;
-  type Optional = Value | undefined | null;
+  type Nullable = Value | undefined | null;
 
   interface MetaData {
     [TYPE]?: BooleanColumn;
@@ -16,7 +16,7 @@ declare namespace Bool {
     nullable?: boolean;
   }
 
-  interface Nullable extends Options {
+  interface Optional extends Options {
     nullable: true;
   }
 
@@ -30,7 +30,7 @@ declare namespace Bool {
 }
 
 function Bool(): Bool.Value;
-function Bool(options: Bool.Nullable): Bool.Optional;
+function Bool(options: Bool.Optional): Bool.Nullable;
 function Bool(options: Bool.Options): Bool.Value;
 function Bool(options: Bool.Options = {}){
   return BooleanColumn.create(options);
