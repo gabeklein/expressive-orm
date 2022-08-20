@@ -39,9 +39,15 @@ class OneToManyRelation extends Field {
   type!: Entity.Type;
   datatype = "INT";
 
-  get column(){
-    const lowerCase = (str: string, n1: string) => n1.toLowerCase();
-    return this.type.table.name.replace(/(^[A-Z])/i, lowerCase) + "Id";
+  init(options: Partial<this>){
+    super.init(options);
+
+    if(options.column)
+      return;
+
+    const { name } = this.type.table;
+    const lowerCase = (_: string, n1: string) => n1.toLowerCase();
+    this.column = name.replace(/(^[A-Z])/i, lowerCase) + "Id";
   }
 
   join(query: Query<any>){

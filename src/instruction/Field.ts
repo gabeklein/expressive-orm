@@ -47,16 +47,15 @@ class Field {
   nullable?: boolean;
   primary?: boolean;
   increment?: boolean;
+  column: string;
 
   datatype: string | undefined;
 
   constructor(
     public table: Table,
     public property: string
-  ){}
-
-  get column(){
-    return this.property;
+  ){
+    this.column = property;
   }
 
   init(options?: Partial<this>){
