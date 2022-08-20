@@ -40,15 +40,7 @@ abstract class Entity {
     this: Entity.Type<T>,
     getValue: (type: Field, key: string) => any
   ){
-    const proxy = {} as any;
-
-    this.table.fields.forEach((type, key) => {
-      Object.defineProperty(proxy, key, {
-        get: () => getValue(type, key as any)
-      })
-    })
-    
-    return proxy;
+    return this.table.map(getValue);
   }
 
   static async getOne<T extends Entity, R>(

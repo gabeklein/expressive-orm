@@ -22,6 +22,17 @@ class Table {
     this.init();
   }
 
+  map(getter: (type: Field, key: string) => any){
+    const proxy = {} as any;
+
+    for(const [key, type] of this.fields)
+      Object.defineProperty(proxy, key, {
+        get: () => getter(type, key)
+      })
+    
+    return proxy;
+  }
+
   private init(){
     const sample = new (this.entity as any)();
     
