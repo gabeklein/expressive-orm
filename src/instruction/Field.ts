@@ -2,8 +2,6 @@ import Query from '../Query';
 import Table from '../Table';
 import { qualify } from '../utility';
 
-type Class = new (...args: any[]) => any;
-
 /**
  * Non-existant symbol lets us associate a
  * Field class with an entity-compatible type.
@@ -17,8 +15,11 @@ export declare const TYPE: unique symbol;
 export declare const WHERE: unique symbol;
 
 namespace Field {
+  export type Type<T extends Field = Field> =
+    typeof Field & (new (...args: any[]) => T);
+
   /** Using symbol, infer Field type for a given property. */
-  export type Type<T> = { [TYPE]?: T };
+  export type Typeof<T> = { [TYPE]?: T };
 
   /** Using symbol, infer assertions for a given property. */
   export type Assertions<T> = { [WHERE]?: T };
@@ -40,14 +41,14 @@ namespace Field {
   }
 }
 
-abstract class Field {
+class Field {
   unique?: boolean;
   default?: any;
   nullable?: boolean;
   primary?: boolean;
   increment?: boolean;
 
-  abstract datatype: string | undefined;
+  datatype: string | undefined;
 
   constructor(
     public table: Table,
@@ -96,11 +97,11 @@ abstract class Field {
     });
   };
 
-  static create<T extends Class>(
-    this: T, options?: Partial<InstanceType<T>>){
+  static create<T extends Field>(
+    this: Field.Type<T>, options?: Partial<T>){
 
     return Table.apply((parent, key) => {
-      const instance = new this(parent, key) as Field;
+      const instance = new this(parent, key);
       instance.init(key, options);
       return instance;
     })
