@@ -17,7 +17,7 @@ declare namespace VarChar {
   }
 
   interface Optional extends Options {
-    nullable: true;
+    nullable?: true;
   }
 }
 

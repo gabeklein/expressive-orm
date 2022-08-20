@@ -17,7 +17,7 @@ declare namespace Ref {
   }
 
   interface Optional<T extends Entity> extends Options<T> {
-    nullable: true;
+    nullable?: true;
   }
 
   export interface Where<T> {

@@ -17,7 +17,7 @@ declare namespace One {
   }
 
   interface Optional<T extends Entity> extends Options<T> {
-    nullable: true;
+    nullable?: true;
   }
 }
 
