@@ -59,8 +59,8 @@ class Field {
     return this.property;
   }
 
-  init(key: string, options?: Partial<this>){
-    this.table.fields.set(key, this);
+  init(options?: Partial<this>){
+    this.table.fields.set(this.property, this);
     Object.assign(this, options);
   }
 
@@ -102,7 +102,7 @@ class Field {
 
     return Table.apply((parent, key) => {
       const instance = new this(parent, key);
-      instance.init(key, options);
+      instance.init(options);
       return instance;
     })
   }

@@ -31,9 +31,9 @@ function VarChar(options: VarChar.Options = {}){
 class VarCharColumn extends Field {
   length = 255;
 
-  init(key: string, options: Partial<this>){
+  init(options: Partial<this>){
     this.datatype = `VARCHAR(${this.length})`;
-    super.init(key, options);
+    super.init(options);
   }
 }
 
