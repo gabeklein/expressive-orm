@@ -1,9 +1,9 @@
 import mysql from 'mysql';
 
-import Entity from './Entity';
-import Field from './instruction/Field';
-import Table from './Table';
-import { qualify, escapeString } from './utility';
+import Entity from '../Entity';
+import Field from '../instruction/Field';
+import Table from '../Table';
+import { qualify, escapeString } from '../utility';
 
 declare namespace Connection {
   interface Config extends mysql.ConnectionConfig {

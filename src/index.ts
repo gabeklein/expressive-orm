@@ -6,7 +6,7 @@ import VarChar from './instruction/VarChar';
 import Ref from './instruction/Ref';
 import Entity from './Entity';
 import Query from './Query';
-import Connection from './Connection';
+import Connection from './connection/Connection';
 
 export {
   Bool,

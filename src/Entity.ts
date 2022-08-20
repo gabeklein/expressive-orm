@@ -1,4 +1,4 @@
-import Connection from './Connection';
+import Connection from './connection/Connection';
 import Field from './instruction/Field';
 import Primary from './instruction/Primary';
 import Query from './Query';
