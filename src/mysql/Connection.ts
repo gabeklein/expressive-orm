@@ -4,9 +4,9 @@ import Definition from '../Definition';
 import Field from '../instruction/Field';
 import { OneToManyRelation } from '../instruction/One';
 import { escapeString, qualify } from '../utility';
-import Connection from './Connection';
+import Connection from '../connection/Connection';
 
-declare namespace MySQL {
+declare namespace MySQLConnection {
   interface Config extends mysql.ConnectionConfig {
     dry?: boolean;
     maxConnections?: number;
@@ -15,11 +15,11 @@ declare namespace MySQL {
   }
 }
 
-class MySQL extends Connection {
-  options: MySQL.Config;
+class MySQLConnection extends Connection {
+  options: MySQLConnection.Config;
   connection?: mysql.Connection | mysql.Pool;
 
-  constructor(opts: MySQL.Config = {}){
+  constructor(opts: MySQLConnection.Config = {}){
     super();
 
     const config: mysql.ConnectionConfig = {
@@ -73,7 +73,7 @@ class MySQL extends Connection {
   }
 }
 
-export default MySQL;
+export default MySQLConnection;
 
 export function dropTablesMySQL(tables: Definition[]){
   const commands = [];
