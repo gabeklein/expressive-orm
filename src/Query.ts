@@ -93,10 +93,10 @@ class Query<T extends Entity, S = unknown> {
   }
 
   async fetch(limit?: number){
-    const qs = this.builder.toString();
-
     if(typeof limit == "number")
       this.builder.limit(limit);
+
+    const qs = this.builder.toString();
 
     return this.table.connection!.query(qs);
   }
