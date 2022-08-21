@@ -1,6 +1,6 @@
 import Field, { TYPE, WHERE } from './Field';
 
-declare namespace VarChar {
+declare namespace String {
   type Value = string & MetaData;
   type Nullable = Value | undefined | null;
 
@@ -21,13 +21,13 @@ declare namespace VarChar {
   }
 }
 
-function VarChar(): VarChar.Value;
-function VarChar(column: string): VarChar.Value;
-function VarChar(column: string, options: VarChar.Optional): VarChar.Nullable;
-function VarChar(column: string, options: VarChar.Options): VarChar.Value;
-function VarChar(options: VarChar.Optional): VarChar.Nullable;
-function VarChar(options: VarChar.Options): VarChar.Value;
-function VarChar(arg1?: any, arg2?: any): any {
+function String(): String.Value;
+function String(column: string): String.Value;
+function String(column: string, options: String.Optional): String.Nullable;
+function String(column: string, options: String.Options): String.Value;
+function String(options: String.Optional): String.Nullable;
+function String(options: String.Options): String.Value;
+function String(arg1?: any, arg2?: any): any {
   if(typeof arg1 == "string")
     arg1 = { column: arg1 };
 
@@ -43,4 +43,4 @@ class VarCharColumn extends Field {
   }
 }
 
-export default VarChar;
+export default String;

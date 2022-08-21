@@ -1,7 +1,7 @@
 import Entity from '../Entity';
 import Int from './Int';
 import One from './One';
-import VarChar from './VarChar';
+import String from './String';
 
 it("will query nested relationships", () => {
   class A extends Entity {
@@ -12,7 +12,7 @@ it("will query nested relationships", () => {
   }
   class C extends Entity {
     value = Int();
-    label = VarChar();
+    label = String();
   }
 
   const query = A.query({

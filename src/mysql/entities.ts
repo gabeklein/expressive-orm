@@ -1,6 +1,6 @@
 import Entity from '../Entity';
 import Table from '../instruction/Table';
-import String from '../instruction/VarChar';
+import String from '../instruction/String';
 
 export class ColumnInfo extends Entity {
   table = Table("information_schema.columns");
