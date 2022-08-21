@@ -18,9 +18,9 @@ function Primary(column: string, options?: Primary.Options): Primary.Key;
 function Primary(options: Primary.Options): Primary.Key;
 function Primary(arg1?: any, arg2?: any){
   if(typeof arg1 == "string")
-    arg1 = { column: arg1 };
+    arg1 = { ...arg2, column: arg1 };
 
-  return PrimaryKeyColumn.create({ ...arg2, ...arg1 });
+  return PrimaryKeyColumn.create(arg1);
 }
 
 export class PrimaryKeyColumn extends Field {

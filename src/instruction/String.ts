@@ -14,6 +14,8 @@ declare namespace String {
     unique?: boolean;
     default?: string;
     nullable?: boolean;
+    type?: "text" | "mediumtext" | "longtext";
+    length?: number;
   }
 
   interface Optional extends Options {
@@ -29,9 +31,9 @@ function String(options: String.Optional): String.Nullable;
 function String(options: String.Options): String.Value;
 function String(arg1?: any, arg2?: any): any {
   if(typeof arg1 == "string")
-    arg1 = { column: arg1 };
+    arg1 = { ...arg2, column: arg1 };
 
-  return VarCharColumn.create({ ...arg2, ...arg1 });
+  return VarCharColumn.create(arg1);
 }
 
 class VarCharColumn extends Field {

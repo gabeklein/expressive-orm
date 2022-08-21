@@ -30,9 +30,9 @@ function One<T extends Entity>(options: One.Optional<T>): One.Nullable<T>;
 function One<T extends Entity>(options: One.Options<T>): One.Field<T>;
 function One<T extends Entity>(arg1: any, arg2?: any): any {
   if(typeof arg1 == "function")
-    arg1 = { type: arg1 };
+    arg1 = { ...arg2, type: arg1 };
 
-  return OneToManyRelation.create({ ...arg2, ...arg1 });
+  return OneToManyRelation.create(arg1);
 }
 
 class OneToManyRelation extends Field {

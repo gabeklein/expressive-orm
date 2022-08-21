@@ -33,9 +33,9 @@ function Ref<T extends Entity>(options: Ref.Optional<T>): Ref.Nullable<T>;
 function Ref<T extends Entity>(options: Ref.Options<T>): Ref.Value<T>;
 function Ref<T extends Entity>(arg1: any, arg2?: any): any {
   if(typeof arg1 == "function")
-    arg1 = { type: arg1 };
+    arg1 = { ...arg2, type: arg1 };
 
-  return ForeignKeyColumn.create({ ...arg2, ...arg1 });
+  return ForeignKeyColumn.create(arg1);
 }
 
 class ForeignKeyColumn extends Field {
