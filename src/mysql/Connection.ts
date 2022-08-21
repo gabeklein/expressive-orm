@@ -1,10 +1,7 @@
-import mysql, { escapeId } from 'mysql';
+import mysql from 'mysql';
 
-import Definition from '../Definition';
-import Field from '../instruction/Field';
-import { OneToManyRelation } from '../instruction/One';
-import { escapeString, qualify } from '../utility';
 import Connection from '../connection/Connection';
+import { addTableConstraints, createTableMySQL, dropTablesMySQL } from './generate';
 
 declare namespace MySQLConnection {
   interface Config extends mysql.ConnectionConfig {
@@ -74,85 +71,3 @@ class MySQLConnection extends Connection {
 }
 
 export default MySQLConnection;
-
-export function dropTablesMySQL(tables: Definition[]){
-  const commands = [];
-
-  for(const table of tables)
-    commands.push(`DROP TABLE IF EXISTS ${table.name}`);
-
-  return commands;
-}
-
-export function createTableMySQL(tables: Definition[]){
-  const commands = [];
-
-  for(const table of tables){
-    const tableName = table.name;
-    const statements = [] as string[];
-
-    table.fields.forEach(field => {
-      const sql = createColumnMySQL(field);
-
-      if(sql)
-        statements.push(sql);
-    });
-
-    commands.push(
-      `CREATE TABLE IF NOT EXISTS ${tableName} (${statements.join(",")})`
-    )
-  }
-
-  return commands;
-}
-
-export function addTableConstraints(tables: Definition[]){
-  const commands = [] as string[];
-
-  for(const table of tables){
-    const statement = [] as string[];
-
-    table.fields.forEach(field => {
-      if(field instanceof OneToManyRelation){
-          const { type, column, constraintName } = field;
-          const foreignName = type.table.name;
-      
-          statement.push([
-            `ADD`,
-            constraintName ? `CONSTRAINT ${escapeId(constraintName)}` : "",
-            `FOREIGN KEY (${column})`,
-            `REFERENCES ${foreignName}(id)`
-          ].join(" "));
-        }
-    })
-
-    if(statement.length){
-      commands.push(
-        `ALTER TABLE ${table.name} ${statement.join(", ")}`
-      )
-    }
-  }
-
-  return commands;
-}
-
-export function createColumnMySQL(from: Field){
-  if(from.datatype === undefined)
-    return;
-
-  const statement = [qualify(from.column), from.datatype];
-
-  if(!from.nullable)
-    statement.push("NOT NULL");
-
-  if(from.default !== undefined)
-    statement.push(`DEFAULT ${escapeString(from.default)}`);
-
-  if(from.datatype == "INT" && from.increment)
-    statement.push("AUTO_INCREMENT");
-
-  if(from.primary)
-    statement.push("PRIMARY KEY");
-
-  return statement.join(" ");
-}
