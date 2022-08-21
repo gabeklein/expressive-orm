@@ -22,10 +22,16 @@ declare namespace VarChar {
 }
 
 function VarChar(): VarChar.Value;
+function VarChar(column: string): VarChar.Value;
+function VarChar(column: string, options: VarChar.Optional): VarChar.Nullable;
+function VarChar(column: string, options: VarChar.Options): VarChar.Value;
 function VarChar(options: VarChar.Optional): VarChar.Nullable;
 function VarChar(options: VarChar.Options): VarChar.Value;
-function VarChar(options: VarChar.Options = {}){
-  return VarCharColumn.create(options);
+function VarChar(arg1?: any, arg2?: any): any {
+  if(typeof arg1 == "string")
+    arg1 = { column: arg1 };
+
+  return VarCharColumn.create({ ...arg2, ...arg1 });
 }
 
 class VarCharColumn extends Field {
