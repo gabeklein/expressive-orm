@@ -1,5 +1,5 @@
 import Query from '../Query';
-import Table from '../Table';
+import Definition from '../Definition';
 import { qualify } from '../utility';
 
 /**
@@ -52,7 +52,7 @@ class Field {
   datatype: string | undefined;
 
   constructor(
-    public table: Table,
+    public table: Definition,
     public property: string
   ){
     this.column = property;
@@ -100,7 +100,7 @@ class Field {
   static create<T extends Field>(
     this: Field.Type<T>, options?: Partial<T>){
 
-    return Table.apply((parent, key) => {
+    return Definition.apply((parent, key) => {
       const instance = new this(parent, key);
       instance.init(options);
       return instance;

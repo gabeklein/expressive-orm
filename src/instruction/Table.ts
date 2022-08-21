@@ -1,4 +1,4 @@
-import Control from "../Table";
+import Control from "../Definition";
 
 namespace Table {
   export interface Options {

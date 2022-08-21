@@ -1,8 +1,8 @@
 import mysql, { escapeId } from 'mysql';
 
+import Definition from '../Definition';
 import Field from '../instruction/Field';
 import { OneToManyRelation } from '../instruction/One';
-import Table from '../Table';
 import { escapeString, qualify } from '../utility';
 import Connection from './Connection';
 
@@ -75,7 +75,7 @@ class MySQL extends Connection {
 
 export default MySQL;
 
-export function dropTablesMySQL(tables: Iterable<Table>){
+export function dropTablesMySQL(tables: Definition[]){
   const commands = [];
 
   for(const table of tables)
@@ -84,7 +84,7 @@ export function dropTablesMySQL(tables: Iterable<Table>){
   return commands;
 }
 
-export function createTableMySQL(tables: Iterable<Table>){
+export function createTableMySQL(tables: Definition[]){
   const commands = [];
 
   for(const table of tables){
@@ -106,7 +106,7 @@ export function createTableMySQL(tables: Iterable<Table>){
   return commands;
 }
 
-export function addTableConstraints(tables: Iterable<Table>){
+export function addTableConstraints(tables: Definition[]){
   const commands = [] as string[];
 
   for(const table of tables){

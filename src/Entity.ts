@@ -2,7 +2,7 @@ import Connection from './connection/Connection';
 import Field from './instruction/Field';
 import Primary from './instruction/Primary';
 import Query from './Query';
-import Table from './Table';
+import Definition from './Definition';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
@@ -25,7 +25,7 @@ declare namespace Entity {
 }
 
 abstract class Entity {
-  table!: Table;
+  table!: Definition;
 
   id = Primary();
 
@@ -33,16 +33,16 @@ abstract class Entity {
     Object.defineProperty(this, "table", {
       configurable: true,
       get(){
-        return Table.get(this.constructor);
+        return Definition.get(this.constructor);
       },
       set(callback: any){
-        Table.get(this.constructor).apply(callback, "table");
+        Definition.get(this.constructor).apply(callback, "table");
       }
     })
   }
 
-  static get table(): Table {
-    return Table.get(this);
+  static get table(): Definition {
+    return Definition.get(this);
   }
 
   /**
@@ -97,7 +97,7 @@ abstract class Entity {
     this: Entity.Type<T>,
     connection?: Connection){
 
-    return new Table(this, connection);
+    return new Definition(this, connection);
   }
 }
 

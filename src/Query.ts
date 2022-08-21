@@ -3,7 +3,7 @@ import { format } from 'sql-formatter';
 
 import Entity from './Entity';
 import Field from './instruction/Field';
-import Table from './Table';
+import Definition from './Definition';
 import { qualify, escapeString } from './utility';
 
 const KNEX = knex({ client: "mysql" });
@@ -38,7 +38,7 @@ namespace Query {
 class Query<T extends Entity, S = unknown> {
   protected builder: Knex.QueryBuilder;
 
-  public table: Table;
+  public table: Definition;
   public selects = new Map<string, Query.Normalize>();
   public tables = new Map<Field | undefined, string>();
 

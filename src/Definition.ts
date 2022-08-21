@@ -4,14 +4,14 @@ import Field from './instruction/Field';
 
 const describe = Object.getOwnPropertyDescriptor;
 
-const REGISTER = new Map<Entity.Type, Table>();
-const INSTRUCTION = new Map<symbol, Table.Instruction>();
+const REGISTER = new Map<Entity.Type, Definition>();
+const INSTRUCTION = new Map<symbol, Definition.Instruction>();
 
-namespace Table {
-  export type Instruction = (parent: Table, key: string) => void;
+namespace Definition {
+  export type Instruction = (parent: Definition, key: string) => void;
 }
 
-class Table {
+class Definition {
   fields = new Map<string, Field>();
   name: string;
 
@@ -55,11 +55,11 @@ class Table {
     return REGISTER.get(type) || type.init();
   }
 
-  static apply(instruction: Table.Instruction){
+  static apply(instruction: Definition.Instruction){
     const placeholder = Symbol(`ORM instruction`);
     INSTRUCTION.set(placeholder, instruction);
     return placeholder as any;
   }
 }
 
-export default Table;
+export default Definition;

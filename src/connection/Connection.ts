@@ -1,8 +1,8 @@
 import Entity from '../Entity';
-import Table from '../Table';
+import Definition from '../Definition';
 
 abstract class Connection {
-  managed = new Map<typeof Entity, Table>();
+  managed = new Map<typeof Entity, Definition>();
 
   abstract query(queryString: string): Promise<any>;
 
