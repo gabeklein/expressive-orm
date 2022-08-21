@@ -1,6 +1,7 @@
 import mysql from 'mysql';
 
 import Connection from '../connection/Connection';
+import { ColumnInfo } from './entities';
 import { addTableConstraints, createTableMySQL, dropTablesMySQL } from './generate';
 
 declare namespace MySQLConnection {
@@ -30,6 +31,8 @@ class MySQLConnection extends Connection {
       this.connection = opts.maxConnections! > 1
         ? mysql.createPool(config)
         : mysql.createConnection(config);
+
+    ColumnInfo.init(this);
   }
 
   query<T extends {} = any>(qs: string){
