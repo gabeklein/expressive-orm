@@ -14,7 +14,7 @@ declare namespace String {
     unique?: boolean;
     default?: string;
     nullable?: boolean;
-    type?: "text" | "mediumtext" | "longtext";
+    type?: "varchar" | "text" | "tinytext" | "mediumtext" | "longtext";
     length?: number;
   }
 
@@ -23,26 +23,38 @@ declare namespace String {
   }
 }
 
+const LENGTH_DEFAULT = {
+  "varchar": 2^8, // 256B
+  "tinytext": 2^8, // 256B
+  "text": 2^12, // 64KB
+  "mediumtext": 2^24, // 16MB
+  "longtext": 2^32 // 4GB
+}
+
 function String(): String.Value;
 function String(column: string): String.Value;
 function String(column: string, options: String.Optional): String.Nullable;
 function String(column: string, options: String.Options): String.Value;
 function String(options: String.Optional): String.Nullable;
 function String(options: String.Options): String.Value;
-function String(arg1?: any, arg2?: any): any {
+function String(
+  arg1: string | String.Options = {},
+  arg2?: String.Options): any {
+
   if(typeof arg1 == "string")
     arg1 = { ...arg2, column: arg1 };
 
-  return VarCharColumn.create(arg1);
+  let datatype = arg1.type || "varchar";
+
+  if(!arg1.length)
+    arg1.length = LENGTH_DEFAULT[datatype] - 1;
+
+  if(datatype == "varchar")
+    datatype += `(${arg1.length})`;
+
+  return VarCharColumn.create({ datatype, ...arg1 });
 }
 
-class VarCharColumn extends Field {
-  length = 255;
-
-  init(options: Partial<this>){
-    this.datatype = `VARCHAR(${this.length})`;
-    super.init(options);
-  }
-}
+class VarCharColumn extends Field {}
 
 export default String;
