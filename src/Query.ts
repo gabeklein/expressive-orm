@@ -47,6 +47,11 @@ class Query<T extends Entity, S = unknown> {
     this.builder = KNEX.from(type.table.name);
   }
 
+  // TODO: include per-field translation
+  mapper(idenity: any){
+    return idenity;
+  }
+
   getTableName(from?: Field){
     return this.tables.get(from) || "";
   }
@@ -137,8 +142,8 @@ class Query<T extends Entity, S = unknown> {
         if(maybePromise instanceof Promise)
           ops.push(maybePromise);
       });
-      
-      return output;
+
+      return this.mapper(output);
     });
 
     await Promise.all(ops);
@@ -166,6 +171,7 @@ class Query<T extends Entity, S = unknown> {
     })
 
     from.call(proxy, proxy);
+    this.mapper = from;
 
     return this;
   }
