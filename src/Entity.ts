@@ -25,7 +25,21 @@ declare namespace Entity {
 }
 
 abstract class Entity {
+  table!: Table;
+
   id = Primary();
+
+  constructor(){
+    Object.defineProperty(this, "table", {
+      configurable: true,
+      get(){
+        return Table.get(this.constructor);
+      },
+      set(callback: any){
+        Table.get(this.constructor).apply(callback, "table");
+      }
+    })
+  }
 
   static get table(): Table {
     return Table.get(this);
