@@ -38,13 +38,18 @@ function One<T extends Entity>(arg1: any, arg2?: any): any {
 class OneToManyRelation extends Field {
   type!: Entity.Type;
   datatype = "INT";
+  constraintName?: string; 
 
   init(options: Partial<this>){
     super.init(options);
 
+    const foreign = this.type.table.name;
+    const local = this.table.name;
+
+    this.constraintName = `FK_${foreign}${local}`;
+
     if(!options.column){
-      const { name } = this.type.table;
-      this.column = name[0].toLowerCase() + name.slice(1) + "Id";
+      this.column = foreign[0].toLowerCase() + foreign.slice(1) + "Id";
     }
   }
 
@@ -77,3 +82,4 @@ class OneToManyRelation extends Field {
 }
 
 export default One;
+export { OneToManyRelation };
