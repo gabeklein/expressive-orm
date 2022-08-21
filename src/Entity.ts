@@ -4,8 +4,6 @@ import Primary from './instruction/Primary';
 import Query from './Query';
 import Table from './Table';
 
-const REGISTER = new Map<Entity.Type, Table>();
-
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
 declare namespace Entity {
@@ -30,7 +28,7 @@ abstract class Entity {
   id = Primary();
 
   static get table(): Table {
-    return REGISTER.get(this) || this.init();
+    return Table.get(this);
   }
 
   /**
@@ -85,9 +83,7 @@ abstract class Entity {
     this: Entity.Type<T>,
     connection?: Connection){
 
-    const info = new Table(this, connection);
-    REGISTER.set(this, info);
-    return info;
+    return new Table(this, connection);
   }
 }
 

@@ -4,6 +4,7 @@ import Field from './instruction/Field';
 
 const describe = Object.getOwnPropertyDescriptor;
 
+const REGISTER = new Map<Entity.Type, Table>();
 const INSTRUCTION = new Map<symbol, Table.Instruction>();
 
 namespace Table {
@@ -18,8 +19,16 @@ class Table {
     public entity: Entity.Type,
     public connection?: Connection){
 
+    REGISTER.set(entity, this);
+
     this.name = /class (\w+?) /.exec(entity.toString())![1];
-    this.init();
+    
+    const sample = new (this.entity as any)();
+    
+    for(const key in sample){
+      const desc = describe(sample, key)!;
+      this.apply(desc.value, key);
+    }
   }
 
   map(getter: (type: Field, key: string) => any){
@@ -33,18 +42,17 @@ class Table {
     return proxy;
   }
 
-  private init(){
-    const sample = new (this.entity as any)();
-    
-    for(const key in sample){
-      const { value } = describe(sample, key)!;
-      const instruction = INSTRUCTION.get(value);    
+  apply(value: any, key: string){
+    const instruction = INSTRUCTION.get(value);    
 
-      if(instruction){
-        INSTRUCTION.delete(value);
-        instruction(this, key);
-      }
+    if(instruction){
+      INSTRUCTION.delete(value);
+      instruction(this, key);
     }
+  }
+
+  static get(type: Entity.Type){
+    return REGISTER.get(type) || type.init();
   }
 
   static apply(instruction: Table.Instruction){
