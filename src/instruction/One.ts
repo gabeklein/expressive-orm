@@ -49,6 +49,8 @@ class OneToManyRelation extends Field {
     const foreignKey = "id";
     const local = `FK_${foreign.name}${this.table.name}`;
 
+    this.table.dependancies.add(foreign);
+
     if(!options.column)
       this.column = lowercase(foreign.name) + "Id";
 

@@ -13,6 +13,7 @@ namespace Definition {
 
 class Definition {
   fields = new Map<string, Field>();
+  dependancies = new Set<Definition>();
   name: string;
   schema: string;
 
