@@ -43,8 +43,11 @@ class Query<T extends Entity, S = unknown> {
   public tables = new Map<Field | undefined, string>();
 
   constructor(protected type: Entity.Type<T>){
+    const { name, schema } = type.table;
+    const from = schema ? `${schema}.${name}` : name;
+
     this.table = type.table;
-    this.builder = KNEX.from(type.table.name);
+    this.builder = KNEX.from(from);
   }
 
   // TODO: include per-field translation

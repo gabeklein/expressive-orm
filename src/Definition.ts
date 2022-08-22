@@ -14,6 +14,7 @@ namespace Definition {
 class Definition {
   fields = new Map<string, Field>();
   name: string;
+  schema: string;
 
   constructor(
     public entity: Entity.Type,
@@ -22,6 +23,7 @@ class Definition {
     REGISTER.set(entity, this);
 
     this.name = /class (\w+?) /.exec(entity.toString())![1];
+    this.schema = "";
     
     const sample = new (this.entity as any)();
     
