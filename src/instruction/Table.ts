@@ -10,7 +10,7 @@ namespace Table {
 function Table(name: string, opts?: Table.Options): Control;
 function Table(opts: Table.Options): Control;
 function Table(arg1: string | Table.Options, arg2?: Table.Options){
-  return Control.apply((parent) => {
+  return Control.use((parent) => {
     if(typeof arg1 == "string"){
       const [name, schema] = arg1.split(".").reverse();
 

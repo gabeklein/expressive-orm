@@ -58,7 +58,7 @@ class Definition {
     return REGISTER.get(type) || type.init();
   }
 
-  static apply(instruction: Definition.Instruction){
+  static use(instruction: Definition.Instruction){
     const placeholder = Symbol(`ORM instruction`);
     INSTRUCTION.set(placeholder, instruction);
     return placeholder as any;
