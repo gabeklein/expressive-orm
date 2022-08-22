@@ -1,5 +1,6 @@
 import Entity from '../Entity';
 import Query from '../Query';
+import { lowercase } from '../utility';
 import Field, { TYPE, WHERE } from './Field';
 
 declare namespace One {
@@ -46,11 +47,10 @@ class OneToManyRelation extends Field {
     const foreign = this.type.table.name;
     const local = this.table.name;
 
-    this.constraintName = `FK_${foreign}${local}`;
+    if(!options.column)
+      this.column = lowercase(foreign) + "Id";
 
-    if(!options.column){
-      this.column = foreign[0].toLowerCase() + foreign.slice(1) + "Id";
-    }
+    this.constraintName = `FK_${foreign}${local}`;
   }
 
   join(query: Query<any>){
