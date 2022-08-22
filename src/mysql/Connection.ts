@@ -1,7 +1,7 @@
 import mysql from 'mysql';
 
 import Connection from '../connection/Connection';
-import { ColumnInfo } from './entities';
+import { ColumnInfo } from './meta';
 import { addTableConstraints, createTableMySQL, dropTablesMySQL } from './generate';
 
 declare namespace MySQLConnection {
