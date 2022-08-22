@@ -18,25 +18,18 @@ namespace Field {
   export type Type<T extends Field = Field> =
     typeof Field & (new (...args: any[]) => T);
 
-  /** Using symbol, infer Field type for a given property. */
+  /** Infer Field type for a given property. */
   export type Typeof<T> = { [TYPE]?: T };
 
-  /** Using symbol, infer assertions for a given property. */
+  /** Infer assertions for a given property. */
   export type Assertions<T> = { [WHERE]?: T };
 
   export type Callback<T extends Field> = (field: T, key: string) => void;
 
   export interface Where<T = any> {
-    /** Select rows where this column is equal to value. */
     is(value: T): void;
-
-    /** Select rows where this column is not equal to value. */
     isNot(value: T): void;
-
-    /** Select rows where this colum is less-than value. */
     isLess(value: T): void;
-
-    /** Select rows where this colum is greater-than value. */
     isMore(value: T): void;
   }
 }
