@@ -135,21 +135,21 @@ class Query<T extends Entity, S = unknown> {
   }
 
   async hydrate(raw: any[]){
-    const ops = [] as any[];
+    const pending = [] as Promise<void>[];
     const results = raw.map(row => {
-      const output = {} as any;
+      const output = {};
 
       this.selects.forEach(apply => {
-        const maybePromise: unknown = apply(row, output);
+        const maybeAsync = apply(row, output) as unknown;
 
-        if(maybePromise instanceof Promise)
-          ops.push(maybePromise);
+        if(maybeAsync instanceof Promise)
+          pending.push(maybeAsync);
       });
 
       return this.mapper(output);
     });
 
-    await Promise.all(ops);
+    await Promise.all(pending);
     
     return results;
   }
