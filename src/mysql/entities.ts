@@ -1,32 +1,115 @@
 import Entity from '../Entity';
 import Table from '../instruction/Table';
 import String from '../instruction/String';
+import Int from '../instruction/Int';
 
 export class ColumnInfo extends Entity {
   table = Table("information_schema.columns");
 
-  type = String("COLUMN_TYPE", {/* type: "mediumtext" */});
-  name = String("COLUMN_NAME", { nullable: true });
-  schema = String("TABLE_SCHEMA");
-  tableName = String("TABLE_NAME");
-  catalog = String("TABLE_CATALOG");
-  isNullable = String("IS_NULLABLE");
-  extra = String("EXTRA");
-  privileges = String("PRIVILEGES", { nullable: true });
+  catalog = String({
+    column: "TABLE_CATALOG"
+  });
 
-  // CHARACTER_MAXIMUM_LENGTH: null
-  // CHARACTER_OCTET_LENGTH: null
-  // CHARACTER_SET_NAME = String({ nullable: true });
-  // COLLATION_NAME = String({ nullable: true });
-  // COLUMN_COMMENT: ''
-  // COLUMN_DEFAULT: null
+  characterSet = String({ 
+		column: "CHARACTER_SET_NAME",
+    nullable: true
+  });
+
+  collation = String({ 
+		column: "COLLATION_NAME",
+    nullable: true
+  });
+
+  comment = String({ 
+		column: "COLUMN_COMMENT",
+    type: "text"
+  });
+
+  dataType = String({ 
+		column: "COLUMN_TYPE",
+    type: "longtext"
+  });
+
+  datePrecision = Int({
+    column: "DATETIME_PRECISION",
+    nullable: true
+  });
+
+  default = String({ 
+		column: "COLUMN_DEFAULT",
+    type: "text",
+    nullable: true
+  });
+
+  extra = String({
+    column: "EXTRA",
+    nullable: true
+  });
+
+  generator = String({ 
+		column: "COLUMN_TYPE",
+    type: "longtext"
+  });
+
+  isNullable = String({
+    column: "IS_NULLABLE"
+  });
+
+  name = String({ 
+		column: "COLUMN_NAME",
+    nullable: true
+  });
+
+  numericPrecision = Int({
+    column: "NUMERIC_PRECISION",
+    nullable: true
+    /* type: "bigint" */
+  });
+
+  numericScale = Int({
+    column: "NUMERIC_SCALE",
+    nullable: true
+    /* type: "bigint" */
+  });
+
+  octetLength = Int({
+    column: "CHARACTER_OCTET_LENGTH",
+    nullable: true,
+    /* type: "bigint" */
+  });
+
+  position = Int({
+    column: "ORDINAL_POSITION"
+  });
+
+  privileges = String({ 
+		column: "PRIVILEGES",
+    nullable: true
+  });
+
+  schema = String({
+    column: "TABLE_SCHEMA"
+  });
+
+  size = Int({
+    column: "CHARACTER_MAXIMUM_LENGTH",
+    nullable: true
+    /* type: "bigint" */
+  });
+
+  srsId = Int({
+    column: "SRS_ID",
+    nullable: true
+  });
+
+  tableName = String({
+    column: "TABLE_NAME"
+  });
+
+  type = String({ 
+		column: "COLUMN_TYPE",
+    type: "mediumtext"
+  });
+
   // COLUMN_KEY: 'PRI'
-  // DATA_TYPE = Int();
-  // DATETIME_PRECISION = Int({ nullable: true });
-  // GENERATION_EXPRESSION: ''
-  // NUMERIC_PRECISION: 10
-  // NUMERIC_SCALE: 0
-  // ORDINAL_POSITION: 1
-  // SRS_ID: null
-  // TABLE_CATALOG: 'def'
 }
