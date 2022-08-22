@@ -1,8 +1,5 @@
-import { escapeId } from 'mysql';
-
 import Definition from '../Definition';
 import Field from '../instruction/Field';
-import { OneToManyRelation } from '../instruction/One';
 import { escapeString, qualify } from '../utility';
 
 export function dropTablesMySQL(tables: Definition[]){
@@ -43,24 +40,14 @@ export function addTableConstraints(tables: Definition[]){
     const statement = [] as string[];
 
     table.fields.forEach(field => {
-      if(field instanceof OneToManyRelation){
-          const { type, column, constraintName } = field;
-          const foreignName = type.table.name;
-      
-          statement.push([
-            `ADD`,
-            constraintName ? `CONSTRAINT ${escapeId(constraintName)}` : "",
-            `FOREIGN KEY (${column})`,
-            `REFERENCES ${foreignName}(id)`
-          ].join(" "));
-        }
+      const { constraint } = field;
+
+      if(constraint)
+        statement.push(constraint);
     })
 
-    if(statement.length){
-      commands.push(
-        `ALTER TABLE ${table.name} ${statement.join(", ")}`
-      )
-    }
+    if(statement.length)
+      commands.push(`ALTER TABLE ${table.name} ${statement.join(", ")}`);
   }
 
   return commands;

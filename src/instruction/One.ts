@@ -1,6 +1,8 @@
+import { escapeId } from 'mysql';
+
 import Entity from '../Entity';
 import Query from '../Query';
-import { lowercase } from '../utility';
+import { lowercase, sql } from '../utility';
 import Field, { TYPE, WHERE } from './Field';
 
 declare namespace One {
@@ -39,18 +41,22 @@ function One<T extends Entity>(arg1: any, arg2?: any): any {
 class OneToManyRelation extends Field {
   type!: Entity.Type;
   datatype = "INT";
-  constraintName?: string; 
 
   init(options: Partial<this>){
     super.init(options);
 
-    const foreign = this.type.table.name;
-    const local = this.table.name;
+    const foreign = this.type.table;
+    const foreignKey = "id";
+    const local = `FK_${foreign.name}${this.table.name}`;
 
     if(!options.column)
-      this.column = lowercase(foreign) + "Id";
+      this.column = lowercase(foreign.name) + "Id";
 
-    this.constraintName = `FK_${foreign}${local}`;
+    this.constraint = sql`
+      ADD ${local && `CONSTRAINT ${escapeId(local)}`}
+      FOREIGN KEY (${this.column})
+      REFERENCES ${foreign.name}(${foreignKey})
+    `
   }
 
   join(query: Query<any>){

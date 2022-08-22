@@ -48,6 +48,7 @@ class Field {
   primary?: boolean;
   increment?: boolean;
   column: string;
+  constraint?: string;
 
   datatype: string | undefined;
 

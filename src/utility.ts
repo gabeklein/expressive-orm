@@ -16,3 +16,17 @@ export function escapeString(text: string){
 export function lowercase(string: string){
   return string[0].toLowerCase() + string.slice(1)
 }
+
+export function sql(
+  strings: TemplateStringsArray,
+  ...expressions: unknown[]){
+
+  let result = strings[0];
+
+  for(let i = 1, l = strings.length; i < l; i++)
+    result +=
+      (expressions[i - 1] || "") +
+      strings[i].replace(/\s+/g, " ")
+
+  return result.trim();
+}
