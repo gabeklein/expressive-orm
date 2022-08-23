@@ -44,7 +44,7 @@ class Query<T extends Entity, S = unknown> {
   protected builder: Knex.QueryBuilder;
 
   public table: Definition;
-  public selects = new Map<string, Query.Normalize>();
+  public selects = new Set<Query.Normalize>();
   public tables = new Map<Field | undefined, string>();
 
   constructor(protected type: Entity.Type<T>){
@@ -89,7 +89,7 @@ class Query<T extends Entity, S = unknown> {
 
   addSelect(name: string, callback: Query.Normalize){
     this.builder.select(name);
-    this.selects.set(name, callback);
+    this.selects.add(callback);
   }
 
   compare(
@@ -144,12 +144,12 @@ class Query<T extends Entity, S = unknown> {
     const results = raw.map(row => {
       const output = {};
 
-      this.selects.forEach(apply => {
+      for(const apply of this.selects){
         const maybeAsync = apply(row, output) as unknown;
 
         if(maybeAsync instanceof Promise)
           pending.push(maybeAsync);
-      });
+      }
 
       return this.mapper(output);
     });
