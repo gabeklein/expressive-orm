@@ -31,6 +31,7 @@ function Int(options: Int.Options = {}){
 
 class IntergerColumn extends Field {
   datatype = "INT";
+  placeholder = Infinity;
 }
 
 export default Int;

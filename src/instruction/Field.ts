@@ -37,6 +37,7 @@ class Field {
   increment?: boolean;
   column: string;
   constraint?: string;
+  placeholder: any;
 
   datatype: string | undefined;
 
@@ -68,7 +69,7 @@ class Field {
   select(
     query: Query<any>,
     path: string[],
-    prefix?: string){
+    prefix?: string): any {
 
     let { column } = this;
 
@@ -84,6 +85,8 @@ class Field {
 
       to[key] = from[column];
     });
+
+    return this.placeholder;
   };
 
   static create<T extends Field>(

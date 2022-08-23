@@ -26,6 +26,7 @@ function Primary(arg1?: any, arg2?: any){
 
 export class PrimaryKeyColumn extends Field {
   datatype = "INT";
+  placeholder = 1;
   primary = true;
   increment = true;
 }

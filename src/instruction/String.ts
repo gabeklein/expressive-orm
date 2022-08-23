@@ -56,6 +56,8 @@ function String(
   return VarCharColumn.create({ datatype, ...arg1 });
 }
 
-class VarCharColumn extends Field {}
+class VarCharColumn extends Field {
+  placeholder = `__${this.property}__`;
+}
 
 export default String;

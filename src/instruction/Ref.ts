@@ -42,6 +42,8 @@ function Ref<T extends Entity>(arg1: any, arg2?: any): any {
 class ForeignKeyColumn extends Field {
   // todo: depends on corresponding field.
   datatype = "INT";
+  placeholder = 1;
+
   type!: Entity.Type;
 
   init(options: Partial<this>){

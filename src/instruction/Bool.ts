@@ -39,6 +39,7 @@ function Bool(options: Bool.Options = {}){
 
 class BooleanColumn extends Field {
   datatype = "TINYINT";
+  placeholder = true;
 
   where(query: Query<any>, parent?: string){
     const key = qualify(parent, this.column);
