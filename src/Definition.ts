@@ -39,7 +39,12 @@ class Definition {
 
     for(const [key, type] of this.fields)
       Object.defineProperty(proxy, key, {
-        get: () => getter(type, key)
+        configurable: true,
+        get: () => {
+          const value = getter(type, key);
+          Object.defineProperty(proxy, key, { value });
+          return value;
+        }
       })
     
     return proxy;
