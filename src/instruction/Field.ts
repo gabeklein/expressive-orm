@@ -75,7 +75,7 @@ class Field {
     if(prefix)
       column = qualify(prefix, column);
 
-    return query.addSelect(column, (from, to) => {
+    query.addSelect(column, (from, to) => {
       const route = Array.from(path);
       const key = route.pop()!;
 
