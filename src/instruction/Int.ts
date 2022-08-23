@@ -1,4 +1,4 @@
-import Field, { TYPE, WHERE } from './Field';
+import Field, { SELECT, TYPE, WHERE } from './Field';
 
 declare namespace Int {
   type Value = number & MetaData;
@@ -7,6 +7,7 @@ declare namespace Int {
   interface MetaData {
     [TYPE]?: IntergerColumn;
     [WHERE]?: Field.Where<number>;
+    [SELECT]?: number;
   }
 
   interface Options {

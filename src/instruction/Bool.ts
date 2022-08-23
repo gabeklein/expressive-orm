@@ -1,6 +1,6 @@
 import Query from '../Query';
 import { qualify } from '../utility';
-import Field, { TYPE, WHERE } from './Field';
+import Field, { SELECT, TYPE, WHERE } from './Field';
 
 declare namespace Bool {
   type Value = boolean & MetaData;
@@ -9,6 +9,7 @@ declare namespace Bool {
   interface MetaData {
     [TYPE]?: BooleanColumn;
     [WHERE]?: Where;
+    [SELECT]?: boolean;
   }
 
   interface Options {

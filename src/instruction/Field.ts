@@ -2,17 +2,9 @@ import Query from '../Query';
 import Definition from '../Definition';
 import { qualify } from '../utility';
 
-/**
- * Non-existant symbol lets us associate a
- * Field class with an entity-compatible type.
- */
 export declare const TYPE: unique symbol;
-
-/**
- * Non-existant symbol lets us associate a
- * Field class with an entity-compatible type.
- */
 export declare const WHERE: unique symbol;
+export declare const SELECT: unique symbol;
 
 namespace Field {
   export type Type<T extends Field = Field> =
@@ -23,6 +15,9 @@ namespace Field {
 
   /** Infer assertions for a given property. */
   export type Assertions<T> = { [WHERE]?: T };
+
+  /** Infer assertions for a given property. */
+  export type Selects<T> = { [SELECT]?: T };
 
   export type Callback<T extends Field> = (field: T, key: string) => void;
 

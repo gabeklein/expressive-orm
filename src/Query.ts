@@ -13,7 +13,7 @@ namespace Query {
     (this: Where<T>, thisArg: Where<T>) => void;
 
   export type SelectFunction<T extends Entity, R> =
-    (this: Entity.Pure<T>, thisArg: Entity.Pure<T>) => R;
+    (this: Select<T>, thisArg: Select<T>) => R;
 
   export type Options<T extends Entity, R> = {
     where?: WhereFunction<T>;
@@ -29,10 +29,15 @@ namespace Query {
       has(values: Partial<T>): void;
     }
 
+  type SelectClause<T> =
+    T extends Field.Selects<infer A> ? A : never;
+
+  export type Select<T extends Entity> = {
+    [K in Exclude<keyof T, keyof Entity>]: SelectClause<T[K]>
+  }
+
   export type Normalize =
     (row: { [select: string]: any }, output: any) => void;
-
-  export type Select<T extends Entity> = Entity.Pure<T>;
 }
 
 class Query<T extends Entity, S = unknown> {

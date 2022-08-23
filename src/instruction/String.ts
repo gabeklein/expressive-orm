@@ -1,4 +1,4 @@
-import Field, { TYPE, WHERE } from './Field';
+import Field, { SELECT, TYPE, WHERE } from './Field';
 
 declare namespace String {
   type Value = string & MetaData;
@@ -7,6 +7,7 @@ declare namespace String {
   interface MetaData {
     [TYPE]?: VarCharColumn;
     [WHERE]?: Field.Where<string>;
+    [SELECT]?: string;
   }
 
   interface Options {
