@@ -1,14 +1,13 @@
 import Field, { SELECT, TYPE, WHERE } from './Field';
 
 declare namespace String {
-  type Value = string & MetaData;
-  type Nullable = Value | undefined | null;
-
-  interface MetaData {
+  type Value = string & {
     [TYPE]?: VarCharColumn;
     [WHERE]?: Field.Where<string>;
     [SELECT]?: string;
-  }
+  };
+
+  type Nullable = Value | undefined | null;
 
   interface Options {
     column?: string;

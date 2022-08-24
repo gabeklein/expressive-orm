@@ -3,14 +3,13 @@ import { qualify } from '../utility';
 import Field, { SELECT, TYPE, WHERE } from './Field';
 
 declare namespace Bool {
-  type Value = boolean & MetaData;
-  type Nullable = Value | undefined | null;
-
-  interface MetaData {
+  type Value = boolean & {
     [TYPE]?: BooleanColumn;
     [WHERE]?: Where;
     [SELECT]?: boolean;
-  }
+  };
+
+  type Nullable = Value | undefined | null;
 
   interface Options {
     column?: string;
