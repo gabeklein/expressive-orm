@@ -1,3 +1,4 @@
+import Query from '../Query';
 import Field, { SELECT, TYPE, WHERE } from './Field';
 
 declare namespace Primary {
@@ -29,6 +30,9 @@ export class PrimaryKeyColumn extends Field {
   placeholder = 1;
   primary = true;
   increment = true;
+
+  where!: (query: Query<any>, parent?: string) => Field.Where<number>;
+  select!: (query: Query<any>, path: string[], prefix?: string) => number;
 }
 
 export default Primary;

@@ -4,7 +4,7 @@ import Field, { SELECT, TYPE, WHERE } from './Field';
 
 declare namespace Ref {
   type Value<T extends Entity> = number & {
-    [TYPE]?: ForeignKeyColumn;
+    [TYPE]?: ForeignKeyColumn<T>;
     [WHERE]?: Where<T>;
     [SELECT]?: number;
   };
@@ -39,7 +39,7 @@ function Ref<T extends Entity>(arg1: any, arg2?: any): any {
   return ForeignKeyColumn.create(arg1);
 }
 
-class ForeignKeyColumn extends Field {
+class ForeignKeyColumn<T extends Entity = Entity> extends Field {
   // todo: depends on corresponding field.
   datatype = "INT";
   placeholder = 1;
@@ -51,7 +51,7 @@ class ForeignKeyColumn extends Field {
     super.init(options);
   }
 
-  where(query: Query<any>, key: string){
+  where(query: Query<any>, key: string): Ref.Where<T> {
     function compare(operator: string){
       return (value: object | number) => {
         if(typeof value == "object")

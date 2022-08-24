@@ -7,7 +7,7 @@ import Field, { SELECT, TYPE, WHERE } from './Field';
 
 declare namespace One {
   type Field<T extends Entity> = T & {
-    [TYPE]?: OneToManyRelation;
+    [TYPE]?: OneToManyRelation<T>;
     [WHERE]?: Query.Where<T>;
     [SELECT]?: Query.Select<T>;
   }
@@ -39,7 +39,7 @@ function One<T extends Entity>(arg1: any, arg2?: any): any {
   return OneToManyRelation.create(arg1);
 }
 
-class OneToManyRelation extends Field {
+class OneToManyRelation<T extends Entity = Entity> extends Field {
   type!: Entity.Type;
   datatype = "INT";
 
@@ -73,7 +73,7 @@ class OneToManyRelation extends Field {
     return name;
   }
 
-  where(query: Query<any>){
+  where(query: Query<any>): Query.Where<T> {
     const table = this.join(query);
 
     return this.type.map((field) => {
@@ -81,7 +81,7 @@ class OneToManyRelation extends Field {
     })
   };
 
-  select(query: Query<any>, path: string[]){
+  select(query: Query<any>, path: string[]): Query.Select<T> {
     const table = this.join(query);
 
     return this.type.map((field, key) => {

@@ -4,7 +4,7 @@ import Field, { SELECT, TYPE, WHERE } from './Field';
 
 declare namespace Many {
   export type Entites<T extends Entity> = T[] & {
-    [TYPE]?: ManyToOneRelation;
+    [TYPE]?: ManyToOneRelation<T>;
     [WHERE]?: Query.Where<T>
     [SELECT]?: Select<T>[];
   };
@@ -23,7 +23,7 @@ function Many(type: Entity.Type, options?: Many.Options){
   return ManyToOneRelation.create({ type, ...options });
 }
 
-class ManyToOneRelation extends Field {
+class ManyToOneRelation<T extends Entity = Entity> extends Field {
   sub = new WeakMap<Query<any>, Query<any>>();
   datatype = undefined;
   type!: Entity.Type;
@@ -39,7 +39,7 @@ class ManyToOneRelation extends Field {
     return query;
   }
 
-  where(query: Query<any>){
+  where(query: Query<any>): Query.Where<T> {
     const sub = this.subquery(query);
 
     return this.type.map((field) => {
@@ -47,7 +47,7 @@ class ManyToOneRelation extends Field {
     })
   };
 
-  select(query: Query<any>, path: string[]){
+  select(query: Query<any>): Many.Select<T> {
     const sub = this.subquery(query);
     const proxy = this.type.map((field, key) => {
       return field.select(sub, [key]);
@@ -59,11 +59,11 @@ class ManyToOneRelation extends Field {
     });
 
     return {
-      map: (fn: any) => {
-        sub.mapper = fn;
-        return fn(proxy);
+      map(select: any){
+        sub.mapper = select;
+        return select(proxy);
       }
-    }
+    };
   }
 }
 
