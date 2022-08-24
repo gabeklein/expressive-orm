@@ -6,7 +6,7 @@ declare namespace Many {
   export type Entites<T extends Entity> = T[] & {
     [TYPE]?: ManyToOneRelation;
     [WHERE]?: Query.Where<T>
-    [SELECT]?: Query.Select<T>[];
+    [SELECT]?: Select<T>[];
   };
 
   interface Select<T extends Entity> {
