@@ -17,7 +17,10 @@ class MySQLConnection extends Connection {
   options: MySQLConnection.Config;
   connection?: mysql.Connection | mysql.Pool;
 
-  constructor(opts: MySQLConnection.Config = {}){
+  constructor(
+    opts: MySQLConnection.Config = {},
+    entities?: Connection.Entities){
+
     super();
 
     const config: mysql.ConnectionConfig = {
@@ -33,6 +36,9 @@ class MySQLConnection extends Connection {
         : mysql.createConnection(config);
 
     ColumnInfo.init(this);
+
+    if(entities)
+      this.apply(entities);
   }
 
   query<T extends {} = any>(qs: string){
