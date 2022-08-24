@@ -3,25 +3,25 @@ import {
   Int,
   Many,
   One,
-  VarChar,
+  String,
   Entity
 } from "../src";
 
 class Author extends Entity {
-  name = VarChar();
+  name = String();
   age = Int();
-  nickname = VarChar({ nullable: true });
+  nickname = String({ nullable: true });
   active = Bool();
   books = Many(Book);
   publisher = One(Publisher);
 }
 
 class Publisher extends Entity {
-  name = VarChar();
+  name = String();
 }
 
 class Book extends Entity {
-  title = VarChar();
+  title = String();
   author = One(Author); 
 }
 
