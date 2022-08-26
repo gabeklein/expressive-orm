@@ -20,8 +20,10 @@ declare namespace Entity {
     T extends Entity ? Pure<T> : T;
 
   type Pure<T extends Entity> = {
-    [K in Exclude<keyof T, keyof Entity>]-?: DataRecusive<T[K]>;
+    [K in Field<T>]-?: DataRecusive<T[K]>;
   }
+
+  type Field<T extends Entity> = Exclude<keyof T, keyof Entity>;
 }
 
 abstract class Entity {
