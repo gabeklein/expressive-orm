@@ -172,24 +172,24 @@ class Query<T extends Entity, S = unknown> {
 
   select<R>(from: Query.SelectFunction<T, R>): Query<T, R>;
   select(from: Query.SelectFunction<T, S>): this;
+  select<K extends Entity.Field<T>>(fields: K[]): Query<T, Pick<Query.Select<T>, K>>;
   select(from: "*"): Query<T, Query.Select<T>>;
-  select(from: "*" | Query.SelectFunction<T, any>): Query<T, any> {
+  select(from: "*" | string[] | Query.SelectFunction<T, any>): Query<T, any> {
     const table = this.getTableName();
     const proxy = this.type.map((field, key) => {
       return field.select(this, [key], table);
     })
 
-    if(typeof from == "string"){
-      Object.getOwnPropertyNames(proxy).map(key => {
-        void proxy[key];
-      })
-
+    if(from == "*"){
+      Object.getOwnPropertyNames(proxy).forEach(key => proxy[key])
       this.mapper = x => x;
     }
-    else {
+    else if(typeof from == "function"){
       from.call(proxy, proxy);
       this.mapper = from;
     }
+    else if(Array.isArray(from))
+      from.forEach(key => proxy[key])
 
     return this;
   }
