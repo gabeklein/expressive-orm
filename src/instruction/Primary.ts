@@ -16,9 +16,13 @@ declare namespace Primary {
 }
 
 function Primary(): Primary.Key;
+function Primary(use: false): 0;
 function Primary(column: string, options?: Primary.Options): Primary.Key;
 function Primary(options: Primary.Options): Primary.Key;
 function Primary(arg1?: any, arg2?: any){
+  if(arg1 === false)
+    return 0;
+
   if(typeof arg1 == "string")
     arg1 = { ...arg2, column: arg1 };
 

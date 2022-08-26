@@ -2,9 +2,12 @@ import Entity from '../Entity';
 import Table from '../instruction/Table';
 import String from '../instruction/String';
 import Int from '../instruction/Int';
+import Primary from '../instruction/Primary';
 
 export class ColumnInfo extends Entity {
   table = Table("information_schema.columns");
+
+  id = Primary(false);
 
   catalog = String({
     column: "TABLE_CATALOG"
