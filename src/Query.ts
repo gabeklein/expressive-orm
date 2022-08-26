@@ -172,14 +172,24 @@ class Query<T extends Entity, S = unknown> {
 
   select<R>(from: Query.SelectFunction<T, R>): Query<T, R>;
   select(from: Query.SelectFunction<T, S>): this;
-  select(from: Query.SelectFunction<T, any>){
+  select(from: "*"): Query<T, Query.Select<T>>;
+  select(from: "*" | Query.SelectFunction<T, any>): Query<T, any> {
     const table = this.getTableName();
     const proxy = this.type.map((field, key) => {
       return field.select(this, [key], table);
     })
 
-    from.call(proxy, proxy);
-    this.mapper = from;
+    if(typeof from == "string"){
+      Object.getOwnPropertyNames(proxy).map(key => {
+        void proxy[key];
+      })
+
+      this.mapper = x => x;
+    }
+    else {
+      from.call(proxy, proxy);
+      this.mapper = from;
+    }
 
     return this;
   }
