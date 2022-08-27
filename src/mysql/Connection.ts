@@ -3,9 +3,12 @@ import mysql from 'mysql';
 import Connection from '../connection/Connection';
 import Column from './info/Column';
 import { addTableConstraints, createTableMySQL, dropTablesMySQL } from './generate';
+import Constraint from './info/Constraint';
+import Entity from '../Entity';
 
-const INFO_SCHEMA = [
-  Column
+const INFO_SCHEMA: Entity.Type[] = [
+  Column,
+  Constraint
 ];
 
 declare namespace MySQLConnection {

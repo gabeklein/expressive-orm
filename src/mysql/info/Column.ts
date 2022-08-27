@@ -5,7 +5,10 @@ import Int from '../../instruction/Int';
 import Primary from '../../instruction/Primary';
 
 class Column extends Entity {
-  table = Table("information_schema.columns");
+  table = Table({
+    name: "COLUMNS",
+    schema: "information_schema"
+  });
 
   id = Primary(false);
 
