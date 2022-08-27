@@ -156,7 +156,7 @@ class Query<T extends Entity, S = unknown> {
           pending.push(maybeAsync);
       }
 
-      return this.mapper(output);
+      return this.mapper.call(output, output);
     });
 
     await Promise.all(pending);
