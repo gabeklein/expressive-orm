@@ -76,8 +76,23 @@ abstract class Entity {
   static select<T extends Entity, R>(
     this: Entity.Type<T>,
     from: Query.SelectFunction<T, R>
+  ): Query<T, R>;
+
+  static select<T extends Entity, K extends Entity.Field<T>>(
+    this: Entity.Type<T>,
+    fields: K[]
+  ): Query<T, Pick<Query.Select<T>, K>>;
+
+  static select<T extends Entity>(
+    this: Entity.Type<T>,
+    from: "*"
+  ): Query<T, Query.Select<T>>;
+
+  static select<T extends Entity, R>(
+    this: Entity.Type<T>,
+    from: "*" | Entity.Field<T>[] | Query.SelectFunction<T, R>
   ){
-    return new Query(this).select(from);
+    return new Query(this).select(from as any);
   }
 
   static query<T extends Entity, R>(
