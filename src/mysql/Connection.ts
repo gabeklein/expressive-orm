@@ -1,8 +1,12 @@
 import mysql from 'mysql';
 
 import Connection from '../connection/Connection';
-import { ColumnInfo } from './meta';
+import Column from './info/Column';
 import { addTableConstraints, createTableMySQL, dropTablesMySQL } from './generate';
+
+const INFO_SCHEMA = [
+  Column
+];
 
 declare namespace MySQLConnection {
   interface Config extends mysql.ConnectionConfig {
@@ -35,7 +39,8 @@ class MySQLConnection extends Connection {
         ? mysql.createPool(config)
         : mysql.createConnection(config);
 
-    ColumnInfo.init(this);
+    for(const Entity of INFO_SCHEMA)
+      Entity.init(this);
 
     if(entities)
       this.apply(entities);

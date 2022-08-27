@@ -1,10 +1,10 @@
-import Entity from '../Entity';
-import Table from '../instruction/Table';
-import String from '../instruction/String';
-import Int from '../instruction/Int';
-import Primary from '../instruction/Primary';
+import Entity from '../../Entity';
+import Table from '../../instruction/Table';
+import String from '../../instruction/String';
+import Int from '../../instruction/Int';
+import Primary from '../../instruction/Primary';
 
-export class ColumnInfo extends Entity {
+class Column extends Entity {
   table = Table("information_schema.columns");
 
   id = Primary(false);
@@ -116,3 +116,5 @@ export class ColumnInfo extends Entity {
 
   // COLUMN_KEY: 'PRI'
 }
+
+export default Column;
