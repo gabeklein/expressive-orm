@@ -117,7 +117,19 @@ class Column extends Entity {
     type: "mediumtext"
   });
 
-  // COLUMN_KEY: 'PRI'
+  // actually an ENUM
+  key = String({
+    column: "COLUMN_KEY",
+    type: "varchar",
+    length: 3,
+    /*
+      oneOf: [
+        "PRI",
+        "UNI",
+        "MUL"
+      ]
+    */
+  });
 }
 
 export default Column;
