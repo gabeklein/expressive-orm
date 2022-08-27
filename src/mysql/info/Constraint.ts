@@ -16,9 +16,9 @@ class Constraint extends Entity {
     length: 64
   })
 
-  schema = String({
-    column: 'CONSTRAINT_SCHEMA',
-    length: 64
+  enforced = String({
+    column: 'ENFORCED',
+    length: 3
   })
 
   name = String({
@@ -27,8 +27,8 @@ class Constraint extends Entity {
     length: 64
   })
 
-  tableSchema = String({
-    column: 'TABLE_SCHEMA',
+  schema = String({
+    column: 'CONSTRAINT_SCHEMA',
     length: 64
   })
 
@@ -37,14 +37,14 @@ class Constraint extends Entity {
     length: 64
   })
 
+  tableSchema = String({
+    column: 'TABLE_SCHEMA',
+    length: 64
+  })
+
   type = String({
     column: 'CONSTRAINT_TYPE',
     length: 11
-  })
-
-  enforced = String({
-    column: 'ENFORCED',
-    length: 3
   })
 }
 
