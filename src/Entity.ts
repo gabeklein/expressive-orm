@@ -106,6 +106,8 @@ abstract class Entity {
 
     if(from.select)
       query.select(from.select);
+    else
+      query.select("*");
 
     return query as Query<T, R>;
   }
