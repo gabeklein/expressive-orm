@@ -106,12 +106,17 @@ class Query<T extends Entity, S = unknown> {
   }
 
   async fetch(limit?: number){
+    const { connection } = this.table;
+
+    if(!connection)
+      throw new Error(`${this.type.name} has no connection. Is it initialized?`);
+
     if(typeof limit == "number")
       this.builder.limit(limit);
 
     const qs = this.builder.toString();
 
-    return this.table.connection!.query(qs);
+    return connection.query(qs);
   }
   
   async get(limit?: number): Promise<S[]> {
