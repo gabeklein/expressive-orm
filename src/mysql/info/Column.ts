@@ -122,13 +122,12 @@ class Column extends Entity {
     column: "COLUMN_KEY",
     type: "varchar",
     length: 3,
-    /*
-      oneOf: [
-        "PRI",
-        "UNI",
-        "MUL"
-      ]
-    */
+    nullable: true,
+    oneOf: [
+      "PRI",
+      "UNI",
+      "MUL"
+    ]
   });
 }
 

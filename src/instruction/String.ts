@@ -1,16 +1,20 @@
 import Query from '../Query';
 import Field, { SELECT, TYPE, WHERE } from '../Field';
 
-declare namespace String {
-  type Value = string & {
+namespace String {
+  type Meta<T> = {
     [TYPE]?: VarCharColumn;
-    [WHERE]?: Field.Where<string>;
-    [SELECT]?: string;
-  };
+    [WHERE]?: Field.Where<T>;
+    [SELECT]?: T;
+  }
 
-  type Nullable = Value | undefined | null;
+  export type Value = string & Meta<string>;
+  export type Nullable = Value | undefined | null;
 
-  interface Options {
+  export type OneOf<T> = T & Meta<T>;
+  export type Maybe<T> = (T & Meta<T | null>) | undefined | null;
+
+  export interface Options {
     column?: string;
     unique?: boolean;
     default?: string;
@@ -19,8 +23,13 @@ declare namespace String {
     length?: number;
   }
 
-  interface Optional extends Options {
-    nullable?: true;
+  export interface Specific<T extends string> extends Options {
+    type?: "varchar";
+    oneOf: T[];
+  }
+
+  export interface Optional extends Options {
+    nullable: true;
   }
 }
 
@@ -38,6 +47,8 @@ function String(column: string, options: String.Optional): String.Nullable;
 function String(column: string, options: String.Options): String.Value;
 function String(options: String.Optional): String.Nullable;
 function String(options: String.Options): String.Value;
+function String<T extends string>(options: String.Specific<T> & String.Optional): String.Maybe<T>;
+function String<T extends string>(options: String.Specific<T>): String.OneOf<T>;
 function String(
   arg1: string | String.Options = {},
   arg2?: String.Options): any {
