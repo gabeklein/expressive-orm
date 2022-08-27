@@ -23,11 +23,9 @@ namespace Query {
   type WhereClause<T> =
     T extends Field.Assertions<infer A> ? A : never;
 
-  export type Where<T extends Entity> =
-    & { [K in Entity.Field<T>]: WhereClause<T[K]> }
-    & {
-      has(values: Partial<T>): void;
-    }
+  export type Where<T extends Entity> = {
+    [K in Entity.Field<T>]: WhereClause<T[K]>;
+  }
 
   type SelectClause<T> =
     T extends Field.Selects<infer A> ? A : never;
