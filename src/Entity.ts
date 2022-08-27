@@ -23,7 +23,7 @@ declare namespace Entity {
     [K in Field<T>]-?: DataRecusive<T[K]>;
   }
 
-  type Field<T extends Entity> = Exclude<keyof T, keyof Entity>;
+  type Field<T extends Entity> = Exclude<keyof T, "table">;
 }
 
 abstract class Entity {
