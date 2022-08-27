@@ -1,5 +1,5 @@
 import Entity from '../Entity';
-import Definition from '../Definition';
+import Table from '../Table';
 
 namespace Connection {
   export type Entities =
@@ -8,7 +8,7 @@ namespace Connection {
 }
 
 abstract class Connection {
-  managed = new Map<typeof Entity, Definition>();
+  managed = new Map<typeof Entity, Table>();
 
   abstract query(queryString: string): Promise<any>;
 

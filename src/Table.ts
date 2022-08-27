@@ -4,16 +4,16 @@ import Field from './Field';
 
 const describe = Object.getOwnPropertyDescriptor;
 
-const REGISTER = new Map<Entity.Type, Definition>();
-const INSTRUCTION = new Map<symbol, Definition.Instruction>();
+const REGISTER = new Map<Entity.Type, Table>();
+const INSTRUCTION = new Map<symbol, Table.Instruction>();
 
-namespace Definition {
-  export type Instruction = (parent: Definition, key: string) => void;
+namespace Table {
+  export type Instruction = (parent: Table, key: string) => void;
 }
 
-class Definition {
+class Table {
   fields = new Map<string, Field>();
-  dependancies = new Set<Definition>();
+  dependancies = new Set<Table>();
   name: string;
   schema: string;
 
@@ -63,11 +63,11 @@ class Definition {
     return REGISTER.get(type) || type.init();
   }
 
-  static use(instruction: Definition.Instruction){
+  static use(instruction: Table.Instruction){
     const placeholder = Symbol(`ORM instruction`);
     INSTRUCTION.set(placeholder, instruction);
     return placeholder as any;
   }
 }
 
-export default Definition;
+export default Table;

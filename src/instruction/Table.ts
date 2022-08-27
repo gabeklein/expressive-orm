@@ -1,4 +1,4 @@
-import Control from "../Definition";
+import TableDefinition from "../Table";
 
 namespace Table {
   export interface Options {
@@ -7,10 +7,10 @@ namespace Table {
   }
 }
 
-function Table(name: string, opts?: Table.Options): Control;
-function Table(opts: Table.Options): Control;
+function Table(name: string, opts?: Table.Options): TableDefinition;
+function Table(opts: Table.Options): TableDefinition;
 function Table(arg1: string | Table.Options, arg2?: Table.Options){
-  return Control.use((parent) => {
+  return TableDefinition.use((parent) => {
     if(typeof arg1 == "string"){
       const [name, schema] = arg1.split(".").reverse();
 

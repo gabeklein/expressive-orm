@@ -1,5 +1,5 @@
 import Query from './Query';
-import Definition from './Definition';
+import Table from './Table';
 import { qualify } from './utility';
 
 export declare const TYPE: unique symbol;
@@ -42,7 +42,7 @@ class Field {
   datatype: string | undefined;
 
   constructor(
-    public table: Definition,
+    public table: Table,
     public property: string
   ){
     this.column = property;
@@ -92,7 +92,7 @@ class Field {
   static create<T extends Field>(
     this: Field.Type<T>, options?: Partial<T>){
 
-    return Definition.use((parent, key) => {
+    return Table.use((parent, key) => {
       const instance = new this(parent, key);
       instance.init(options);
       return instance;

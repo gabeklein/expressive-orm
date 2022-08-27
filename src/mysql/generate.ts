@@ -1,8 +1,8 @@
-import Definition from '../Definition';
 import Field from '../Field';
+import Table from '../Table';
 import { escapeString, qualify } from '../utility';
 
-export function dropTablesMySQL(tables: Definition[]){
+export function dropTablesMySQL(tables: Table[]){
   const commands = [];
 
   for(const table of tables)
@@ -11,7 +11,7 @@ export function dropTablesMySQL(tables: Definition[]){
   return commands;
 }
 
-export function createTableMySQL(tables: Definition[]){
+export function createTableMySQL(tables: Table[]){
   const commands = [];
 
   for(const table of tables){
@@ -33,7 +33,7 @@ export function createTableMySQL(tables: Definition[]){
   return commands;
 }
 
-export function addTableConstraints(tables: Definition[]){
+export function addTableConstraints(tables: Table[]){
   const commands = [] as string[];
 
   for(const table of tables){
