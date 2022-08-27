@@ -3,7 +3,7 @@ import { escapeId } from 'mysql';
 import Entity from '../Entity';
 import Query from '../Query';
 import { lowercase, sql } from '../utility';
-import Field, { SELECT, TYPE, WHERE } from './Field';
+import Field, { SELECT, TYPE, WHERE } from '../Field';
 
 declare namespace One {
   type Field<T extends Entity> = T & {

@@ -1,5 +1,5 @@
 import Query from '../Query';
-import Field, { SELECT, TYPE, WHERE } from './Field';
+import Field, { SELECT, TYPE, WHERE } from '../Field';
 
 declare namespace Primary {
   type Key = (number | string) & MetaData;

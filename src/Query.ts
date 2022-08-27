@@ -2,7 +2,7 @@ import knex, { Knex } from 'knex';
 import { format } from 'sql-formatter';
 
 import Entity from './Entity';
-import Field from './instruction/Field';
+import Field from './Field';
 import Definition from './Definition';
 import { qualify, escapeString } from './utility';
 

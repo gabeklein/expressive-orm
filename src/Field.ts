@@ -1,6 +1,6 @@
-import Query from '../Query';
-import Definition from '../Definition';
-import { qualify } from '../utility';
+import Query from './Query';
+import Definition from './Definition';
+import { qualify } from './utility';
 
 export declare const TYPE: unique symbol;
 export declare const WHERE: unique symbol;

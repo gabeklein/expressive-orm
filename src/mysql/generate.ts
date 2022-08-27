@@ -1,5 +1,5 @@
 import Definition from '../Definition';
-import Field from '../instruction/Field';
+import Field from '../Field';
 import { escapeString, qualify } from '../utility';
 
 export function dropTablesMySQL(tables: Definition[]){

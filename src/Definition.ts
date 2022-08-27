@@ -1,6 +1,6 @@
 import Connection from './connection/Connection';
 import Entity from './Entity';
-import Field from './instruction/Field';
+import Field from './Field';
 
 const describe = Object.getOwnPropertyDescriptor;
 

@@ -1,6 +1,6 @@
 import Query from '../Query';
 import { qualify } from '../utility';
-import Field, { SELECT, TYPE, WHERE } from './Field';
+import Field, { SELECT, TYPE, WHERE } from '../Field';
 
 declare namespace Bool {
   type Value = boolean & {

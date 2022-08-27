@@ -1,5 +1,5 @@
 import Query from '../Query';
-import Field, { SELECT, TYPE, WHERE } from './Field';
+import Field, { SELECT, TYPE, WHERE } from '../Field';
 
 declare namespace String {
   type Value = string & {

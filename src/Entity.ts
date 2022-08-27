@@ -1,5 +1,5 @@
 import Connection from './connection/Connection';
-import Field from './instruction/Field';
+import Field from './Field';
 import Primary from './instruction/Primary';
 import Query from './Query';
 import Definition from './Definition';
