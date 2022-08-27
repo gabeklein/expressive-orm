@@ -68,7 +68,7 @@ abstract class Entity {
 
   static where<T extends Entity, R>(
     this: Entity.Type<T>,
-    from: Query.WhereFunction<T>
+    from: Query.WhereFunction<T> | Query.WhereObject<T>
   ){
     return new Query(this).where(from);
   }

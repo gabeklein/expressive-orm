@@ -27,6 +27,15 @@ namespace Query {
     [K in Entity.Field<T>]: WhereClause<T[K]>;
   }
 
+  export type WhereObject<T extends Entity> = {
+    [K in Entity.Field<T>]?: WhereField<T[K]>
+  }
+
+  export type WhereField<T> =
+    T extends number | string | boolean
+      ? T | T[]
+      : never;
+
   type SelectClause<T> =
     T extends Field.Selects<infer A> ? A : never;
 
@@ -162,13 +171,28 @@ class Query<T extends Entity, S = unknown> {
     return results;
   }
 
-  where(from: Query.WhereFunction<T>){
+  where(from: Query.WhereFunction<T> | Query.WhereObject<T>){
+    const { fields } = this.type.table;
     const table = this.getTableName();
-    const proxy = this.type.map((field) => {
-      return field.where(this, table);
-    });
 
-    from.call(proxy, proxy);
+    if(typeof from == "object"){
+      for(const key in from){
+        const field = fields.get(key);
+
+        if(!field)
+          continue;
+
+        const ref = qualify(table!, field.column);
+        this.compare(ref, (from as any)[key], "=");
+      }
+    }
+    else {
+      const proxy = this.type.map((field) => {
+        return field.where(this, table);
+      });
+  
+      from.call(proxy, proxy);
+    }
 
     return this;
   }
