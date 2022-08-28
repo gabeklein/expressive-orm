@@ -32,7 +32,7 @@ class Column extends Entity {
   });
 
   dataType = String({ 
-		column: "COLUMN_TYPE",
+		column: "DATA_TYPE",
     type: "longtext"
   });
 
