@@ -18,7 +18,7 @@
       "program": "${workspaceFolder}/node_modules/ts-node-dev/lib/bin.js",
       "console": "integratedTerminal",
       "sourceMaps": true,
-      "args": ["--transpile-only", "--clear", "src/develop.ts"],
+      "args": ["--transpile-only", "--clear", "src/develop"],
       "envFile": "${workspaceFolder}/.env",
       "env": {
         "NODE_ENV": "development"

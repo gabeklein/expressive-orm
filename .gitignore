@@ -1,4 +1,4 @@
 /node_modules
 /coverage
-/src/develop.ts
+develop/
 .DS_Store
