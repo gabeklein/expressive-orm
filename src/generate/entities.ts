@@ -38,17 +38,21 @@ export declare namespace Schema {
 export function generateEntities(
   ...from: Schema.Table[]){
 
+  const used = [
+    "Bool",
+    "Int",
+    "String",
+    // "DateTime",
+    // "Enum",
+    // "Idk",
+  ]
+
   const ast = t.Program({
     sourceType: "module",
     body: [
       importDeclaration("../", [
         importSpecifier("Entity", "default"),
-        importSpecifier("Bool"),
-        importSpecifier("DateTime"),
-        importSpecifier("Enum"),
-        importSpecifier("Idk"),
-        importSpecifier("Int"),
-        importSpecifier("String"),
+        ...used.map(x => importSpecifier(x))
       ]),
       ...from.map(generateClass)
     ]
