@@ -6,8 +6,8 @@ declare namespace Primary {
 
   interface MetaData {
     [TYPE]?: PrimaryKeyColumn;
-    [WHERE]?: Field.Where<number>;
-    [SELECT]?: number;
+    [WHERE]?: Field.Where<number | string>;
+    [SELECT]?: (number | string);
   }
 
   interface Options {
