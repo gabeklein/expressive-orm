@@ -9,6 +9,7 @@ import Query from './Query';
 import Connection from './connection/Connection';
 
 export {
+  Entity as default,
   Bool,
   Connection,
   Int,
