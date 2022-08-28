@@ -52,6 +52,6 @@ export async function getTables(schema: string){
     table.columns.push(column);
   }
 
-  generateEntities(...tables.values());
+  return generateEntities(...tables.values());
 }
 

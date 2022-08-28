@@ -12,6 +12,13 @@ import {
 
 import type es from "estree";
 
+const DEFAULT_LENGTH = {
+  "varchar": 2 ** 8-1,
+  "text": 2 ** 16-1,
+  "mediumtext": 2 ** 24-1,
+  "longtext": 2 ** 32-1
+}
+
 export declare namespace Schema {
   interface Column {
     name: string;
@@ -34,47 +41,65 @@ export function generateEntities(
   const ast = t.Program({
     sourceType: "module",
     body: [
-      importDeclaration("@expressive/orm", [
+      importDeclaration("../", [
         importSpecifier("Entity", "default"),
-        importSpecifier("String")
+        importSpecifier("Bool"),
+        importSpecifier("DateTime"),
+        importSpecifier("Enum"),
+        importSpecifier("Idk"),
+        importSpecifier("Int"),
+        importSpecifier("String"),
       ]),
       ...from.map(generateClass)
     ]
   })
 
   let code = astring.generate(ast);
-  code = code.replace(/\nclass/g, "\n\nclass")
+  code = code.replace(/\export/g, "\n\export")
 
-  console.log(code);
+  return code;
 }
 
 function generateClass(from: Schema.Table){
   const name = idealCase(from.name);
 
-  return classDeclaration(name, "Entity", [
-    ...from.columns.map(generateProperty)
-  ])
+  return t.ExportNamedDeclaration({
+    specifiers: [],
+    declaration: classDeclaration(name, "Entity", [
+      ...from.columns.map(generateProperty)
+    ])
+  })
 }
 
 function generateProperty(from: Schema.Column){
   const property = idealCase(from.name, true);
   const opts = {} as { [key: string]: es.Expression | string | number };
 
-  let fieldType: "Int" | "String" | "Primary" | "Bool";
+  let fieldType: "Int" | "String" | "Primary" | "Bool" | "Enum" | "DateTime";
+
+  const { type } = from;
 
   if(property !== from.name)
     opts.column = from.name;
 
-  switch(from.type){
+  switch(type){
+    // case "json":
+    case "longtext":
+    case "mediumtext":
+    case "text":
     case "varchar": {
       fieldType = "String";
+
+      if(type !== "varchar")
+        opts.type = type;
     
-      if(from.size && from.size !== 255)
-        opts.size = from.size;
+      if(from.size && from.size !== DEFAULT_LENGTH[type])
+        opts.length = from.size;
       
       break;
     };
 
+    case "bigint":
     case "int": {
       fieldType = "Int"
 
@@ -87,8 +112,21 @@ function generateProperty(from: Schema.Column){
       break;
     }
 
+    case "enum": {
+      fieldType = "Enum";
+
+      break;
+    }
+
+    case "datetime": {
+      fieldType = "DateTime";
+
+      break;
+    }
+
     default:
-      throw new Error("not supported");
+      fieldType = "Idk" as any;
+      // throw new Error("not supported");
   }
 
   return (
@@ -104,8 +142,14 @@ function idealCase(
   from: string, lowercase?: boolean) {
 
   const items = from
-    .split(/_-/g)
+    .split(/[_-]/g)
     .map(segment => {
+      if(!segment.match(/[a-z]/) || !segment.match(/[A-Z]/))
+        return (
+          segment[0].toUpperCase() +
+          segment.slice(1).toLowerCase()
+        );
+
       return segment;
     });
 
