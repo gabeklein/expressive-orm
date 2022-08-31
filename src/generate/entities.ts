@@ -1,4 +1,4 @@
-import t from '@expressive/estree';
+import * as t from '@expressive/estree';
 import { generate } from 'astring';
 
 const DEFAULT_LENGTH = {
@@ -11,6 +11,7 @@ const DEFAULT_LENGTH = {
 export declare namespace Schema {
   interface Column {
     name: string;
+    schema: string;
     table: string;
     type: string;
     size?: number;
@@ -20,6 +21,7 @@ export declare namespace Schema {
 
   interface Table {
     name: string;
+    schema: string;
     columns: Column[];
   }
 }
@@ -55,12 +57,23 @@ export function generateEntities(
 
 function generateClass(from: Schema.Table){
   const name = idealCase(from.name);
+  const fields = from.columns.map(generateProperty);
+
+  if(from.name !== name)
+    fields.unshift(
+      t.classProperty("table",
+        t.call("Table", 
+          t.object({
+            name: from.name,
+            schema: from.schema
+          })
+        )
+      )
+    )
 
   return t.exportNamedDeclaration({
     specifiers: [],
-    declaration: t.classDeclaration(name, "Entity", [
-      ...from.columns.map(generateProperty)
-    ])
+    declaration: t.classDeclaration(name, "Entity", fields)
   })
 }
 

@@ -11,6 +11,7 @@ export async function getTables(schema: string){
       const {
         name,
         tableName,
+        schema,
         dataType,
         size,
         isNullable,
@@ -19,6 +20,7 @@ export async function getTables(schema: string){
 
       return <Schema.Column>{
         name,
+        schema,
         table: tableName,
         type: dataType,
         size,
@@ -43,6 +45,7 @@ export async function getTables(schema: string){
     if(!table){
       table = {
         name,
+        schema: column.schema,
         columns: []
       }
       
