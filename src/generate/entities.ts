@@ -1,16 +1,5 @@
-import * as astring from 'astring';
-
-import t from './node';
-import {
-  call,
-  classDeclaration,
-  classProperty,
-  importDeclaration,
-  importSpecifier,
-  object,
-} from './abstract';
-
-import type es from "estree";
+import t from '@expressive/estree';
+import { generate } from 'astring';
 
 const DEFAULT_LENGTH = {
   "varchar": 2 ** 8-1,
@@ -47,18 +36,18 @@ export function generateEntities(
     // "Idk",
   ]
 
-  const ast = t.Program({
+  const ast = t.program({
     sourceType: "module",
     body: [
-      importDeclaration("../", [
-        importSpecifier("Entity", "default"),
-        ...used.map(x => importSpecifier(x))
+      t.importDeclaration("../", [
+        t.importSpecifier("Entity", "default"),
+        ...used.map(x => t.importSpecifier(x))
       ]),
       ...from.map(generateClass)
     ]
   })
 
-  let code = astring.generate(ast);
+  let code = generate(ast);
   code = code.replace(/\export/g, "\n\export")
 
   return code;
@@ -67,9 +56,9 @@ export function generateEntities(
 function generateClass(from: Schema.Table){
   const name = idealCase(from.name);
 
-  return t.ExportNamedDeclaration({
+  return t.exportNamedDeclaration({
     specifiers: [],
-    declaration: classDeclaration(name, "Entity", [
+    declaration: t.classDeclaration(name, "Entity", [
       ...from.columns.map(generateProperty)
     ])
   })
@@ -77,7 +66,7 @@ function generateClass(from: Schema.Table){
 
 function generateProperty(from: Schema.Column){
   const property = idealCase(from.name, true);
-  const opts = {} as { [key: string]: es.Expression | string | number };
+  const opts = {} as { [key: string]: t.Expression | string | number };
 
   let fieldType: "Int" | "String" | "Primary" | "Bool" | "Enum" | "DateTime";
 
@@ -134,9 +123,9 @@ function generateProperty(from: Schema.Column){
   }
 
   return (
-    classProperty(property,
-      call(fieldType, 
-        object(opts, true)
+    t.classProperty(property,
+      t.call(fieldType, 
+        t.object(opts, true)
       )
     )
   )
