@@ -62,6 +62,28 @@ class Query<T extends Entity, S = unknown> {
     this.builder = KNEX.from(from);
   }
 
+  config<R, I>(from: Query.Options<T, R>){
+    const { where, select } = from;
+    let pass = {} as I;
+
+    if(where)
+      this.where(proxy => {
+        const output = where.call(proxy, proxy);
+
+        if(typeof output == "object")
+          pass = output;
+      });
+
+    if(typeof select == "function")
+      this.select(proxy => {
+        return select.call(proxy, proxy, pass);
+      });
+    else
+      this.select("*" || select);
+    
+    return this as unknown as Query<T, R>;
+  }
+
   // TODO: include per-field translation
   mapper(idenity: any){
     return idenity;

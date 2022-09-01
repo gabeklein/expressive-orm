@@ -61,7 +61,7 @@ abstract class Entity {
     this: Entity.Type<T>,
     from: Query.Options<T, R>
   ){
-    this.query(from);
+    new Query(this).config(from);
 
     return {} as R;
   }
@@ -99,17 +99,7 @@ abstract class Entity {
     this: Entity.Type<T>,
     from: Query.Options<T, R>
   ){
-    const query = new Query(this);
-
-    if(from.where)
-      query.where(from.where);
-
-    if(from.select)
-      query.select(from.select);
-    else
-      query.select("*");
-
-    return query as Query<T, R>;
+    return new Query(this).config(from);
   }
 
   static init<T extends Entity>(
