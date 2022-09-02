@@ -8,16 +8,31 @@ import { qualify, escapeString } from './utility';
 
 const KNEX = knex({ client: "mysql" });
 
+export namespace Join {
+  export type Mode = "left" | "right" | "inner" | "outer";
+
+  type WhereClause<T> =
+    T extends Field.Assertions<infer A> ? A : never;
+
+  export type Where<T extends Entity> = {
+    [K in Entity.Field<T>]: WhereClause<T[K]>;
+  }
+
+  export type Used = {
+    [name: string]: Where<Entity>;
+  }
+}
+
 namespace Query {
-  export type WhereFunction<T extends Entity> =
-    (this: Where<T>, thisArg: Where<T>) => void;
+  export type WhereFunction<T extends Entity, R = any> =
+    (this: Where<T>, thisArg: Where<T>) => R | void;
 
-  export type SelectFunction<T extends Entity, R> =
-    (this: Select<T>, thisArg: Select<T>) => R;
+  export type SelectFunction<T extends Entity, R, J = {}> =
+    (this: Select<T>, thisArg: Select<T>, joins: J) => R;
 
-  export type Options<T extends Entity, R> = {
-    where?: WhereFunction<T>;
-    select?: SelectFunction<T, R>;
+  export type Options<T extends Entity, R, I> = {
+    where?: WhereFunction<T, I>;
+    select?: SelectFunction<T, R, I>;
   }
 
   type WhereClause<T> =
@@ -62,17 +77,21 @@ class Query<T extends Entity, S = unknown> {
     this.builder = KNEX.from(from);
   }
 
-  config<R, I>(from: Query.Options<T, R>){
+  config<R, I>(from: Query.Options<T, R, I>){
     const { where, select } = from;
     let pass = {} as I;
 
-    if(where)
-      this.where(proxy => {
-        const output = where.call(proxy, proxy);
-
-        if(typeof output == "object")
-          pass = output;
+    if(where){
+      const table = this.getTableName();
+      const proxy = this.type.map((field) => {
+        return field.where(this, table);
       });
+
+      const output = where.call(proxy, proxy);
+
+      if(typeof output == "object")
+        pass = output;
+    }
 
     if(typeof select == "function")
       this.select(proxy => {
@@ -85,7 +104,7 @@ class Query<T extends Entity, S = unknown> {
   }
 
   // TODO: include per-field translation
-  mapper(idenity: any){
+  mapper(idenity: any, joins: any){
     return idenity;
   }
 
@@ -143,9 +162,9 @@ class Query<T extends Entity, S = unknown> {
     if(typeof limit == "number")
       this.builder.limit(limit);
 
-    const qs = this.builder.toString();
-
-    return connection.query(qs);
+    return connection.query(
+      this.builder.toString()
+    );
   }
   
   async get(limit?: number): Promise<S[]> {
@@ -185,7 +204,7 @@ class Query<T extends Entity, S = unknown> {
           pending.push(maybeAsync);
       }
 
-      return this.mapper.call(output, output);
+      return this.mapper.call(output, output, {});
     });
 
     await Promise.all(pending);
@@ -234,7 +253,7 @@ class Query<T extends Entity, S = unknown> {
       this.mapper = x => x;
     }
     else if(typeof from == "function"){
-      from.call(proxy, proxy);
+      from.call(proxy, proxy, {});
       this.mapper = from;
     }
     else if(Array.isArray(from))

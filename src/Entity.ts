@@ -1,7 +1,7 @@
 import Connection from './connection/Connection';
 import Field from './Field';
 import Primary from './instruction/Primary';
-import Query from './Query';
+import Query, { Join } from './Query';
 import Table from './Table';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
@@ -57,9 +57,9 @@ abstract class Entity {
     return this.table.map(getValue);
   }
 
-  static async getOne<T extends Entity, R>(
+  static async getOne<T extends Entity, R, I>(
     this: Entity.Type<T>,
-    from: Query.Options<T, R>
+    from: Query.Options<T, R, I>
   ){
     new Query(this).config(from);
 
@@ -95,9 +95,9 @@ abstract class Entity {
     return new Query(this).select(from as any);
   }
 
-  static query<T extends Entity, R>(
+  static query<T extends Entity, R, I>(
     this: Entity.Type<T>,
-    from: Query.Options<T, R>
+    from: Query.Options<T, R, I>
   ){
     return new Query(this).config(from);
   }
@@ -107,6 +107,10 @@ abstract class Entity {
     connection?: Connection){
 
     return new Table(this, connection);
+  }
+
+  static join(mode: Join.Mode){
+    
   }
 }
 
