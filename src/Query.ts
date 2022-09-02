@@ -62,22 +62,14 @@ class Query<T extends Entity, S = unknown> {
     this.builder = KNEX.from(from);
   }
 
-  config<R, I>(from: Query.Options<T, R>){
+  config<R>(from: Query.Options<T, R>){
     const { where, select } = from;
-    let pass = {} as I;
 
     if(where)
-      this.where(proxy => {
-        const output = where.call(proxy, proxy);
-
-        if(typeof output == "object")
-          pass = output;
-      });
+      this.where(where);
 
     if(typeof select == "function")
-      this.select(proxy => {
-        return select.call(proxy, proxy, pass);
-      });
+      this.select(select);
     else
       this.select("*" || select);
     
