@@ -97,9 +97,14 @@ abstract class Entity {
 
   static query<T extends Entity, R>(
     this: Entity.Type<T>,
-    from: Query.Options<T, R>
+    from: Query.Options<T, R> | Query.QueryFunction<T, R>
   ){
-    return new Query(this).config(from);
+    const query = new Query(this);
+
+    if(typeof from == "object")
+      return query.config(from);
+    else
+      return query.run(from) as unknown as Query<T, R>;
   }
 
   static init<T extends Entity>(

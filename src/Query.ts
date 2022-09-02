@@ -9,6 +9,18 @@ import { qualify, escapeString } from './utility';
 const KNEX = knex({ client: "mysql" });
 
 namespace Query {
+  export type QueryFunction<T extends Entity, R> =
+    (entity: Queryable<T>) => any;
+
+  type Queryable<T extends Entity> = {
+    [K in Entity.Field<T>]: QueryProperty<T[K]>;
+  };
+
+  type QueryProperty<T> =
+    T extends Field.Assertions<infer A>
+      ? A
+      : never
+
   export type WhereFunction<T extends Entity> =
     (this: Where<T>, thisArg: Where<T>) => void;
 
@@ -60,6 +72,10 @@ class Query<T extends Entity, S = unknown> {
 
     this.table = type.table;
     this.builder = KNEX.from(from);
+  }
+  
+  run<R>(use: Query.QueryFunction<T, R>){
+
   }
 
   config<R>(from: Query.Options<T, R>){
