@@ -42,16 +42,13 @@ namespace Query {
   export type Select<T extends Entity> = {
     [K in Entity.Field<T>]: SelectClause<T[K]>
   }
-
-  export type Normalize =
-    (row: { [select: string]: any }, output: any) => void;
 }
 
 class Query<T extends Entity, S = unknown> {
   protected builder: Knex.QueryBuilder;
 
   public table: Table;
-  public selects = new Set<Query.Normalize>();
+  public selects = new Set<(input: any, output: any) => void>();
   public tables = new Map<Field | undefined, string>();
 
   constructor(protected type: Entity.Type<T>){
@@ -120,9 +117,16 @@ class Query<T extends Entity, S = unknown> {
     this.builder.whereRaw(`${a} ${b} ${c}`);
   }
 
-  addSelect(name: string, callback: Query.Normalize){
-    this.builder.select(name);
-    this.selects.add(callback);
+  addSelect(
+    name: string,
+    callback: (input: any, output: any) => void){
+
+    const alias = '$' + (this.selects.size + 1);
+
+    this.builder.select(`${name} as ${alias}`);
+    this.selects.add((row, output) => {
+      callback(row[alias], output);
+    });
   }
 
   compare(

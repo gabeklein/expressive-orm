@@ -74,16 +74,16 @@ class Field {
     let { column } = this;
 
     if(prefix)
-      column = qualify(prefix, column);
+      column = prefix + "." + column;
 
-    query.addSelect(column, (from, to) => {
+    query.addSelect(column, (data, into) => {
       const route = Array.from(path);
       const key = route.pop()!;
 
       for(const key of route)
-        to = to[key];
+        into = into[key];
 
-      to[key] = from[column];
+      into[key] = data;
     });
 
     return this.placeholder;
