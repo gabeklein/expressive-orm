@@ -8,21 +8,6 @@ import { qualify, escapeString } from './utility';
 
 const KNEX = knex({ client: "mysql" });
 
-export namespace Join {
-  export type Mode = "left" | "right" | "inner" | "outer";
-
-  type WhereClause<T> =
-    T extends Field.Assertions<infer A> ? A : never;
-
-  export type Where<T extends Entity> = {
-    [K in Entity.Field<T>]: WhereClause<T[K]>;
-  }
-
-  export type Used = {
-    [name: string]: Where<Entity>;
-  }
-}
-
 namespace Query {
   export type WhereFunction<T extends Entity, R = any> =
     (this: Where<T>, thisArg: Where<T>) => R | void;

@@ -1,7 +1,8 @@
 import Connection from './connection/Connection';
 import Field from './Field';
 import Primary from './instruction/Primary';
-import Query, { Join } from './Query';
+import { createJoin, Join } from './joins';
+import Query from './Query';
 import Table from './Table';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
@@ -109,8 +110,11 @@ abstract class Entity {
     return new Table(this, connection);
   }
 
-  static join(mode: Join.Mode){
-    
+  static join<T extends Entity>(
+    this: Entity.Type<T>,
+    mode: Join.Mode){
+   
+    return createJoin(this, mode);
   }
 }
 
