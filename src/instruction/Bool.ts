@@ -40,15 +40,20 @@ class BooleanColumn extends Field {
   datatype = "TINYINT";
   placeholder = true;
 
+  get(value: 0 | 1){
+    return !!value;
+  }
+
+  set(value: boolean){
+    return value ? 1 : 0;
+  }
+
   where(query: Query<any>, parent?: string){
     const key = qualify(parent, this.column);
-    const compare = (op: string) => (value: boolean) => {
-      return query.compare(key, value ? 1 : 0, op);
-    }
 
     return {
-      is: compare("="),
-      isNot: compare("<>"),
+      is: this.compare(query, "=", key),
+      isNot: this.compare(query, "<>", key),
     }
   };
 }
