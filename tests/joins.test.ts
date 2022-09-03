@@ -13,33 +13,6 @@ class Bar extends Entity {
   rating = Int();
 }
 
-it.skip("will join via instruction", () => {
-  class Baz {
-    bar = Join(() => {
-      const bar = Bar.join("left");
-
-      bar.color.is(this.color);
-
-      return bar;
-    });
-  }
-})
-
-it.skip("will join using single query syntax", () => {
-  Foo.query(foo => {
-    const bar = Bar.join("left");
-
-    foo.name.isNot("Danny");
-    bar.color.is(foo.color);
-    bar.rating.isMore(50);
-
-    return () => ({
-      foo: foo.name,
-      bar: bar.name
-    })
-  })
-})
-
 it.skip("will join in query", () => {
   Foo.query({
     where(foo){
@@ -79,3 +52,29 @@ it.skip("will join in query via chain", () => {
     })
 })
 
+it.skip("will join via instruction", () => {
+  class Baz {
+    bar = Join(() => {
+      const bar = Bar.join("left");
+
+      bar.color.is(this.color);
+
+      return bar;
+    });
+  }
+})
+
+it.skip("will join using single query syntax", () => {
+  Foo.query(foo => {
+    const bar = Bar.join("left");
+
+    foo.name.isNot("Danny");
+    bar.color.is(foo.color);
+    bar.rating.isMore(50);
+
+    return () => ({
+      foo: foo.name,
+      bar: bar.name
+    })
+  })
+})
