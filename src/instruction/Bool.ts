@@ -40,7 +40,7 @@ class BooleanColumn extends Field {
   datatype = "TINYINT";
   placeholder = true;
 
-  where(query: Query<any>, parent?: string): Bool.Where {
+  where(query: Query<any>, parent?: string){
     const key = qualify(parent, this.column);
     const compare = (op: string) => (value: boolean) => {
       return query.compare(key, value ? 1 : 0, op);

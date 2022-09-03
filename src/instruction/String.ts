@@ -1,4 +1,3 @@
-import Query from '../Query';
 import Field, { SELECT, TYPE, WHERE } from '../Field';
 
 namespace String {
@@ -69,9 +68,6 @@ function String(
 
 class VarCharColumn extends Field {
   placeholder = `__${this.property}__`;
-
-  where!: (query: Query<any>, parent?: string) => Field.Where<string>;
-  select!: (query: Query<any>, path: string[], prefix?: string) => string;
 }
 
 export default String;
