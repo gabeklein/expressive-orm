@@ -2,6 +2,11 @@ import Entity from './Entity';
 import Field from './Field';
 import Query from './Query';
 
+export const Join = new WeakMap<any, {
+  query: Query<any>;
+  key: string;
+}>;
+
 export namespace Join {
   export type Mode = "left" | "right" | "inner" | "outer";
 
@@ -29,5 +34,11 @@ export function createJoin(
 }
 
 class JoinQuery<T extends Entity> extends Query<T> {
-
+  compare(
+    left: string | Field,
+    right: string | number | Field,
+    op: string
+  ){
+    
+  }
 }
