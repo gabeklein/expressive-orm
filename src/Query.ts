@@ -9,15 +9,15 @@ import { qualify, escapeString } from './utility';
 const KNEX = knex({ client: "mysql" });
 
 namespace Query {
-  export type WhereFunction<T extends Entity, R = any> =
-    (this: Where<T>, thisArg: Where<T>) => R | void;
+  export type WhereFunction<T extends Entity> =
+    (this: Where<T>, thisArg: Where<T>) => void;
 
-  export type SelectFunction<T extends Entity, R, J = {}> =
-    (this: Select<T>, thisArg: Select<T>, joins: J) => R;
+  export type SelectFunction<T extends Entity, R> =
+    (this: Select<T>, thisArg: Select<T>) => R;
 
-  export type Options<T extends Entity, R, I> = {
-    where?: WhereFunction<T, I>;
-    select?: SelectFunction<T, R, I>;
+  export type Options<T extends Entity, R> = {
+    where?: WhereFunction<T>;
+    select?: SelectFunction<T, R>;
   }
 
   type WhereClause<T> =
@@ -59,26 +59,14 @@ class Query<T extends Entity, S = unknown> {
     this.builder = KNEX.from(from);
   }
 
-  config<R, I>(from: Query.Options<T, R, I>){
+  config<R>(from: Query.Options<T, R>){
     const { where, select } = from;
-    let pass = {} as I;
 
-    if(where){
-      const table = this.getTableName();
-      const proxy = this.type.map((field) => {
-        return field.where(this, table);
-      });
-
-      const output = where.call(proxy, proxy);
-
-      if(typeof output == "object")
-        pass = output;
-    }
+    if(where)
+      this.where(where);
 
     if(typeof select == "function")
-      this.select(proxy => {
-        return select.call(proxy, proxy, pass);
-      });
+      this.select(select);
     else
       this.select("*" || select);
     
@@ -86,7 +74,7 @@ class Query<T extends Entity, S = unknown> {
   }
 
   // TODO: include per-field translation
-  mapper(idenity: any, joins: any){
+  mapper(idenity: any){
     return idenity;
   }
 
@@ -193,7 +181,7 @@ class Query<T extends Entity, S = unknown> {
           pending.push(maybeAsync);
       }
 
-      return this.mapper.call(output, output, {});
+      return this.mapper.call(output, output);
     });
 
     await Promise.all(pending);
@@ -242,7 +230,7 @@ class Query<T extends Entity, S = unknown> {
       this.mapper = x => x;
     }
     else if(typeof from == "function"){
-      from.call(proxy, proxy, {});
+      from.call(proxy, proxy);
       this.mapper = from;
     }
     else if(Array.isArray(from))

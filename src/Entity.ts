@@ -1,7 +1,6 @@
 import Connection from './connection/Connection';
 import Field from './Field';
 import Primary from './instruction/Primary';
-import { createJoin, Join } from './joins';
 import Query from './Query';
 import Table from './Table';
 
@@ -58,9 +57,9 @@ abstract class Entity {
     return this.table.map(getValue);
   }
 
-  static async getOne<T extends Entity, R, I>(
+  static async getOne<T extends Entity, R>(
     this: Entity.Type<T>,
-    from: Query.Options<T, R, I>
+    from: Query.Options<T, R>
   ){
     new Query(this).config(from);
 
@@ -96,9 +95,9 @@ abstract class Entity {
     return new Query(this).select(from as any);
   }
 
-  static query<T extends Entity, R, I>(
+  static query<T extends Entity, R>(
     this: Entity.Type<T>,
-    from: Query.Options<T, R, I>
+    from: Query.Options<T, R>
   ){
     return new Query(this).config(from);
   }
@@ -108,13 +107,6 @@ abstract class Entity {
     connection?: Connection){
 
     return new Table(this, connection);
-  }
-
-  static join<T extends Entity>(
-    this: Entity.Type<T>,
-    mode: Join.Mode){
-   
-    return createJoin(this, mode);
   }
 }
 
