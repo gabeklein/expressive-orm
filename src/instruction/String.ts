@@ -1,4 +1,3 @@
-import Query from '../Query';
 import Field, { SELECT, TYPE, WHERE } from '../Field';
 
 namespace String {
@@ -33,12 +32,13 @@ namespace String {
   }
 }
 
+// in power of 2 bytes
 const LENGTH_DEFAULT = {
-  "varchar": 2^8, // 256B
-  "tinytext": 2^8, // 256B
-  "text": 2^12, // 64KB
-  "mediumtext": 2^24, // 16MB
-  "longtext": 2^32 // 4GB
+  "varchar": 8,
+  "tinytext": 8,
+  "text": 12,
+  "mediumtext": 24,
+  "longtext": 32
 }
 
 function String(): String.Value;
@@ -59,7 +59,7 @@ function String(
   let datatype = arg1.type || "varchar";
 
   if(!arg1.length)
-    arg1.length = LENGTH_DEFAULT[datatype] - 1;
+    arg1.length = 2 ** LENGTH_DEFAULT[datatype] - 1;
 
   if(datatype == "varchar")
     datatype += `(${arg1.length})`;
@@ -69,9 +69,6 @@ function String(
 
 class VarCharColumn extends Field {
   placeholder = `__${this.property}__`;
-
-  where!: (query: Query<any>, parent?: string) => Field.Where<string>;
-  select!: (query: Query<any>, path: string[], prefix?: string) => string;
 }
 
 export default String;

@@ -27,13 +27,13 @@ it("will query nested relationships", () => {
   const sql = query.toString();
 
   expect(sql).toMatchInlineSnapshot(`
-    "select
-      \`C\`.\`label\`
-    from
-      \`A\`
-      left join \`B\` on \`B\`.\`id\` = \`bId\`
-      left join \`C\` on \`C\`.\`id\` = \`cId\`
-    where
-      \`C\`.\`value\` = 100"
-  `);
+"select
+  \`C\`.\`label\` as \`$1\`
+from
+  \`A\`
+  LEFT JOIN \`B\` ON \`B\`.\`id\` = \`bId\`
+  LEFT JOIN \`C\` ON \`C\`.\`id\` = \`cId\`
+where
+  \`C\`.\`value\` = 100"
+`);
 })

@@ -41,11 +41,27 @@ class Field {
 
   datatype: string | undefined;
 
+  get?(value: any): any;
+  set?(value: any): any;
+
   constructor(
     public table: Table,
     public property: string
   ){
     this.column = property;
+  }
+
+  compare(
+    query: Query<any>,
+    operator: string,
+    key: string){
+
+    return (value: any) => {
+      if(this.set)
+        value = this.set(value);
+
+      query.compare(key, value, operator);
+    }
   }
 
   init(options?: Partial<this>){
@@ -55,14 +71,12 @@ class Field {
 
   where(query: Query<any>, parent?: string): any {
     const key = qualify(parent!, this.column);
-    const compare = (operator: string) =>
-      (value: any) => query.compare(key, value, operator);
-  
+
     return {
-      is: compare("="),
-      isNot: compare("<>"),
-      isLess: compare("<"),
-      isMore: compare(">"),
+      is: this.compare(query, "=", key),
+      isNot: this.compare(query, "<>", key),
+      isLess: this.compare(query, "<", key),
+      isMore: this.compare(query, ">", key),
     }
   }
 
@@ -71,19 +85,22 @@ class Field {
     path: string[],
     prefix?: string): any {
 
-    let { column } = this;
+    let key = this.column;
 
     if(prefix)
-      column = qualify(prefix, column);
+      key = prefix + "." + key;
 
-    query.addSelect(column, (from, to) => {
+    query.addSelect(key, (data, into) => {
       const route = Array.from(path);
       const key = route.pop()!;
 
       for(const key of route)
-        to = to[key];
+        into = into[key];
 
-      to[key] = from[column];
+      if(this.get)
+        data = this.get(data);
+
+      into[key] = data;
     });
 
     return this.placeholder;

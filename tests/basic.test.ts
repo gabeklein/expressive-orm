@@ -39,15 +39,15 @@ it("will create book query", () => {
   const sql = query.toString();
 
   expect(sql).toMatchInlineSnapshot(`
-    "select
-      \`title\`
-    from
-      \`Book\`
-      left join \`Author\` on \`Author\`.\`id\` = \`authorId\`
-    where
-      \`title\` = '1984'
-      and \`Author\`.\`age\` > 50"
-  `);
+"select
+  \`title\` as \`$1\`
+from
+  \`Book\`
+  LEFT JOIN \`Author\` ON \`Author\`.\`id\` = \`authorId\`
+where
+  \`title\` = '1984'
+  and \`Author\`.\`age\` > 50"
+`);
 })
 
 it("will create author query", () => {
@@ -69,15 +69,15 @@ it("will create author query", () => {
   const sql = query.toString();
 
   expect(sql).toMatchInlineSnapshot(`
-    "select
-      \`nickname\`,
-      \`age\`
-    from
-      \`Author\`
-    where
-      \`name\` <> 'Robert'
-      and \`nickname\` = 'Bob'
-      and \`age\` > 3
-      and \`active\` = true"
-  `);
+"select
+  \`nickname\` as \`$1\`,
+  \`age\` as \`$2\`
+from
+  \`Author\`
+where
+  \`name\` <> 'Robert'
+  and \`nickname\` = 'Bob'
+  and \`age\` > 3
+  and \`active\` = 1"
+`);
 })

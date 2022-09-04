@@ -9,15 +9,15 @@ import { qualify, escapeString } from './utility';
 const KNEX = knex({ client: "mysql" });
 
 namespace Query {
-  export type WhereFunction<T extends Entity> =
-    (this: Where<T>, thisArg: Where<T>) => void;
+  export type WhereFunction<T extends Entity, R = any> =
+    (this: Where<T>, thisArg: Where<T>) => R | void;
 
-  export type SelectFunction<T extends Entity, R> =
-    (this: Select<T>, thisArg: Select<T>) => R;
+  export type SelectFunction<T extends Entity, R, J = {}> =
+    (this: Select<T>, thisArg: Select<T>, joins: J) => R;
 
-  export type Options<T extends Entity, R> = {
-    where?: WhereFunction<T>;
-    select?: SelectFunction<T, R>;
+  export type Options<T extends Entity, R, I> = {
+    where?: WhereFunction<T, I>;
+    select?: SelectFunction<T, R, I>;
   }
 
   type WhereClause<T> =
@@ -42,16 +42,13 @@ namespace Query {
   export type Select<T extends Entity> = {
     [K in Entity.Field<T>]: SelectClause<T[K]>
   }
-
-  export type Normalize =
-    (row: { [select: string]: any }, output: any) => void;
 }
 
 class Query<T extends Entity, S = unknown> {
   protected builder: Knex.QueryBuilder;
 
   public table: Table;
-  public selects = new Set<Query.Normalize>();
+  public selects = new Set<(input: any, output: any) => void>();
   public tables = new Map<Field | undefined, string>();
 
   constructor(protected type: Entity.Type<T>){
@@ -62,17 +59,21 @@ class Query<T extends Entity, S = unknown> {
     this.builder = KNEX.from(from);
   }
 
-  config<R, I>(from: Query.Options<T, R>){
+  config<R, I>(from: Query.Options<T, R, I>){
     const { where, select } = from;
     let pass = {} as I;
 
-    if(where)
-      this.where(proxy => {
-        const output = where.call(proxy, proxy);
-
-        if(typeof output == "object")
-          pass = output;
+    if(where){
+      const table = this.getTableName();
+      const proxy = this.type.map((field) => {
+        return field.where(this, table);
       });
+
+      const output = where.call(proxy, proxy);
+
+      if(typeof output == "object")
+        pass = output;
+    }
 
     if(typeof select == "function")
       this.select(proxy => {
@@ -85,7 +86,7 @@ class Query<T extends Entity, S = unknown> {
   }
 
   // TODO: include per-field translation
-  mapper(idenity: any){
+  mapper(idenity: any, joins: any){
     return idenity;
   }
 
@@ -116,9 +117,16 @@ class Query<T extends Entity, S = unknown> {
     this.builder.whereRaw(`${a} ${b} ${c}`);
   }
 
-  addSelect(name: string, callback: Query.Normalize){
-    this.builder.select(name);
-    this.selects.add(callback);
+  addSelect(
+    name: string,
+    callback: (input: any, output: any) => void){
+
+    const alias = '$' + (this.selects.size + 1);
+
+    this.builder.select(`${name} as ${alias}`);
+    this.selects.add((row, output) => {
+      callback(row[alias], output);
+    });
   }
 
   compare(
@@ -143,9 +151,9 @@ class Query<T extends Entity, S = unknown> {
     if(typeof limit == "number")
       this.builder.limit(limit);
 
-    const qs = this.builder.toString();
-
-    return connection.query(qs);
+    return connection.query(
+      this.builder.toString()
+    );
   }
   
   async get(limit?: number): Promise<S[]> {
@@ -185,7 +193,7 @@ class Query<T extends Entity, S = unknown> {
           pending.push(maybeAsync);
       }
 
-      return this.mapper.call(output, output);
+      return this.mapper.call(output, output, {});
     });
 
     await Promise.all(pending);
@@ -234,7 +242,7 @@ class Query<T extends Entity, S = unknown> {
       this.mapper = x => x;
     }
     else if(typeof from == "function"){
-      from.call(proxy, proxy);
+      from.call(proxy, proxy, {});
       this.mapper = from;
     }
     else if(Array.isArray(from))

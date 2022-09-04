@@ -51,19 +51,16 @@ class ForeignKeyColumn<T extends Entity = Entity> extends Field {
     super.init(options);
   }
 
+  set(value: number | object){
+    return typeof value == "object"
+      ? (value as any).id
+      : value;
+  }
+
   where(query: Query<any>, key: string): Ref.Where<T> {
-    function compare(operator: string){
-      return (value: object | number) => {
-        if(typeof value == "object")
-          value = (value as any).id;
-
-        query.addWhere(key, operator, value);
-      }
-    }
-
     return {
-      is: compare("="),
-      isNot: compare("<>"),
+      is: this.compare(query, "=", key),
+      isNot: this.compare(query, "<>", key),
     }
   };
 }
