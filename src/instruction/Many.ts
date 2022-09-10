@@ -1,12 +1,12 @@
 import Entity from '../Entity';
 import Query from '../Query';
-import Field, { SELECT, TYPE, WHERE } from '../Field';
+import Field, { VALUE, TYPE, WHERE } from '../Field';
 
 declare namespace Many {
   export type Entites<T extends Entity> = T[] & {
     [TYPE]?: ManyToOneRelation<T>;
     [WHERE]?: Query.Where<T>
-    [SELECT]?: Select<T>[];
+    [VALUE]?: Select<T>[];
   };
 
   interface Select<T extends Entity> {

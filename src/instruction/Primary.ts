@@ -1,4 +1,4 @@
-import Field, { SELECT, TYPE, WHERE } from '../Field';
+import Field, { VALUE, TYPE, WHERE } from '../Field';
 
 declare namespace Primary {
   type Key = (number | string) & MetaData;
@@ -6,7 +6,7 @@ declare namespace Primary {
   interface MetaData {
     [TYPE]?: PrimaryKeyColumn;
     [WHERE]?: Field.Where<number | string>;
-    [SELECT]?: (number | string);
+    [VALUE]?: (number | string);
   }
 
   interface Options {

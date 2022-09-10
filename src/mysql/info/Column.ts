@@ -97,7 +97,7 @@ class Column extends Entity {
     column: "TABLE_SCHEMA"
   });
 
-  size = Int({
+  maxLength = Int({
     column: "CHARACTER_MAXIMUM_LENGTH",
     nullable: true
     /* type: "bigint" */

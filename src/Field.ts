@@ -4,7 +4,7 @@ import { qualify } from './utility';
 
 export declare const TYPE: unique symbol;
 export declare const WHERE: unique symbol;
-export declare const SELECT: unique symbol;
+export declare const VALUE: unique symbol;
 
 namespace Field {
   export type Type<T extends Field = Field> =
@@ -17,7 +17,7 @@ namespace Field {
   export type Assertions<T> = { [WHERE]?: T };
 
   /** Infer assertions for a given property. */
-  export type Selects<T> = { [SELECT]?: T };
+  export type Value<T> = { [VALUE]?: T };
 
   export type Callback<T extends Field> = (field: T, key: string) => void;
 
@@ -68,7 +68,7 @@ class Field {
   proxy(query: Query){
     const { access, selects } = query;
     const table = Metadata.get(this)!;
-    const ref = qualify(table.name, this.column);
+    const ref = qualify(table.alias || table.name, this.column);
 
     let column!: number;
 
@@ -76,7 +76,7 @@ class Field {
       switch(query.mode){
         case "select": {
           column = access.size + 1;
-          selects.add(`${ref} as $${column}`);
+          selects.add(`${ref} as S${column}`);
           access.set(this, ref);
           return this.placeholder;
         }
@@ -88,7 +88,7 @@ class Field {
         }
 
         case "fetch":
-          return query.rawFocus["$" + column];
+          return query.rawFocus["S" + column];
       }
     }
   }

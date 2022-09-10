@@ -1,12 +1,12 @@
 import Entity from '../Entity';
 import Query from "../Query";
-import Field, { SELECT, TYPE, WHERE } from '../Field';
+import Field, { VALUE, TYPE, WHERE } from '../Field';
 
 declare namespace Ref {
   type Value<T extends Entity> = number & {
     [TYPE]?: ForeignKeyColumn<T>;
     [WHERE]?: Where<T>;
-    [SELECT]?: number;
+    [VALUE]?: number;
   };
 
   type Nullable<T extends Entity> = Value<T> | undefined | null;

@@ -1,10 +1,10 @@
-import Field, { SELECT, TYPE, WHERE } from '../Field';
+import Field, { VALUE, TYPE, WHERE } from '../Field';
 
 namespace String {
   type Meta<T> = {
     [TYPE]?: VarCharColumn;
     [WHERE]?: Field.Where<T>;
-    [SELECT]?: T;
+    [VALUE]?: T;
   }
 
   export type Value = string & Meta<string>;

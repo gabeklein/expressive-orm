@@ -1,6 +1,7 @@
 import Connection from "./connection/Connection";
 import Entity from "./Entity";
 import Field from "./Field";
+import { stringify } from "./mysql/stringify";
 import { escapeString, qualify } from "./utility";
 
 export const Metadata = new WeakMap<{}, Query.Table>();
@@ -44,6 +45,12 @@ declare namespace Query {
     [K in Entity.Field<T>]: WhereClause<T[K]>;
   }
 
+  export type Fields<T extends Entity> = {
+    [K in Entity.Field<T>]: Field<T[K]>;
+  }
+
+  export type Field<T> = WhereClause<T> & T;
+
   export type WhereObject<T extends Entity> = {
     [K in Entity.Field<T>]?: WhereField<T[K]>
   }
@@ -54,7 +61,7 @@ declare namespace Query {
       : never;
 
   type SelectClause<T> =
-    T extends Field.Selects<infer A> ? A : never;
+    T extends Field.Value<infer A> ? A : never;
 
   export type Select<T extends Entity> = {
     [K in Entity.Field<T>]: SelectClause<T[K]>
@@ -116,7 +123,7 @@ class Query<R = any> {
     return this.getOne(orFail || false);
   }
 
-  from<T extends Entity>(entity: Entity.Type<T>): Query.Where<T> {
+  from<T extends Entity>(entity: Entity.Type<T>): Query.Fields<T> {
     this.connection = entity.table.connection;
 
     return this.proxy(entity, {
@@ -126,11 +133,17 @@ class Query<R = any> {
 
   join<T extends Entity>(
     entity: Entity.Type<T>,
-    mode?: Query.Join){
-    
+    mode?: Query.Join
+  ): Query.Fields<T> {
+    let { name, schema } = entity.table;
+
+    if(schema)
+      name = qualify(schema, name);
+
     return this.proxy(entity, {
       join: mode || "inner",
-      name: entity.name,
+      name,
+      alias: `$${this.tables.size}`,
       on: []
     });
   }
@@ -180,7 +193,7 @@ class Query<R = any> {
     if(left.set && typeof right !== "object")
       right = left.set(right);
 
-    const column = qualify(meta.name, left.column);
+    const column = qualify(meta.alias || meta.name, left.column);
 
     if(typeof right == "object"){
       const info = Metadata.get(right)!;
@@ -199,51 +212,8 @@ class Query<R = any> {
   }
 
   toString(){
-    const { selects, where, tables } = this;
-    const lines = [] as string[];
-
-    if(selects.size){
-      lines.push(
-        "SELECT",
-        map(this.selects, clause => `\t${clause}`).join(",\n")
-      )
-    }
-
-    const [ from, ...joins ] = tables.values();
-
-    if(from.join)
-      throw new Error(`Table ${from.name} is joined but main table must be declared first.`);
-
-    lines.push(`FROM \`${from.name}\``);
-
-    for(const table of joins){
-      const type = table.join!.toUpperCase();
-      const join = `${type} JOIN ${qualify(table.name)}`;
-      const on = `\n\tON ${table.on!.join("\n\tAND ")}`;
-
-      lines.push(join + on);
-    }
-
-    if(where.size)
-      lines.push(
-        "WHERE\n\t" + [...where].join(" AND\n\t")
-      );
-
-    return lines.join("\n");
+    return stringify(this);
   }
-}
-
-function map<T, R>(
-  iterable: Map<any, T> | Set<T> | T[],
-  mapFn: (value: T) => R){
-
-  const output = [] as R[];
-
-  iterable.forEach(value => {
-    output.push(mapFn(value));
-  })
-
-  return output;
 }
 
 export default Query;

@@ -1,7 +1,7 @@
 import { escapeId } from 'mysql';
 
 import Entity from '../Entity';
-import Field, { SELECT, TYPE, WHERE } from '../Field';
+import Field, { VALUE, TYPE, WHERE } from '../Field';
 import Query from '../Query';
 import { lowercase, qualify, sql } from '../utility';
 
@@ -9,7 +9,7 @@ declare namespace One {
   type Field<T extends Entity> = T & {
     [TYPE]?: OneToManyRelation<T>;
     [WHERE]?: Query.Where<T>;
-    [SELECT]?: Query.Select<T>;
+    [VALUE]?: Query.Select<T>;
   }
 
   type Nullable<T extends Entity> = Field<T> | undefined | null;

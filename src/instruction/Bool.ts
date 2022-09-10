@@ -1,11 +1,11 @@
-import Field, { SELECT, TYPE, WHERE } from '../Field';
+import Field, { VALUE, TYPE, WHERE } from '../Field';
 import Query from '../Query';
 
 declare namespace Bool {
   type Value = boolean & {
     [TYPE]?: BooleanColumn;
     [WHERE]?: Where;
-    [SELECT]?: boolean;
+    [VALUE]?: boolean;
   };
 
   type Nullable = Value | undefined | null;

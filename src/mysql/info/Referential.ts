@@ -62,3 +62,5 @@ export class ReferentialConstraints extends Entity {
     length: 64
   })
 }
+
+export default ReferentialConstraints;
