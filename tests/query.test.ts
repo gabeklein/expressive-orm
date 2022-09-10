@@ -1,5 +1,24 @@
+// import { format } from 'sql-formatter';
 import { Entity, Int, String } from '../src';
 import Query from '../src/Query';
+
+// expect.addSnapshotSerializer({
+//   test(){
+//     return true;
+//   },
+//   print(stuff){
+//     if(typeof stuff === "string")
+//       return "    " + stuff.replace(/\n/g, "\n    ");
+//     else
+//       throw null;
+//   },
+//   serialize(stuff){
+//     if(typeof stuff === "string")
+//       return stuff.replace(/^    /g, "");
+//     else
+//       throw null;
+//   }
+// })
 
 class Foo extends Entity {
   name = String();
@@ -37,16 +56,16 @@ it("will join using single query syntax", async () => {
   const sql = query.toString();
 
   expect(sql).toMatchInlineSnapshot(`
-"SELECT
-	\`Foo\`.\`name\` as $1,
-	\`Bar\`.\`name\` as $2
-FROM \`Foo\`
-INNER JOIN \`Bar\`
-	ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-LEFT JOIN \`Baz\`
-	ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
-WHERE 
-	\`Foo\`.\`name\` <> 'Danny' AND
-	\`Bar\`.\`rating\` > 50"
-`);
+    SELECT
+    	\`Foo\`.\`name\` as $1,
+    	\`Bar\`.\`name\` as $2
+    FROM \`Foo\`
+    INNER JOIN \`Bar\`
+    	ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
+    LEFT JOIN \`Baz\`
+    	ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
+    WHERE
+    	\`Foo\`.\`name\` <> 'Danny' AND
+    	\`Bar\`.\`rating\` > 50
+  `);
 })

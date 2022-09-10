@@ -226,7 +226,7 @@ class Query<R = any> {
 
     if(where.size)
       lines.push(
-        "WHERE \n\t" + [...where].join(" AND\n\t")
+        "WHERE\n\t" + [...where].join(" AND\n\t")
       );
 
     return lines.join("\n");

@@ -28,14 +28,14 @@ it("will query nested relationships", () => {
   const sql = query.toString();
 
   expect(sql).toMatchInlineSnapshot(`
-"SELECT
+SELECT
 	\`C\`.\`label\` as $1
 FROM \`A\`
 LEFT JOIN \`B\`
 	ON \`B\`.\`id\` = \`A\`.\`bId\`
 LEFT JOIN \`C\`
 	ON \`C\`.\`id\` = \`B\`.\`cId\`
-WHERE 
-	\`C\`.\`value\` = 100"
+WHERE
+	\`C\`.\`value\` = 100
 `);
 })

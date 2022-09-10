@@ -34,7 +34,7 @@ it("will create tables", () => {
   const sql = connection.createTables();
 
   expect(format(sql)).toMatchInlineSnapshot(`
-    "CREATE TABLE
+    CREATE TABLE
       IF NOT EXISTS Author (
         \`id\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         \`age\` INT NOT NULL,
@@ -60,6 +60,6 @@ it("will create tables", () => {
     ALTER TABLE
       Book
     ADD
-      CONSTRAINT \`FK_AuthorBook\` FOREIGN KEY (authorId) REFERENCES Author(id)"
+      CONSTRAINT \`FK_AuthorBook\` FOREIGN KEY (authorId) REFERENCES Author(id)
 `);
 })
