@@ -57,49 +57,48 @@ abstract class Entity {
     return this.table.map(getValue);
   }
 
+  static async get<T extends Entity, R>(
+    this: Entity.Type<T>,
+    from: (source: Query.Where<T>, query: Query<any>) => () => R
+  ){
+    return new Query($ => from($.from(this), $)).get();
+  }
+
   static async getOne<T extends Entity, R>(
     this: Entity.Type<T>,
+    from: (source: Query.Where<T>, query: Query<any>) => () => R
+  ){
+    return new Query($ => from($.from(this), $)).getOne();
+  }
+
+  static query<T extends Entity>(
+    this: Entity.Type<T>,
+    from: {
+      where?: Query.WhereFunction<T>;
+    }
+  ): Entity.Pure<T>;
+
+  static query<T extends Entity, R>(
+    this: Entity.Type<T>,
     from: Query.Options<T, R>
-  ){
-    new Query(this).config(from);
-
-    return {} as R;
-  }
-
-  static where<T extends Entity, R>(
-    this: Entity.Type<T>,
-    from: Query.WhereFunction<T> | Query.WhereObject<T>
-  ){
-    return new Query(this).where(from);
-  }
-
-  static select<T extends Entity, R>(
-    this: Entity.Type<T>,
-    from: Query.SelectFunction<T, R>
-  ): Query<T, R>;
-
-  static select<T extends Entity, K extends Entity.Field<T>>(
-    this: Entity.Type<T>,
-    fields: K[]
-  ): Query<T, Pick<Query.Select<T>, K>>;
-
-  static select<T extends Entity>(
-    this: Entity.Type<T>,
-    from: "*"
-  ): Query<T, Query.Select<T>>;
-
-  static select<T extends Entity, R>(
-    this: Entity.Type<T>,
-    from: "*" | Entity.Field<T>[] | Query.SelectFunction<T, R>
-  ){
-    return new Query(this).select(from as any);
-  }
+  ): R;
 
   static query<T extends Entity, R>(
     this: Entity.Type<T>,
     from: Query.Options<T, R>
   ){
-    return new Query(this).config(from);
+    const { select, where } = from;
+
+    return new Query($ => {
+      const source = $.from(this);
+
+      if(where)
+        where.call(source, source);
+
+      return select
+        ? () => select.call(source as any, source as any)
+        : () => ({ ...source } as any);
+    })
   }
 
   static init<T extends Entity>(

@@ -34,15 +34,21 @@ class Table {
     }
   }
 
-  map(getter: (type: Field, key: string) => any){
+  map(
+    getter: (this: {}, type: Field, key: string, thisArg: {}) => any,
+    cache?: boolean){
+
     const proxy = {} as any;
 
     for(const [key, type] of this.fields)
       Object.defineProperty(proxy, key, {
         configurable: true,
         get: () => {
-          const value = getter(type, key);
-          Object.defineProperty(proxy, key, { value });
+          const value = getter.call(proxy, type, key, proxy);
+
+          if(cache !== false)
+            Object.defineProperty(proxy, key, { value });
+
           return value;
         }
       })

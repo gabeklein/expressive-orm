@@ -1,4 +1,4 @@
-import Query from './Query';
+import Query, { Metadata } from './Query';
 import Table from './Table';
 import { qualify } from './utility';
 
@@ -52,15 +52,11 @@ class Field {
   }
 
   compare(
-    query: Query<any>,
-    operator: string,
-    key: string){
+    query: Query,
+    operator: string){
 
     return (value: any) => {
-      if(this.set)
-        value = this.set(value);
-
-      query.compare(key, value, operator);
+      query.compare(this, value, operator);
     }
   }
 
@@ -69,42 +65,42 @@ class Field {
     Object.assign(this, options);
   }
 
-  where(query: Query<any>, parent?: string): any {
-    const key = qualify(parent!, this.column);
+  proxy(query: Query){
+    const { access, selects } = query;
+    const table = Metadata.get(this)!;
+    const ref = qualify(table.name, this.column);
 
-    return {
-      is: this.compare(query, "=", key),
-      isNot: this.compare(query, "<>", key),
-      isLess: this.compare(query, "<", key),
-      isMore: this.compare(query, ">", key),
+    let column!: number;
+
+    return () => {
+      switch(query.mode){
+        case "select": {
+          column = access.size + 1;
+          selects.add(`${ref} as $${column}`);
+          access.set(this, ref);
+          return this.placeholder;
+        }
+
+        case "query": {
+          const compare: any = this.where(query);
+          Metadata.set(compare, table);
+          return compare;
+        }
+
+        case "fetch":
+          return query.rawFocus["$" + column];
+      }
     }
   }
 
-  select(
-    query: Query<any>,
-    path: string[],
-    prefix?: string): any {
-
-    let key = this.column;
-
-    if(prefix)
-      key = prefix + "." + key;
-
-    query.addSelect(key, (data, into) => {
-      const route = Array.from(path);
-      const key = route.pop()!;
-
-      for(const key of route)
-        into = into[key];
-
-      if(this.get)
-        data = this.get(data);
-
-      into[key] = data;
-    });
-
-    return this.placeholder;
-  };
+  where(query: Query): any {
+    return {
+      is: this.compare(query, "="),
+      isNot: this.compare(query, "<>"),
+      isLess: this.compare(query, "<"),
+      isMore: this.compare(query, ">"),
+    }
+  }
 
   static create<T extends Field>(
     this: Field.Type<T>, options?: Partial<T>){

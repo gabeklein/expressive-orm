@@ -1,5 +1,5 @@
 import Entity from '../Entity';
-import Query from '../Query';
+import Query from "../Query";
 import Field, { SELECT, TYPE, WHERE } from '../Field';
 
 declare namespace Ref {
@@ -57,10 +57,10 @@ class ForeignKeyColumn<T extends Entity = Entity> extends Field {
       : value;
   }
 
-  where(query: Query<any>, key: string): Ref.Where<T> {
+  where(query: Query<any>): Ref.Where<T> {
     return {
-      is: this.compare(query, "=", key),
-      isNot: this.compare(query, "<>", key),
+      is: this.compare(query, "="),
+      isNot: this.compare(query, "<>"),
     }
   };
 }

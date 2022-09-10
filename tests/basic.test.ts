@@ -4,7 +4,8 @@ import {
   Many,
   One,
   String,
-  Entity
+  Entity,
+  Query
 } from "../src";
 
 class Author extends Entity {
@@ -25,15 +26,16 @@ class Book extends Entity {
   author = One(Author); 
 }
 
-it("will create book query", () => {
-  const query = Book.query({
-    where(){
-      this.title.is("1984");
-      this.author.age.isMore(50);
-    },
-    select(){
-      return this.title;
-    }
+it.skip("will create book query", () => {
+  const query = new Query($ => {
+    const book = $.from(Book);
+
+    book.title.is("1984");
+    book.author.age.isMore(50);
+
+    return () => ({
+      title: book.title
+    })
   })
 
   const sql = query.toString();
@@ -50,21 +52,20 @@ where
 `);
 })
 
-it("will create author query", () => {
-  const query = Author.query({
-    where(){
-      this.name.isNot("Robert");
-      this.nickname.is("Bob");
-      this.age.isMore(3);
-      this.active.is(true);
-    },
-    select(){
-      return {
-        name: this.nickname,
-        age: this.age
-      } as const
-    }
-  });
+it.skip("will create author query", () => {
+  const query = new Query($ => {
+    const author = $.from(Author);
+
+    author.name.isNot("Robert");
+    author.nickname.is("Bob");
+    author.age.isMore(3);
+    author.active.is(true);
+
+    return () => ({
+      name: author.nickname,
+      age: author.age
+    })
+  })
 
   const sql = query.toString();
 

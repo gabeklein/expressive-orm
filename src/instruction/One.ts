@@ -1,9 +1,9 @@
 import { escapeId } from 'mysql';
 
 import Entity from '../Entity';
-import Query from '../Query';
-import { lowercase, sql } from '../utility';
 import Field, { SELECT, TYPE, WHERE } from '../Field';
+import Query from '../Query';
+import { lowercase, qualify, sql } from '../utility';
 
 declare namespace One {
   type Field<T extends Entity> = T & {
@@ -62,31 +62,19 @@ class OneToManyRelation<T extends Entity = Entity> extends Field {
     `
   }
 
-  join(query: Query<any>){
-    let name = query.tables.get(this);
+  proxy(query: Query<any>){
+    let { type } = this;
 
-    if(!name){
-      name = query.join(this.type, this.column);
-      query.tables.set(this, name);
-    }
+    const fk = qualify(type.table.name, "id");
+    const lk = qualify(this.table.name, this.column);
 
-    return name;
-  }
+    const proxy = query.proxy(type, {
+      join: "left",
+      name: type.table.name,
+      on: [`${fk} = ${lk}`]
+    });
 
-  where(query: Query<any>): Query.Where<T> {
-    const table = this.join(query);
-
-    return this.type.map((field) => {
-      return field.where(query, table);
-    })
-  };
-
-  select(query: Query<any>, path: string[]): Query.Select<T> {
-    const table = this.join(query);
-
-    return this.type.map((field, key) => {
-      return field.select(query, [...path, key], table);
-    })
+    return () => proxy;
   }
 }
 

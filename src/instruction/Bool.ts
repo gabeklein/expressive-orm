@@ -1,6 +1,5 @@
-import Query from '../Query';
-import { qualify } from '../utility';
 import Field, { SELECT, TYPE, WHERE } from '../Field';
+import Query from '../Query';
 
 declare namespace Bool {
   type Value = boolean & {
@@ -48,12 +47,10 @@ class BooleanColumn extends Field {
     return value ? 1 : 0;
   }
 
-  where(query: Query<any>, parent?: string){
-    const key = qualify(parent, this.column);
-
+  where(query: Query<any>){
     return {
-      is: this.compare(query, "=", key),
-      isNot: this.compare(query, "<>", key),
+      is: this.compare(query, "="),
+      isNot: this.compare(query, "<>"),
     }
   };
 }

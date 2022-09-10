@@ -15,6 +15,7 @@ it("will query nested relationships", () => {
     label = String();
   }
 
+  // TODO: fix types
   const query = A.query({
     where(){
       this.b.c.value.is(100);
@@ -27,13 +28,14 @@ it("will query nested relationships", () => {
   const sql = query.toString();
 
   expect(sql).toMatchInlineSnapshot(`
-"select
-  \`C\`.\`label\` as \`$1\`
-from
-  \`A\`
-  LEFT JOIN \`B\` ON \`B\`.\`id\` = \`bId\`
-  LEFT JOIN \`C\` ON \`C\`.\`id\` = \`cId\`
-where
-  \`C\`.\`value\` = 100"
+"SELECT
+	\`C\`.\`label\` as $1
+FROM \`A\`
+LEFT JOIN \`B\`
+	ON \`B\`.\`id\` = \`A\`.\`bId\`
+LEFT JOIN \`C\`
+	ON \`C\`.\`id\` = \`B\`.\`cId\`
+WHERE 
+	\`C\`.\`value\` = 100"
 `);
 })

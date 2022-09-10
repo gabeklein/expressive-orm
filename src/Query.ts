@@ -1,14 +1,31 @@
-import knex, { Knex } from 'knex';
-import { format } from 'sql-formatter';
+import Connection from "./connection/Connection";
+import Entity from "./Entity";
+import Field from "./Field";
+import { escapeString, qualify } from "./utility";
 
-import Entity from './Entity';
-import Field from './Field';
-import Table from './Table';
-import { qualify, escapeString } from './utility';
+export const Metadata = new WeakMap<{}, Query.Table>();
 
-const KNEX = knex({ client: "mysql" });
+declare namespace Query {
+  export type Function<R> = (query: Query) => () => R;
 
-namespace Query {
+  export type Join =
+    | "left"
+    | "right"
+    | "inner"
+    | "outer";
+
+  export type Mode =
+    | "query"
+    | "select"
+    | "fetch";
+
+  export interface Table {
+    name: string;
+    join?: Query.Join;
+    alias?: string;
+    on?: string[];
+  }
+
   export type WhereFunction<T extends Entity> =
     (this: Where<T>, thisArg: Where<T>) => void;
 
@@ -44,200 +61,189 @@ namespace Query {
   }
 }
 
-class Query<T extends Entity, S = unknown> {
-  protected builder: Knex.QueryBuilder;
+class Query<R = any> {
+  connection?: Connection;
+  mode: Query.Mode = "query";
+  access = new Map<Field, string>();
+  selects = new Set<string>();
+  where = new Set<string>();
+  tables = new Map<any, Query.Table>();
+  limit?: number;
+  select?: () => R;
+  rawFocus!: { [alias: string]: any };
 
-  public table: Table;
-  public selects = new Set<(input: any, output: any) => void>();
-  public tables = new Map<Field | undefined, string>();
+  constructor(from: Query.Function<R>){
+    const select = from(this);
 
-  constructor(protected type: Entity.Type<T>){
-    const { name, schema } = type.table;
-    const from = schema ? `${schema}.${name}` : name;
-
-    this.table = type.table;
-    this.builder = KNEX.from(from);
+    if(typeof select == "function"){
+      this.mode = "select";
+      this.select = select as () => R;
+      select();
+    }
   }
 
-  config<R>(from: Query.Options<T, R>){
-    const { where, select } = from;
-
-    if(where)
-      this.where(where);
-
-    if(typeof select == "function")
-      this.select(select);
-    else
-      this.select("*" || select);
-    
-    return this as unknown as Query<T, R>;
-  }
-
-  // TODO: include per-field translation
-  mapper(idenity: any){
-    return idenity;
-  }
-
-  getTableName(from?: Field){
-    return this.tables.get(from) || "";
-  }
-
-  join(type: typeof Entity, on: string, foreignKey?: string){
-    const foreign = type.table.name;
-    const local = this.getTableName();
-
-    // TODO: pull default from actual entity.
-    const fk = qualify(foreign, foreignKey || "id");
-    const lk = qualify(local, on);
-
-    this.builder.joinRaw(
-      `LEFT JOIN ${qualify(foreign)} ON ${fk} = ${lk}`
-    )
-
-    return foreign;
-  }
-
-  toString(){
-    return format(this.builder.toString());
-  }
-
-  addWhere(a: any, b: any, c: any){
-    this.builder.whereRaw(`${a} ${b} ${c}`);
-  }
-
-  addSelect(
-    name: string,
-    callback: (input: any, output: any) => void){
-
-    const alias = '$' + (this.selects.size + 1);
-
-    this.builder.select(`${name} as ${alias}`);
-    this.selects.add((row, output) => {
-      callback(row[alias], output);
-    });
-  }
-
-  compare(
-    left: Field | string,
-    right: string | number | Field,
-    op: string){
-  
-    if(typeof right === "string")
-      right = escapeString(right);
-    
-    this.builder.whereRaw(
-      `${left.toString()} ${op} ${right.toString()}`
-    );
-  }
-
-  async fetch(limit?: number){
-    const { connection } = this.table;
-
-    if(!connection)
-      throw new Error(`${this.type.name} has no connection. Is it initialized?`);
-
+  async get(limit?: number): Promise<R[]> {
     if(typeof limit == "number")
-      this.builder.limit(limit);
+      if(this.limit! < limit)
+        throw new Error(`Limit of ${this.limit} is already defined in query.`);
+      else
+        this.limit = limit;
 
-    return connection.query(
-      this.builder.toString()
-    );
-  }
-  
-  async get(limit?: number): Promise<S[]> {
+    const sql = String(this);
+
+    if(!this.connection)
+      throw new Error("Query has no connection, have you setup entities?");
+
     return this.hydrate(
-      await this.fetch(limit)
-    );
+      await this.connection.query(sql)
+    ); 
   }
   
-  async getOne(orFail: false): Promise<S | undefined>;
-  async getOne(orFail?: boolean): Promise<S>;
+  async getOne(orFail: false): Promise<R | undefined>;
+  async getOne(orFail?: boolean): Promise<R>;
   async getOne(orFail?: boolean){
-    const results = await this.fetch(1);
+    const results = await this.get(1);
 
     if(results.length < 1 && orFail)
       throw new Error("No result found.");
 
-    const output = await this.hydrate(results);
-
-    return output[0];
+    return results[0];
   }
   
-  async findOne(orFail: true): Promise<S>;
-  async findOne(orFail?: boolean): Promise<S | undefined>;
+  async findOne(orFail: true): Promise<R>;
+  async findOne(orFail?: boolean): Promise<R | undefined>;
   async findOne(orFail?: boolean){
     return this.getOne(orFail || false);
   }
 
-  async hydrate(raw: any[]){
-    const pending = [] as Promise<void>[];
-    const results = raw.map(row => {
-      const output = {};
+  from<T extends Entity>(entity: Entity.Type<T>): Query.Where<T> {
+    this.connection = entity.table.connection;
 
-      for(const apply of this.selects){
-        const maybeAsync = apply(row, output) as unknown;
+    return this.proxy(entity, {
+      name: entity.name
+    });
+  }
 
-        if(maybeAsync instanceof Promise)
-          pending.push(maybeAsync);
+  join<T extends Entity>(
+    entity: Entity.Type<T>,
+    mode?: Query.Join){
+    
+    return this.proxy(entity, {
+      join: mode || "inner",
+      name: entity.name,
+      on: []
+    });
+  }
+
+  hydrate(raw: any[]){
+    const results = [] as R[];
+    
+    if(this.select)
+      for(const row of raw){
+        this.rawFocus = row;
+        results.push(this.select());
       }
 
-      return this.mapper.call(output, output);
-    });
-
-    await Promise.all(pending);
-    
     return results;
   }
 
-  where(from: Query.WhereFunction<T> | Query.WhereObject<T>){
-    const { fields } = this.type.table;
-    const table = this.getTableName();
+  proxy(entity: Entity.Type, metadata?: Query.Table){
+    const proxy = {} as any;
 
-    if(typeof from == "object"){
-      for(const key in from){
-        const field = fields.get(key);
+    if(metadata)
+      this.tables.set(proxy, metadata);
 
-        if(!field)
-          continue;
+    entity.table.fields.forEach((field, key) => {
+      field = Object.create(field);
 
-        const ref = qualify(table!, field.column);
-        this.compare(ref, (from as any)[key], "=");
-      }
-    }
-    else {
-      const proxy = this.type.map((field) => {
-        return field.where(this, table);
-      });
-  
-      from.call(proxy, proxy);
-    }
+      if(metadata)
+        Metadata.set(field, metadata);
 
-    return this;
-  }
-
-  select<R>(from: Query.SelectFunction<T, R>): Query<T, R>;
-  select(from: Query.SelectFunction<T, S>): this;
-  select<K extends Entity.Field<T>>(fields: K[]): Query<T, Pick<Query.Select<T>, K>>;
-  select(from: "*"): Query<T, Query.Select<T>>;
-  select(from: "*" | string[] | Query.SelectFunction<T, any>): Query<T, any> {
-    const table = this.getTableName();
-    const proxy = this.type.map((field, key) => {
-      return field.select(this, [key], table);
+      Object.defineProperty(proxy, key, {
+        get: field.proxy(this)
+      })
     })
 
-    if(from == "*"){
-      Object.getOwnPropertyNames(proxy).forEach(key => proxy[key])
-      this.mapper = x => x;
-    }
-    else if(typeof from == "function"){
-      from.call(proxy, proxy);
-      this.mapper = from;
-    }
-    else if(Array.isArray(from))
-      from.forEach(key => proxy[key])
-
-    return this;
+    return proxy;
   }
+
+  compare(
+    left: Field,
+    right: string | number | {},
+    op: string
+  ){
+    if(!(left instanceof Field))
+      return;
+
+    const meta = Metadata.get(left)!;
+
+    if(left.set && typeof right !== "object")
+      right = left.set(right);
+
+    const column = qualify(meta.name, left.column);
+
+    if(typeof right == "object"){
+      const info = Metadata.get(right)!;
+      const ref = qualify(info.name, left.column);
+      const joinOn = meta.on;
+
+      if(joinOn)
+        joinOn.push(`${column} ${op} ${ref}`);
+    }
+    else {
+      if(typeof right === "string")
+        right = escapeString(right);
+        
+      this.where.add(`${column} ${op} ${right}`);
+    }
+  }
+
+  toString(){
+    const { selects, where, tables } = this;
+    const lines = [] as string[];
+
+    if(selects.size){
+      lines.push(
+        "SELECT",
+        map(this.selects, clause => `\t${clause}`).join(",\n")
+      )
+    }
+
+    const [ from, ...joins ] = tables.values();
+
+    if(from.join)
+      throw new Error(`Table ${from.name} is joined but main table must be declared first.`);
+
+    lines.push(`FROM \`${from.name}\``);
+
+    for(const table of joins){
+      const type = table.join!.toUpperCase();
+      const join = `${type} JOIN ${qualify(table.name)}`;
+      const on = `\n\tON ${table.on!.join("\n\tAND ")}`;
+
+      lines.push(join + on);
+    }
+
+    if(where.size)
+      lines.push(
+        "WHERE \n\t" + [...where].join(" AND\n\t")
+      );
+
+    return lines.join("\n");
+  }
+}
+
+function map<T, R>(
+  iterable: Map<any, T> | Set<T> | T[],
+  mapFn: (value: T) => R){
+
+  const output = [] as R[];
+
+  iterable.forEach(value => {
+    output.push(mapFn(value));
+  })
+
+  return output;
 }
 
 export default Query;
