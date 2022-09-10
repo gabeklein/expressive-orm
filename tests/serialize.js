@@ -3,17 +3,17 @@ function test(){
 }
 
 function print(stuff){
-  if(typeof stuff === "string")
-    return "    " + stuff.replace(/\n/g, "\n    ");
-  else
-    throw null;
+  if(typeof stuff !== "string")
+    stuff = String(stuff);
+  
+  return "    " + stuff.replace(/\n/g, "\n    ");
 }
 
 function serialize(stuff){
-  if(typeof stuff === "string")
-    return stuff.replace(/^    /g, "");
-  else
-    throw null;
+  if(typeof stuff !== "string")
+    stuff = String(stuff);
+  
+  return stuff.replace(/^    /g, "");
 }
 
 module.exports = {

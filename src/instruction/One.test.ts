@@ -25,9 +25,7 @@ it("will query nested relationships", () => {
     }
   })
 
-  const sql = query.toString();
-
-  expect(sql).toMatchInlineSnapshot(`
+  expect(query).toMatchInlineSnapshot(`
 SELECT
 	\`C\`.\`label\` as $1
 FROM \`A\`

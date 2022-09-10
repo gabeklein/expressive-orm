@@ -53,9 +53,7 @@ it("will join using single query syntax", async () => {
     })
   });
 
-  const sql = query.toString();
-
-  expect(sql).toMatchInlineSnapshot(`
+  expect(query).toMatchInlineSnapshot(`
     SELECT
     	\`Foo\`.\`name\` as $1,
     	\`Bar\`.\`name\` as $2
