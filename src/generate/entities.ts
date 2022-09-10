@@ -49,10 +49,7 @@ export function generateEntities(
     ]
   })
 
-  let code = generate(ast);
-  code = code.replace(/\export/g, "\n\export")
-
-  return code;
+  return generate(ast).replace(/\export/g, "\n\export");
 }
 
 function generateClass(from: Schema.Table){
