@@ -6,7 +6,7 @@ import KeyColumnUsage from './info/KeyColumnUsage';
 import Referential from './info/Referential';
 
 async function getColumns(){
-  const query = new Query($ => {
+  return Query.get($ => {
     const column = $.from(Column);
     const usage = $.join(KeyColumnUsage, "left");
     const refCon = $.join(Referential, "left");
@@ -66,11 +66,7 @@ async function getColumns(){
         primary
       }
     }
-  })
-
-  console.log(query.toString());
-
-  return query.get();
+  });
 }
 
 async function getTables(schema: string){

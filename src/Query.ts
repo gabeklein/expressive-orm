@@ -69,6 +69,18 @@ declare namespace Query {
 }
 
 class Query<R = any> {
+  static get<R>(from: Query.Function<R>){
+    return new this(from).get();
+  }
+
+  static getOne<R>(from: Query.Function<R>){
+    return new this(from).getOne(false);
+  }
+
+  static find<R>(from: Query.Function<R>){
+    return new this(from).getOne(true);
+  }
+
   connection?: Connection;
   mode: Query.Mode = "query";
   access = new Map<Field, string>();
@@ -119,9 +131,9 @@ class Query<R = any> {
     return results[0];
   }
   
-  async findOne(orFail: true): Promise<R>;
-  async findOne(orFail?: boolean): Promise<R | undefined>;
-  async findOne(orFail?: boolean){
+  async find(orFail: true): Promise<R>;
+  async find(orFail?: boolean): Promise<R | undefined>;
+  async find(orFail?: boolean){
     return this.getOne(orFail || false);
   }
 
