@@ -5,7 +5,7 @@ import Column from './info/Column';
 import KeyColumnUsage from './info/KeyColumnUsage';
 import Referential from './info/Referential';
 
-async function getTables(schema: string){
+async function getColumns(){
   const query = new Query($ => {
     const column = $.from(Column);
     const usage = $.join(KeyColumnUsage, "left");
@@ -57,7 +57,7 @@ async function getTables(schema: string){
       
       return {
         table: tableName,
-        name: name,
+        name,
         type: dataType,
         nullable: isNullable == "YES",
         schema,
@@ -70,7 +70,11 @@ async function getTables(schema: string){
 
   console.log(query.toString());
 
-  const results = await query.get();
+  return query.get();
+}
+
+async function getTables(schema: string){
+  const results = await getColumns();
   const tables = new Map<string, Schema.Table>();
 
   for(const result of results){
