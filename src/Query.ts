@@ -87,6 +87,8 @@ class Query<R = any> {
       this.select = select as () => R;
       select();
     }
+
+    this.mode = "fetch";
   }
 
   async get(limit?: number): Promise<R[]> {
@@ -211,7 +213,7 @@ class Query<R = any> {
     }
   }
 
-  toString(){
+  toString(): string {
     return stringify(this);
   }
 }
