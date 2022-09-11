@@ -14,7 +14,7 @@ export declare namespace Schema {
     schema: string;
     table: string;
     type: string;
-    size?: number;
+    maxLength?: number;
     nullable: boolean;
     primary?: boolean;
   }
@@ -96,8 +96,8 @@ function generateProperty(from: Schema.Column){
       if(type !== "varchar")
         opts.type = type;
     
-      if(from.size && from.size !== DEFAULT_LENGTH[type])
-        opts.length = from.size;
+      if(from.maxLength && from.maxLength !== DEFAULT_LENGTH[type])
+        opts.length = from.maxLength;
       
       break;
     };

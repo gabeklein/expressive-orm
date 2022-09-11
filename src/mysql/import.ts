@@ -1,37 +1,47 @@
+// @ts-nocheck 
+import { generateEntities, Schema } from '../generate/entities';
 import Query from '../Query';
 import Column from './info/Column';
 import KeyColumnUsage from './info/KeyColumnUsage';
-
-// import Referential from './info/Referential';
+import Referential from './info/Referential';
 
 export async function getTables(schema: string){
   const query = new Query($ => {
     const column = $.from(Column);
     const usage = $.join(KeyColumnUsage, "left");
-    // const refCon = $.join(Referential, "left");
+    const refCon = $.join(Referential, "left");
+
+    refCon.constraintName.is(usage.constraintName);
+    refCon.constraintSchema.is(usage.tableSchema);
+    refCon.tableName.is(usage.tableName);
 
     usage.tableSchema.is(column.schema);
     usage.tableName.is(column.tableName);
     usage.columnName.is(column.name);
 
-    // refCon.
-    
-    //.constraintName.is(usage.constraintName);
-
     return () => {
+      const {
+        tableName,
+        name,
+        dataType,
+        maxLength,
+        isNullable,
+        schema
+      } = column;
+
       const {
         constraintName,
         referencedTableName,
         referencedColumnName
       } = usage;
 
-      // const {
-      //   deleteRule,
-      //   updateRule
-      // } = refCon;
+      const {
+        deleteRule,
+        updateRule
+      } = refCon;
 
       let reference;
-      let primary;
+      let primary = false;
 
       if(constraintName == "PRIMARY")
         primary = true;
@@ -41,15 +51,17 @@ export async function getTables(schema: string){
           table: referencedTableName,
           column: referencedColumnName,
           name: constraintName,
-          // deleteRule,
-          // updateRule
+          deleteRule,
+          updateRule
         }
       
       return {
-        table: column.tableName,
-        column: column.name,
-        type: column.dataType,
-        maxLength: column.maxLength,
+        table: tableName,
+        name: name,
+        type: dataType,
+        nullable: isNullable == "YES",
+        schema,
+        maxLength,
         reference,
         primary
       }
@@ -58,62 +70,25 @@ export async function getTables(schema: string){
 
   console.log(query.toString());
 
-  return query.get();
-}
+  const results = await query.get();
+  const tables = new Map<string, Schema.Table>();
 
-// export async function getTables(schema: string){
-//   const qColumns = Column.query({
-//     where(){
-//       this.schema.is(schema);
-//     },
-//     select(){
-//       const {
-//         name,
-//         tableName,
-//         schema,
-//         dataType,
-//         size,
-//         isNullable,
-//         key
-//       } = this;
+  for(const result of results){
+    const name = result.table;
+    let table = tables.get(name);
 
-//       return <Schema.Column>{
-//         name,
-//         schema,
-//         table: tableName,
-//         type: dataType,
-//         size,
-//         nullable: isNullable == "YES",
-//         primary: key === "PRI"
-//       }
-//     }
-//   });
-
-//   const constraints = await Constraint
-//     .select("*")
-//     .where({ schema })
-//     .get();
-    
-//   const columns = await qColumns.get();
-//   const tables = new Map<string, Schema.Table>();
-
-//   for(const column of columns){
-//     const name = column.table;
-//     let table = tables.get(name);
-
-//     if(!table){
-//       table = {
-//         name,
-//         schema: column.schema,
-//         columns: []
-//       }
+    if(!table){
+      table = {
+        name,
+        schema: result.schema,
+        columns: []
+      }
       
-//       tables.set(name, table);
-//     }
+      tables.set(name, table);
+    }
 
-//     table.columns.push(column);
-//   }
+    table.columns.push(result);
+  }
 
-//   return generateEntities(...tables.values());
-// }
-
+  return generateEntities(...tables.values());
+}
