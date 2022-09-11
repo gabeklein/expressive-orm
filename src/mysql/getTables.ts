@@ -5,7 +5,7 @@ import Column from './info/Column';
 import KeyColumnUsage from './info/KeyColumnUsage';
 import Referential from './info/Referential';
 
-export async function getTables(schema: string){
+async function getTables(schema: string){
   const query = new Query($ => {
     const column = $.from(Column);
     const usage = $.join(KeyColumnUsage, "left");
@@ -92,3 +92,5 @@ export async function getTables(schema: string){
 
   return generateEntities(...tables.values());
 }
+
+export default getTables;
