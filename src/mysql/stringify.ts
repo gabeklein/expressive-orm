@@ -30,14 +30,14 @@ export function stringify(query: Query){
   if(from.join)
     throw new Error(`Table ${from.name} is joined but main table must be declared first.`);
 
-  lines.push(`FROM \`${from.name}\``);
+  lines.push(`FROM ${qualify(from.name)} AS ${qualify(from.alias)}`);
 
   for(const table of joins){
     const type = table.join!.toUpperCase();
     let join = `${type} JOIN ${qualify(table.name)}`;
 
     if(table.alias)
-      join += ` AS ${table.alias}`;
+      join += ` AS ${qualify(table.alias)}`;
 
     const on = `\n\tON ${table.on!.join("\n\tAND ")}`;
 
@@ -49,5 +49,5 @@ export function stringify(query: Query){
       "WHERE\n\t" + [...where].join(" AND\n\t")
     );
 
-  return lines.join("\n");
+  return lines.join("\n").replace(/\t/g, "  ");
 }

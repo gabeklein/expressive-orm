@@ -76,7 +76,7 @@ class Field {
       switch(query.mode){
         case "select": {
           column = access.size + 1;
-          selects.add(`${ref} as S${column}`);
+          selects.add(`${ref} AS ${qualify("S" + column)}`);
           access.set(this, ref);
           return this.placeholder;
         }

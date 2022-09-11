@@ -128,8 +128,14 @@ class Query<R = any> {
   from<T extends Entity>(entity: Entity.Type<T>): Query.Fields<T> {
     this.connection = entity.table.connection;
 
+    let { name, schema } = entity.table;
+
+    if(schema)
+      name = qualify(schema, name);
+
     return this.proxy(entity, {
-      name: entity.name
+      name,
+      alias: "$0"
     });
   }
 
@@ -198,8 +204,8 @@ class Query<R = any> {
     const column = qualify(meta.alias || meta.name, left.column);
 
     if(typeof right == "object"){
-      const info = Metadata.get(right)!;
-      const ref = qualify(info.name, left.column);
+      const { alias, name } = Metadata.get(right)!;
+      const ref = qualify(alias || name, left.column);
       const joinOn = meta.on;
 
       if(joinOn)
