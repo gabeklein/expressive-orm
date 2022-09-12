@@ -7,7 +7,7 @@ import { escapeString, qualify } from "./utility";
 export const Metadata = new WeakMap<{}, Query.Table>();
 
 declare namespace Query {
-  export type Function<R> = (query: Query) => () => R;
+  export type Function<R> = (query: Query) => (() => R) | R;
 
   export type Join =
     | "left"
@@ -96,12 +96,47 @@ class Query<R = any> {
   rawFocus!: { [alias: string]: any };
 
   constructor(from: Query.Function<R>){
-    const select = from(this);
+    const select = from(this) as any;
 
-    if(typeof select == "function"){
-      this.mode = "select";
-      this.select = select as () => R;
-      select();
+    switch(typeof select){
+      case "function":
+        this.mode = "select";
+        this.select = select as () => R;
+        select();
+      break;
+
+      case "object": {
+        if(select instanceof Field){
+          const column = this.selects.size + 1;
+          this.selects.set(select, column);
+          this.select = () => this.rawFocus[column];
+        }
+        else {
+          const desc = Object.getOwnPropertyDescriptors(select);
+
+          for(const key in desc){
+            const { value } = desc[key];
+
+            if(!(value instanceof Field))
+              continue;
+
+            this.selects.set(value, key);
+          }
+
+          this.select = () => {
+            const value = Object.create(select);
+            const raw = this.rawFocus;
+
+            this.selects.forEach(column => {
+              value[column] = raw[column];
+            })
+            
+            return value;
+          }
+        }
+          
+        break;
+      }
     }
 
     this.mode = "fetch";
