@@ -87,7 +87,7 @@ class Query<R = any> {
   clauses = new Set<string>();
   tables = new Map<any, Query.Table>();
   limit?: number;
-  select?: () => R;
+  map?: () => R;
   rawFocus!: { [alias: string]: any };
 
   constructor(from: Query.Function<R>){
@@ -96,12 +96,12 @@ class Query<R = any> {
     switch(typeof select){
       case "function":
         this.mode = "select";
-        this.select = select as () => R;
+        this.map = select as () => R;
         select();
       break;
 
       case "object": 
-        this.select = factory(this, select);
+        this.map = factory(this, select);
       break;
     }
 
@@ -194,10 +194,10 @@ class Query<R = any> {
   hydrate(raw: any[]){
     const results = [] as R[];
     
-    if(this.select)
+    if(this.map)
       for(const row of raw){
         this.rawFocus = row;
-        results.push(this.select());
+        results.push(this.map());
       }
 
     return results;
