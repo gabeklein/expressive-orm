@@ -26,6 +26,7 @@ class Book extends Entity {
   author = One(Author); 
 }
 
+//TODO: fix
 it.skip("will create book query", () => {
   const query = new Query(where => {
     const book = where.from(Book);
@@ -33,15 +34,13 @@ it.skip("will create book query", () => {
     where.equal(book.title, "1984");
     where.greater(book.author, 50);
 
-    return () => ({
-      title: book.title
-    })
+    return book.title;
   })
 
   expect(query).toMatchInlineSnapshot();
 })
 
-it.skip("will create author query", () => {
+it("will create author query", () => {
   const query = new Query(where => {
     const author = where.from(Author);
 
@@ -58,5 +57,17 @@ it.skip("will create author query", () => {
 
   const sql = query.toString();
 
-  expect(sql).toMatchInlineSnapshot();
+  expect(sql).toMatchInlineSnapshot(`
+SELECT
+  \`Author\`.\`nickname\` AS \`1\`,
+  \`Author\`.\`age\` AS \`2\`
+FROM \`Author\`
+LEFT JOIN \`Publisher\`
+  ON \`Publisher\`.\`id\` = \`Author\`.\`publisherId\`
+WHERE
+  \`Author\`.\`name\` <> 'Robert' AND
+  \`Author\`.\`age\` = 3 AND
+  \`Author\`.\`nickname\` = 'Bob' AND
+  \`Author\`.\`active\` = 1
+`);
 })
