@@ -20,8 +20,8 @@ it("will join using single query syntax", async () => {
 
   const query = new Query(where => {
     const foo = where.from(Foo);
-    const bar = where.joins(Bar);
-    const baz = where.joins(Baz, "left");
+    const bar = where.join(Bar);
+    const baz = where.join(Baz, "left");
 
     where.equal(bar.color, foo.color);
     where.equal(baz.rating, bar.rating);

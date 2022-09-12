@@ -178,7 +178,7 @@ class Query<R = any> {
     return this.proxy(entity, table);
   }
 
-  joins: Query.JoinFunction = (entity, mode) => {
+  join: Query.JoinFunction = (entity, mode) => {
     let { name, schema } = entity.table;
     let alias: string | undefined;
 

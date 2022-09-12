@@ -7,11 +7,11 @@ import Referential from './info/Referential';
 
 async function getColumns(){
   return Query.get(where => {
-    const { from, joins, equal } = where;
+    const { from, join, equal } = where;
 
     const column = from(Column);
-    const usage = joins(KeyColumnUsage, "left");
-    const ref = joins(Referential, "left");
+    const usage = join(KeyColumnUsage, "left");
+    const ref = join(Referential, "left");
 
     equal(ref.constraintName, usage.constraintName);
     equal(ref.constraintSchema, usage.tableSchema);
