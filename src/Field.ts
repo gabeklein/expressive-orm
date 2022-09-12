@@ -54,19 +54,19 @@ class Field {
     Object.assign(this, options);
   }
 
-  proxy(query: Query){
-    const { access, selects } = query;
+  get qualifiedName(){
     const { alias, name } = Metadata.get(this)!;
-    const ref = qualify(alias || name, this.column);
+    return qualify(alias || name, this.column);
+  }
 
+  proxy(query: Query){
     let column!: number;
 
     return () => {
       switch(query.mode){
         case "select": {
-          column = access.size + 1;
-          selects.add(`${ref} AS ${qualify("S" + column)}`);
-          access.set(this, ref);
+          column = query.selects.size + 1;
+          query.selects.set(this, "S" + column);
           return this.placeholder;
         }
 

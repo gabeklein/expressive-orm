@@ -1,28 +1,18 @@
 import Query from '../Query';
 import { qualify } from '../utility';
 
-function map<T, R>(
-  iterable: Map<any, T> | Set<T> | T[],
-  mapFn: (value: T) => R){
-
-  const output = [] as R[];
-
-  iterable.forEach(value => {
-    output.push(mapFn(value));
-  })
-
-  return output;
-}
-
 export function stringify(query: Query){
   const { selects, tables, clauses } = query;
   const lines = [] as string[];
 
-  if(selects.size)
-    lines.push(
-      "SELECT",
-      map(selects, clause => `\t${clause}`).join(",\n")
-    )
+  if(selects.size){
+    const selection = [] as string[];
+
+    for(const [field, alias] of selects)
+      selection.push(`\t${field.qualifiedName} AS ${qualify(alias)}`)
+
+    lines.push( "SELECT", selection.join(",\n"));
+  }
 
   const [ from, ...joins ] = tables.values();
 
