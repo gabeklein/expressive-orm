@@ -100,38 +100,9 @@ class Query<R = any> {
         select();
       break;
 
-      case "object": {
-        if(select instanceof Field){
-          const column = this.selects.size + 1;
-          this.selects.set(select, column);
-          this.select = () => this.rawFocus[column];
-        }
-        else {
-          const desc = Object.getOwnPropertyDescriptors(select);
-
-          for(const key in desc){
-            const { value } = desc[key];
-
-            if(!(value instanceof Field))
-              continue;
-
-            this.selects.set(value, key);
-          }
-
-          this.select = () => {
-            const value = Object.create(select);
-            const raw = this.rawFocus;
-
-            this.selects.forEach(column => {
-              value[column] = raw[column];
-            })
-            
-            return value;
-          }
-        }
-          
-        break;
-      }
+      case "object": 
+        this.select = factory(this, select);
+      break;
     }
 
     this.mode = "fetch";
@@ -200,11 +171,7 @@ class Query<R = any> {
       alias = "$0"
     }
 
-    const table: Query.Table = { name, alias }
-
-    
-
-    return this.proxy(entity, table);
+    return this.proxy(entity, { name, alias });
   }
 
   join: Query.JoinFunction = (entity, mode) => {
@@ -216,14 +183,12 @@ class Query<R = any> {
       alias = `$${this.tables.size}`;
     }
 
-    const table: Query.Table = {
+    return this.proxy(entity, {
       join: mode || "inner",
       name,
       alias,
       on: []
-    }
-
-    return this.proxy(entity, table);
+    });
   }
 
   hydrate(raw: any[]){
@@ -288,6 +253,37 @@ class Query<R = any> {
 
   toString(): string {
     return stringify(this);
+  }
+}
+
+function factory(on: Query, selection: any){
+  if(selection instanceof Field){
+    const column = on.selects.size + 1;
+    on.selects.set(selection, column);
+
+    return () => on.rawFocus[column];
+  }
+
+  const desc = Object.getOwnPropertyDescriptors(selection);
+
+  for(const key in desc){
+    const { value } = desc[key];
+
+    if(!(value instanceof Field))
+      continue;
+
+    on.selects.set(value, key);
+  }
+
+  return () => {
+    const output = Object.create(selection);
+    const raw = on.rawFocus;
+
+    on.selects.forEach(column => {
+      output[column] = raw[column];
+    })
+    
+    return output;
   }
 }
 
