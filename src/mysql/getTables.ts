@@ -55,7 +55,7 @@ async function getColumns(schema: string){
         table: tableName,
         name,
         type: dataType,
-        nullable: isNullable == "YES",
+        nullable: isNullable,
         schema,
         maxLength,
         reference,

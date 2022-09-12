@@ -1,8 +1,9 @@
 import Entity from '../../Entity';
-import Table from '../../instruction/Table';
-import String from '../../instruction/String';
+import Bool from '../../instruction/Bool';
 import Int from '../../instruction/Int';
 import Primary from '../../instruction/Primary';
+import String from '../../instruction/String';
+import Table from '../../instruction/Table';
 
 class Column extends Entity {
   table = Table({
@@ -57,8 +58,9 @@ class Column extends Entity {
     type: "longtext"
   });
 
-  isNullable = String({
-    column: "IS_NULLABLE"
+  isNullable = Bool({
+    column: "IS_NULLABLE",
+    either: ["YES", "NO"]
   });
 
   name = String({ 
