@@ -1,11 +1,9 @@
 import Entity from '../Entity';
-import Query from "../Query";
-import Field, { VALUE, TYPE, WHERE } from '../Field';
+import Field, { TYPE, VALUE } from '../Field';
 
 declare namespace Ref {
   type Value<T extends Entity> = number & {
     [TYPE]?: ForeignKeyColumn<T>;
-    [WHERE]?: Where<T>;
     [VALUE]?: number;
   };
 
@@ -56,13 +54,6 @@ class ForeignKeyColumn<T extends Entity = Entity> extends Field {
       ? (value as any).id
       : value;
   }
-
-  where(query: Query<any>): Ref.Where<T> {
-    return {
-      is: this.compare(query, "="),
-      isNot: this.compare(query, "<>"),
-    }
-  };
 }
 
 export default Ref;

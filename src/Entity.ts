@@ -24,6 +24,9 @@ declare namespace Entity {
   }
 
   type Field<T extends Entity> = Exclude<keyof T, "table">;
+
+  type Where<T extends Entity, R> =
+    (source: Query.Fields<T>, query: Query<any>) => () => R;
 }
 
 abstract class Entity {
@@ -59,14 +62,14 @@ abstract class Entity {
 
   static async get<T extends Entity, R>(
     this: Entity.Type<T>,
-    from: (source: Query.Where<T>, query: Query<any>) => () => R
+    from: Entity.Where<T, R>
   ){
     return new Query($ => from($.from(this), $)).get();
   }
 
   static async getOne<T extends Entity, R>(
     this: Entity.Type<T>,
-    from: (source: Query.Where<T>, query: Query<any>) => () => R
+    from: Entity.Where<T, R>
   ){
     return new Query($ => from($.from(this), $)).getOne();
   }

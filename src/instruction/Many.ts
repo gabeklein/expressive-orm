@@ -1,11 +1,10 @@
 import Entity from '../Entity';
+import Field, { TYPE, VALUE } from '../Field';
 import Query from '../Query';
-import Field, { VALUE, TYPE, WHERE } from '../Field';
 
 declare namespace Many {
   export type Entites<T extends Entity> = T[] & {
     [TYPE]?: ManyToOneRelation<T>;
-    [WHERE]?: Query.Where<T>
     [VALUE]?: Select<T>[];
   };
 

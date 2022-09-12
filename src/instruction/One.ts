@@ -1,14 +1,13 @@
 import { escapeId } from 'mysql';
 
 import Entity from '../Entity';
-import Field, { VALUE, TYPE, WHERE } from '../Field';
+import Field, { TYPE, VALUE } from '../Field';
 import Query from '../Query';
 import { lowercase, qualify, sql } from '../utility';
 
 declare namespace One {
   type Field<T extends Entity> = T & {
     [TYPE]?: OneToManyRelation<T>;
-    [WHERE]?: Query.Where<T>;
     [VALUE]?: Query.Select<T>;
   }
 

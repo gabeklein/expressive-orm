@@ -6,18 +6,20 @@ import KeyColumnUsage from './info/KeyColumnUsage';
 import Referential from './info/Referential';
 
 async function getColumns(){
-  return Query.get($ => {
-    const column = $.from(Column);
-    const usage = $.join(KeyColumnUsage, "left");
-    const refCon = $.join(Referential, "left");
+  return Query.get(where => {
+    const { from, joins, equal } = where;
 
-    refCon.constraintName.is(usage.constraintName);
-    refCon.constraintSchema.is(usage.tableSchema);
-    refCon.tableName.is(usage.tableName);
+    const column = from(Column);
+    const usage = joins(KeyColumnUsage, "left");
+    const refCon = joins(Referential, "left");
 
-    usage.tableSchema.is(column.schema);
-    usage.tableName.is(column.tableName);
-    usage.columnName.is(column.name);
+    equal(refCon.constraintName, usage.constraintName);
+    equal(refCon.constraintSchema, usage.tableSchema);
+    equal(refCon.tableName, usage.tableName);
+
+    equal(usage.tableSchema, column.schema);
+    equal(usage.tableName, column.tableName);
+    equal(usage.columnName, column.name);
 
     return () => {
       const {

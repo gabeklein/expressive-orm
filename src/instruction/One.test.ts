@@ -1,4 +1,5 @@
 import Entity from '../Entity';
+import Query from '../Query';
 import Int from './Int';
 import One from './One';
 import String from './String';
@@ -16,13 +17,12 @@ it("will query nested relationships", () => {
   }
 
   // TODO: fix types
-  const query = A.query({
-    where(){
-      this.b.c.value.is(100);
-    },
-    select(){
-      return this.b.c.label;
-    }
+  const query = new Query(where => {
+    const a = where.from(A);
+
+    where.equal(a.b.c.value, 100);
+    
+    return () => a.b.c.label;
   })
 
   expect(query).toMatchInlineSnapshot(`

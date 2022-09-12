@@ -3,7 +3,6 @@ import Table from './Table';
 import { qualify } from './utility';
 
 export declare const TYPE: unique symbol;
-export declare const WHERE: unique symbol;
 export declare const VALUE: unique symbol;
 
 namespace Field {
@@ -12,9 +11,6 @@ namespace Field {
 
   /** Infer Field type for a given property. */
   export type Typeof<T> = { [TYPE]?: T };
-
-  /** Infer assertions for a given property. */
-  export type Assertions<T> = { [WHERE]?: T };
 
   /** Infer assertions for a given property. */
   export type Value<T> = { [VALUE]?: T };
@@ -67,8 +63,8 @@ class Field {
 
   proxy(query: Query){
     const { access, selects } = query;
-    const table = Metadata.get(this)!;
-    const ref = qualify(table.alias || table.name, this.column);
+    const { alias, name } = Metadata.get(this)!;
+    const ref = qualify(alias || name, this.column);
 
     let column!: number;
 
@@ -81,24 +77,12 @@ class Field {
           return this.placeholder;
         }
 
-        case "query": {
-          const compare: any = this.where(query);
-          Metadata.set(compare, table);
-          return compare;
-        }
+        case "query":
+          return this;
 
         case "fetch":
           return query.rawFocus["S" + column];
       }
-    }
-  }
-
-  where(query: Query): any {
-    return {
-      is: this.compare(query, "="),
-      isNot: this.compare(query, "<>"),
-      isLess: this.compare(query, "<"),
-      isMore: this.compare(query, ">"),
     }
   }
 

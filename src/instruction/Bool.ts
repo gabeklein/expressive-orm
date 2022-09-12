@@ -1,10 +1,8 @@
-import Field, { VALUE, TYPE, WHERE } from '../Field';
-import Query from '../Query';
+import Field, { TYPE, VALUE } from '../Field';
 
 declare namespace Bool {
   type Value = boolean & {
     [TYPE]?: BooleanColumn;
-    [WHERE]?: Where;
     [VALUE]?: boolean;
   };
 
@@ -46,13 +44,6 @@ class BooleanColumn extends Field {
   set(value: boolean){
     return value ? 1 : 0;
   }
-
-  where(query: Query<any>){
-    return {
-      is: this.compare(query, "="),
-      isNot: this.compare(query, "<>"),
-    }
-  };
 }
 
 export default Bool;

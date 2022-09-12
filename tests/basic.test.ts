@@ -27,11 +27,11 @@ class Book extends Entity {
 }
 
 it.skip("will create book query", () => {
-  const query = new Query($ => {
-    const book = $.from(Book);
+  const query = new Query(where => {
+    const book = where.from(Book);
 
-    book.title.is("1984");
-    book.author.age.isMore(50);
+    where.equal(book.title, "1984");
+    where.greater(book.author, 50);
 
     return () => ({
       title: book.title
@@ -42,13 +42,13 @@ it.skip("will create book query", () => {
 })
 
 it.skip("will create author query", () => {
-  const query = new Query($ => {
-    const author = $.from(Author);
+  const query = new Query(where => {
+    const author = where.from(Author);
 
-    author.name.isNot("Robert");
-    author.nickname.is("Bob");
-    author.age.isMore(3);
-    author.active.is(true);
+    where.notEqual(author.name, "Robert");
+    where.equal(author.age, 3);
+    where.equal(author.nickname, "Bob");
+    where.equal(author.active, true);
 
     return () => ({
       name: author.nickname,

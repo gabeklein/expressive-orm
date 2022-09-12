@@ -1,9 +1,8 @@
-import Field, { VALUE, TYPE, WHERE } from '../Field';
+import Field, { TYPE, VALUE } from '../Field';
 
 namespace String {
   type Meta<T> = {
     [TYPE]?: VarCharColumn;
-    [WHERE]?: Field.Where<T>;
     [VALUE]?: T;
   }
 

@@ -36,16 +36,16 @@ class Baz extends Entity {
 }
 
 it("will join using single query syntax", async () => {
-  const query = new Query($ => {
-    const foo = $.from(Foo);
-    const bar = $.join(Bar);
-    const baz = $.join(Baz, "left");
+  const query = new Query(where => {
+    const foo = where.from(Foo);
+    const bar = where.joins(Bar);
+    const baz = where.joins(Baz, "left");
 
-    bar.color.is(foo.color);
-    baz.rating.is(bar.rating);
+    where.equal(bar.color, foo.color);
+    where.equal(baz.rating, bar.rating);
 
-    foo.name.isNot("Danny");
-    bar.rating.isMore(50);
+    where.notEqual(foo.name, "Danny");
+    where.greater(bar.rating, 50);
 
     return () => ({
       foo: foo.name,

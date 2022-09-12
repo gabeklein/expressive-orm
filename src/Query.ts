@@ -1,6 +1,6 @@
 import Connection from "./connection/Connection";
 import Entity from "./Entity";
-import Field from "./Field";
+import Field, { VALUE } from "./Field";
 import { stringify } from "./mysql/stringify";
 import { escapeString, qualify } from "./utility";
 
@@ -28,7 +28,7 @@ declare namespace Query {
   }
 
   export type WhereFunction<T extends Entity> =
-    (this: Where<T>, thisArg: Where<T>) => void;
+    (this: Fields<T>, thisArg: Fields<T>) => void;
 
   export type SelectFunction<T extends Entity, R> =
     (this: Select<T>, thisArg: Select<T>) => R;
@@ -38,21 +38,9 @@ declare namespace Query {
     select?: SelectFunction<T, R>;
   }
 
-  type WhereClause<T> =
-    T extends Field.Assertions<infer A> ? A : never;
-
-  export type Where<T extends Entity> = {
-    [K in Entity.Field<T>]: WhereClause<T[K]>;
-  }
-
   export type Fields<T extends Entity> = {
-    [K in Entity.Field<T>]: Field<T[K]>;
-  }
-
-  export type Field<T> = WhereClause<T> & T;
-
-  export type WhereObject<T extends Entity> = {
-    [K in Entity.Field<T>]?: WhereField<T[K]>
+    [K in Entity.Field<T>]:
+      T[K] extends { [VALUE]?: infer U } ? U : T[K];
   }
 
   export type WhereField<T> =
@@ -135,6 +123,22 @@ class Query<R = any> {
   async find(orFail?: boolean): Promise<R | undefined>;
   async find(orFail?: boolean){
     return this.getOne(orFail || false);
+  }
+
+  equal = (value: any, isEqualTo: any) => {
+    this.compare(value, isEqualTo, "=");
+  }
+
+  notEqual = (value: any, notEqualTo: any) => {
+    this.compare(value, notEqualTo, "<>");
+  }
+
+  greater = (value: any, than: any) => {
+    this.compare(value, than, ">");
+  }
+
+  less = (value: any, than: any) => {
+    this.compare(value, than, "<");
   }
 
   from = <T extends Entity>(
