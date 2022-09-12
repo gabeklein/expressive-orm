@@ -37,8 +37,8 @@ it("will join using single query syntax", async () => {
 
   expect(query).toMatchInlineSnapshot(`
 SELECT
-  \`Foo\`.\`name\` AS \`S1\`,
-  \`Bar\`.\`name\` AS \`S2\`
+  \`Foo\`.\`name\` AS \`1\`,
+  \`Bar\`.\`name\` AS \`2\`
 FROM \`Foo\`
 INNER JOIN \`Bar\`
   ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
@@ -71,7 +71,7 @@ it("will alias tables with a schema", () => {
 
   expect(query).toMatchInlineSnapshot(`
 SELECT
-  \`$0\`.\`name\` AS \`S1\`
+  \`$0\`.\`name\` AS \`1\`
 FROM \`foobar\`.\`foo\` AS \`$0\`
 WHERE
   \`$0\`.\`color\` = 'red'

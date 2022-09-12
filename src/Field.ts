@@ -66,7 +66,7 @@ class Field {
       switch(query.mode){
         case "select": {
           column = query.selects.size + 1;
-          query.selects.set(this, "S" + column);
+          query.selects.set(this, column);
           return this.placeholder;
         }
 
@@ -74,7 +74,7 @@ class Field {
           return this;
 
         case "fetch":
-          return query.rawFocus["S" + column];
+          return query.rawFocus[column];
       }
     }
   }

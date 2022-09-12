@@ -1,6 +1,6 @@
-export function qualify(...args: (string | undefined)[]){
+export function qualify(...args: (string | number | undefined)[]){
   const backtick: any = (text: string) => {
-    return text.startsWith("`") ? text : '`' + text + '`';
+    return String(text).startsWith("`") ? text : '`' + text + '`';
   };
 
   return args.filter(x => x).map(backtick).join(".");

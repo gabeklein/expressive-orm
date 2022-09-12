@@ -88,7 +88,7 @@ class Query<R = any> {
 
   connection?: Connection;
   mode: Query.Mode = "query";
-  selects = new Map<Field, string>();
+  selects = new Map<Field, number | string>();
   clauses = new Set<string>();
   tables = new Map<any, Query.Table>();
   limit?: number;

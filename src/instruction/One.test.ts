@@ -27,7 +27,7 @@ it("will query nested relationships", () => {
 
   expect(query).toMatchInlineSnapshot(`
 SELECT
-  \`C\`.\`label\` AS \`S1\`
+  \`C\`.\`label\` AS \`1\`
 FROM \`A\`
 LEFT JOIN \`B\`
   ON \`B\`.\`id\` = \`A\`.\`bId\`
