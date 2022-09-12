@@ -5,7 +5,7 @@ import Column from './info/Column';
 import KeyColumnUsage from './info/KeyColumnUsage';
 import Referential from './info/Referential';
 
-async function getColumns(){
+async function getColumns(schema: string){
   return Query.get(where => {
     const { from, join, equal } = where;
 
@@ -20,6 +20,8 @@ async function getColumns(){
     equal(usage.tableSchema, column.schema);
     equal(usage.tableName, column.tableName);
     equal(usage.columnName, column.name);
+
+    equal(column.schema, schema);
 
     return () => {
       const {
@@ -64,10 +66,10 @@ async function getColumns(){
 }
 
 async function getTables(schema: string){
-  const results = await getColumns();
+  const results = await getColumns(schema);
   const tables = new Map<string, Schema.Table>();
 
-  for(const result of results){
+  results.forEach(result => {
     const name = result.table;
     let table = tables.get(name);
 
@@ -82,7 +84,7 @@ async function getTables(schema: string){
     }
 
     table.columns.push(result);
-  }
+  });
 
   return generateEntities(...tables.values());
 }
