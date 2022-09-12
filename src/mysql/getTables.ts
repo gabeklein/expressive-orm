@@ -11,11 +11,11 @@ async function getColumns(){
 
     const column = from(Column);
     const usage = joins(KeyColumnUsage, "left");
-    const refCon = joins(Referential, "left");
+    const ref = joins(Referential, "left");
 
-    equal(refCon.constraintName, usage.constraintName);
-    equal(refCon.constraintSchema, usage.tableSchema);
-    equal(refCon.tableName, usage.tableName);
+    equal(ref.constraintName, usage.constraintName);
+    equal(ref.constraintSchema, usage.tableSchema);
+    equal(ref.tableName, usage.tableName);
 
     equal(usage.tableSchema, column.schema);
     equal(usage.tableName, column.tableName);
@@ -37,25 +37,17 @@ async function getColumns(){
         referencedColumnName
       } = usage;
 
-      const {
+      const { deleteRule, updateRule } = ref;
+
+      const primary = constraintName == "PRIMARY";
+
+      const reference = referencedTableName ? {
+        table: referencedTableName,
+        column: referencedColumnName,
+        name: constraintName,
         deleteRule,
         updateRule
-      } = refCon;
-
-      let reference;
-      let primary = false;
-
-      if(constraintName == "PRIMARY")
-        primary = true;
-        
-      else if(referencedTableName)
-        reference = {
-          table: referencedTableName,
-          column: referencedColumnName,
-          name: constraintName,
-          deleteRule,
-          updateRule
-        }
+      } : undefined;
       
       return {
         table: tableName,
