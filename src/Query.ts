@@ -137,35 +137,46 @@ class Query<R = any> {
     return this.getOne(orFail || false);
   }
 
-  from<T extends Entity>(entity: Entity.Type<T>): Query.Fields<T> {
-    this.connection = entity.table.connection;
+  from = <T extends Entity>(
+    entity: Entity.Type<T>
+  ): Query.Fields<T> => {
+    let { name, schema, connection } = entity.table;
+    let alias: string | undefined;
 
-    let { name, schema } = entity.table;
+    this.connection = connection;
 
-    if(schema)
+    if(schema){
       name = qualify(schema, name);
+      alias = "$0"
+    }
 
-    return this.proxy(entity, {
-      name,
-      alias: "$0"
-    });
+    const table: Query.Table = { name, alias }
+
+    
+
+    return this.proxy(entity, table);
   }
 
-  join<T extends Entity>(
+  joins = <T extends Entity>(
     entity: Entity.Type<T>,
     mode?: Query.Join
-  ): Query.Fields<T> {
+  ): Query.Fields<T> => {
     let { name, schema } = entity.table;
+    let alias: string | undefined;
 
-    if(schema)
+    if(schema){
       name = qualify(schema, name);
+      alias = `$${this.tables.size}`;
+    }
 
-    return this.proxy(entity, {
+    const table: Query.Table = {
       join: mode || "inner",
       name,
-      alias: `$${this.tables.size}`,
+      alias,
       on: []
-    });
+    }
+
+    return this.proxy(entity, table);
   }
 
   hydrate(raw: any[]){
@@ -202,23 +213,20 @@ class Query<R = any> {
 
   compare(
     left: Field,
-    right: string | number | {},
+    right: string | number | Field,
     op: string
   ){
-    if(!(left instanceof Field))
-      return;
-
-    const meta = Metadata.get(left)!;
+    const { alias, name, on } = Metadata.get(left)!;
 
     if(left.set && typeof right !== "object")
       right = left.set(right);
 
-    const column = qualify(meta.alias || meta.name, left.column);
+    const column = qualify(alias || name, left.column);
 
     if(typeof right == "object"){
       const { alias, name } = Metadata.get(right)!;
       const ref = qualify(alias || name, left.column);
-      const joinOn = meta.on;
+      const joinOn = on;
 
       if(joinOn)
         joinOn.push(`${column} ${op} ${ref}`);

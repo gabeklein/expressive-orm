@@ -18,30 +18,41 @@ export function stringify(query: Query){
   const { selects, tables, where } = query;
   const lines = [] as string[];
 
-  if(selects.size){
+  if(selects.size)
     lines.push(
       "SELECT",
       map(selects, clause => `\t${clause}`).join(",\n")
     )
-  }
 
   const [ from, ...joins ] = tables.values();
 
   if(from.join)
     throw new Error(`Table ${from.name} is joined but main table must be declared first.`);
 
-  lines.push(`FROM ${qualify(from.name)} AS ${qualify(from.alias)}`);
+  let fromStatement = `FROM ${qualify(from.name)}`;
+
+  if(from.alias)
+    fromStatement += ` AS ${qualify(from.alias)}`;
+
+  lines.push(fromStatement);
 
   for(const table of joins){
-    const type = table.join!.toUpperCase();
-    let join = `${type} JOIN ${qualify(table.name)}`;
+    const {
+      name,
+      alias,
+      join,
+      on
+    } = table;
 
-    if(table.alias)
-      join += ` AS ${qualify(table.alias)}`;
+    const type = join!.toUpperCase();
+    let statement = `${type} JOIN ${qualify(name)}`;
 
-    const on = `\n\tON ${table.on!.join("\n\tAND ")}`;
+    if(alias)
+      statement += ` AS ${qualify(alias)}`;
 
-    lines.push(join + on);
+    statement += `\n\tON ${on!.join("\n\tAND ")}`;
+
+    lines.push(statement);
   }
 
   if(where.size)

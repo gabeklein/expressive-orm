@@ -54,16 +54,16 @@ it("will join using single query syntax", async () => {
   });
 
   expect(query).toMatchInlineSnapshot(`
-    SELECT
-    	\`Foo\`.\`name\` as $1,
-    	\`Bar\`.\`name\` as $2
-    FROM \`Foo\`
-    INNER JOIN \`Bar\`
-    	ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-    LEFT JOIN \`Baz\`
-    	ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
-    WHERE
-    	\`Foo\`.\`name\` <> 'Danny' AND
-    	\`Bar\`.\`rating\` > 50
-  `);
+SELECT
+  \`Foo\`.\`name\` AS \`S1\`,
+  \`Bar\`.\`name\` AS \`S2\`
+FROM \`Foo\`
+INNER JOIN \`Bar\`
+  ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
+LEFT JOIN \`Baz\`
+  ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
+WHERE
+  \`Foo\`.\`name\` <> 'Danny' AND
+  \`Bar\`.\`rating\` > 50
+`);
 })
