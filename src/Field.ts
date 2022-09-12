@@ -16,13 +16,6 @@ namespace Field {
   export type Value<T> = { [VALUE]?: T };
 
   export type Callback<T extends Field> = (field: T, key: string) => void;
-
-  export interface Where<T = any> {
-    is(value: T): void;
-    isNot(value: T): void;
-    isLess(value: T): void;
-    isMore(value: T): void;
-  }
 }
 
 class Field {

@@ -18,11 +18,6 @@ declare namespace Ref {
   interface Optional<T extends Entity> extends Options<T> {
     nullable?: true;
   }
-
-  export interface Where<T> {
-    is(value: T | number): void;
-    isNot(value: T | number): void;
-  }
 }
 
 function Ref<T extends Entity>(type: Entity.Type<T>): Ref.Value<T>;

@@ -16,14 +16,6 @@ declare namespace Bool {
   interface Optional extends Options {
     nullable?: true;
   }
-
-  export interface Where {
-    /** Select rows where this column is equal to value. */
-    is(value: boolean): void;
-
-    /** Select rows where this column is not equal to value. */
-    isNot(value: boolean): void;
-  }
 }
 
 function Bool(): Bool.Value;
