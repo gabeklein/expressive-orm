@@ -52,7 +52,7 @@ class Field {
     operator: string){
 
     return (value: any) => {
-      query.compare(this, value, operator);
+      query.where(this, value, operator);
     }
   }
 

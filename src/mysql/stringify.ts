@@ -15,7 +15,7 @@ function map<T, R>(
 }
 
 export function stringify(query: Query){
-  const { selects, tables, where } = query;
+  const { selects, tables, clauses } = query;
   const lines = [] as string[];
 
   if(selects.size)
@@ -55,9 +55,9 @@ export function stringify(query: Query){
     lines.push(statement);
   }
 
-  if(where.size)
+  if(clauses.size)
     lines.push(
-      "WHERE\n\t" + [...where].join(" AND\n\t")
+      "WHERE\n\t" + [...clauses].join(" AND\n\t")
     );
 
   return lines.join("\n").replace(/\t/g, "  ");

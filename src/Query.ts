@@ -73,7 +73,7 @@ class Query<R = any> {
   mode: Query.Mode = "query";
   access = new Map<Field, string>();
   selects = new Set<string>();
-  where = new Set<string>();
+  clauses = new Set<string>();
   tables = new Map<any, Query.Table>();
   limit?: number;
   select?: () => R;
@@ -126,19 +126,19 @@ class Query<R = any> {
   }
 
   equal = (value: any, isEqualTo: any) => {
-    this.compare(value, isEqualTo, "=");
+    this.where(value, isEqualTo, "=");
   }
 
   notEqual = (value: any, notEqualTo: any) => {
-    this.compare(value, notEqualTo, "<>");
+    this.where(value, notEqualTo, "<>");
   }
 
   greater = (value: any, than: any) => {
-    this.compare(value, than, ">");
+    this.where(value, than, ">");
   }
 
   less = (value: any, than: any) => {
-    this.compare(value, than, "<");
+    this.where(value, than, "<");
   }
 
   from = <T extends Entity>(
@@ -215,7 +215,7 @@ class Query<R = any> {
     return proxy;
   }
 
-  compare(
+  where(
     left: Field,
     right: string | number | Field,
     op: string
@@ -239,7 +239,7 @@ class Query<R = any> {
       if(typeof right === "string")
         right = escapeString(right);
         
-      this.where.add(`${column} ${op} ${right}`);
+      this.clauses.add(`${column} ${op} ${right}`);
     }
   }
 
