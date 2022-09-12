@@ -43,6 +43,11 @@ declare namespace Query {
       T[K] extends { [VALUE]?: infer U } ? U : T[K];
   }
 
+  export type Maybe<T extends Entity> = {
+    [K in Entity.Field<T>]:
+     (T[K] extends { [VALUE]?: infer U } ? U : T[K]) | null;
+  }
+
   export type WhereField<T> =
     T extends number | string | boolean
       ? T | T[]
@@ -53,6 +58,18 @@ declare namespace Query {
 
   export type Select<T extends Entity> = {
     [K in Entity.Field<T>]: SelectClause<T[K]>
+  }
+
+  export interface JoinFunction {
+    <T extends Entity>(
+      from: Entity.Type<T>,
+      mode?: "right" | "inner"
+    ): Query.Fields<T>;
+
+    <T extends Entity>(
+      from: Entity.Type<T>,
+      mode: Query.Join
+    ): Query.Maybe<T>;
   }
 }
 
@@ -161,10 +178,7 @@ class Query<R = any> {
     return this.proxy(entity, table);
   }
 
-  joins = <T extends Entity>(
-    entity: Entity.Type<T>,
-    mode?: Query.Join
-  ): Query.Fields<T> => {
+  joins: Query.JoinFunction = (entity, mode) => {
     let { name, schema } = entity.table;
     let alias: string | undefined;
 
