@@ -1,17 +1,6 @@
-import Field, { TYPE, VALUE } from '../Field';
+import Field from '../Field';
 
 namespace String {
-  type Meta<T> = {
-    [TYPE]?: VarCharColumn;
-    [VALUE]?: T;
-  }
-
-  export type Value = string & Meta<string>;
-  export type Nullable = Value | undefined | null;
-
-  export type OneOf<T> = T & Meta<T>;
-  export type Maybe<T> = (T & Meta<T | null>) | undefined | null;
-
   export interface Options {
     column?: string;
     unique?: boolean;
@@ -40,14 +29,14 @@ const LENGTH_DEFAULT = {
   "longtext": 32
 }
 
-function String(): String.Value;
-function String(column: string): String.Value;
-function String(column: string, options: String.Optional): String.Nullable;
-function String(column: string, options: String.Options): String.Value;
-function String(options: String.Optional): String.Nullable;
-function String(options: String.Options): String.Value;
-function String<T extends string>(options: String.Specific<T> & String.Optional): String.Maybe<T>;
-function String<T extends string>(options: String.Specific<T>): String.OneOf<T>;
+function String(): string;
+function String(column: string): string;
+function String(column: string, options: String.Optional): string | null | undefined;
+function String(column: string, options: String.Options): string;
+function String(options: String.Optional): string | null | undefined;
+function String(options: String.Options): string;
+function String<T extends string>(options: String.Specific<T> & String.Optional): T | null | undefined;
+function String<T extends string>(options: String.Specific<T>): T;
 function String(
   arg1: string | String.Options = {},
   arg2?: String.Options): any {

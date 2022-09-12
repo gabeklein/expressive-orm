@@ -2,18 +2,9 @@ import Query, { Metadata } from './Query';
 import Table from './Table';
 import { qualify } from './utility';
 
-export declare const TYPE: unique symbol;
-export declare const VALUE: unique symbol;
-
 namespace Field {
   export type Type<T extends Field = Field> =
     typeof Field & (new (...args: any[]) => T);
-
-  /** Infer Field type for a given property. */
-  export type Typeof<T> = { [TYPE]?: T };
-
-  /** Infer assertions for a given property. */
-  export type Value<T> = { [VALUE]?: T };
 
   export type Callback<T extends Field> = (field: T, key: string) => void;
 }

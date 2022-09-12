@@ -1,8 +1,8 @@
-import Connection from "./connection/Connection";
-import Entity from "./Entity";
-import Field, { VALUE } from "./Field";
-import { stringify } from "./mysql/stringify";
-import { escapeString, qualify } from "./utility";
+import Connection from './connection/Connection';
+import Entity from './Entity';
+import Field from './Field';
+import { stringify } from './mysql/stringify';
+import { escapeString, qualify } from './utility';
 
 export const Metadata = new WeakMap<{}, Query.Table>();
 
@@ -39,13 +39,11 @@ declare namespace Query {
   }
 
   export type Fields<T extends Entity> = {
-    [K in Entity.Field<T>]:
-      T[K] extends { [VALUE]?: infer U } ? U : T[K];
+    [K in Entity.Field<T>]: Exclude<T[K], undefined>;
   }
 
   export type Maybe<T extends Entity> = {
-    [K in Entity.Field<T>]:
-     (T[K] extends { [VALUE]?: infer U } ? U : T[K]) | null;
+    [K in Entity.Field<T>]: Exclude<T[K], undefined> | null;
   }
 
   export type WhereField<T> =
@@ -53,11 +51,8 @@ declare namespace Query {
       ? T | T[]
       : never;
 
-  type SelectClause<T> =
-    T extends Field.Value<infer A> ? A : never;
-
   export type Select<T extends Entity> = {
-    [K in Entity.Field<T>]: SelectClause<T[K]>
+    [K in Entity.Field<T>]: T[K];
   }
 
   export interface JoinFunction {

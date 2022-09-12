@@ -1,13 +1,8 @@
 import Entity from '../Entity';
-import Field, { TYPE, VALUE } from '../Field';
+import Field from '../Field';
 import Query from '../Query';
 
 declare namespace Many {
-  export type Entites<T extends Entity> = T[] & {
-    [TYPE]?: ManyToOneRelation<T>;
-    [VALUE]?: Select<T>[];
-  };
-
   interface Select<T extends Entity> {
     map<R>(select: (from: Query.Select<T>) => R): R;
   }
@@ -17,7 +12,7 @@ declare namespace Many {
   }
 }
 
-function Many<T extends Entity>(type: Entity.Type<T>): Many.Entites<T>;
+function Many<T extends Entity>(type: Entity.Type<T>): T[];
 function Many(type: Entity.Type, options?: Many.Options){
   return ManyToOneRelation.create({ type, ...options });
 }

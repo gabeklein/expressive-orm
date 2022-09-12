@@ -1,13 +1,6 @@
-import Field, { TYPE, VALUE } from '../Field';
+import Field from '../Field';
 
 declare namespace Bool {
-  type Value = boolean & {
-    [TYPE]?: BooleanColumn;
-    [VALUE]?: boolean;
-  };
-
-  type Nullable = Value | undefined | null;
-
   interface Options {
     column?: string;
     nullable?: boolean;
@@ -18,9 +11,9 @@ declare namespace Bool {
   }
 }
 
-function Bool(): Bool.Value;
-function Bool(options: Bool.Optional): Bool.Nullable;
-function Bool(options: Bool.Options): Bool.Value;
+function Bool(): boolean;
+function Bool(options: Bool.Optional): boolean | null | undefined;
+function Bool(options: Bool.Options): boolean;
 function Bool(options: Bool.Options = {}){
   return BooleanColumn.create(options);
 }

@@ -1,14 +1,7 @@
 import Entity from '../Entity';
-import Field, { TYPE, VALUE } from '../Field';
+import Field from '../Field';
 
 declare namespace Ref {
-  type Value<T extends Entity> = number & {
-    [TYPE]?: ForeignKeyColumn<T>;
-    [VALUE]?: number;
-  };
-
-  type Nullable<T extends Entity> = Value<T> | undefined | null;
-
   interface Options<T extends Entity> {
     type?: Entity.Type<T>;
     column?: string;
@@ -20,11 +13,11 @@ declare namespace Ref {
   }
 }
 
-function Ref<T extends Entity>(type: Entity.Type<T>): Ref.Value<T>;
-function Ref<T extends Entity>(type: Entity.Type<T>, options: Ref.Optional<T>): Ref.Nullable<T>;
-function Ref<T extends Entity>(type: Entity.Type<T>, options: Ref.Options<T>): Ref.Value<T>;
-function Ref<T extends Entity>(options: Ref.Optional<T>): Ref.Nullable<T>;
-function Ref<T extends Entity>(options: Ref.Options<T>): Ref.Value<T>;
+function Ref<T extends Entity>(type: Entity.Type<T>): number;
+function Ref<T extends Entity>(type: Entity.Type<T>, options: Ref.Optional<T>): number | null | undefined;
+function Ref<T extends Entity>(type: Entity.Type<T>, options: Ref.Options<T>): number;
+function Ref<T extends Entity>(options: Ref.Optional<T>): number | null | undefined;
+function Ref<T extends Entity>(options: Ref.Options<T>): number;
 function Ref<T extends Entity>(arg1: any, arg2?: any): any {
   if(typeof arg1 == "function")
     arg1 = { ...arg2, type: arg1 };

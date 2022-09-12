@@ -1,14 +1,6 @@
-import Field, { TYPE, VALUE } from '../Field';
+import Field from '../Field';
 
 declare namespace Int {
-  type Value = number & MetaData;
-  type Nullable = Value | undefined | null;
-
-  interface MetaData {
-    [TYPE]?: IntergerColumn;
-    [VALUE]?: number;
-  }
-
   interface Options {
     column?: string;
     unique?: boolean;
@@ -21,9 +13,9 @@ declare namespace Int {
   }
 }
 
-function Int(): Int.Value;
-function Int(options: Int.Optional): Int.Nullable;
-function Int(options: Int.Options): Int.Value;
+function Int(): number;
+function Int(options: Int.Optional): number | null | undefined;
+function Int(options: Int.Options): number;
 function Int(options: Int.Options = {}){
   return IntergerColumn.create(options);
 }

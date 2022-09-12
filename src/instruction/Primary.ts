@@ -1,22 +1,15 @@
-import Field, { TYPE, VALUE } from '../Field';
+import Field from '../Field';
 
 declare namespace Primary {
-  type Key = (number | string) & MetaData;
-
-  interface MetaData {
-    [TYPE]?: PrimaryKeyColumn;
-    [VALUE]?: number | string;
-  }
-
   interface Options {
     column?: string;
   }
 }
 
-function Primary(): Primary.Key;
+function Primary(): number | string;
 function Primary(use: false): 0;
-function Primary(column: string, options?: Primary.Options): Primary.Key;
-function Primary(options: Primary.Options): Primary.Key;
+function Primary(column: string, options?: Primary.Options): number | string;
+function Primary(options: Primary.Options): number | string;
 function Primary(arg1?: any, arg2?: any){
   if(arg1 === false)
     return 0;
