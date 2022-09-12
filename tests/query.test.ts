@@ -1,41 +1,23 @@
-// import { format } from 'sql-formatter';
 import { Entity, Int, String } from '../src';
+import Table from '../src/instruction/Table';
 import Query from '../src/Query';
 
-// expect.addSnapshotSerializer({
-//   test(){
-//     return true;
-//   },
-//   print(stuff){
-//     if(typeof stuff === "string")
-//       return "    " + stuff.replace(/\n/g, "\n    ");
-//     else
-//       throw null;
-//   },
-//   serialize(stuff){
-//     if(typeof stuff === "string")
-//       return stuff.replace(/^    /g, "");
-//     else
-//       throw null;
-//   }
-// })
-
-class Foo extends Entity {
-  name = String();
-  color = String();
-}
-
-class Bar extends Entity {
-  name = String();
-  color = String();
-  rating = Int();
-}
-
-class Baz extends Entity {
-  rating = Int();
-}
-
 it("will join using single query syntax", async () => {
+  class Foo extends Entity {
+    name = String();
+    color = String();
+  }
+  
+  class Bar extends Entity {
+    name = String();
+    color = String();
+    rating = Int();
+  }
+  
+  class Baz extends Entity {
+    rating = Int();
+  }
+
   const query = new Query(where => {
     const foo = where.from(Foo);
     const bar = where.joins(Bar);
@@ -65,5 +47,33 @@ LEFT JOIN \`Baz\`
 WHERE
   \`Foo\`.\`name\` <> 'Danny' AND
   \`Bar\`.\`rating\` > 50
+`);
+})
+
+it("will alias tables with a schema", () => {
+  class Foo extends Entity {
+    table = Table({
+      schema: "foobar",
+      name: "foo"
+    })
+
+    name = String();
+    color = String();
+  }
+
+  const query = new Query(where => {
+    const foo = where.from(Foo);
+
+    where.equal(foo.color, "red");
+    
+    return () => foo.name;
+  })
+
+  expect(query).toMatchInlineSnapshot(`
+SELECT
+  \`$0\`.\`name\` AS \`S1\`
+FROM \`foobar\`.\`foo\` AS \`$0\`
+WHERE
+  \`$0\`.\`color\` = 'red'
 `);
 })
