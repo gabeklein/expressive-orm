@@ -237,7 +237,7 @@ class Query<R = any> {
 
     if(typeof right == "object"){
       const { alias, name } = Metadata.get(right)!;
-      const ref = qualify(alias || name, left.column);
+      const ref = qualify(alias || name, right.column);
       const joinOn = on;
 
       if(joinOn)
