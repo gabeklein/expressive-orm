@@ -29,16 +29,16 @@ it("will join using single query syntax", async () => {
     where.notEqual(foo.name, "Danny");
     where.greater(bar.rating, 50);
 
-    return () => ({
-      foo: foo.name,
-      bar: bar.name
-    })
+    return {
+      fooValue: foo.name,
+      barValue: bar.name
+    }
   });
 
   expect(query).toMatchInlineSnapshot(`
 SELECT
-  \`Foo\`.\`name\` AS \`1\`,
-  \`Bar\`.\`name\` AS \`2\`
+  \`Foo\`.\`name\` AS \`fooValue\`,
+  \`Bar\`.\`name\` AS \`barValue\`
 FROM \`Foo\`
 INNER JOIN \`Bar\`
   ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
