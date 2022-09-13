@@ -47,21 +47,17 @@ export function generateEntities(
     // "Idk",
   ];
 
-  const tables: t.Export.Named[] = [];
+  const body: t.Statement[] = [
+    imports(used)
+  ];
 
   from.forEach(table => {
-    tables.push(entityClass(table));
+    body.push(entityClass(table));
   })
 
-  const ast = t.program({
-    sourceType: "module",
-    body: [
-      imports(used),
-      ...tables
-    ]
-  })
+  const code = generate(t.program(body));
 
-  return generate(ast).replace(/\export/g, "\n\export");
+  return code.replace(/\export/g, "\n\export");
 }
 
 const imports = (named: string[]) => (
@@ -173,11 +169,13 @@ function idealCase(
   const items = from
     .split(/[_-]/g)
     .map(segment => {
-      if(!segment.match(/[a-z]/) || !segment.match(/[A-Z]/))
-        return (
-          segment[0].toUpperCase() +
-          segment.slice(1).toLowerCase()
-        );
+      if(!segment.match(/[a-z]/) || !segment.match(/[A-Z]/)){
+        const head = segment[0];
+        const tail = segment.slice(1);
+
+        if(head)
+          return (head.toUpperCase() + tail.toLowerCase());
+      }
 
       return segment;
     });
