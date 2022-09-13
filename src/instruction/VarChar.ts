@@ -32,7 +32,7 @@ function VarChar(
     arg1 = { ...arg2, length: arg1 };
 
   return VarCharColumn.create({
-    datatype: `varchar(${arg1.length || 255})`,
+    datatype: `VARCHAR(${arg1.length || 255})`,
     ...arg1
   });
 }

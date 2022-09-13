@@ -17,7 +17,8 @@ declare namespace Int {
 function Int(options: Int.Optional): number | null | undefined;
 function Int(options?: Int.Options): number;
 function Int(options: Int.Options = {}){
-  const datatype = `${options.size}int`;
+  const { size = "" } = options;
+  const datatype = `${size.toUpperCase()}INT`;
 
   return IntColumn.create({ datatype, ...options });
 }

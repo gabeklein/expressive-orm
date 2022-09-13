@@ -16,10 +16,12 @@ namespace Text {
 
 function Text(options: Text.Optional): string | null | undefined;
 function Text(options?: Text.Options): string;
-function Text(opts: Text.Options = {}){
-  const datatype = `${opts.size}text`;
+function Text(options: Text.Options = {}){
+  const { size = "" } = options;
 
-  return TextColumn.create({ datatype, ...opts });
+  const datatype = `${size.toUpperCase()}TEXT`;
+
+  return TextColumn.create({ datatype, ...options });
 }
 
 function TinyText(options: Text.Optional): string | null | undefined;
