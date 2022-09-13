@@ -36,13 +36,13 @@ async function getColumns(schema: string){
     const usage = join(KeyColumnUsage, "left");
     const ref = join(Referential, "left");
 
-    equal(ref.constraintName, usage.constraintName);
-    equal(ref.constraintSchema, column.schema);
-    equal(ref.tableName, column.tableName);
-
     equal(usage.tableSchema, column.schema);
     equal(usage.tableName, column.tableName);
     equal(usage.columnName, column.name);
+
+    equal(ref.constraintName, usage.constraintName);
+    equal(ref.constraintSchema, column.schema);
+    equal(ref.tableName, column.tableName);
 
     equal(column.schema, schema);
 
