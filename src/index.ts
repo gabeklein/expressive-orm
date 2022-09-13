@@ -1,30 +1,32 @@
+import Connection from './connection/Connection';
+import Entity from './Entity';
 import Bool from './instruction/Bool';
-import { Int, BigInt, SmallInt, TinyInt } from './instruction/Int';
-import { Text, TinyText, MediumText, LongText } from './instruction/Text';
+import Int, { BigInt, SmallInt, TinyInt } from './instruction/Int';
 import Many from './instruction/Many';
 import One from './instruction/One';
-import VarChar from './instruction/VarChar';
 import Ref from './instruction/Ref';
-import Entity from './Entity';
+import Table from './instruction/Table';
+import Text, { LongText, MediumText, TinyText } from './instruction/Text';
+import VarChar from './instruction/VarChar';
 import Query from './Query';
-import Connection from './connection/Connection';
 
+export default Entity;
 export {
-  Entity as default,
+  BigInt,
   Bool,
   Connection,
+  Entity,
   Int,
-  BigInt,
-  SmallInt,
-  TinyInt,
-  Text,
-  TinyText,
-  MediumText,
   LongText,
   Many,
+  MediumText,
   One,
-  VarChar,
-  Entity,
   Query,
-  Ref
+  Ref,
+  SmallInt,
+  Table,
+  Text,
+  TinyInt,
+  TinyText,
+  VarChar,
 }
