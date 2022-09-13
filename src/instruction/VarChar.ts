@@ -18,23 +18,17 @@ namespace VarChar {
   }
 }
 
-function VarChar(column?: string): string;
-function VarChar(column: string, options: VarChar.Optional): string | null | undefined;
-function VarChar(column: string, options: VarChar.Options): string;
 function VarChar(length: number, options: VarChar.Optional): string | null | undefined;
 function VarChar(length: number, options: VarChar.Options): string;
 function VarChar(options: VarChar.Optional): string | null | undefined;
-function VarChar(options: VarChar.Options): string;
+function VarChar(options?: VarChar.Options): string;
 function VarChar<T extends string>(options: VarChar.Specific<T> & VarChar.Optional): T | null | undefined;
 function VarChar<T extends string>(options: VarChar.Specific<T>): T;
 function VarChar(
-  arg1: string | number | VarChar.Options = {},
+  arg1: number | VarChar.Options = {},
   arg2?: VarChar.Options): any {
 
-  if(typeof arg1 == "string")
-    arg1 = { ...arg2, column: arg1 };
-
-  else if(typeof arg1 == "number")
+  if(typeof arg1 == "number")
     arg1 = { ...arg2, length: arg1 };
 
   return VarCharColumn.create({
