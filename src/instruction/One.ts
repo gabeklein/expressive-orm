@@ -29,7 +29,7 @@ function One<T extends Entity>(arg1: any, arg2?: any): any {
   return OneToManyRelation.create(arg1);
 }
 
-class OneToManyRelation<T extends Entity = Entity> extends Field {
+class OneToManyRelation extends Field {
   type!: Entity.Type;
   datatype = "INT";
 

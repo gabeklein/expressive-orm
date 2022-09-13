@@ -17,7 +17,7 @@ function Many(type: Entity.Type, options?: Many.Options){
   return ManyToOneRelation.create({ type, ...options });
 }
 
-class ManyToOneRelation<T extends Entity = Entity> extends Field {
+class ManyToOneRelation extends Field {
   sub = new WeakMap<Query<any>, Query<any>>();
   datatype = undefined;
   type!: Entity.Type;
