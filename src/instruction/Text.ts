@@ -16,12 +16,28 @@ namespace Text {
 
 function Text(options: Text.Optional): string | null | undefined;
 function Text(options?: Text.Options): string;
-function Text(arg1: Text.Options = {}): any {
-  const datatype = `${arg1.size}text`;
+function Text(opts: Text.Options = {}){
+  const datatype = `${opts.size}text`;
 
-  return TextColumn.create({
-    datatype, ...arg1
-  });
+  return TextColumn.create({ datatype, ...opts });
+}
+
+function TinyText(options: Text.Optional): string | null | undefined;
+function TinyText(options?: Text.Options): string;
+function TinyText(opts: Text.Options = {}){
+  return Text({ ...opts, size: "tiny" });
+}
+
+function MediumText(options: Text.Optional): string | null | undefined;
+function MediumText(options?: Text.Options): string;
+function MediumText(opts: Text.Options = {}){
+  return Text({ ...opts, size: "medium" });
+}
+
+function LongText(options: Text.Optional): string | null | undefined;
+function LongText(options?: Text.Options): string;
+function LongText(opts: Text.Options = {}){
+  return Text({ ...opts, size: "long" });
 }
 
 class TextColumn extends Field {
@@ -29,3 +45,4 @@ class TextColumn extends Field {
 }
 
 export default Text;
+export { Text, TinyText, MediumText, LongText }
