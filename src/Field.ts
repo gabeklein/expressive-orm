@@ -56,8 +56,7 @@ class Field {
     return () => {
       switch(query.mode){
         case "select": {
-          column = query.selects.size + 1;
-          query.selects.set(this, column);
+          column = query.select(this);
           return this.placeholder;
         }
 

@@ -191,6 +191,12 @@ class Query<R = any> {
     });
   }
 
+  select = (field: Field) => {
+    const column = this.selects.size + 1;
+    this.selects.set(field, column);
+    return column;
+  }
+
   hydrate(raw: any[]){
     const results = [] as R[];
     
