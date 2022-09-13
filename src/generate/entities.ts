@@ -88,15 +88,9 @@ const entityClass = (
 
   if(from.name !== name)
     fields.push(
-      t.classProperty("table",
-        t.call("Table", 
-          explicitSchema
-            ? t.object({
-              schema: from.schema,
-              name: from.name
-            })
-            : t.literal(from.name)
-        )
+      tableField(
+        from.name,
+        explicitSchema && from.schema
       )
     );
   
@@ -113,6 +107,17 @@ const entityClass = (
       t.classDeclaration(name, "Entity", fields)
   })
 }
+
+const tableField = (
+  name: string, schema?: string | false) => (
+
+  t.classProperty("table",
+    t.call("Table", schema
+      ? t.object({ schema, name })
+      : t.literal(name)
+    )
+  )
+)
 
 function instruction(from: Schema.Column, key: string){
   const fieldType = TYPES[from.type] || "Unknown";
