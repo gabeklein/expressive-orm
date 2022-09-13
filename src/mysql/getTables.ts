@@ -4,7 +4,7 @@ import Column from './info/Column';
 import KeyColumnUsage from './info/KeyColumnUsage';
 import Referential from './info/Referential';
 
-async function getSchema(schema: string){
+async function getSchema(schema: string, explicitSchema?: boolean){
   const columns = await getColumns(schema);
   const tables = new Map<string, Schema.Table>();
 
@@ -25,7 +25,7 @@ async function getSchema(schema: string){
     table.columns.set(column.name, column);
   });
 
-  return generateEntities(tables);
+  return generateEntities(tables, explicitSchema);
 }
 
 async function getColumns(schema: string){

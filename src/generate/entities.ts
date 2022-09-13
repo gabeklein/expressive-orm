@@ -1,13 +1,6 @@
 import * as t from '@expressive/estree';
 import { generate } from 'astring';
 
-const DEFAULT_LENGTH = {
-  "varchar": 2 ** 8-1,
-  "text": 2 ** 16-1,
-  "mediumtext": 2 ** 24-1,
-  "longtext": 2 ** 32-1
-}
-
 export declare namespace Schema {
   interface Column {
     name: string;
@@ -35,13 +28,32 @@ export declare namespace Schema {
   }
 }
 
+const TYPES: any = {
+  "int": "Int",
+  "tinyint": "TinyInt",
+  "smallint": "SmallInt",
+  "bigint": "BigInt",
+  "text": "Text",
+  "tinytext": "TinyText",
+  "mediumtext": "MediumText",
+  "longtext": "LongText",
+  "char": "Char",
+  "binary": "Binary",
+  "timestamp": "DateTime",
+  "double": "Double",
+  "float": "Float",
+  "enum": "Enum",
+  "varchar": "VarChar"
+}
+
 export function generateEntities(
-  from: Map<string, Schema.Table>){
+  from: Map<string, Schema.Table>,
+  explicitSchema?: boolean){
 
   const used = [
     "Bool",
     "Int",
-    "String",
+    "VarChar",
     // "DateTime",
     // "Enum",
     // "Idk",
@@ -52,7 +64,7 @@ export function generateEntities(
   ];
 
   from.forEach(table => {
-    body.push(entityClass(table));
+    body.push(entityClass(table, explicitSchema));
   })
 
   const code = generate(t.program(body));
@@ -67,16 +79,33 @@ const imports = (named: string[]) => (
   ])
 )
 
-const entityClass = (from: Schema.Table) => {
+const entityClass = (
+  from: Schema.Table,
+  explicitSchema?: boolean) => {
+
   const name = idealCase(from.name);
   const fields: t.Class.Property[] = [];
-  
-  from.columns.forEach(field => {
-    fields.push(fieldProperty(field));
-  })
 
   if(from.name !== name)
-    fields.unshift(tableProperty(from));
+    fields.push(
+      t.classProperty("table",
+        t.call("Table", 
+          explicitSchema
+            ? t.object({
+              schema: from.schema,
+              name: from.name
+            })
+            : t.literal(from.name)
+        )
+      )
+    );
+  
+  from.columns.forEach(field => {
+    const key = idealCase(field.name, true);
+    const value = instruction(field, key);
+
+    fields.push(t.classProperty(key, value));
+  })
 
   return t.exportNamedDeclaration({
     specifiers: [],
@@ -85,81 +114,29 @@ const entityClass = (from: Schema.Table) => {
   })
 }
 
-const tableProperty = (from: Schema.Table) => (
-  t.classProperty("table",
-    t.call("Table", 
-      t.object({
-        name: from.name,
-        schema: from.schema
-      })
-    )
-  )
-)
+function instruction(from: Schema.Column, key: string){
+  const fieldType = TYPES[from.type] || "Unknown";
+  const opts = {} as {
+    [key: string]: t.Expression | string | number | undefined
+  };
 
-function fieldProperty(from: Schema.Column){
-  const property = idealCase(from.name, true);
-  const opts = {} as { [key: string]: t.Expression | string | number };
-
-  let fieldType: "Int" | "String" | "Primary" | "Bool" | "Enum" | "DateTime";
-
-  const { type } = from;
-
-  if(property !== from.name)
+  if(key !== from.name)
     opts.column = from.name;
 
-  switch(type){
-    // case "json":
-    case "longtext":
-    case "mediumtext":
-    case "text":
-    case "varchar": {
-      fieldType = "String";
-
-      if(type !== "varchar")
-        opts.type = type;
-    
-      if(from.maxLength && from.maxLength !== DEFAULT_LENGTH[type])
+  switch(from.type){
+    case "varchar":
+      if(from.maxLength !== 255)
         opts.length = from.maxLength;
-      
-      break;
-    };
 
-    case "bigint":
-    case "int": {
-      fieldType = "Int"
-
-      break;
-    }
-
-    case "tinyint": {
-      fieldType = "Bool";
-
-      break;
-    }
-
-    case "enum": {
-      fieldType = "Enum";
-
-      break;
-    }
-
-    case "datetime": {
-      fieldType = "DateTime";
-
-      break;
-    }
-
-    default:
-      fieldType = "Idk" as any;
-      // throw new Error("not supported");
+      if(from.maxLength && Object.keys(opts).length == 1)
+        return (
+          t.call(fieldType, t.literal(from.maxLength))
+        )
+    break;
   }
 
   return (
-    t.classProperty(property,
-      t.call(fieldType, 
-        t.object(opts, true)
-      )
-    )
+    t.call(fieldType, t.object(opts, true))
   )
 }
 
