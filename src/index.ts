@@ -1,5 +1,5 @@
 import Bool from './instruction/Bool';
-import Int from './instruction/Int';
+import { Int, BigInt, SmallInt, TinyInt } from './instruction/Int';
 import Many from './instruction/Many';
 import One from './instruction/One';
 import VarChar from './instruction/VarChar';
@@ -13,6 +13,9 @@ export {
   Bool,
   Connection,
   Int,
+  BigInt,
+  SmallInt,
+  TinyInt,
   Many,
   One,
   VarChar,
