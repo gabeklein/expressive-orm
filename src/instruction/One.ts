@@ -3,7 +3,7 @@ import { escapeId } from 'mysql';
 import Entity from '../Entity';
 import Field from '../Field';
 import Query from '../Query';
-import { lowercase, qualify, sql } from '../utility';
+import { decapitalize, qualify, sql } from '../utility';
 
 declare namespace One {
   interface Options<T extends Entity> {
@@ -43,7 +43,7 @@ class OneToManyRelation<T extends Entity = Entity> extends Field {
     this.table.dependancies.add(foreign);
 
     if(!options.column)
-      this.column = lowercase(foreign.name) + "Id";
+      this.column = decapitalize(foreign.name) + "Id";
 
     this.constraint = sql`
       ADD ${local && `CONSTRAINT ${escapeId(local)}`}

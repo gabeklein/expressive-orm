@@ -13,7 +13,7 @@ export function escapeString(text: string){
   return `'` + text.replace(/'/g, `\\'`) + `'`;
 }
 
-export function lowercase(string: string){
+export function decapitalize(string: string){
   return string[0].toLowerCase() + string.slice(1)
 }
 
