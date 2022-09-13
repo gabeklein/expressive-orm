@@ -18,8 +18,8 @@ namespace VarChar {
   }
 }
 
-function VarChar(length: number, options: VarChar.Optional): string | null | undefined;
-function VarChar(length: number, options: VarChar.Options): string;
+function VarChar(length: number, options?: VarChar.Optional): string | null | undefined;
+function VarChar(length: number, options?: VarChar.Options): string;
 function VarChar(options: VarChar.Optional): string | null | undefined;
 function VarChar(options?: VarChar.Options): string;
 function VarChar<T extends string>(options: VarChar.Specific<T> & VarChar.Optional): T | null | undefined;
