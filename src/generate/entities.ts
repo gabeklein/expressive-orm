@@ -21,10 +21,10 @@ export declare namespace Schema {
 
   interface Reference {
     table: string;
-    column: string | null;
-    name: string | null;
-    deleteRule: string | null;
-    updateRule: string | null;
+    column?: string;
+    name?: string;
+    deleteRule?: string;
+    updateRule?: string;
   }
 }
 

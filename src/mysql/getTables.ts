@@ -46,7 +46,7 @@ async function getColumns(schema: string){
 
     equal(column.schema, schema);
 
-    return () => {
+    return (): Schema.Column => {
       const {
         tableName,
         name,
@@ -74,11 +74,11 @@ async function getColumns(schema: string){
         updateRule
       } : undefined;
       
-      return <Schema.Column>{
+      return {
         table: tableName,
-        name,
+        name: name!,
         type: dataType,
-        nullable: isNullable,
+        nullable: !!isNullable,
         schema,
         maxLength,
         reference,

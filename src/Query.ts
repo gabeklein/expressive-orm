@@ -39,11 +39,11 @@ declare namespace Query {
   }
 
   export type Fields<T extends Entity> = {
-    [K in Entity.Field<T>]: Exclude<T[K], undefined>;
+    [K in Entity.Field<T>]: Exclude<T[K], null>;
   }
 
   export type Maybe<T extends Entity> = {
-    [K in Entity.Field<T>]: Exclude<T[K], undefined> | null;
+    [K in Entity.Field<T>]: Exclude<T[K], null> | undefined;
   }
 
   export type WhereField<T> =

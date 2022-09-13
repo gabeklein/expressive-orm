@@ -64,8 +64,12 @@ class Field {
         case "query":
           return this;
 
-        case "fetch":
-          return query.rawFocus[column];
+        case "fetch": {
+          const value = query.rawFocus[column];
+
+          if(value !== null)
+            return value;
+        }
       }
     }
   }
