@@ -2,6 +2,7 @@ import Field from '../Field';
 
 declare namespace Int {
   interface Options {
+    size?: "tiny" | "small" | "big";
     column?: string;
     unique?: boolean;
     default?: number;
@@ -15,35 +16,31 @@ declare namespace Int {
 
 function Int(options: Int.Optional): number | null | undefined;
 function Int(options?: Int.Options): number;
-function Int(options?: Int.Options){
-  return IntergerColumn.create(options);
+function Int(options: Int.Options = {}){
+  const datatype = `${options.size}int`;
+
+  return IntColumn.create({ datatype, ...options });
 }
 
 function TinyInt(options: Int.Optional): number | null | undefined;
 function TinyInt(options?: Int.Options): number;
 function TinyInt(options?: Int.Options){
-  return IntergerColumn.create({
-    ...options, datatype: "TINYINT"
-  });
+  return Int({ ...options, size: "tiny" });
 }
 
 function SmallInt(options: Int.Optional): number | null | undefined;
 function SmallInt(options?: Int.Options): number;
 function SmallInt(options?: Int.Options){
-  return IntergerColumn.create({
-    ...options, datatype: "SMALLINT"
-  });
+  return Int({ ...options, size: "small" });
 }
 
-function BigInt(options: Int.Optional): bigint | null | undefined;
-function BigInt(options?: Int.Options): bigint;
+function BigInt(options: Int.Optional): number | null | undefined;
+function BigInt(options?: Int.Options): number;
 function BigInt(options?: Int.Options){
-  return IntergerColumn.create({
-    ...options, datatype: "BIGINT"
-  });
+  return Int({ ...options, size: "big" });
 }
 
-class IntergerColumn extends Field {
+class IntColumn extends Field {
   datatype = "INT";
   placeholder = Infinity;
 }
