@@ -17,17 +17,26 @@ export declare namespace Schema {
     maxLength?: number;
     nullable: boolean;
     primary?: boolean;
+    reference?: Reference;
   }
 
   interface Table {
     name: string;
     schema: string;
-    columns: Column[];
+    columns: Map<string, Column>;
+  }
+
+  interface Reference {
+    table: string;
+    column: string | null;
+    name: string | null;
+    deleteRule: string | null;
+    updateRule: string | null;
   }
 }
 
 export function generateEntities(
-  ...from: Schema.Table[]){
+  from: Map<string, Schema.Table>){
 
   const used = [
     "Bool",
@@ -36,45 +45,62 @@ export function generateEntities(
     // "DateTime",
     // "Enum",
     // "Idk",
-  ]
+  ];
+
+  const tables: t.Export.Named[] = [];
+
+  from.forEach(table => {
+    tables.push(entityClass(table));
+  })
 
   const ast = t.program({
     sourceType: "module",
     body: [
-      t.importDeclaration("../", [
-        t.importSpecifier("Entity", "default"),
-        ...used.map(x => t.importSpecifier(x))
-      ]),
-      ...from.map(generateClass)
+      imports(used),
+      ...tables
     ]
   })
 
   return generate(ast).replace(/\export/g, "\n\export");
 }
 
-function generateClass(from: Schema.Table){
+const imports = (named: string[]) => (
+  t.importDeclaration("../", [
+    t.importSpecifier("Entity", "default"),
+    ...named.map(x => t.importSpecifier(x))
+  ])
+)
+
+const entityClass = (from: Schema.Table) => {
   const name = idealCase(from.name);
-  const fields = from.columns.map(generateProperty);
+  const fields: t.Class.Property[] = [];
+  
+  from.columns.forEach(field => {
+    fields.push(fieldProperty(field));
+  })
 
   if(from.name !== name)
-    fields.unshift(
-      t.classProperty("table",
-        t.call("Table", 
-          t.object({
-            name: from.name,
-            schema: from.schema
-          })
-        )
-      )
-    )
+    fields.unshift(tableProperty(from));
 
   return t.exportNamedDeclaration({
     specifiers: [],
-    declaration: t.classDeclaration(name, "Entity", fields)
+    declaration:
+      t.classDeclaration(name, "Entity", fields)
   })
 }
 
-function generateProperty(from: Schema.Column){
+const tableProperty = (from: Schema.Table) => (
+  t.classProperty("table",
+    t.call("Table", 
+      t.object({
+        name: from.name,
+        schema: from.schema
+      })
+    )
+  )
+)
+
+function fieldProperty(from: Schema.Column){
   const property = idealCase(from.name, true);
   const opts = {} as { [key: string]: t.Expression | string | number };
 

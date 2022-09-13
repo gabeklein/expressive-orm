@@ -1,9 +1,32 @@
-// @ts-nocheck 
 import { generateEntities, Schema } from '../generate/entities';
 import Query from '../Query';
 import Column from './info/Column';
 import KeyColumnUsage from './info/KeyColumnUsage';
 import Referential from './info/Referential';
+
+async function getSchema(schema: string){
+  const columns = await getColumns(schema);
+  const tables = new Map<string, Schema.Table>();
+
+  columns.forEach(column => {
+    const name = column.table;
+    let table = tables.get(name);
+
+    if(!table){
+      table = {
+        name,
+        schema: column.schema,
+        columns: new Map<string, Schema.Column>()
+      }
+      
+      tables.set(name, table);
+    }
+
+    table.columns.set(column.name, column);
+  });
+
+  return generateEntities(tables);
+}
 
 async function getColumns(schema: string){
   return Query.get(where => {
@@ -14,8 +37,8 @@ async function getColumns(schema: string){
     const ref = join(Referential, "left");
 
     equal(ref.constraintName, usage.constraintName);
-    equal(ref.constraintSchema, usage.tableSchema);
-    equal(ref.tableName, usage.tableName);
+    equal(ref.constraintSchema, column.schema);
+    equal(ref.tableName, column.tableName);
 
     equal(usage.tableSchema, column.schema);
     equal(usage.tableName, column.tableName);
@@ -51,7 +74,7 @@ async function getColumns(schema: string){
         updateRule
       } : undefined;
       
-      return {
+      return <Schema.Column>{
         table: tableName,
         name,
         type: dataType,
@@ -65,28 +88,4 @@ async function getColumns(schema: string){
   });
 }
 
-async function getTables(schema: string){
-  const results = await getColumns(schema);
-  const tables = new Map<string, Schema.Table>();
-
-  results.forEach(result => {
-    const name = result.table;
-    let table = tables.get(name);
-
-    if(!table){
-      table = {
-        name,
-        schema: result.schema,
-        columns: []
-      }
-      
-      tables.set(name, table);
-    }
-
-    table.columns.push(result);
-  });
-
-  return generateEntities(...tables.values());
-}
-
-export default getTables;
+export default getSchema;
