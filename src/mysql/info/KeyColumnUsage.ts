@@ -1,6 +1,6 @@
 import Entity from '../../Entity';
 import Int from '../../instruction/Int';
-import String from '../../instruction/String';
+import VarChar from '../../instruction/VarChar';
 import Table from '../../instruction/Table';
 
 class KeyColumnUsage extends Entity {
@@ -8,31 +8,31 @@ class KeyColumnUsage extends Entity {
     name: "KEY_COLUMN_USAGE",
     schema: "information_schema"
   })
-  constraintCatalog = String({
+  constraintCatalog = VarChar({
     column: "CONSTRAINT_CATALOG",
     length: 64
   })
-  constraintSchema = String({
+  constraintSchema = VarChar({
     column: "CONSTRAINT_SCHEMA",
     length: 64
   })
-  constraintName = String({
+  constraintName = VarChar({
     column: "CONSTRAINT_NAME",
     length: 64
   })
-  tableCatalog = String({
+  tableCatalog = VarChar({
     column: "TABLE_CATALOG",
     length: 64
   })
-  tableSchema = String({
+  tableSchema = VarChar({
     column: "TABLE_SCHEMA",
     length: 64
   })
-  tableName = String({
+  tableName = VarChar({
     column: "TABLE_NAME",
     length: 64
   })
-  columnName = String({
+  columnName = VarChar({
     column: "COLUMN_NAME",
     length: 64
   })
@@ -42,15 +42,15 @@ class KeyColumnUsage extends Entity {
   positionInUniqueConstraint = Int({
     column: "POSITION_IN_UNIQUE_CONSTRAINT"
   })
-  referencedTableSchema = String({
+  referencedTableSchema = VarChar({
     column: "REFERENCED_TABLE_SCHEMA",
     length: 64
   })
-  referencedTableName = String({
+  referencedTableName = VarChar({
     column: "REFERENCED_TABLE_NAME",
     length: 64
   })
-  referencedColumnName = String({
+  referencedColumnName = VarChar({
     column: "REFERENCED_COLUMN_NAME",
     length: 64
   })

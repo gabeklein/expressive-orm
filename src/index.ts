@@ -2,7 +2,7 @@ import Bool from './instruction/Bool';
 import Int from './instruction/Int';
 import Many from './instruction/Many';
 import One from './instruction/One';
-import String from './instruction/String';
+import VarChar from './instruction/VarChar';
 import Ref from './instruction/Ref';
 import Entity from './Entity';
 import Query from './Query';
@@ -15,7 +15,7 @@ export {
   Int,
   Many,
   One,
-  String,
+  VarChar,
   Entity,
   Query,
   Ref

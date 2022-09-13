@@ -1,28 +1,20 @@
-import {
-  Bool,
-  Int,
-  Many,
-  One,
-  String,
-  Entity,
-  Query
-} from "../src";
+import { Bool, Entity, Int, Many, One, Query, VarChar } from '../src';
 
 class Author extends Entity {
-  name = String();
+  name = VarChar();
   age = Int();
-  nickname = String({ nullable: true });
+  nickname = VarChar({ nullable: true });
   active = Bool();
   books = Many(Book);
   publisher = One(Publisher);
 }
 
 class Publisher extends Entity {
-  name = String();
+  name = VarChar();
 }
 
 class Book extends Entity {
-  title = String();
+  title = VarChar();
   author = One(Author); 
 }
 

@@ -2,11 +2,11 @@ import Entity from '../Entity';
 import Query from '../Query';
 import Int from './Int';
 import One from './One';
-import String from './String';
+import VarChar from './VarChar';
 
 class A extends Entity {
   b = One(B);
-  value = String();
+  value = VarChar();
 }
 
 class B extends Entity {
@@ -15,7 +15,7 @@ class B extends Entity {
 
 class C extends Entity {
   value = Int();
-  label = String();
+  label = VarChar();
 }
 
 it("will query via select function", () => {

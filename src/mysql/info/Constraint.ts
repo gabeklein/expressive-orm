@@ -1,6 +1,6 @@
 import Entity from '../../Entity';
 import Primary from '../../instruction/Primary';
-import String from '../../instruction/String';
+import VarChar from '../../instruction/VarChar';
 import Table from '../../instruction/Table';
 
 class Constraint extends Entity {
@@ -11,38 +11,38 @@ class Constraint extends Entity {
 
   id = Primary(false);
 
-  catalog = String({
+  catalog = VarChar({
     column: 'CONSTRAINT_CATALOG',
     length: 64
   })
 
-  enforced = String({
+  enforced = VarChar({
     column: 'ENFORCED',
     length: 3
   })
 
-  name = String({
+  name = VarChar({
     column: 'CONSTRAINT_NAME',
     nullable: true,
     length: 64
   })
 
-  schema = String({
+  schema = VarChar({
     column: 'CONSTRAINT_SCHEMA',
     length: 64
   })
 
-  tableName = String({
+  tableName = VarChar({
     column: 'TABLE_NAME',
     length: 64
   })
 
-  tableSchema = String({
+  tableSchema = VarChar({
     column: 'TABLE_SCHEMA',
     length: 64
   })
 
-  type = String({
+  type = VarChar({
     column: 'CONSTRAINT_TYPE',
     length: 11
   })

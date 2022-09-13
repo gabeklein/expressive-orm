@@ -1,5 +1,5 @@
 import Entity from '../../Entity';
-import String from '../../instruction/String';
+import VarChar from '../../instruction/VarChar';
 import Table from '../../instruction/Table';
 
 class ReferentialConstraints extends Entity {
@@ -7,45 +7,45 @@ class ReferentialConstraints extends Entity {
     name: "REFERENTIAL_CONSTRAINTS",
     schema: "information_schema"
   })
-  constraintCatalog = String({
+  constraintCatalog = VarChar({
     column: "CONSTRAINT_CATALOG",
     length: 64
   })
-  constraintName = String({
+  constraintName = VarChar({
     column: "CONSTRAINT_NAME",
     length: 64
   })
-  constraintSchema = String({
+  constraintSchema = VarChar({
     column: "CONSTRAINT_SCHEMA",
     length: 64
   })
-  referencedTableName = String({
+  referencedTableName = VarChar({
     column: "REFERENCED_TABLE_NAME",
     length: 64
   })
-  tableName = String({
+  tableName = VarChar({
     column: "TABLE_NAME",
     length: 64
   })
-  uniqueConstraintCatalog = String({
+  uniqueConstraintCatalog = VarChar({
     column: "UNIQUE_CONSTRAINT_CATALOG",
     length: 64
   })
-  uniqueConstraintName = String({
+  uniqueConstraintName = VarChar({
     column: "UNIQUE_CONSTRAINT_NAME",
     length: 64
   })
-  uniqueConstraintSchema = String({
+  uniqueConstraintSchema = VarChar({
     column: "UNIQUE_CONSTRAINT_SCHEMA",
     length: 64
   })
-  deleteRule = String({
+  deleteRule = VarChar({
     column: "DELETE_RULE"
   })
-  matchOption = String({
+  matchOption = VarChar({
     column: "MATCH_OPTION"
   })
-  updateRule = String({
+  updateRule = VarChar({
     column: "UPDATE_RULE"
   })
 }

@@ -1,16 +1,16 @@
-import { Entity, Int, String } from '../src';
+import { Entity, Int, VarChar } from '../src';
 import Table from '../src/instruction/Table';
 import Query from '../src/Query';
 
 it("will join using single query syntax", async () => {
   class Foo extends Entity {
-    name = String();
-    color = String();
+    name = VarChar();
+    color = VarChar();
   }
   
   class Bar extends Entity {
-    name = String();
-    color = String();
+    name = VarChar();
+    color = VarChar();
     rating = Int();
   }
   
@@ -57,8 +57,8 @@ it("will alias tables with a schema", () => {
       name: "foo"
     })
 
-    name = String();
-    color = String();
+    name = VarChar();
+    color = VarChar();
   }
 
   const query = new Query(where => {

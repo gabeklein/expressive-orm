@@ -2,8 +2,9 @@ import Entity from '../../Entity';
 import Bool from '../../instruction/Bool';
 import Int from '../../instruction/Int';
 import Primary from '../../instruction/Primary';
-import String from '../../instruction/String';
 import Table from '../../instruction/Table';
+import Text from '../../instruction/Text';
+import VarChar from '../../instruction/VarChar';
 
 class Column extends Entity {
   table = Table({
@@ -13,28 +14,27 @@ class Column extends Entity {
 
   id = Primary(false);
 
-  catalog = String({
+  catalog = VarChar({
     column: "TABLE_CATALOG"
   });
 
-  characterSet = String({ 
+  characterSet = VarChar({ 
 		column: "CHARACTER_SET_NAME",
     nullable: true
   });
 
-  collation = String({ 
+  collation = VarChar({ 
 		column: "COLLATION_NAME",
     nullable: true
   });
 
-  comment = String({ 
-		column: "COLUMN_COMMENT",
-    type: "text"
+  comment = Text({ 
+		column: "COLUMN_COMMENT"
   });
 
-  dataType = String({ 
+  dataType = Text({ 
 		column: "DATA_TYPE",
-    type: "longtext"
+    size: "long"
   });
 
   datePrecision = Int({
@@ -42,20 +42,19 @@ class Column extends Entity {
     nullable: true
   });
 
-  default = String({ 
+  default = Text({ 
 		column: "COLUMN_DEFAULT",
-    type: "text",
     nullable: true
   });
 
-  extra = String({
+  extra = VarChar({
     column: "EXTRA",
     nullable: true
   });
 
-  generator = String({ 
+  generator = Text({ 
 		column: "COLUMN_TYPE",
-    type: "longtext"
+    size: "long"
   });
 
   isNullable = Bool({
@@ -63,7 +62,7 @@ class Column extends Entity {
     either: ["YES", "NO"]
   });
 
-  name = String({ 
+  name = VarChar({ 
 		column: "COLUMN_NAME",
     nullable: true
   });
@@ -90,12 +89,12 @@ class Column extends Entity {
     column: "ORDINAL_POSITION"
   });
 
-  privileges = String({ 
+  privileges = VarChar({ 
 		column: "PRIVILEGES",
     nullable: true
   });
 
-  schema = String({
+  schema = VarChar({
     column: "TABLE_SCHEMA"
   });
 
@@ -110,19 +109,18 @@ class Column extends Entity {
     nullable: true
   });
 
-  tableName = String({
+  tableName = VarChar({
     column: "TABLE_NAME"
   });
 
-  type = String({ 
+  type = Text({ 
 		column: "COLUMN_TYPE",
-    type: "mediumtext"
+    size: "medium"
   });
 
   // actually an ENUM
-  key = String({
+  key = VarChar({
     column: "COLUMN_KEY",
-    type: "varchar",
     length: 3,
     nullable: true,
     oneOf: [
