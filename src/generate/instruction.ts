@@ -44,7 +44,7 @@ export function instruction(from: Schema.Column, key: string){
         maxLength = t.literal(from.maxLength!);
 
       if(maxLength)
-        if(inside(opts) == 1)
+        if(inside(opts) == 0)
           return t.call(fieldType, maxLength);
         else
           opts.length = maxLength;
