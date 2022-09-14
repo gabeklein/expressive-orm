@@ -9,6 +9,7 @@ import Ref from './instruction/Ref';
 import Table from './instruction/Table';
 import Text, { LongText, MediumText, TinyText } from './instruction/Text';
 import VarChar from './instruction/VarChar';
+import Primary from './instruction/Primary';
 import Query from './Query';
 
 export default Entity;
@@ -23,6 +24,7 @@ export {
   Many,
   MediumText,
   One,
+  Primary,
   Query,
   Ref,
   SmallInt,

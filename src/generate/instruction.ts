@@ -20,13 +20,21 @@ const TYPES: any = {
 }
 
 export function instruction(from: Schema.Column, key: string){
-  const fieldType = TYPES[from.type] || "Unknown";
+  let fieldType = TYPES[from.type] || "Unknown";
   const opts = {} as {
     [key: string]: t.Expression | string | number | undefined
   };
 
   if(key !== from.name)
     opts.column = from.name;
+
+  if(from.primary){
+    opts.datatype = from.type;
+    fieldType = "Primary";
+
+    if(inside(opts) == 1 && from.type)
+      return t.call(fieldType, t.literal(from.type))
+  }
 
   switch(from.type){
     case "varchar":
@@ -36,7 +44,7 @@ export function instruction(from: Schema.Column, key: string){
         maxLength = t.literal(from.maxLength!);
 
       if(maxLength)
-        if(Object.keys(opts).length == 1)
+        if(inside(opts) == 1)
           return t.call(fieldType, maxLength);
         else
           opts.length = maxLength;
@@ -47,7 +55,7 @@ export function instruction(from: Schema.Column, key: string){
         elements: from.values!.map(x => t.literal(x))
       })
 
-      if(Object.keys(opts).length == 0)
+      if(inside(opts) == 0)
         return t.call(fieldType, values)
       
       opts.values = values;
@@ -58,3 +66,5 @@ export function instruction(from: Schema.Column, key: string){
     t.call(fieldType, t.object(opts, true))
   )
 }
+
+const inside = (inside: {}) => Object.keys(inside).length;
