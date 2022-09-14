@@ -1,6 +1,7 @@
 import Connection from './connection/Connection';
 import Entity from './Entity';
 import Bool from './instruction/Bool';
+import Enum from './instruction/Enum';
 import Int, { BigInt, SmallInt, TinyInt } from './instruction/Int';
 import Many from './instruction/Many';
 import One from './instruction/One';
@@ -16,6 +17,7 @@ export {
   Bool,
   Connection,
   Entity,
+  Enum,
   Int,
   LongText,
   Many,
