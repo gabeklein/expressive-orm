@@ -30,13 +30,16 @@ export function instruction(from: Schema.Column, key: string){
 
   switch(from.type){
     case "varchar":
-      if(from.maxLength !== 255)
-        opts.length = from.maxLength;
+      let maxLength: t.Literal | undefined;
 
-      if(from.maxLength && Object.keys(opts).length == 1)
-        return (
-          t.call(fieldType, t.literal(from.maxLength))
-        )
+      if(from.maxLength! !== 255)
+        maxLength = t.literal(from.maxLength!);
+
+      if(maxLength)
+        if(Object.keys(opts).length == 1)
+          return t.call(fieldType, maxLength);
+        else
+          opts.length = maxLength;
     break;
 
     case "enum":
