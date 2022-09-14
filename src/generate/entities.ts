@@ -53,7 +53,6 @@ export function generateEntities(
     "Table",
     "Text",
     "TinyInt",
-    "Unknown",
     "VarChar",
   ];
 
