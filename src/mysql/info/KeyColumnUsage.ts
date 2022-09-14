@@ -1,7 +1,4 @@
-import Entity from '../../Entity';
-import Int from '../../instruction/Int';
-import VarChar from '../../instruction/VarChar';
-import Table from '../../instruction/Table';
+import Entity, { Int, Table, VarChar } from '../..';
 
 class KeyColumnUsage extends Entity {
   table = Table({

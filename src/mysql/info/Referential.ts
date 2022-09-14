@@ -1,6 +1,4 @@
-import Entity from '../../Entity';
-import VarChar from '../../instruction/VarChar';
-import Table from '../../instruction/Table';
+import Entity, { VarChar, Table } from '../..';
 
 class ReferentialConstraints extends Entity {
   table = Table({

@@ -1,10 +1,4 @@
-import Entity from '../../Entity';
-import Bool from '../../instruction/Bool';
-import Int from '../../instruction/Int';
-import Primary from '../../instruction/Primary';
-import Table from '../../instruction/Table';
-import Text from '../../instruction/Text';
-import VarChar from '../../instruction/VarChar';
+import Entity, { Bool, Int, Primary, Table, Text, VarChar } from '../..';
 
 class Column extends Entity {
   table = Table({

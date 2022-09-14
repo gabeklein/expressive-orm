@@ -1,7 +1,4 @@
-import Entity from '../../Entity';
-import Primary from '../../instruction/Primary';
-import VarChar from '../../instruction/VarChar';
-import Table from '../../instruction/Table';
+import Entity, { Primary, VarChar, Table } from '../../';
 
 class Constraint extends Entity {
   table = Table({
