@@ -12,7 +12,7 @@ import Primary from './instruction/Primary';
 import Ref from './instruction/Ref';
 import Table from './instruction/Table';
 import Text, { LongText, MediumText, TinyText } from './instruction/Text';
-import VarChar from './instruction/VarChar';
+import Char, { VarChar } from './instruction/Char';
 import Query from './Query';
 
 export default Entity;
@@ -20,6 +20,7 @@ export {
   BigInt,
   Binary,
   Bool,
+  Char,
   Connection,
   DateTime,
   Double,
