@@ -38,12 +38,23 @@ export function generateEntities(
   explicitSchema?: boolean){
 
   const used = [
+    "BigInt",
+    "Binary",
     "Bool",
+    "Char",
+    "DateTime",
+    "Double",
+    "Enum",
+    "Float",
     "Int",
+    "LongText",
+    "MediumText",
+    "Primary",
+    "Table",
+    "Text",
+    "TinyInt",
+    "Unknown",
     "VarChar",
-    // "DateTime",
-    // "Enum",
-    // "Idk",
   ];
 
   const body: t.Statement[] = [
