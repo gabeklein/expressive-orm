@@ -1,5 +1,6 @@
 import Connection from './connection/Connection';
 import Entity from './Entity';
+import Binary from './instruction/Binary';
 import Bool from './instruction/Bool';
 import DateTime from './instruction/DateTime';
 import Enum from './instruction/Enum';
@@ -17,6 +18,7 @@ import Query from './Query';
 export default Entity;
 export {
   BigInt,
+  Binary,
   Bool,
   Connection,
   DateTime,
