@@ -38,6 +38,12 @@ export function instruction(from: Schema.Column, key: string){
           t.call(fieldType, t.literal(from.maxLength))
         )
     break;
+
+    case "enum":
+      opts.values = t.arrayExpression({
+        elements: from.values!.map(x => t.literal(x))
+      })
+    break;
   }
 
   return (

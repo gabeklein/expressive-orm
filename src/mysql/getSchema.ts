@@ -51,6 +51,7 @@ async function getColumns(schema: string){
         tableName,
         name,
         dataType,
+        type,
         maxLength,
         isNullable,
         schema
@@ -68,17 +69,22 @@ async function getColumns(schema: string){
 
       const reference = referencedTableName ? {
         table: referencedTableName,
-        column: referencedColumnName,
+        column: referencedColumnName!,
         name: constraintName,
         deleteRule,
         updateRule
       } : undefined;
-      
+
+      const values = dataType == "enum"
+        ? type.slice(5, -1).split(",").map(x => x.replace(/^'|'$/g, ""))
+        : undefined;
+
       return {
         table: tableName,
         name: name!,
         type: dataType,
         nullable: !!isNullable,
+        values,
         schema,
         maxLength,
         reference,

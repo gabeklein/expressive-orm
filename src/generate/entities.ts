@@ -15,6 +15,7 @@ export declare namespace Schema {
     nullable: boolean;
     primary?: boolean;
     reference?: Reference;
+    values?: string[];
   }
 
   interface Table {
