@@ -42,11 +42,16 @@ export function instruction(from: Schema.Column, key: string){
           opts.length = maxLength;
     break;
 
-    case "enum":
-      opts.values = t.arrayExpression({
+    case "enum": {
+      const values = t.arrayExpression({
         elements: from.values!.map(x => t.literal(x))
       })
-    break;
+
+      if(Object.keys(opts).length == 0)
+        return t.call(fieldType, values)
+      
+      opts.values = values;
+    } break;
   }
 
   return (
