@@ -3,6 +3,7 @@ import Entity from './Entity';
 import Bool from './instruction/Bool';
 import DateTime from './instruction/DateTime';
 import Enum from './instruction/Enum';
+import Float, { Double } from './instruction/Float';
 import Int, { BigInt, SmallInt, TinyInt } from './instruction/Int';
 import Many from './instruction/Many';
 import One from './instruction/One';
@@ -19,8 +20,10 @@ export {
   Bool,
   Connection,
   DateTime,
+  Double,
   Entity,
   Enum,
+  Float,
   Int,
   LongText,
   Many,
