@@ -1,6 +1,6 @@
 import Field from '../Field';
 
-declare namespace Boolean {
+declare namespace Binary {
   interface Options {
     column?: string;
     unique?: boolean;
@@ -13,14 +13,14 @@ declare namespace Boolean {
   }
 }
 
-function Boolean(options: Boolean.Optional): never | null | undefined;
-function Boolean(options?: Boolean.Options): never;
-function Boolean(options?: Boolean.Options){
-  return BooleanColumn.create({ ...options });
+function Binary(options: Binary.Optional): never | null | undefined;
+function Binary(options?: Binary.Options): never;
+function Binary(options?: Binary.Options){
+  return BinaryColumn.create({ ...options });
 }
 
-class BooleanColumn extends Field {
+class BinaryColumn extends Field {
   datatype = "BOOLEAN";
 }
 
-export default Boolean;
+export default Binary;
