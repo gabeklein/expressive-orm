@@ -7,7 +7,7 @@ import { imports, tableField } from './syntax';
 import { idealCase } from './util';
 
 export function generateEntities(
-  from: Map<string, Schema.Table>,
+  from: { [name: string]: Schema.Table },
   explicitSchema?: boolean){
 
   const used = [
@@ -33,7 +33,7 @@ export function generateEntities(
     imports(used)
   ];
 
-  from.forEach(table => {
+  Object.values(from).forEach(table => {
     body.push(
       entity(table, explicitSchema)
     );
@@ -59,7 +59,7 @@ function entity(
       )
     );
   
-  from.columns.forEach(field => {
+  Object.values(from.columns).forEach(field => {
     const key = idealCase(field.name, true);
     const value = instruction(field, key);
 

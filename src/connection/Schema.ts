@@ -16,7 +16,7 @@ declare namespace Schema {
   interface Table {
     name: string;
     schema: string;
-    columns: Map<string, Column>;
+    columns: { [name: string]: Column };
   }
 
   interface Reference {
@@ -31,23 +31,21 @@ declare namespace Schema {
 class Schema {
   constructor(public name: string){}
 
-  tables = new Map<string, Schema.Table>();
+  tables = {} as { [name: string]: Schema.Table };
 
   add(column: Schema.Column){
     const name = column.table;
-    let table = this.tables.get(name);
+    let table = this.tables[name];
 
     if(!table){
-      table = {
+      this.tables[name] = table = {
         name,
         schema: column.schema,
-        columns: new Map<string, Schema.Column>()
-      }
-      
-      this.tables.set(name, table);
+        columns: {}
+      };
     }
 
-    table.columns.set(column.name, column);
+    table.columns[column.name] = column;
   }
 
   generate(specifySchema?: boolean){

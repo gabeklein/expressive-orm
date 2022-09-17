@@ -13,7 +13,7 @@ abstract class Connection {
   database?: string;
 
   managed = new Map<typeof Entity, Table>();
-  schema = new Map<string, Schema>();
+  schema = {} as { [name: string]: Schema };
 
   abstract query(queryString: string): Promise<any>;
 
@@ -36,14 +36,14 @@ abstract class Connection {
     if(!database)
       throw new Error("No database specified!");
 
-    let schema = this.schema.get(database);
+    let schema = this.schema[database];
 
     if(!schema){
       schema = new Schema(database);
 
       const columns = await getColumns(database);
   
-      this.schema.set(database, schema);
+      this.schema[database] = schema;
       columns.forEach(schema.add, schema);
     }
 
