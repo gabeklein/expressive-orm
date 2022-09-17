@@ -1,35 +1,11 @@
-import { generateEntities, Schema } from '../generate/entities';
+import Schema from '../connection/Schema';
 import Query from '../Query';
 import Column from './info/Column';
 import KeyColumnUsage from './info/KeyColumnUsage';
 import Referential from './info/Referential';
 
-async function getSchema(schema: string, explicitSchema?: boolean){
-  const columns = await getColumns(schema);
-  const tables = new Map<string, Schema.Table>();
-
-  columns.forEach(column => {
-    const name = column.table;
-    let table = tables.get(name);
-
-    if(!table){
-      table = {
-        name,
-        schema: column.schema,
-        columns: new Map<string, Schema.Column>()
-      }
-      
-      tables.set(name, table);
-    }
-
-    table.columns.set(column.name, column);
-  });
-
-  return generateEntities(tables, explicitSchema);
-}
-
 async function getColumns(schema: string){
-  return Query.get(where => {
+  return Query.get<Schema.Column>(where => {
     const { from, join, equal } = where;
 
     const column = from(Column);
@@ -46,7 +22,7 @@ async function getColumns(schema: string){
 
     equal(column.schema, schema);
 
-    return (): Schema.Column => {
+    return () => {
       const {
         tableName,
         name,
@@ -94,4 +70,4 @@ async function getColumns(schema: string){
   });
 }
 
-export default getSchema;
+export default getColumns;

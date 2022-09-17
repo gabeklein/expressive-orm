@@ -1,5 +1,7 @@
 import Entity from '../Entity';
+import getColumns from '../mysql/getColumns';
 import Table from '../Table';
+import Schema from './Schema';
 
 namespace Connection {
   export type Entities =
@@ -8,9 +10,14 @@ namespace Connection {
 }
 
 abstract class Connection {
+  database?: string;
+
   managed = new Map<typeof Entity, Table>();
+  schema = new Map<string, Schema>();
 
   abstract query(queryString: string): Promise<any>;
+
+  close?(): void;
 
   apply(from: Connection.Entities){
     const entities = Object.values<typeof Entity>(from);
@@ -23,7 +30,25 @@ abstract class Connection {
     return this;
   }
 
-  close?(): void;
+  async getSchema(name?: string){
+    const database = name || this.database;
+
+    if(!database)
+      throw new Error("No database specified!");
+
+    let schema = this.schema.get(database);
+
+    if(!schema){
+      schema = new Schema(database);
+
+      const columns = await getColumns(database);
+  
+      this.schema.set(database, schema);
+      columns.forEach(schema.add, schema);
+    }
+
+    return schema;
+  }
 }
 
 export default Connection;

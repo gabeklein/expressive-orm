@@ -23,6 +23,7 @@ declare namespace MySQLConnection {
 class MySQLConnection extends Connection {
   options: MySQLConnection.Config;
   connection?: mysql.Connection | mysql.Pool;
+  database?: string;
 
   constructor(
     opts: MySQLConnection.Config = {},
@@ -35,6 +36,7 @@ class MySQLConnection extends Connection {
       multipleStatements: true
     }
     
+    this.database = opts.database;
     this.options = opts;
 
     if(!opts.dry)

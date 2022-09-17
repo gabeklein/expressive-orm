@@ -1,37 +1,10 @@
 import * as t from '@expressive/estree';
 import { generate } from 'astring';
+
+import Schema from '../connection/Schema';
 import { instruction } from './instruction';
 import { imports, tableField } from './syntax';
-
 import { idealCase } from './util';
-
-export declare namespace Schema {
-  interface Column {
-    name: string;
-    schema: string;
-    table: string;
-    type: string;
-    maxLength?: number;
-    nullable: boolean;
-    primary?: boolean;
-    reference?: Reference;
-    values?: string[];
-  }
-
-  interface Table {
-    name: string;
-    schema: string;
-    columns: Map<string, Column>;
-  }
-
-  interface Reference {
-    table: string;
-    column: string;
-    name?: string;
-    deleteRule?: string;
-    updateRule?: string;
-  }
-}
 
 export function generateEntities(
   from: Map<string, Schema.Table>,
