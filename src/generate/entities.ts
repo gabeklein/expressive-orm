@@ -3,12 +3,11 @@ import { generate } from 'astring';
 
 import Schema from '../connection/Schema';
 import { instruction } from './instruction';
-import { imports, tableField } from './syntax';
 import { idealCase } from './util';
 
-export function generateEntities(
-  from: { [name: string]: Schema.Table },
-  explicitSchema?: boolean){
+export function generateEntities(schema: Schema){
+  const { connection, name, tables } = schema;
+  const explicitSchema = connection.database !== name;
 
   const used = [
     "BigInt",
@@ -30,10 +29,13 @@ export function generateEntities(
   ];
 
   const body: t.Statement[] = [
-    imports(used)
+    t.importDeclaration("../", [
+      t.importSpecifier("Entity", "default"),
+      ...used.map(x => t.importSpecifier(x))
+    ])
   ];
 
-  Object.values(from).forEach(table => {
+  Object.values(tables).forEach(table => {
     body.push(
       entity(table, explicitSchema)
     );
@@ -45,23 +47,31 @@ export function generateEntities(
 }
 
 function entity(
-  from: Schema.Table,
+  table: Schema.Table,
   explicitSchema?: boolean){
 
-  const name = idealCase(from.name);
+  const { name } = table;
+  const identifier = idealCase(name);
+  const tableName = name !== identifier ? name : undefined;
+  const schema = explicitSchema ? table.schema : undefined;
   const fields: t.Class.Property[] = [];
 
-  if(from.name !== name)
+  if(tableName || schema)
     fields.push(
-      tableField(
-        from.name,
-        explicitSchema && from.schema
+      t.classProperty("table",
+        t.callExpression("Table", schema
+          ? t.object({ schema, name: tableName }, true)
+          : t.literal(tableName)
+        )
       )
     );
-  
-  Object.values(from.columns).forEach(field => {
-    const key = idealCase(field.name, true);
-    const value = instruction(field, key);
+
+  Object.values(table.columns).forEach(column => {
+    const key =
+      column.isPrimary ? "id" :
+      idealCase(column.name, true);
+
+    const value = instruction(column, key);
 
     fields.push(t.classProperty(key, value));
   })
@@ -69,6 +79,6 @@ function entity(
   return t.exportNamedDeclaration({
     specifiers: [],
     declaration:
-      t.classDeclaration(name, "Entity", fields)
+      t.classDeclaration(identifier, "Entity", fields)
   })
 }

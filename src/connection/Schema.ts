@@ -61,8 +61,8 @@ class Schema {
     })
   }
 
-  generate(specifySchema?: boolean){
-    return generateEntities(this.tables, specifySchema);
+  generate(){
+    return generateEntities(this);
   }
 }
 

@@ -93,7 +93,7 @@ export function instruction(from: Schema.Column, key: string){
       opts :
     t.object(opts, true);
 
-  return t.call(fieldType, argument);
+  return t.callExpression(fieldType, argument);
 }
 
 const inside = (inside: {}) => Object.keys(inside).length;
