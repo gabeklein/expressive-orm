@@ -26,11 +26,15 @@ const TYPES: any = {
   "longtext": "LongText",
   "char": "Char",
   "binary": "Binary",
+  "varbinary": "VarBinary",
   "timestamp": "DateTime",
+  "datetime": "DateTime",
   "double": "Double",
   "float": "Float",
   "enum": "Enum",
-  "varchar": "VarChar"
+  "varchar": "VarChar",
+  "json": "Json",
+  "set": "Flags"
 }
 
 export function instruction(from: Schema.Column, key: string){
@@ -66,6 +70,7 @@ export function instruction(from: Schema.Column, key: string){
       break;
     }
 
+    case "set":
     case "enum": {
       const { argument } = parseType(from.type);
       const elements = argument

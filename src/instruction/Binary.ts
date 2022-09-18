@@ -6,6 +6,8 @@ declare namespace Binary {
     unique?: boolean;
     default?: string;
     nullable?: boolean;
+    length?: number;
+    variable?: boolean;
   }
 
   interface Optional extends Options {
@@ -13,14 +15,24 @@ declare namespace Binary {
   }
 }
 
-function Binary(options: Binary.Optional): never | null | undefined;
-function Binary(options?: Binary.Options): never;
-function Binary(options?: Binary.Options){
-  return BinaryColumn.create({ ...options });
+function Binary(a1: Binary.Optional): never | null | undefined;
+function Binary(a1?: Binary.Options): never;
+function Binary(a1: Binary.Options = {}){
+  const datatype =
+    `${a1.variable ? "VAR" : ""}BINARY(${a1.length || 1})`
+
+  return BinaryColumn.create({ ...a1, datatype });
+}
+
+function VarBinary(options: Binary.Optional): never | null | undefined;
+function VarBinary(options?: Binary.Options): never;
+function VarBinary(options?: Binary.Options){
+  return BinaryColumn.create({ ...options, variable: true });
 }
 
 class BinaryColumn extends Field {
-  datatype = "BOOLEAN";
+  variable = false;
 }
 
 export default Binary;
+export { Binary, VarBinary }

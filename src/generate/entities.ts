@@ -17,15 +17,18 @@ export function generateEntities(schema: Schema){
     "DateTime",
     "Double",
     "Enum",
+    "Flags",
     "Float",
     "Int",
+    "Json",
     "LongText",
     "MediumText",
     "Primary",
     "Table",
     "Text",
     "TinyInt",
-    "VarChar",
+    "VarBinary",
+    "VarChar"
   ];
 
   const body: t.Statement[] = [
