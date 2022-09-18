@@ -36,7 +36,7 @@ const TYPES: any = {
 export function instruction(from: Schema.Column, key: string){
   const { dataType } = from;
   let fieldType = TYPES[dataType] || "Unknown";
-  let opts: t.object.Literal | t.Expression.Array | string | number = {};
+  let opts: t.object.Abstract | t.Expression.Array | string | number = {};
 
   if(key !== from.name)
     opts.column = from.name;
