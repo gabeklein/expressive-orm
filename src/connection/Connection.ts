@@ -31,23 +31,21 @@ abstract class Connection {
   }
 
   async getSchema(name?: string){
-    const database = name || this.database;
+    if(!name)
+      name = this.database;
 
-    if(!database)
-      throw new Error("No database specified!");
+    if(!name)
+      throw new Error("No database specified, and no default one exists!");
 
-    let schema = this.schema[database];
+    let schema = this.schema[name];
 
     if(!schema){
-      schema = new Schema(database);
+      const columns = await getColumns(name);
 
-      const columns = await getColumns(database);
-  
-      this.schema[database] = schema;
-      columns.forEach(schema.add, schema);
+      schema = new Schema(this, name, columns);
     }
 
-    return schema;
+    return this.schema[name] = schema;
   }
 }
 

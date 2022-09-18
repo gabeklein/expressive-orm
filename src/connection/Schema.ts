@@ -1,16 +1,16 @@
+import { Connection } from "..";
 import { generateEntities } from "../generate/entities";
 
 declare namespace Schema {
   interface Column {
     name: string;
     schema: string;
-    table: string;
+    tableName: string;
+    dataType: string;
     type: string;
-    maxLength?: number;
-    nullable: boolean;
-    primary?: boolean;
+    isNullable: boolean;
+    isPrimary: boolean;
     reference?: Reference;
-    values?: string[];
   }
 
   interface Table {
@@ -29,23 +29,36 @@ declare namespace Schema {
 }
 
 class Schema {
-  constructor(public name: string){}
+  constructor(
+    public connection: Connection,
+    public name: string,
+    columns: Schema.Column[]){
+
+    this.load(columns);
+  }
 
   tables = {} as { [name: string]: Schema.Table };
 
-  add(column: Schema.Column){
-    const name = column.table;
-    let table = this.tables[name];
+  load(columns: Schema.Column[]){
+    type Register = (column: Schema.Column) => void;
 
-    if(!table){
-      this.tables[name] = table = {
-        name,
-        schema: column.schema,
-        columns: {}
-      };
-    }
+    const { tables } = this;
+    const paths = new Map<string, Schema.Column | Register>();
 
-    table.columns[column.name] = column;
+    columns.forEach(column => {
+      const { name, schema, tableName } = column;
+      let info = tables[tableName];
+
+      if(!info)
+        info = tables[tableName] = {
+          columns: {},
+          name: tableName,
+          schema
+        };
+
+      info.columns[name] = column;
+      paths.set(`${tableName}.${name}`, column);
+    })
   }
 
   generate(specifySchema?: boolean){

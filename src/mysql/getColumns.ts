@@ -5,7 +5,7 @@ import KeyColumnUsage from './info/KeyColumnUsage';
 import Referential from './info/Referential';
 
 async function getColumns(schema: string){
-  return Query.get<Schema.Column>(where => {
+  return Query.get(where => {
     const { from, join, equal } = where;
 
     const column = from(Column);
@@ -22,49 +22,48 @@ async function getColumns(schema: string){
 
     equal(column.schema, schema);
 
-    return () => {
+    return (): Schema.Column => {
       const {
-        tableName,
-        name,
         dataType,
-        type,
-        maxLength,
-        isNullable,
-        schema
+        isNullable = false,
+        name = "",
+        schema,
+        tableName,
+        type
       } = column;
 
       const {
         constraintName,
-        referencedTableName,
-        referencedColumnName
+        referencedColumnName,
+        referencedTableName
       } = usage;
 
-      const { deleteRule, updateRule } = ref;
-
-      const primary = constraintName == "PRIMARY";
-
-      const reference = referencedTableName ? {
-        table: referencedTableName,
-        column: referencedColumnName!,
-        name: constraintName,
+      const {
         deleteRule,
         updateRule
-      } : undefined;
+      } = ref;
 
-      const values = dataType == "enum"
-        ? type.slice(5, -1).split(",").map(x => x.replace(/^'|'$/g, ""))
-        : undefined;
+      const isPrimary = constraintName == "PRIMARY";
+      let reference: Schema.Reference | undefined;
+
+      if(referencedTableName)
+        reference = {
+          table: referencedTableName,
+          column: referencedColumnName!,
+          name: constraintName,
+          deleteRule,
+          updateRule
+        };
 
       return {
-        table: tableName,
-        name: name!,
-        type: dataType,
-        nullable: !!isNullable,
-        values,
-        schema,
-        maxLength,
+        dataType,
+        isNullable,
+        isPrimary,
+        name,
         reference,
-        primary
+        schema,
+        tableName,
+        type,
       }
     }
   });

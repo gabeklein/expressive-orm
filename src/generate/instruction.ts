@@ -1,5 +1,19 @@
 import * as t from '@expressive/estree';
-import { Schema } from './entities';
+
+import Schema from '../connection/Schema';
+
+const parseType = (type: string) => {
+  const extract = /^(\w+)(?:\((.+)\))?$/;
+  const match = extract.exec(type);
+
+  if(!match)
+    throw new Error(`${type} is not a parsable SQL type.`)
+  
+  return {
+    name: match[1],
+    argument: match[2]
+  }
+} 
 
 const TYPES: any = {
   "int": "Int",
@@ -20,7 +34,8 @@ const TYPES: any = {
 }
 
 export function instruction(from: Schema.Column, key: string){
-  let fieldType = TYPES[from.type] || "Unknown";
+  const { dataType } = from;
+  let fieldType = TYPES[dataType] || "Unknown";
   const opts = {} as {
     [key: string]: t.Expression | string | number | undefined
   };
@@ -28,38 +43,48 @@ export function instruction(from: Schema.Column, key: string){
   if(key !== from.name)
     opts.column = from.name;
 
-  if(from.primary){
-    opts.datatype = from.type;
+  if(from.isPrimary){
+    opts.datatype = dataType;
     fieldType = "Primary";
 
-    if(inside(opts) == 1 && from.type)
-      return t.call(fieldType, t.literal(from.type))
+    if(inside(opts) == 1 && dataType)
+      return t.call(fieldType, t.literal(dataType))
   }
 
-  switch(from.type){
-    case "varchar":
+  switch(dataType){
+    case "varchar": {
       let maxLength: t.Literal | undefined;
+      const { argument } = parseType(dataType);
 
-      if(from.maxLength! !== 255)
-        maxLength = t.literal(from.maxLength!);
+      if(argument !== "255")
+        maxLength = t.literal(Number(argument));
 
       if(maxLength)
         if(inside(opts) == 0)
           return t.call(fieldType, maxLength);
         else
           opts.length = maxLength;
-    break;
+
+      break;
+    }
 
     case "enum": {
-      const values = t.arrayExpression({
-        elements: from.values!.map(x => t.literal(x))
-      })
+      const { argument } = parseType(from.type);
+      const elements = argument
+        .split(",")
+        .map(x => {
+          const string = x.replace(/^'|'$/g, "");
+          return t.literal(string);
+        })
+
+      const values = t.arrayExpression({ elements });
 
       if(inside(opts) == 0)
         return t.call(fieldType, values)
       
       opts.values = values;
-    } break;
+      break;
+    }
   }
 
   return (
