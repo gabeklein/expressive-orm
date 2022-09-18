@@ -12,7 +12,7 @@ declare namespace Enum {
   }
 }
 
-function Enum<T>(values: T[]): T[];
+function Enum<T>(values: T[]): T;
 function Enum<T>(options: Enum.Optional<T>): T | null | undefined;
 function Enum<T>(options: Enum.Options<T>): T;
 function Enum<T>(options: T[] | Enum.Options<T>){
@@ -21,7 +21,7 @@ function Enum<T>(options: T[] | Enum.Options<T>){
       ? { values: options }
       : options;
 
-  const datatype = `VARCHAR(${
+  const datatype = `ENUM(${
     values.map(x => typeof x == "string" ? `'${x}'` : x).join(',')
   })`
 
