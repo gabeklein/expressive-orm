@@ -36,9 +36,7 @@ const TYPES: any = {
 export function instruction(from: Schema.Column, key: string){
   const { dataType } = from;
   let fieldType = TYPES[dataType] || "Unknown";
-  const opts = {} as {
-    [key: string]: t.Expression | string | number | undefined
-  };
+  let opts: t.object.Literal | t.Expression.Array | string | number = {};
 
   if(key !== from.name)
     opts.column = from.name;
@@ -48,20 +46,20 @@ export function instruction(from: Schema.Column, key: string){
     fieldType = "Primary";
 
     if(inside(opts) == 1 && dataType)
-      return t.call(fieldType, t.literal(dataType))
+      opts = dataType;
   }
 
-  switch(dataType){
+  else switch(dataType){
     case "varchar": {
-      let maxLength: t.Literal | undefined;
+      let maxLength: number | undefined;
       const { argument } = parseType(dataType);
 
       if(argument !== "255")
-        maxLength = t.literal(Number(argument));
+        maxLength = Number(argument)
 
       if(maxLength)
         if(inside(opts) == 0)
-          return t.call(fieldType, maxLength);
+          opts = maxLength;
         else
           opts.length = maxLength;
 
@@ -80,16 +78,22 @@ export function instruction(from: Schema.Column, key: string){
       const values = t.arrayExpression({ elements });
 
       if(inside(opts) == 0)
-        return t.call(fieldType, values)
-      
-      opts.values = values;
+        opts = values;
+      else
+        opts.values = values;
+
       break;
     }
   }
 
-  return (
-    t.call(fieldType, t.object(opts, true))
-  )
+  const argument =
+    typeof opts != "object" ?
+      t.literal(opts) :
+    t.isNode(opts) ?
+      opts :
+    t.object(opts, true);
+
+  return t.call(fieldType, argument);
 }
 
 const inside = (inside: {}) => Object.keys(inside).length;
