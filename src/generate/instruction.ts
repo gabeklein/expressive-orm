@@ -1,7 +1,7 @@
 import * as t from '@expressive/estree';
 
 import Schema from '../connection/Schema';
-import { isEmpty, parseType } from './util';
+import { idealCase, isEmpty, parseType } from './util';
 
 const TYPES: any = {
   "int": "Int",
@@ -25,15 +25,18 @@ const TYPES: any = {
   "set": "Flags"
 }
 
-export function instruction(from: Schema.Column, key: string){
-  const { dataType } = from;
+export function instruction(column: Schema.Column){
+  const { dataType, isPrimary, name, type } = column;
+  const key = isPrimary ? "id" : idealCase(name, true);
+  const subtype = parseType(type);
+
   let fieldType = TYPES[dataType] || "Unknown";
   let opts: t.object.Abstract | t.Expression.Array | string | number = {};
 
-  if(key !== from.name)
-    opts.column = from.name;
+  if(key !== name)
+    opts.column = name;
 
-  if(from.isPrimary){
+  if(isPrimary){
     fieldType = "Primary";
 
     if(isEmpty(opts))
@@ -45,8 +48,8 @@ export function instruction(from: Schema.Column, key: string){
   else switch(dataType){
     case "char":
     case "varchar": {
-      const argument = parseType(from.type);
-      const maxLength = argument !== "255" && Number(argument);
+      const maxLength =
+        subtype && subtype !== "255" && Number(subtype);
 
       if(maxLength)
         if(isEmpty(opts))
@@ -59,13 +62,11 @@ export function instruction(from: Schema.Column, key: string){
 
     case "set":
     case "enum": {
-      const argument = parseType(from.type);
-      const elements = argument
+      const elements = subtype!
         .split(",")
-        .map(x => {
-          const string = x.replace(/^'|'$/g, "");
-          return t.literal(string);
-        })
+        .map(x => t.literal(
+          x.replace(/^'|'$/g, "")
+        ))
 
       const values = t.arrayExpression({ elements });
 
@@ -85,5 +86,7 @@ export function instruction(from: Schema.Column, key: string){
       opts :
     t.object(opts, true);
 
-  return t.callExpression(fieldType, argument);
+  return t.classProperty(key,
+    t.callExpression(fieldType, argument)  
+  )
 }

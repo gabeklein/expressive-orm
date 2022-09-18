@@ -27,11 +27,9 @@ export function isEmpty(object: {}){
 }
 
 export function parseType(type: string){
-  const extract = /^\w+\((.+)\)$/;
+  const extract = /^\w+[ (](.+?)\)?$/;
   const match = extract.exec(type);
 
-  if(!match)
-    throw new Error(`${type} is not a parsable SQL type.`)
-  
-  return match[1];
+  if(match)
+    return match[1];
 } 

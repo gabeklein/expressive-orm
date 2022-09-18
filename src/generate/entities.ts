@@ -40,7 +40,10 @@ export function generateEntities(schema: Schema){
 
   Object.values(tables).forEach(table => {
     body.push(
-      entity(table, explicitSchema)
+      t.exportNamedDeclaration({
+        specifiers: [],
+        declaration: entityDeclaration(table, explicitSchema)
+      })
     );
   })
 
@@ -49,7 +52,7 @@ export function generateEntities(schema: Schema){
   return code.replace(/\export/g, "\n\export");
 }
 
-function entity(
+function entityDeclaration(
   table: Schema.Table,
   explicitSchema?: boolean){
 
@@ -57,10 +60,10 @@ function entity(
   const identifier = idealCase(name);
   const tableName = name !== identifier ? name : undefined;
   const schema = explicitSchema ? table.schema : undefined;
-  const fields: t.Class.Property[] = [];
+  const properties: t.Class.Property[] = [];
 
   if(tableName || schema)
-    fields.push(
+    properties.push(
       t.classProperty("table",
         t.callExpression("Table", schema
           ? t.object({ schema, name: tableName }, true)
@@ -70,18 +73,8 @@ function entity(
     );
 
   Object.values(table.columns).forEach(column => {
-    const key =
-      column.isPrimary ? "id" :
-      idealCase(column.name, true);
-
-    const value = instruction(column, key);
-
-    fields.push(t.classProperty(key, value));
+    properties.push(instruction(column));
   })
 
-  return t.exportNamedDeclaration({
-    specifiers: [],
-    declaration:
-      t.classDeclaration(identifier, "Entity", fields)
-  })
+  return t.classDeclaration(identifier, "Entity", properties)
 }
