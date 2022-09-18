@@ -11,7 +11,7 @@ declare namespace Binary {
   }
 
   interface Optional extends Options {
-    nullable?: true;
+    nullable: true;
   }
 }
 

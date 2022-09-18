@@ -10,7 +10,7 @@ declare namespace Int {
   }
 
   interface Optional extends Options {
-    nullable?: true;
+    nullable: true;
   }
 }
 

@@ -10,7 +10,7 @@ declare namespace Float {
   }
 
   interface Optional extends Options {
-    nullable?: true;
+    nullable: true;
   }
 }
 

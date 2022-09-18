@@ -1,7 +1,7 @@
 import Field from '../Field';
 
-namespace Text {
-  export interface Options {
+declare namespace Text {
+  interface Options {
     size?: "tiny" | "medium" | "long"
     column?: string;
     unique?: boolean;
@@ -9,7 +9,7 @@ namespace Text {
     nullable?: boolean;
   }
 
-  export interface Optional extends Options {
+  interface Optional extends Options {
     nullable: true;
   }
 }

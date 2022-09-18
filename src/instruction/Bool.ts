@@ -8,7 +8,7 @@ declare namespace Bool {
   }
 
   interface Optional extends Options {
-    nullable?: true;
+    nullable: true;
   }
 }
 

@@ -1,7 +1,7 @@
 import Field from '../Field';
 
-namespace Char {
-  export interface Options {
+declare namespace Char {
+  interface Options {
     column?: string;
     unique?: boolean;
     default?: string;
@@ -10,11 +10,11 @@ namespace Char {
     variable?: boolean;
   }
 
-  export interface Specific<T extends string> extends Options {
+  interface Specific<T extends string> extends Options {
     oneOf: T[];
   }
 
-  export interface Optional extends Options {
+  interface Optional extends Options {
     nullable: true;
   }
 }
