@@ -21,3 +21,17 @@ export function idealCase(
     ? joined[0].toLowerCase() + joined.slice(1)
     : joined;
 }
+
+export function isEmpty(object: {}){
+  return Object.keys(object).length === 0;
+}
+
+export function parseType(type: string){
+  const extract = /^\w+\((.+)\)$/;
+  const match = extract.exec(type);
+
+  if(!match)
+    throw new Error(`${type} is not a parsable SQL type.`)
+  
+  return match[1];
+} 

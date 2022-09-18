@@ -1,19 +1,7 @@
 import * as t from '@expressive/estree';
 
 import Schema from '../connection/Schema';
-
-const parseType = (type: string) => {
-  const extract = /^(\w+)(?:\((.+)\))?$/;
-  const match = extract.exec(type);
-
-  if(!match)
-    throw new Error(`${type} is not a parsable SQL type.`)
-  
-  return {
-    name: match[1],
-    argument: match[2]
-  }
-} 
+import { isEmpty, parseType } from './util';
 
 const TYPES: any = {
   "int": "Int",
@@ -46,23 +34,22 @@ export function instruction(from: Schema.Column, key: string){
     opts.column = from.name;
 
   if(from.isPrimary){
-    opts.datatype = dataType;
     fieldType = "Primary";
 
-    if(inside(opts) == 1 && dataType)
-      opts = dataType;
+    if(isEmpty(opts))
+      opts = dataType
+    else
+      opts.datatype = dataType;
   }
 
   else switch(dataType){
+    case "char":
     case "varchar": {
-      let maxLength: number | undefined;
-      const { argument } = parseType(dataType);
-
-      if(argument !== "255")
-        maxLength = Number(argument)
+      const argument = parseType(from.type);
+      const maxLength = argument !== "255" && Number(argument);
 
       if(maxLength)
-        if(inside(opts) == 0)
+        if(isEmpty(opts))
           opts = maxLength;
         else
           opts.length = maxLength;
@@ -72,7 +59,7 @@ export function instruction(from: Schema.Column, key: string){
 
     case "set":
     case "enum": {
-      const { argument } = parseType(from.type);
+      const argument = parseType(from.type);
       const elements = argument
         .split(",")
         .map(x => {
@@ -82,7 +69,7 @@ export function instruction(from: Schema.Column, key: string){
 
       const values = t.arrayExpression({ elements });
 
-      if(inside(opts) == 0)
+      if(isEmpty(opts))
         opts = values;
       else
         opts.values = values;
@@ -100,5 +87,3 @@ export function instruction(from: Schema.Column, key: string){
 
   return t.callExpression(fieldType, argument);
 }
-
-const inside = (inside: {}) => Object.keys(inside).length;
