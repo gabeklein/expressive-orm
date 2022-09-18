@@ -2,3 +2,4 @@
 /coverage
 develop/
 .DS_Store
+docker-compose.yml
