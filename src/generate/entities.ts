@@ -5,54 +5,38 @@ import Schema from '../connection/Schema';
 import { instruction } from './instruction';
 import { idealCase } from './util';
 
+export const InstructionsUsed = new Set<string>();
+
 export function generateEntities(schema: Schema){
   const { connection, name, tables } = schema;
   const explicitSchema = connection.database !== name;
 
-  const used = [
-    "BigInt",
-    "Binary",
-    "Bool",
-    "Char",
-    "DateTime",
-    "Double",
-    "Enum",
-    "Flags",
-    "Float",
-    "Int",
-    "Json",
-    "LongText",
-    "MediumText",
-    "Primary",
-    "Table",
-    "Text",
-    "TinyInt",
-    "VarBinary",
-    "VarChar"
-  ];
+  const body: t.Statement[] = [];
+  const imports: t.Import.Item[] = [
+    t.importDefaultSpecifier("Entity")
+  ]
 
-  const body: t.Statement[] = [
-    t.importDeclaration("../", [
-      t.importSpecifier("Entity", "default"),
-      ...used.map(x => t.importSpecifier(x))
-    ])
-  ];
-
-  Object.values(tables).forEach(table => {
+  for(const table of Object.values(tables))
     body.push(
-      t.exportNamedDeclaration({
-        specifiers: [],
-        declaration: entityDeclaration(table, explicitSchema)
-      })
+      t.exportNamedDeclaration(
+        entityClass(table, explicitSchema)
+      )
     );
-  })
 
-  const code = generate(t.program(body));
+  for(const i of InstructionsUsed)
+    imports.push(t.importSpecifier(i));
+
+  InstructionsUsed.clear();
+
+  const code = generate(t.program([
+    t.importDeclaration("../", imports),
+    ...body
+  ]));
 
   return code.replace(/\export/g, "\n\export");
 }
 
-function entityDeclaration(
+function entityClass(
   table: Schema.Table,
   explicitSchema?: boolean){
 
@@ -62,7 +46,9 @@ function entityDeclaration(
   const schema = explicitSchema ? table.schema : undefined;
   const properties: t.Class.Property[] = [];
 
-  if(tableName || schema)
+  if(tableName || schema){
+    InstructionsUsed.add("Table");
+
     properties.push(
       t.classProperty("table",
         t.callExpression("Table", schema
@@ -71,6 +57,7 @@ function entityDeclaration(
         )
       )
     );
+  }
 
   Object.values(table.columns).forEach(column => {
     properties.push(instruction(column));

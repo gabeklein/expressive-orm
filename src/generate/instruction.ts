@@ -1,6 +1,7 @@
 import * as t from '@expressive/estree';
 
 import Schema from '../connection/Schema';
+import { InstructionsUsed } from './entities';
 import { idealCase, isEmpty, parseType } from './util';
 
 const TYPES: any = {
@@ -86,6 +87,8 @@ export function instruction(column: Schema.Column){
     t.isNode(opts) ?
       opts :
     t.object(opts, true);
+
+  InstructionsUsed.add(fieldType);
 
   return t.classProperty(key,
     t.callExpression(fieldType, argument)  
