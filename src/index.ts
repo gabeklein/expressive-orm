@@ -8,6 +8,7 @@ import Enum from './instruction/Enum';
 import Flags from './instruction/Flags';
 import Float, { Double } from './instruction/Float';
 import Int, { BigInt, SmallInt, TinyInt } from './instruction/Int';
+import Get from './instruction/Get';
 import Json from './instruction/Json';
 import Many from './instruction/Many';
 import Nope from './instruction/Nope';
@@ -31,6 +32,7 @@ export {
   Enum,
   Flags,
   Float,
+  Get,
   Int,
   Json,
   LongText,

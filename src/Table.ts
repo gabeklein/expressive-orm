@@ -16,6 +16,7 @@ class Table {
   dependancies = new Set<Table>();
   name: string;
   schema: string;
+  focus?: {};
 
   constructor(
     public entity: Entity.Type,
@@ -31,6 +32,10 @@ class Table {
     for(const key in sample){
       const desc = describe(sample, key)!;
       this.apply(desc.value, key);
+      Object.defineProperty(sample, key, {
+        get: () => (this.focus as any)[key],
+        set: (v) => (this.focus as any)[key] = v
+      })
     }
   }
 

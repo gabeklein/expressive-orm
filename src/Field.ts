@@ -50,18 +50,18 @@ class Field {
     return qualify(alias || name, this.column);
   }
 
-  proxy(query: Query){
+  proxy(query: Query, proxy: {}){
     let column!: number;
 
     return () => {
       switch(query.mode){
+        case "query":
+          return this;
+
         case "select": {
           column = query.select(this);
           return this.placeholder;
         }
-
-        case "query":
-          return this;
 
         case "fetch": {
           const value = query.rawFocus[column];

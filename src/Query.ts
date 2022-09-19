@@ -2,6 +2,7 @@ import Connection from './connection/Connection';
 import Entity from './Entity';
 import Field from './Field';
 import { stringify } from './mysql/stringify';
+import Table from './Table';
 import { escapeString, qualify } from './utility';
 
 export const Metadata = new WeakMap<{}, Query.Table>();
@@ -81,6 +82,7 @@ class Query<R = any> {
     return new this(from).getOne(true);
   }
 
+  source?: Table;
   connection?: Connection;
   mode: Query.Mode = "query";
   selects = new Map<Field, number | string>();
@@ -164,6 +166,7 @@ class Query<R = any> {
     let { name, schema, connection } = entity.table;
     let alias: string | undefined;
 
+    this.source = entity.table;
     this.connection = connection;
 
     if(schema){
@@ -222,7 +225,7 @@ class Query<R = any> {
         Metadata.set(field, metadata);
 
       Object.defineProperty(proxy, key, {
-        get: field.proxy(this)
+        get: field.proxy(this, proxy)
       })
     })
 
@@ -258,6 +261,9 @@ class Query<R = any> {
   }
 
   toString(): string {
+    if(this.source)
+      this.source.focus = undefined;
+
     return stringify(this);
   }
 }
