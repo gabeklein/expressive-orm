@@ -1,21 +1,21 @@
 import Field from '../Field';
 
 declare namespace Enum {
-  interface Options<T> {
+  interface Options<T extends string> {
     column?: string;
     nullable?: boolean;
     values: T[];
   }
 
-  interface Optional<T> extends Options<T> {
+  interface Optional<T extends string> extends Options<T> {
     nullable?: true;
   }
 }
 
-function Enum<T>(values: T[]): T;
-function Enum<T>(options: Enum.Optional<T>): T | null | undefined;
-function Enum<T>(options: Enum.Options<T>): T;
-function Enum<T>(options: T[] | Enum.Options<T>){
+function Enum<T extends string>(values: T[]): T;
+function Enum<T extends string>(options: Enum.Optional<T>): T | null | undefined;
+function Enum<T extends string>(options: Enum.Options<T>): T;
+function Enum<T extends string>(options: T[] | Enum.Options<T>){
   const { values, ...rest } =
     Array.isArray(options)
       ? { values: options }
@@ -29,7 +29,7 @@ function Enum<T>(options: T[] | Enum.Options<T>){
 }
 
 class EnumColumn extends Field {
-  values = [] as any[];
+  values = [] as readonly any[];
   placeholder = "";
 }
 
