@@ -2,7 +2,7 @@ import * as t from '@expressive/estree';
 
 import Schema from '../connection/Schema';
 import { InstructionsUsed } from './entities';
-import { idealCase, isEmpty, parseType } from './util';
+import { idealCase, parseType } from './util';
 
 const TYPES: any = {
   "blob": "Nope",
@@ -33,72 +33,73 @@ export function instruction(column: Schema.Column){
   const subtype = parseType(type)!;
 
   let fieldType = TYPES[dataType] || "Nope";
-  let opts: t.object.Abstract | t.Expression.Array | string | number = {};
+  let collapse: string | undefined;
+  const opts: t.object.Abstract = {};
 
   if(key !== name)
     opts.column = name;
 
   if(isPrimary){
     fieldType = "Primary";
-
-    if(isEmpty(opts))
-      opts = dataType
-    else
-      opts.datatype = dataType;
+    opts.datatype = dataType;
+    collapse = "datatype";
   }
 
   else switch(dataType){
     case "char":
     case "varchar":
+      collapse = "length";
+
       if(subtype && subtype !== "255")
-        if(isEmpty(opts))
-          opts = Number(subtype);
-        else
-          opts.length = Number(subtype);
+        opts.length = Number(subtype);
     break;
 
     case "set":
     case "enum": {
+      collapse = "values";
+
       const elements = subtype
         .split(",")
         .map(x => x.replace(/^'|'$/g, ""))
         .map(t.literal);
 
-      const values = t.arrayExpression({ elements });
-
-      if(isEmpty(opts))
-        opts = values;
-      else
-        opts.values = values;
+      opts.values = t.arrayExpression({ elements });
     }
   }
 
-  const argument =
-    typeof opts != "object" ?
-      t.literal(opts) :
-    t.isNode(opts) ?
-      opts :
-    isEmpty(opts) ?
-      undefined :
-      t.object(opts, true);
-
   InstructionsUsed.add(fieldType);
 
-  return field(key, fieldType, argument);
+  return field(key, fieldType, opts, collapse);
 }
 
 export function field(
   property: string,
   instruction: string,
-  arg?: t.object.Abstract | t.Expression | string | number
+  arg?: t.object.Abstract | t.Expression | string | number,
+  collapse?: string
 ){
-  const argument =
-    typeof arg == "object" ?
-      t.isNode(arg) ? arg :
-      t.object(arg, true) :
-    t.literal(arg);
+  let argument: t.Expression | undefined;
 
-  const expression = arg
+  if(typeof arg !== "object" || arg === null)
+    argument = t.literal(arg);
+
+  else if(t.isNode(arg))
+    argument = arg;
+
+  else {
+    const entries = Object.entries(arg);
+
+    if(collapse && entries.length == 1){
+      const [key, value] = entries[0];
+
+      if(key == collapse)
+        argument = t.expression(value);
+    }
+    else if(entries.length)
+      argument = t.object(arg);
+  }
+
+  const expression = argument
     ? t.callExpression(instruction, argument)
     : t.callExpression(instruction);
 
