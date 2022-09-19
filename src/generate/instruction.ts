@@ -28,7 +28,7 @@ const TYPES: any = {
 }
 
 export function instruction(column: Schema.Column){
-  const { dataType, isPrimary, name, type } = column;
+  let { dataType, isPrimary, name, type } = column;
   const key = isPrimary ? "id" : idealCase(name, true);
   const subtype = parseType(type)!;
 
@@ -82,11 +82,25 @@ export function instruction(column: Schema.Column){
       undefined :
       t.object(opts, true);
 
-  const instruction = argument
-    ? t.callExpression(fieldType, argument)
-    : t.callExpression(fieldType);
-
   InstructionsUsed.add(fieldType);
 
-  return t.classProperty(key, instruction);
+  return field(key, fieldType, argument);
+}
+
+export function field(
+  property: string,
+  instruction: string,
+  arg?: t.object.Abstract | t.Expression | string | number
+){
+  const argument =
+    typeof arg == "object" ?
+      t.isNode(arg) ? arg :
+      t.object(arg, true) :
+    t.literal(arg);
+
+  const expression = arg
+    ? t.callExpression(instruction, argument)
+    : t.callExpression(instruction);
+
+  return t.classProperty(property, expression);
 }
