@@ -1,8 +1,6 @@
 import Schema from '../connection/Schema';
 import Query from '../Query';
-import Column from './info/Column';
-import KeyColumnUsage from './info/KeyColumnUsage';
-import Referential from './info/Referential';
+import { Column, KeyColumnUsage, ReferentialConstraints } from './schema';
 
 async function getColumns(schema: string){
   return Query.get(where => {
@@ -10,7 +8,7 @@ async function getColumns(schema: string){
 
     const column = from(Column);
     const usage = join(KeyColumnUsage, "left");
-    const ref = join(Referential, "left");
+    const ref = join(ReferentialConstraints, "left");
 
     equal(usage.tableSchema, column.schema);
     equal(usage.tableName, column.tableName);

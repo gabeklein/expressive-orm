@@ -1,15 +1,9 @@
 import mysql from 'mysql';
 
 import Connection from '../connection/Connection';
-import Column from './info/Column';
-import { addTableConstraints, createTableMySQL, dropTablesMySQL } from './generate';
-import Constraint from './info/Constraint';
 import Entity from '../Entity';
-
-const INFO_SCHEMA: Entity.Type[] = [
-  Column,
-  Constraint
-];
+import { addTableConstraints, createTableMySQL, dropTablesMySQL } from './generate';
+import * as schema from './schema';
 
 declare namespace MySQLConnection {
   interface Config extends mysql.ConnectionConfig {
@@ -44,8 +38,9 @@ class MySQLConnection extends Connection {
         ? mysql.createPool(config)
         : mysql.createConnection(config);
 
-    for(const Entity of INFO_SCHEMA)
-      Entity.init(this);
+    Object.values<typeof Entity>(schema).forEach(entity => {
+      entity.init(this);
+    })
 
     if(entities)
       this.apply(entities);
