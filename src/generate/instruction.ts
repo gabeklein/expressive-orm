@@ -30,7 +30,7 @@ const TYPES: any = {
 export function instruction(column: Schema.Column){
   const { dataType, isPrimary, name, type } = column;
   const key = isPrimary ? "id" : idealCase(name, true);
-  const subtype = parseType(type);
+  const subtype = parseType(type)!;
 
   let fieldType = TYPES[dataType] || "Nope";
   let opts: t.object.Abstract | t.Expression.Array | string | number = {};
@@ -49,26 +49,20 @@ export function instruction(column: Schema.Column){
 
   else switch(dataType){
     case "char":
-    case "varchar": {
-      const maxLength =
-        subtype && subtype !== "255" && Number(subtype);
-
-      if(maxLength)
+    case "varchar":
+      if(subtype && subtype !== "255")
         if(isEmpty(opts))
-          opts = maxLength;
+          opts = Number(subtype);
         else
-          opts.length = maxLength;
-
-      break;
-    }
+          opts.length = Number(subtype);
+    break;
 
     case "set":
     case "enum": {
-      const elements = subtype!
+      const elements = subtype
         .split(",")
-        .map(x => t.literal(
-          x.replace(/^'|'$/g, "")
-        ))
+        .map(x => x.replace(/^'|'$/g, ""))
+        .map(t.literal);
 
       const values = t.arrayExpression({ elements });
 
@@ -76,8 +70,6 @@ export function instruction(column: Schema.Column){
         opts = values;
       else
         opts.values = values;
-
-      break;
     }
   }
 
@@ -86,11 +78,15 @@ export function instruction(column: Schema.Column){
       t.literal(opts) :
     t.isNode(opts) ?
       opts :
-    t.object(opts, true);
+    isEmpty(opts) ?
+      undefined :
+      t.object(opts, true);
+
+  const instruction = argument
+    ? t.callExpression(fieldType, argument)
+    : t.callExpression(fieldType);
 
   InstructionsUsed.add(fieldType);
 
-  return t.classProperty(key,
-    t.callExpression(fieldType, argument)  
-  )
+  return t.classProperty(key, instruction);
 }
