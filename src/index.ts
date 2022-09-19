@@ -12,6 +12,7 @@ import Json from './instruction/Json';
 import Many from './instruction/Many';
 import One from './instruction/One';
 import Primary from './instruction/Primary';
+import Nope from './instruction/Nope';
 import Ref from './instruction/Ref';
 import Table from './instruction/Table';
 import Text, { LongText, MediumText, TinyText } from './instruction/Text';
@@ -35,6 +36,7 @@ export {
   LongText,
   Many,
   MediumText,
+  Nope,
   One,
   Primary,
   Query,
