@@ -1,5 +1,5 @@
 import { Entity, Int, VarChar } from '../src';
-import Table from '../src/instruction/Table';
+import Table from '../src/fields/Table';
 import Query from '../src/Query';
 
 it("will join using single query syntax", async () => {
