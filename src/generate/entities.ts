@@ -9,22 +9,26 @@ export const InstructionsUsed = new Set<string>();
 
 export function generateEntities(schema: Schema){
   const { connection, name, tables } = schema;
-  const explicitSchema = connection.database !== name;
+  const specifySchema = connection.database !== name;
 
   const body: t.Statement[] = [];
   const imports: t.Import.Item[] = [
     t.importDefaultSpecifier("Entity")
   ]
 
-  for(const table of Object.values(tables))
+  Object.values(tables).forEach(table => {
     body.push(
       t.exportNamedDeclaration(
-        entityClass(table, explicitSchema)
+        entityClass(table, specifySchema)
       )
     );
+  })
 
-  for(const i of InstructionsUsed)
-    imports.push(t.importSpecifier(i));
+  InstructionsUsed.forEach(name => {
+    imports.push(
+      t.importSpecifier(name)
+    );
+  })
 
   InstructionsUsed.clear();
 
@@ -53,8 +57,7 @@ function entityClass(
       ? { schema, name: explicit }
       : explicit
 
-    const instruction =
-      field("table", "Table", argumnet);
+    const instruction = field("table", "Table", argumnet);
       
     InstructionsUsed.add("Table");
     properties.push(instruction);
