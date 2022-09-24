@@ -5,7 +5,8 @@
   "main": "lib",
   "scripts": {
     "watch": "jest --watchAll",
-    "test": "jest --collectCoverage"
+    "test": "jest --collectCoverage",
+    "build": "tsc"
   },
   "author": "",
   "license": "ISC",

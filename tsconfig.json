@@ -3,7 +3,6 @@
         "outDir": "lib/",
         "target": "ES6",
         "types": ["node", "jest"],
-        "sourceMap": true,
         "moduleResolution": "node",
         "noUnusedLocals": true,
         "strict": true,
@@ -11,7 +10,6 @@
         "lib": ["ES2018"]
     },
     "include": [
-        "src",
-        "tests"
+        "src"
     ]
 }
