@@ -1,6 +1,6 @@
 import Connection from './connection/Connection';
 import Field from './Field';
-import Primary from './instruction/Primary';
+import Primary from './fields/Primary';
 import Query from './Query';
 import Table from './Table';
 
