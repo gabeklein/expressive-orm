@@ -8,7 +8,8 @@ import { escapeString, qualify } from './utility';
 export const Metadata = new WeakMap<{}, Query.Table>();
 
 declare namespace Query {
-  export type Function<R> = (query: Query) => (() => R) | R;
+  export type Function<R> =
+    (query: Query.Interface) => R | (() => R);
 
   export type Join =
     | "left"
@@ -56,16 +57,14 @@ declare namespace Query {
     [K in Entity.Field<T>]: T[K];
   }
 
-  export interface JoinFunction {
-    <T extends Entity>(
-      from: Entity.Type<T>,
-      mode?: "right" | "inner"
-    ): Query.Fields<T>;
-
-    <T extends Entity>(
-      from: Entity.Type<T>,
-      mode: Query.Join
-    ): Query.Maybe<T>;
+  export interface Interface {
+    equal(value: any, to: any): void;
+    notEqual(value: any, to: any): void;
+    greater(value: any, than: any): void;
+    less(value: any, than: any): void;
+    from<T extends Entity>(entity: Entity.Type<T>): Query.Fields<T>;
+    join<T extends Entity>(from: Entity.Type<T>, mode?: "right" | "inner"): Query.Fields<T>;
+    join<T extends Entity>(from: Entity.Type<T>, mode: Query.Join): Query.Maybe<T>;
   }
 }
 
@@ -92,22 +91,36 @@ class Query<R = any> {
   map?: () => R;
   rawFocus!: { [alias: string]: any };
 
+  interface: Query.Interface = {
+    equal: (a, b) => this.where(a, b, "="),
+    notEqual: (a, b) => this.where(a, b, "<>"),
+    greater: (a, b) => this.where(a, b, ">"),
+    less: (a, b) => this.where(a, b, "<"),
+    from: this.use.bind(this),
+    join: this.add.bind(this)
+  }
+
   constructor(from: Query.Function<R>){
-    const select = from(this) as any;
+    this.build(from);
+    this.mode = "fetch";
+  }
+
+  build(from: Query.Function<R>){
+    const select = from(this.interface);
 
     switch(typeof select){
-      case "function":
+      case "function": {
+        const fn = select as () => R;
+
         this.mode = "select";
-        this.map = select as () => R;
-        select();
-      break;
+        this.map = fn;
+        fn();
+      } break;
 
       case "object": 
-        this.map = factory(this, select);
+        this.map = useFactory(this, select);
       break;
     }
-
-    this.mode = "fetch";
   }
 
   async get(limit?: number): Promise<R[]> {
@@ -144,25 +157,9 @@ class Query<R = any> {
     return this.getOne(orFail || false);
   }
 
-  equal = (value: any, isEqualTo: any) => {
-    this.where(value, isEqualTo, "=");
-  }
+  use<T extends Entity>(
+    entity: Entity.Type<T>): Query.Fields<T>{
 
-  notEqual = (value: any, notEqualTo: any) => {
-    this.where(value, notEqualTo, "<>");
-  }
-
-  greater = (value: any, than: any) => {
-    this.where(value, than, ">");
-  }
-
-  less = (value: any, than: any) => {
-    this.where(value, than, "<");
-  }
-
-  from = <T extends Entity>(
-    entity: Entity.Type<T>
-  ): Query.Fields<T> => {
     let { name, schema, connection } = entity.table;
     let alias: string | undefined;
 
@@ -177,7 +174,9 @@ class Query<R = any> {
     return this.proxy(entity, { name, alias });
   }
 
-  join: Query.JoinFunction = (entity, mode) => {
+  add<T extends Entity>(
+    entity: Entity.Type<T>, mode?: Query.Join){
+
     let { name, schema } = entity.table;
     let alias: string | undefined;
 
@@ -194,7 +193,7 @@ class Query<R = any> {
     });
   }
 
-  select = (field: Field) => {
+  select(field: Field){
     const column = this.selects.size + 1;
     this.selects.set(field, column);
     return column;
@@ -268,7 +267,7 @@ class Query<R = any> {
   }
 }
 
-function factory(on: Query, selection: any){
+function useFactory(on: Query, selection: any){
   if(selection instanceof Field){
     const column = on.selects.size + 1;
     on.selects.set(selection, column);

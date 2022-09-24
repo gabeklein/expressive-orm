@@ -26,7 +26,7 @@ declare namespace Entity {
   type Field<T extends Entity> = Exclude<keyof T, "table">;
 
   type Where<T extends Entity, R> =
-    (source: Query.Fields<T>, query: Query<any>) => () => R;
+    (source: Query.Fields<T>, query: Query.Interface) => () => R;
 }
 
 abstract class Entity {

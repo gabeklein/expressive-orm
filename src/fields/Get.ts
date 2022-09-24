@@ -1,18 +1,18 @@
 import Field from "../Field";
 import Query from "../Query";
 
-function Get<R>(query: Query.Function<R>): R {
-  return GetRelation.create({ query })
+function Get<R>(factory: Query.Function<R>): R {
+  return GetRelation.create({ factory })
 }
 
 class GetRelation extends Field {
-  query!: Query.Function<any>;
+  factory!: Query.Function<any>;
 
   proxy(query: Query<any>, proxy: {}){
     const table = query.source!;
 
     table.focus = proxy;
-    const output = this.query(query);
+    const output = this.factory(query.interface);
     
     return typeof output == "function"
       ? output
