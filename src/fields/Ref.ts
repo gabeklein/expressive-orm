@@ -25,7 +25,7 @@ function Ref<T extends Entity>(arg1: any, arg2?: any): any {
   return ForeignKeyColumn.create(arg1);
 }
 
-class ForeignKeyColumn<T extends Entity = Entity> extends Field {
+class ForeignKeyColumn extends Field {
   // todo: depends on corresponding field.
   datatype = "INT";
   placeholder = 1;
