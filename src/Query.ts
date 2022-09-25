@@ -7,28 +7,28 @@ import { escapeString, qualify } from './utility';
 
 export const Metadata = new WeakMap<{}, Query.Table>();
 
-namespace Query {
-  export type Select<R> = (query: Query.Where) => R | (() => R);
+declare namespace Query {
+  type Join = "left" | "right" | "inner" | "outer";
+  type Mode = "query" | "select";
 
-  export type Join = "left" | "right" | "inner" | "outer";
-  export type Mode = "query" | "select";
-
-  export interface Table {
+  interface Table {
     name: string;
     join?: Query.Join;
     alias?: string;
     on?: string[];
   }
 
-  export type Fields<T extends Entity> = {
+  type Fields<T extends Entity> = {
     [K in Entity.Field<T>]: Exclude<T[K], null>;
   }
 
-  export type Maybe<T extends Entity> = {
+  type Maybe<T extends Entity> = {
     [K in Entity.Field<T>]: Exclude<T[K], null> | undefined;
   }
 
-  export interface Where {
+  type Select<R> = (query: Query.Where) => R | (() => R);
+
+  interface Where {
     equal(value: any, to: any): void;
     notEqual(value: any, to: any): void;
     greater(value: any, than: any): void;
