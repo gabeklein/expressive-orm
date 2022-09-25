@@ -3,9 +3,9 @@ import Field from '../Field';
 import Query from '../Query';
 
 declare namespace Many {
-  interface Select<T extends Entity> {
-    map<R>(select: (from: Query.Select<T>) => R): R;
-  }
+  // interface Select<T extends Entity> {
+  //   map<R>(select: (from: Query.Select<T>) => R): R;
+  // }
 
   interface Options {
 
