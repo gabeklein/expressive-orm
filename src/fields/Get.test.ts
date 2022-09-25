@@ -30,7 +30,7 @@ class Baz extends Entity {
 }
 
 it("will integrate query on select", () => {
-  const query = new Query(where => {
+  const query = Query.select(where => {
     return where.from(Foo).bazValue;
   });
 

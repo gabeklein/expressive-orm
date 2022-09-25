@@ -42,15 +42,40 @@ namespace Query {
 
 class Query<R = any> {
   static get<R>(from: Query.Function<R>){
-    return new this(from).get();
+    return this.select(from).get();
   }
 
   static getOne<R>(from: Query.Function<R>){
-    return new this(from).getOne(false);
+    return this.select(from).getOne(false);
   }
 
   static find<R>(from: Query.Function<R>){
-    return new this(from).getOne(true);
+    return this.select(from).getOne(true);
+  }
+
+  static select<R>(from: Query.Function<R>){
+    const query = new this();
+
+    query.state = "query";
+    const select = from(query.interface);
+
+    switch(typeof select){
+      case "function": {
+        const fn = select as () => R;
+
+        query.state = "select";
+        query.map = fn;
+        fn();
+      } break;
+
+      case "object": 
+        query.map = useFactory(query, select);
+      break;
+    }
+
+    query.state = undefined;
+
+    return query;
   }
 
   source?: Table;
@@ -70,31 +95,6 @@ class Query<R = any> {
     less: (a, b) => this.where(a, b, "<"),
     from: this.use.bind(this),
     join: this.add.bind(this)
-  }
-
-  constructor(from: Query.Function<R>){
-    this.build(from);
-  }
-
-  build(from: Query.Function<R>){
-    this.state = "query";
-    const select = from(this.interface);
-
-    switch(typeof select){
-      case "function": {
-        const fn = select as () => R;
-
-        this.state = "select";
-        this.map = fn;
-        fn();
-      } break;
-
-      case "object": 
-        this.map = useFactory(this, select);
-      break;
-    }
-
-    this.state = undefined;
   }
 
   async get(limit?: number): Promise<R[]> {

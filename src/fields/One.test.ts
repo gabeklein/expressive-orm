@@ -15,7 +15,7 @@ class C extends Entity {
 }
 
 it("will query via select function", () => {
-  const query = new Query(where => {
+  const query = Query.select(where => {
     const a = where.from(A);
     return () => a.value;
   });
@@ -32,7 +32,7 @@ LEFT JOIN \`C\`
 })
 
 it("will query via select function", () => {
-  const query = new Query(where => {
+  const query = Query.select(where => {
     const a = where.from(A);
 
     return {
@@ -55,7 +55,7 @@ LEFT JOIN \`C\`
 
 it("will query nested relationships", () => {
   // TODO: fix types
-  const query = new Query(where => {
+  const query = Query.select(where => {
     const a = where.from(A);
 
     where.equal(a.b.c.value, 100);

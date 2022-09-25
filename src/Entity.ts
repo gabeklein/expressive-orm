@@ -64,7 +64,9 @@ abstract class Entity {
     this: Entity.Type<T>,
     from: Entity.Where<T, R>
   ){
-    return new Query($ => from($.from(this), $));
+    return Query.select(where => {
+      return from(where.from(this), where);
+    })
   }
 
   static async get<T extends Entity, R>(

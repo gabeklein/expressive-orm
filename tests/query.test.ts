@@ -18,7 +18,7 @@ it("will join using single query syntax", async () => {
     rating = Int();
   }
 
-  const query = new Query(where => {
+  const query = Query.select(where => {
     const foo = where.from(Foo);
     const bar = where.join(Bar);
     const baz = where.join(Baz, "left");
@@ -61,7 +61,7 @@ it("will alias tables with a schema", () => {
     color = VarChar();
   }
 
-  const query = new Query(where => {
+  const query = Query.select(where => {
     const foo = where.from(Foo);
 
     where.equal(foo.color, "red");

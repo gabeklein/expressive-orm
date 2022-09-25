@@ -20,7 +20,7 @@ class Book extends Entity {
 
 //TODO: fix
 it.skip("will create book query", () => {
-  const query = new Query(where => {
+  const query = Query.select(where => {
     const book = where.from(Book);
 
     where.equal(book.title, "1984");
@@ -33,7 +33,7 @@ it.skip("will create book query", () => {
 })
 
 it("will create author query", () => {
-  const query = new Query(where => {
+  const query = Query.select(where => {
     const author = where.from(Author);
 
     where.notEqual(author.name, "Robert");

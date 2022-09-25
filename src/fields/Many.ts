@@ -26,7 +26,7 @@ class ManyToOneRelation extends Field {
   //   let query = this.sub.get(parent);
 
   //   if(!query){
-  //     query = new Query(this.type);
+  //     query = Query.select(this.type);
   //     this.sub.set(parent, query);
   //   }
 
