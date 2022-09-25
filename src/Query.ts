@@ -26,7 +26,7 @@ declare namespace Query {
     [K in Entity.Field<T>]: Exclude<T[K], null> | undefined;
   }
 
-  type Select<R> = (query: Query.Where) => R | (() => R);
+  type Select<R> = (where: Query.Where) => R | (() => R);
 
   interface Where {
     equal(value: any, to: any): void;
