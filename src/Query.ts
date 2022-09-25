@@ -8,8 +8,7 @@ import { escapeString, qualify } from './utility';
 export const Metadata = new WeakMap<{}, Query.Table>();
 
 namespace Query {
-  export type Function<R> =
-    (query: Query.Interface) => R | (() => R);
+  export type Select<R> = (query: Query.Where) => R | (() => R);
 
   export type Join = "left" | "right" | "inner" | "outer";
   export type Mode = "query" | "select";
@@ -29,7 +28,7 @@ namespace Query {
     [K in Entity.Field<T>]: Exclude<T[K], null> | undefined;
   }
 
-  export interface Interface {
+  export interface Where {
     equal(value: any, to: any): void;
     notEqual(value: any, to: any): void;
     greater(value: any, than: any): void;
@@ -41,19 +40,19 @@ namespace Query {
 }
 
 class Query<R = any> {
-  static get<R>(from: Query.Function<R>){
+  static get<R>(from: Query.Select<R>){
     return this.select(from).get();
   }
 
-  static getOne<R>(from: Query.Function<R>){
+  static getOne<R>(from: Query.Select<R>){
     return this.select(from).getOne(false);
   }
 
-  static find<R>(from: Query.Function<R>){
+  static find<R>(from: Query.Select<R>){
     return this.select(from).getOne(true);
   }
 
-  static select<R>(from: Query.Function<R>){
+  static select<R>(from: Query.Select<R>){
     const query = new this();
 
     query.state = "query";
@@ -88,7 +87,7 @@ class Query<R = any> {
   map?: () => R;
   rawFocus!: { [alias: string]: any };
 
-  interface: Query.Interface = {
+  interface: Query.Where = {
     equal: (a, b) => this.where(a, b, "="),
     notEqual: (a, b) => this.where(a, b, "<>"),
     greater: (a, b) => this.where(a, b, ">"),
