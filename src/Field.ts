@@ -36,7 +36,7 @@ class Field {
     operator: string){
 
     return (value: any) => {
-      query.where(this, value, operator);
+      query.where(operator, this, value);
     }
   }
 

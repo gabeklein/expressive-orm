@@ -77,23 +77,28 @@ class Query<R = any> {
     return query;
   }
 
-  source?: Table;
-  connection?: Connection;
-  state?: Query.Mode;
-  selects = new Map<Field, number | string>();
   clauses = new Set<string>();
-  tables = new Map<any, Query.Table>();
+  connection?: Connection;
+  interface: Query.Where;
   limit?: number;
   map?: () => R;
   rawFocus!: { [alias: string]: any };
+  selects = new Map<Field, number | string>();
+  source?: Table;
+  state?: Query.Mode;
+  tables = new Map<any, Query.Table>();
 
-  interface: Query.Where = {
-    equal: (a, b) => this.where(a, b, "="),
-    notEqual: (a, b) => this.where(a, b, "<>"),
-    greater: (a, b) => this.where(a, b, ">"),
-    less: (a, b) => this.where(a, b, "<"),
-    from: this.use.bind(this),
-    join: this.add.bind(this)
+  constructor(){
+    const { add, use, where } = this;
+
+    this.interface = {
+      equal: where.bind(this, "="),
+      notEqual: where.bind(this, "<>"),
+      greater: where.bind(this, ">"),
+      less: where.bind(this, "<"),
+      from: use.bind(this),
+      join: add.bind(this)
+    }
   }
 
   async get(limit?: number): Promise<R[]> {
@@ -205,9 +210,9 @@ class Query<R = any> {
   }
 
   where(
+    op: string,
     left: Field,
-    right: string | number | Field,
-    op: string
+    right: string | number | Field
   ){
     const { alias, name, on } = Metadata.get(left)!;
 
