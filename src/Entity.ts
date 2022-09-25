@@ -60,7 +60,7 @@ abstract class Entity {
     return this.table.map(getValue);
   }
 
-  static query<T extends Entity, R>(
+  static select<T extends Entity, R>(
     this: Entity.Type<T>,
     from: Entity.Where<T, R>
   ){
@@ -71,14 +71,14 @@ abstract class Entity {
     this: Entity.Type<T>,
     from: Entity.Where<T, R>
   ){
-    return this.query(from).get();
+    return this.select(from).get();
   }
 
   static async getOne<T extends Entity, R>(
     this: Entity.Type<T>,
     from: Entity.Where<T, R>
   ){
-    return this.query(from).getOne();
+    return this.select(from).getOne();
   }
 
   static init<T extends Entity>(
