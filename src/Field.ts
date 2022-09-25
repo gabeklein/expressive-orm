@@ -54,7 +54,7 @@ class Field {
     let column!: number;
 
     return () => {
-      switch(query.mode){
+      switch(query.state){
         case "query":
           return this;
 
@@ -63,7 +63,7 @@ class Field {
           return this.placeholder;
         }
 
-        case "fetch": {
+        default: {
           const value = query.rawFocus[column];
 
           if(value !== null)

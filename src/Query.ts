@@ -7,20 +7,12 @@ import { escapeString, qualify } from './utility';
 
 export const Metadata = new WeakMap<{}, Query.Table>();
 
-declare namespace Query {
+namespace Query {
   export type Function<R> =
     (query: Query.Interface) => R | (() => R);
 
-  export type Join =
-    | "left"
-    | "right"
-    | "inner"
-    | "outer";
-
-  export type Mode =
-    | "query"
-    | "select"
-    | "fetch";
+  export type Join = "left" | "right" | "inner" | "outer";
+  export type Mode = "query" | "select";
 
   export interface Table {
     name: string;
@@ -29,32 +21,12 @@ declare namespace Query {
     on?: string[];
   }
 
-  export type WhereFunction<T extends Entity> =
-    (this: Fields<T>, thisArg: Fields<T>) => void;
-
-  export type SelectFunction<T extends Entity, R> =
-    (this: Select<T>, thisArg: Select<T>) => R;
-
-  export type Options<T extends Entity, R> = {
-    where?: WhereFunction<T>;
-    select?: SelectFunction<T, R>;
-  }
-
   export type Fields<T extends Entity> = {
     [K in Entity.Field<T>]: Exclude<T[K], null>;
   }
 
   export type Maybe<T extends Entity> = {
     [K in Entity.Field<T>]: Exclude<T[K], null> | undefined;
-  }
-
-  export type WhereField<T> =
-    T extends number | string | boolean
-      ? T | T[]
-      : never;
-
-  export type Select<T extends Entity> = {
-    [K in Entity.Field<T>]: T[K];
   }
 
   export interface Interface {
@@ -83,7 +55,7 @@ class Query<R = any> {
 
   source?: Table;
   connection?: Connection;
-  mode: Query.Mode = "query";
+  state?: Query.Mode;
   selects = new Map<Field, number | string>();
   clauses = new Set<string>();
   tables = new Map<any, Query.Table>();
@@ -102,17 +74,17 @@ class Query<R = any> {
 
   constructor(from: Query.Function<R>){
     this.build(from);
-    this.mode = "fetch";
   }
 
   build(from: Query.Function<R>){
+    this.state = "query";
     const select = from(this.interface);
 
     switch(typeof select){
       case "function": {
         const fn = select as () => R;
 
-        this.mode = "select";
+        this.state = "select";
         this.map = fn;
         fn();
       } break;
@@ -121,6 +93,8 @@ class Query<R = any> {
         this.map = useFactory(this, select);
       break;
     }
+
+    this.state = undefined;
   }
 
   async get(limit?: number): Promise<R[]> {

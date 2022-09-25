@@ -60,48 +60,25 @@ abstract class Entity {
     return this.table.map(getValue);
   }
 
+  static query<T extends Entity, R>(
+    this: Entity.Type<T>,
+    from: Entity.Where<T, R>
+  ){
+    return new Query($ => from($.from(this), $));
+  }
+
   static async get<T extends Entity, R>(
     this: Entity.Type<T>,
     from: Entity.Where<T, R>
   ){
-    return new Query($ => from($.from(this), $)).get();
+    return this.query(from).get();
   }
 
   static async getOne<T extends Entity, R>(
     this: Entity.Type<T>,
     from: Entity.Where<T, R>
   ){
-    return new Query($ => from($.from(this), $)).getOne();
-  }
-
-  static query<T extends Entity>(
-    this: Entity.Type<T>,
-    from: {
-      where?: Query.WhereFunction<T>;
-    }
-  ): Entity.Pure<T>;
-
-  static query<T extends Entity, R>(
-    this: Entity.Type<T>,
-    from: Query.Options<T, R>
-  ): R;
-
-  static query<T extends Entity, R>(
-    this: Entity.Type<T>,
-    from: Query.Options<T, R>
-  ){
-    const { select, where } = from;
-
-    return new Query($ => {
-      const source = $.from(this);
-
-      if(where)
-        where.call(source, source);
-
-      return select
-        ? () => select.call(source as any, source as any)
-        : () => ({ ...source } as any);
-    })
+    return this.query(from).getOne();
   }
 
   static init<T extends Entity>(
