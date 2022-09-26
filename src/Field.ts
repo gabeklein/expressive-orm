@@ -55,7 +55,7 @@ class Field {
     let column!: number;
 
     return () => {
-      if(query instanceof Select && query.state)
+      if(query instanceof Select)
         switch(query.state){
           case "select": {
             column = query.select(this);
@@ -67,8 +67,8 @@ class Field {
             return value === null ? undefined : value;
           }
         }
-      else
-        return this;
+
+      return this;
     }
   }
 
