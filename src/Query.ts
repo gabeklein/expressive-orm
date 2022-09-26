@@ -60,11 +60,9 @@ class Query<R = any> {
 
     switch(typeof select){
       case "function": {
-        const fn = select as () => R;
-
         query.state = "select";
-        query.map = fn;
-        fn();
+        query.map = select as () => R;
+        (select as () => R)();
       } break;
 
       case "object": 
