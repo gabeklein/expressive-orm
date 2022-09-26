@@ -16,8 +16,8 @@ class Book extends Entity {
 }
 
 it.skip("will insert procedurally generated rows", () => {
-  const authors = [];
-  const books = [];
+  const authors: any[] = [];
+  const books: any[] = [];
 
   for(const authorName of ["Gabe", "BJ", "JC", "Danny"]){
     const author = new Author();
