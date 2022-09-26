@@ -4,7 +4,7 @@ import Query from '../query/Query';
 
 declare namespace Many {
   // interface Select<T extends Entity> {
-  //   map<R>(select: (from: Query.Select<T>) => R): R;
+  //   map<R>(select: (from: Select.Function<T>) => R): R;
   // }
 
   interface Options {
@@ -26,7 +26,7 @@ class ManyToOneRelation extends Field {
   //   let query = this.sub.get(parent);
 
   //   if(!query){
-  //     query = Query.select(this.type);
+  //     query = new Select(this.type);
   //     this.sub.set(parent, query);
   //   }
 

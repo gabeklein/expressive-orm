@@ -2,6 +2,7 @@ import Connection from './connection/Connection';
 import Field from './Field';
 import Primary from './fields/Primary';
 import Query from './query/Query';
+import Select from './query/Select';
 import Table from './Table';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
@@ -64,7 +65,7 @@ abstract class Entity {
     this: Entity.Type<T>,
     from: Entity.Where<T, R>
   ){
-    return Query.select(where => {
+    return new Select(where => {
       return from(where.from(this), where);
     })
   }

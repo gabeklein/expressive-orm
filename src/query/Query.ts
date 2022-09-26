@@ -26,7 +26,11 @@ declare namespace Query {
     [K in Entity.Field<T>]: Exclude<T[K], null> | undefined;
   }
 
-  type Select<R> = (where: Query.Where) => R | (() => R);
+  type Expect<T extends Entity> = {
+    [K in Entity.Field<T>]: T[K];
+  }
+
+  type Insert<T extends Entity> = (where: Query.Where) => Expect<T> | Expect<T>[];
 
   interface Where {
     equal(value: any, to: any): void;
@@ -40,41 +44,6 @@ declare namespace Query {
 }
 
 class Query<R = any> {
-  static get<R>(from: Query.Select<R>){
-    return this.select(from).get();
-  }
-
-  static getOne<R>(from: Query.Select<R>){
-    return this.select(from).getOne(false);
-  }
-
-  static find<R>(from: Query.Select<R>){
-    return this.select(from).getOne(true);
-  }
-
-  static select<R>(from: Query.Select<R>){
-    const query = new this();
-
-    query.state = "query";
-    const select = from(query.interface);
-
-    switch(typeof select){
-      case "function": {
-        query.state = "select";
-        query.map = select as () => R;
-        (select as () => R)();
-      } break;
-
-      case "object": 
-        query.map = useFactory(query, select);
-      break;
-    }
-
-    query.state = undefined;
-
-    return query;
-  }
-
   clauses = new Set<string>();
   connection?: Connection;
   interface: Query.Where;
@@ -99,40 +68,6 @@ class Query<R = any> {
     }
   }
 
-  async get(limit?: number): Promise<R[]> {
-    if(typeof limit == "number")
-      if(this.limit! < limit)
-        throw new Error(`Limit of ${this.limit} is already defined in query.`);
-      else
-        this.limit = limit;
-
-    const sql = String(this);
-
-    if(!this.connection)
-      throw new Error("Query has no connection, have you setup entities?");
-
-    return this.hydrate(
-      await this.connection.query(sql)
-    ); 
-  }
-  
-  async getOne(orFail: false): Promise<R | undefined>;
-  async getOne(orFail?: boolean): Promise<R>;
-  async getOne(orFail?: boolean){
-    const results = await this.get(1);
-
-    if(results.length < 1 && orFail)
-      throw new Error("No result found.");
-
-    return results[0];
-  }
-  
-  async find(orFail: true): Promise<R>;
-  async find(orFail?: boolean): Promise<R | undefined>;
-  async find(orFail?: boolean){
-    return this.getOne(orFail || false);
-  }
-
   use<T extends Entity>(
     entity: Entity.Type<T>): Query.Fields<T>{
 
@@ -147,7 +82,7 @@ class Query<R = any> {
       alias = "$0"
     }
 
-    return this.proxy(entity, { name, alias });
+    return this.declare(entity, { name, alias });
   }
 
   add<T extends Entity>(
@@ -161,7 +96,7 @@ class Query<R = any> {
       alias = `$${this.tables.size}`;
     }
 
-    return this.proxy(entity, {
+    return this.declare(entity, {
       join: mode || "inner",
       name,
       alias,
@@ -175,19 +110,7 @@ class Query<R = any> {
     return column;
   }
 
-  hydrate(raw: any[]){
-    const results = [] as R[];
-    
-    if(this.map)
-      for(const row of raw){
-        this.rawFocus = row;
-        results.push(this.map());
-      }
-
-    return results;
-  }
-
-  proxy(entity: Entity.Type, metadata?: Query.Table){
+  declare(entity: Entity.Type, metadata?: Query.Table){
     const proxy = {} as any;
 
     if(metadata)
@@ -240,37 +163,6 @@ class Query<R = any> {
       this.source.focus = undefined;
 
     return stringify(this);
-  }
-}
-
-function useFactory(on: Query, selection: any){
-  if(selection instanceof Field){
-    const column = on.selects.size + 1;
-    on.selects.set(selection, column);
-
-    return () => on.rawFocus[column];
-  }
-
-  const desc = Object.getOwnPropertyDescriptors(selection);
-
-  for(const key in desc){
-    const { value } = desc[key];
-
-    if(!(value instanceof Field))
-      continue;
-
-    on.selects.set(value, key);
-  }
-
-  return () => {
-    const output = Object.create(selection);
-    const raw = on.rawFocus;
-
-    on.selects.forEach(column => {
-      output[column] = raw[column];
-    })
-    
-    return output;
   }
 }
 

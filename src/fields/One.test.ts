@@ -1,4 +1,4 @@
-import Entity, { Int, One, Query, VarChar } from '../';
+import Entity, { Int, One, Select, VarChar } from '../';
 
 class A extends Entity {
   b = One(B);
@@ -15,7 +15,7 @@ class C extends Entity {
 }
 
 it("will query via select function", () => {
-  const query = Query.select(where => {
+  const query = new Select(where => {
     const a = where.from(A);
     return () => a.value;
   });
@@ -32,7 +32,7 @@ LEFT JOIN \`C\`
 })
 
 it("will query via select function", () => {
-  const query = Query.select(where => {
+  const query = new Select(where => {
     const a = where.from(A);
 
     return {
@@ -55,7 +55,7 @@ LEFT JOIN \`C\`
 
 it("will query nested relationships", () => {
   // TODO: fix types
-  const query = Query.select(where => {
+  const query = new Select(where => {
     const a = where.from(A);
 
     where.equal(a.b.c.value, 100);

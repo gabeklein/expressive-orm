@@ -1,12 +1,13 @@
 import Field from "../Field";
 import Query from "../query/Query";
+import Select from "../query/Select";
 
-function Get<R>(factory: Query.Select<R>): R {
+function Get<R>(factory: Select.Function<R>): R {
   return GetRelation.create({ factory })
 }
 
 class GetRelation extends Field {
-  factory!: Query.Select<any>;
+  factory!: Select.Function<any>;
 
   proxy(query: Query<any>, proxy: {}){
     const table = query.source!;

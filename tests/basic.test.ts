@@ -1,4 +1,4 @@
-import { Bool, Entity, Int, Many, One, Query, VarChar } from '../src';
+import { Bool, Entity, Int, Many, One, Select, VarChar } from '../src';
 
 class Author extends Entity {
   name = VarChar();
@@ -20,7 +20,7 @@ class Book extends Entity {
 
 //TODO: fix
 it.skip("will create book query", () => {
-  const query = Query.select(where => {
+  const query = new Select(where => {
     const book = where.from(Book);
 
     where.equal(book.title, "1984");
@@ -33,7 +33,7 @@ it.skip("will create book query", () => {
 })
 
 it("will create author query", () => {
-  const query = Query.select(where => {
+  const query = new Select(where => {
     const author = where.from(Author);
 
     where.notEqual(author.name, "Robert");

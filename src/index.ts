@@ -18,6 +18,7 @@ import Ref from './fields/Ref';
 import Table from './fields/Table';
 import Text, { LongText, MediumText, TinyText } from './fields/Text';
 import Query from './query/Query';
+import Select from './query/Select';
 
 export default Entity;
 export {
@@ -44,6 +45,7 @@ export {
   Query,
   Ref,
   SmallInt,
+  Select,
   Table,
   Text,
   TinyInt,

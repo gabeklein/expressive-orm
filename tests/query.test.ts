@@ -1,6 +1,4 @@
-import { Entity, Int, VarChar } from '../src';
-import Table from '../src/fields/Table';
-import Query from '../src/query/Query';
+import { Entity, Int, Select, Table, VarChar } from '../src';
 
 it("will join using single query syntax", async () => {
   class Foo extends Entity {
@@ -18,7 +16,7 @@ it("will join using single query syntax", async () => {
     rating = Int();
   }
 
-  const query = Query.select(where => {
+  const query = new Select(where => {
     const foo = where.from(Foo);
     const bar = where.join(Bar);
     const baz = where.join(Baz, "left");
@@ -61,7 +59,7 @@ it("will alias tables with a schema", () => {
     color = VarChar();
   }
 
-  const query = Query.select(where => {
+  const query = new Select(where => {
     const foo = where.from(Foo);
 
     where.equal(foo.color, "red");

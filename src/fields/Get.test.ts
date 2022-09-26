@@ -1,4 +1,4 @@
-import Entity, { Enum, Int, Get, Query, VarChar } from '..';
+import Entity, { Enum, Int, Get, Select, VarChar } from '..';
 
 function Color(){
   return Enum(["red", "green", "blue"]);
@@ -30,7 +30,7 @@ class Baz extends Entity {
 }
 
 it("will integrate query on select", () => {
-  const query = Query.select(where => {
+  const query = new Select(where => {
     return where.from(Foo).bazValue;
   });
 
