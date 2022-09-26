@@ -1,17 +1,22 @@
 import Query from '../query/Query';
+import Select from '../query/Select';
 import { qualify } from '../utility';
 
-export function stringify(query: Query){
-  const { selects, tables, clauses } = query;
+export function stringify(query: Query | Select<any>){
+  const { tables, clauses } = query;
   const lines = [] as string[];
 
-  if(selects.size){
-    const selection = [] as string[];
+  if("selects" in query){
+    const { selects} = query;
 
-    for(const [field, alias] of selects)
-      selection.push(`\t${field.qualifiedName} AS ${qualify(alias)}`)
+    if(selects.size){
+      const selection = [] as string[];
 
-    lines.push( "SELECT", selection.join(",\n"));
+      for(const [field, alias] of selects)
+        selection.push(`\t${field.qualifiedName} AS ${qualify(alias)}`)
+
+      lines.push( "SELECT", selection.join(",\n"));
+    }
   }
 
   const [ from, ...joins ] = tables.values();

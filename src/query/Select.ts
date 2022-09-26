@@ -3,8 +3,7 @@ import Query from "./Query";
 
 declare namespace Select {
   type Function<R> = (where: Query.Where) => R | (() => R);
-
-  type State = "query" | "select";
+  type State = "fetch" | "select";
 }
 
 class Select<R> extends Query {
@@ -20,10 +19,15 @@ class Select<R> extends Query {
     return new this(from).getOne(true);
   }
 
+  selects = new Map<Field, number | string>();
+  rawFocus!: { [alias: string]: any };
+  limit?: number;
+  map?: () => R;
+  state?: Select.State;
+
   constructor(from: Select.Function<R>){
     super();
 
-    this.state = "query";
     const select = from(this.interface);
 
     switch(typeof select){
@@ -39,6 +43,12 @@ class Select<R> extends Query {
     }
 
     this.state = undefined;
+  }
+
+  select(field: Field){
+    const column = this.selects.size + 1;
+    this.selects.set(field, column);
+    return column;
   }
 
   infer(select: R){
@@ -73,6 +83,7 @@ class Select<R> extends Query {
   }
 
   hydrate(raw: any[]){
+    this.state = "fetch";
     const results = [] as R[];
     
     if(this.map)

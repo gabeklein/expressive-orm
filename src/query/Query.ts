@@ -9,7 +9,6 @@ export const Metadata = new WeakMap<{}, Query.Table>();
 
 declare namespace Query {
   type Join = "left" | "right" | "inner" | "outer";
-  type Mode = "query" | "select";
 
   interface Table {
     name: string;
@@ -26,12 +25,6 @@ declare namespace Query {
     [K in Entity.Field<T>]: Exclude<T[K], null> | undefined;
   }
 
-  type Expect<T extends Entity> = {
-    [K in Entity.Field<T>]: T[K];
-  }
-
-  type Insert<T extends Entity> = (where: Query.Where) => Expect<T> | Expect<T>[];
-
   interface Where {
     equal(value: any, to: any): void;
     notEqual(value: any, to: any): void;
@@ -47,12 +40,7 @@ class Query<R = any> {
   clauses = new Set<string>();
   connection?: Connection;
   interface: Query.Where;
-  limit?: number;
-  map?: () => R;
-  rawFocus!: { [alias: string]: any };
-  selects = new Map<Field, number | string>();
   source?: Table;
-  state?: Query.Mode;
   tables = new Map<any, Query.Table>();
 
   constructor(){
@@ -102,12 +90,6 @@ class Query<R = any> {
       alias,
       on: []
     });
-  }
-
-  select(field: Field){
-    const column = this.selects.size + 1;
-    this.selects.set(field, column);
-    return column;
   }
 
   declare(entity: Entity.Type, metadata?: Query.Table){

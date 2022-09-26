@@ -1,4 +1,5 @@
 import Query, { Metadata } from './query/Query';
+import Select from './query/Select';
 import Table from './Table';
 import { qualify } from './utility';
 
@@ -50,26 +51,24 @@ class Field {
     return qualify(alias || name, this.column);
   }
 
-  proxy(query: Query, proxy: {}){
+  proxy(query: Query | Select<any>, proxy: {}){
     let column!: number;
 
     return () => {
-      switch(query.state){
-        case "query":
-          return this;
+      if(query instanceof Select && query.state)
+        switch(query.state){
+          case "select": {
+            column = query.select(this);
+            return this.placeholder;
+          }
 
-        case "select": {
-          column = query.select(this);
-          return this.placeholder;
+          case "fetch": {
+            const value = query.rawFocus[column];
+            return value === null ? undefined : value;
+          }
         }
-
-        default: {
-          const value = query.rawFocus[column];
-
-          if(value !== null)
-            return value;
-        }
-      }
+      else
+        return this;
     }
   }
 
