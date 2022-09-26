@@ -1,6 +1,6 @@
 import { Entity, Int, VarChar } from '../src';
 import Table from '../src/fields/Table';
-import Query from '../src/Query';
+import Query from '../src/query/Query';
 
 it("will join using single query syntax", async () => {
   class Foo extends Entity {

@@ -17,7 +17,7 @@ import Primary from './fields/Primary';
 import Ref from './fields/Ref';
 import Table from './fields/Table';
 import Text, { LongText, MediumText, TinyText } from './fields/Text';
-import Query from './Query';
+import Query from './query/Query';
 
 export default Entity;
 export {

@@ -1,6 +1,6 @@
 import Entity from '../Entity';
 import Field from '../Field';
-import Query from '../Query';
+import Query from '../query/Query';
 
 declare namespace Many {
   // interface Select<T extends Entity> {

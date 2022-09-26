@@ -1,7 +1,7 @@
 import Connection from './connection/Connection';
 import Field from './Field';
 import Primary from './fields/Primary';
-import Query from './Query';
+import Query from './query/Query';
 import Table from './Table';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;

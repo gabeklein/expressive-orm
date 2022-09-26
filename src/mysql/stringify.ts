@@ -1,4 +1,4 @@
-import Query from '../Query';
+import Query from '../query/Query';
 import { qualify } from '../utility';
 
 export function stringify(query: Query){

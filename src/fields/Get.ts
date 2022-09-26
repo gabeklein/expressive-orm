@@ -1,5 +1,5 @@
 import Field from "../Field";
-import Query from "../Query";
+import Query from "../query/Query";
 
 function Get<R>(factory: Query.Select<R>): R {
   return GetRelation.create({ factory })

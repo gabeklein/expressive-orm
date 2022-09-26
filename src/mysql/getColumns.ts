@@ -1,5 +1,5 @@
 import Schema from '../connection/Schema';
-import Query from '../Query';
+import Query from '../query/Query';
 import { Column, KeyColumnUsage, ReferentialConstraints } from './schema';
 
 async function getColumns(schema: string){

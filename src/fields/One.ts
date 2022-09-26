@@ -2,7 +2,7 @@ import { escapeId } from 'mysql';
 
 import Entity from '../Entity';
 import Field from '../Field';
-import Query from '../Query';
+import Query from '../query/Query';
 import { decapitalize, qualify, sql } from '../utility';
 
 declare namespace One {

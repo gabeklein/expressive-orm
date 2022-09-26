@@ -1,9 +1,9 @@
-import Connection from './connection/Connection';
-import Entity from './Entity';
-import Field from './Field';
-import { stringify } from './mysql/stringify';
-import Table from './Table';
-import { escapeString, qualify } from './utility';
+import Connection from '../connection/Connection';
+import Entity from '../Entity';
+import Field from '../Field';
+import { stringify } from '../mysql/stringify';
+import Table from '../Table';
+import { escapeString, qualify } from '../utility';
 
 export const Metadata = new WeakMap<{}, Query.Table>();
 

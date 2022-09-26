@@ -1,4 +1,4 @@
-import Query, { Metadata } from './Query';
+import Query, { Metadata } from './query/Query';
 import Table from './Table';
 import { qualify } from './utility';
 
