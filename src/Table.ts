@@ -8,8 +8,9 @@ const define = Object.defineProperty;
 const REGISTER = new Map<Entity.Type, Table>();
 const INSTRUCTION = new Map<symbol, Table.Instruction>();
 
-namespace Table {
-  export type Instruction = (parent: Table, key: string) => void;
+declare namespace Table {
+  type Instruction = (parent: Table, key: string) => void;
+  type MapFunction<T extends Entity> = (this: T, type: Field, key: Entity.Field<T>, thisArg: T) => any;
 }
 
 class Table {
@@ -41,8 +42,8 @@ class Table {
     }
   }
 
-  map(
-    getter: (this: {}, type: Field, key: string, thisArg: {}) => any,
+  map<T extends Entity>(
+    getter: Table.MapFunction<T>,
     cache?: boolean){
 
     const proxy = {} as any;
@@ -51,7 +52,12 @@ class Table {
       define(proxy, key, {
         configurable: true,
         get: () => {
-          const value = getter.call(proxy, type, key, proxy);
+          const value = getter.call(
+            proxy,
+            type,
+            key as Entity.Field<T>,
+            proxy
+          );
 
           if(cache !== false)
             define(proxy, key, { value });

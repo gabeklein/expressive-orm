@@ -56,7 +56,7 @@ abstract class Entity {
    */
   static map<T extends Entity>(
     this: Entity.Type<T>,
-    getValue: (type: Field, key: string) => any
+    getValue: (type: Field, key: Entity.Field<T>) => any
   ){
     return this.table.map(getValue);
   }
