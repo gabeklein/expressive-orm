@@ -7,18 +7,6 @@ declare namespace Select {
 }
 
 class Select<R> extends Query {
-  static get<R>(from: Select.Function<R>){
-    return new this(from).get();
-  }
-
-  static getOne<R>(from: Select.Function<R>){
-    return new this(from).getOne(false);
-  }
-
-  static find<R>(from: Select.Function<R>){
-    return new this(from).getOne(true);
-  }
-
   selects = new Map<Field, number | string>();
   rawFocus!: { [alias: string]: any };
   limit?: number;
@@ -27,10 +15,7 @@ class Select<R> extends Query {
 
   constructor(from: Select.Function<R>){
     super();
-    this.build(from);
-  }
-
-  build(from: Select.Function<R>){
+    
     const select = from(this.interface);
 
     switch(typeof select){
@@ -124,6 +109,18 @@ class Select<R> extends Query {
   async find(orFail?: boolean): Promise<R | undefined>;
   async find(orFail?: boolean){
     return this.getOne(orFail || false);
+  }
+
+  static get<R>(from: Select.Function<R>){
+    return new this(from).get();
+  }
+
+  static getOne<R>(from: Select.Function<R>){
+    return new this(from).getOne(false);
+  }
+
+  static find<R>(from: Select.Function<R>){
+    return new this(from).getOne(true);
   }
 }
 
