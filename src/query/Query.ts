@@ -1,7 +1,7 @@
 import Connection from '../connection/Connection';
 import Entity from '../Entity';
 import Field from '../Field';
-import { stringify } from '../mysql/stringify';
+import { stringify } from './stringify';
 import Table from '../Table';
 import { escapeString, qualify } from '../utility';
 
