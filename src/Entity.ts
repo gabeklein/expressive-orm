@@ -1,6 +1,7 @@
 import Connection from './connection/Connection';
 import Field from './Field';
 import Primary from './fields/Primary';
+import Insert, { insertQuery } from './query/Insert';
 import Query from './query/Query';
 import Select from './query/Select';
 import Table from './Table';
@@ -68,6 +69,19 @@ abstract class Entity {
     return new Select(where => {
       return from(where.from(this), where);
     })
+  }
+
+  static insert<T extends Entity, R>(
+    this: Entity.Type<T>,
+    data: Insert.Values<T>
+  ){
+    const conn = this.table.connection;
+    const query = insertQuery(this, data);
+
+    if(!conn)
+      throw new Error(`Query has no connection, have you setup entity ${this.name}?`);
+
+    return conn.query(query);
   }
 
   static async get<T extends Entity, R>(
