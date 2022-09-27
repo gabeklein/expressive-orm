@@ -3,26 +3,38 @@ import Select from './Select';
 import { qualify } from '../utility';
 
 export function stringify(query: Query | Select<any>){
-  const lines = [] as string[];
+  let lines = "";
 
-  if("selects" in query && query.selects.size){
-    const selection = [] as string[];
+  if(query instanceof Select)
+    lines += generateSelect(query);
 
-    query.selects.forEach((alias, field) => {
-      selection.push(`\t${field.qualifiedName} AS ${qualify(alias)}`)
-    })
+  lines += generateTables(query);
+  lines += generateWhere(query);
 
-    lines.push( "SELECT", selection.join(",\n"));
-  }
+  return lines.replace(/\t/g, "  ");
+}
 
-  lines.push(...generateTables(query));
+function generateSelect(query: Select<any>){
+  if(!query.selects.size)
+    return;
 
-  if(query.clauses.size)
-    lines.push(
-      "WHERE\n\t" + [...query.clauses].join(" AND\n\t")
-    );
+  const selection = [] as string[];
 
-  return lines.join("\n").replace(/\t/g, "  ");
+  query.selects.forEach((alias, field) => {
+    selection.push(`\t${field.qualifiedName} AS ${qualify(alias)}`)
+  })
+
+  return "SELECT" + "\n" + selection.join(",\n");
+}
+
+function generateWhere(query: Query){
+  if(!query.clauses.size)
+    return ""
+  
+  const list = Array.from(query.clauses);
+  const where = list.map(x => "\n\t" + x).join(" AND");
+
+  return "\n" + "WHERE" + where;
 }
 
 function generateTables(query: Query){
@@ -53,5 +65,5 @@ function generateTables(query: Query){
     lines.push(statement);
   }
 
-  return lines;
+  return "\n" + lines.join("\n");
 }
