@@ -47,7 +47,7 @@ class Select<R> extends Query {
       
           this.map = () => this.rawFocus[column];
         }
-      
+
         const desc = Object.getOwnPropertyDescriptors(select);
       
         for(const key in desc){
@@ -56,7 +56,7 @@ class Select<R> extends Query {
           if(value instanceof Field)
             this.selects.set(value, key);
         }
-      
+
         this.map = () => {
           const output = Object.create(select as {});
           const raw = this.rawFocus;
@@ -68,7 +68,6 @@ class Select<R> extends Query {
           return output;
         }
       }
-      break;
     }
 
     this.state = undefined;
