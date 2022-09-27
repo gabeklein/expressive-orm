@@ -3,6 +3,7 @@ import Entity from './Entity';
 import Field from './Field';
 
 const describe = Object.getOwnPropertyDescriptor;
+const define = Object.defineProperty;
 
 const REGISTER = new Map<Entity.Type, Table>();
 const INSTRUCTION = new Map<symbol, Table.Instruction>();
@@ -16,7 +17,7 @@ class Table {
   dependancies = new Set<Table>();
   name: string;
   schema: string;
-  focus?: {};
+  focus?: { [key: string]: any };
 
   constructor(
     public entity: Entity.Type,
@@ -31,10 +32,11 @@ class Table {
     
     for(const key in sample){
       const desc = describe(sample, key)!;
+
       this.apply(desc.value, key);
-      Object.defineProperty(sample, key, {
-        get: () => (this.focus as any)[key],
-        set: (v) => (this.focus as any)[key] = v
+      define(sample, key, {
+        get: () => this.focus![key],
+        set: is => this.focus![key] = is
       })
     }
   }
@@ -46,13 +48,13 @@ class Table {
     const proxy = {} as any;
 
     for(const [key, type] of this.fields)
-      Object.defineProperty(proxy, key, {
+      define(proxy, key, {
         configurable: true,
         get: () => {
           const value = getter.call(proxy, type, key, proxy);
 
           if(cache !== false)
-            Object.defineProperty(proxy, key, { value });
+            define(proxy, key, { value });
 
           return value;
         }

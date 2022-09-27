@@ -28,10 +28,10 @@ function generateSelect(query: Select<any>){
 }
 
 function generateWhere(query: Query){
-  if(!query.clauses.size)
+  if(!query.wheres.size)
     return ""
   
-  const list = Array.from(query.clauses);
+  const list = Array.from(query.wheres);
   const where = list.map(x => "\n\t" + x).join(" AND");
 
   return "\n" + "WHERE" + where;

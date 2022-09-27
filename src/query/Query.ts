@@ -36,12 +36,13 @@ declare namespace Query {
   }
 }
 
-class Query<R = any> {
-  clauses = new Set<string>();
-  connection?: Connection;
-  interface: Query.Where;
-  source?: Table;
+class Query {
+  wheres = new Set<string>();
   tables = new Map<any, Query.Table>();
+
+  interface: Query.Where;
+  connection?: Connection;
+  source?: Table;
 
   constructor(){
     const { add, use, where } = this;
@@ -133,10 +134,10 @@ class Query<R = any> {
         joinOn.push(`${column} ${op} ${ref}`);
     }
     else {
-      if(typeof right === "string")
+      if(typeof right == "string")
         right = escapeString(right);
         
-      this.clauses.add(`${column} ${op} ${right}`);
+      this.wheres.add(`${column} ${op} ${right}`);
     }
   }
 
