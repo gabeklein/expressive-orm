@@ -27,7 +27,10 @@ class Select<R> extends Query {
 
   constructor(from: Select.Function<R>){
     super();
+    this.build(from);
+  }
 
+  build(from: Select.Function<R>){
     const select = from(this.interface);
 
     switch(typeof select){
@@ -37,8 +40,34 @@ class Select<R> extends Query {
         (select as () => R)();
       break;
 
-      case "object": 
-        this.infer(select);
+      case "object": {
+        if(select instanceof Field){
+          const column = this.selects.size + 1;
+          this.selects.set(select, column);
+      
+          this.map = () => this.rawFocus[column];
+        }
+      
+        const desc = Object.getOwnPropertyDescriptors(select);
+      
+        for(const key in desc){
+          const { value } = desc[key];
+      
+          if(value instanceof Field)
+            this.selects.set(value, key);
+        }
+      
+        this.map = () => {
+          const output = Object.create(select as {});
+          const raw = this.rawFocus;
+      
+          this.selects.forEach(column => {
+            output[column] = raw[column];
+          })
+          
+          return output;
+        }
+      }
       break;
     }
 
@@ -49,37 +78,6 @@ class Select<R> extends Query {
     const column = this.selects.size + 1;
     this.selects.set(field, column);
     return column;
-  }
-
-  infer(select: R){
-    if(select instanceof Field){
-      const column = this.selects.size + 1;
-      this.selects.set(select, column);
-  
-      return () => this.rawFocus[column];
-    }
-  
-    const desc = Object.getOwnPropertyDescriptors(select);
-  
-    for(const key in desc){
-      const { value } = desc[key];
-  
-      if(!(value instanceof Field))
-        continue;
-  
-      this.selects.set(value, key);
-    }
-  
-    this.map = () => {
-      const output = Object.create(select as {});
-      const raw = this.rawFocus;
-  
-      this.selects.forEach(column => {
-        output[column] = raw[column];
-      })
-      
-      return output;
-    }
   }
 
   hydrate(raw: any[]){
