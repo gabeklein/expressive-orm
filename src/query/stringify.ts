@@ -21,7 +21,12 @@ function generateSelect(query: Select<any>){
   const selection = [] as string[];
 
   query.selects.forEach((alias, field) => {
-    selection.push(`\t${field.qualifiedName} AS ${qualify(alias)}`)
+    let select = "\t" + field.qualifiedName;
+
+    if(alias)
+      select += " AS " + qualify(alias);
+
+    selection.push(select);
   })
 
   return "SELECT" + "\n" + selection.join(",\n");

@@ -35,7 +35,7 @@ class Select<R> extends Query {
         this.state = "select";
         this.map = select as () => R;
         (select as () => R)();
-        break;
+      break;
 
       case "object": 
         this.infer(select);
