@@ -44,16 +44,20 @@ export function insertQuery<T extends Entity>(
 
   const insertKeys = keys.map(k => qualify(k));
   const insertValues = entries.map(entry => {
-    return keys.map(key => serialize(entry[key]))
+    const values = keys
+      .map(key => serialize(entry[key]))
+      .join(", ");
+
+    return "(" + values + ")";
   });
 
-  const sql =
-    `INSERT INTO ${tableName}` +
-    `\n\t(${insertKeys.join(", ")})` +
-    `\nVALUES` +
-    insertValues.map(v => `\n\t(${v.join(", ")})`).join(",");
+  const insertStatement = 
+    `INSERT INTO ${tableName}\n\t(${insertKeys.join(", ")})`;
 
-  return sql.replace(/\t/g, "  ");
+  const valueStatement = 
+    `VALUES\n\t` + insertValues.join(",\n\t");
+
+  return [insertStatement, valueStatement].join("\n").replace(/\t/g, "  ");
 }
 
 function serialize(value: any){
