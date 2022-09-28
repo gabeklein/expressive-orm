@@ -3,10 +3,11 @@ import Field from '../Field';
 declare namespace Char {
   interface Options {
     column?: string;
-    unique?: boolean;
     default?: string;
-    nullable?: boolean;
     length?: number;
+    nullable?: boolean;
+    oneOf?: any[];
+    unique?: boolean;
     variable?: boolean;
   }
 
@@ -19,12 +20,12 @@ declare namespace Char {
   }
 }
 
+function Char<T extends string>(options: Char.Specific<T> & Char.Optional): T | null | undefined;
+function Char<T extends string>(options?: Char.Specific<T>): T;
 function Char(length: number, options: Char.Optional): string | null | undefined;
 function Char(length: number, options?: Char.Options): string;
 function Char(options: Char.Optional): string | null | undefined;
 function Char(options?: Char.Options): string;
-function Char<T extends string>(options: Char.Specific<T> & Char.Optional): T | null | undefined;
-function Char<T extends string>(options?: Char.Specific<T>): T;
 function Char(
   arg1: number | Char.Options = {},
   arg2?: Char.Options): any {
@@ -38,12 +39,12 @@ function Char(
   return CharColumn.create({ ...arg1, datatype });
 }
 
+function VarChar<T extends string>(options: Char.Specific<T> & Char.Optional): T | null | undefined;
+function VarChar<T extends string>(options: Char.Specific<T>): T;
 function VarChar(length: number, options?: Char.Optional): string | null | undefined;
 function VarChar(length: number, options?: Char.Options): string;
 function VarChar(options: Char.Optional): string | null | undefined;
 function VarChar(options?: Char.Options): string;
-function VarChar<T extends string>(options: Char.Specific<T> & Char.Optional): T | null | undefined;
-function VarChar<T extends string>(options: Char.Specific<T>): T;
 function VarChar(
   arg1?: number | Char.Options,
   arg2?: Char.Options): any {
