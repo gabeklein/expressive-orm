@@ -18,11 +18,11 @@ function Many(type: Entity.Type, options?: Many.Options){
 }
 
 class ManyToOneRelation extends Field {
-  sub = new WeakMap<Query<any>, Query<any>>();
+  sub = new WeakMap<Query, Query>();
   datatype = undefined;
   type!: Entity.Type;
 
-  // subquery(parent: Query<any>){
+  // subquery(parent: Query){
   //   let query = this.sub.get(parent);
 
   //   if(!query){
@@ -33,7 +33,7 @@ class ManyToOneRelation extends Field {
   //   return query;
   // }
 
-  // select(query: Query<any>): Many.Select<T> {
+  // select(query: Query): Many.Select<T> {
   //   const sub = this.subquery(query);
   //   const proxy = this.type.map((field, key) => {
   //     return field.select(sub, [key]);

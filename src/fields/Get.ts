@@ -9,7 +9,7 @@ function Get<R>(factory: Select.Function<R>): R {
 class GetRelation extends Field {
   factory!: Select.Function<any>;
 
-  proxy(query: Query<any>, proxy: {}){
+  proxy(query: Query, proxy: {}){
     const table = query.source!;
 
     table.focus = proxy;

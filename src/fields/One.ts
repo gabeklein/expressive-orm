@@ -52,7 +52,7 @@ class OneToManyRelation extends Field {
     `
   }
 
-  proxy(query: Query<any>){
+  proxy(query: Query){
     let { type } = this;
 
     const fk = qualify(type.table.name, "id");
