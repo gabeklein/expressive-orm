@@ -1,9 +1,9 @@
 import Connection from '../connection/Connection';
 import Entity from '../Entity';
 import Field from '../Field';
-import { stringify } from './stringify';
 import Table from '../Table';
 import { escapeString, qualify } from '../utility';
+import { stringify } from './stringify';
 
 export const Metadata = new WeakMap<{}, Query.Table>();
 
@@ -26,13 +26,13 @@ declare namespace Query {
   }
 
   interface Where {
-    any(...where: WhereOp[]): WhereOp;
-    all(...where: WhereOp[]): WhereOp;
+    any(...where: Instruction[]): Instruction;
+    all(...where: Instruction[]): Instruction;
 
-    equal(value: any, to: any): WhereOp;
-    notEqual(value: any, to: any): WhereOp;
-    greater(value: any, than: any): WhereOp;
-    less(value: any, than: any): WhereOp;
+    equal(value: any, to: any): Instruction;
+    notEqual(value: any, to: any): Instruction;
+    greater(value: any, than: any): Instruction;
+    less(value: any, than: any): Instruction;
 
     from<T extends Entity>(entity: Entity.Type<T>): Query.Fields<T>;
     join<T extends Entity>(from: Entity.Type<T>, mode?: "right" | "inner"): Query.Fields<T>;
@@ -40,15 +40,15 @@ declare namespace Query {
   }
 }
 
-interface WhereOp {
-  (ignore?: false): void;
+interface Instruction {
+  (skip?: true): void;
   (modify: (where: string) => string): void;
 }
 
 class Query {
-  whereOps = [] as WhereOp[]
-  wheres = [] as string[];
+  pending = [] as Instruction[];
   tables = new Map<any, Query.Table>();
+  wheres = [] as string[];
 
   interface: Query.Where;
   connection?: Connection;
@@ -74,27 +74,24 @@ class Query {
   }
 
   commit(){
-    this.whereOps.forEach(apply => apply());
+    this.pending.forEach(apply => apply());
   }
 
   group(
     keyword: "AND" | "OR",
-    ...where: WhereOp[]){
+    ...where: Instruction[]){
 
-    const root = this.whereOps;
+    const root = this.pending;
     const [cond, ...rest] = where;
 
     const sep = ` ${keyword} `;
   
-    const apply: WhereOp = (arg) => {
-      if(arg === false){
-        const conds = where.map(where => where(false));
-
-        return `(${conds.join(sep)})`;
-      }
+    const apply: Instruction = (arg) => {
+      if(arg === true)
+        return "(" + where.map(where => where(true)).join(sep) + ")";
 
       cond(where => {
-        where += rest.map(cond => sep + cond(false)).join("");
+        where += rest.map(cond => sep + cond(true)).join("");
 
         if(typeof arg == "function")
           return arg("(" + where + ")");
@@ -173,7 +170,7 @@ class Query {
     left: Field,
     right: string | number | Field
   ){
-    const apply: WhereOp = (arg) => {
+    const apply: Instruction = (arg) => {
       const { alias, name, on: joinOn } = Metadata.get(left)!;
       const column = qualify(alias || name, left.column);
       let entry: string;
@@ -197,7 +194,7 @@ class Query {
       if(typeof arg === "function")
         entry = arg(entry);
 
-      if(arg !== false)
+      if(arg !== true)
         if(joinOn && right instanceof Field)
           joinOn.push(entry);
         else
@@ -206,7 +203,7 @@ class Query {
       return entry;
     };
 
-    this.whereOps.push(apply);
+    this.pending.push(apply);
 
     return apply;
   }
