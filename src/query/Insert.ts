@@ -51,13 +51,11 @@ export function insertQuery<T extends Entity>(
     return "(" + values + ")";
   });
 
-  const insertStatement = 
-    `INSERT INTO ${tableName}\n\t(${insertKeys.join(", ")})`;
-
-  const valueStatement = 
+  const sql = 
+    `INSERT INTO ${tableName}\n\t(${insertKeys.join(", ")})\n` +
     `VALUES\n\t` + insertValues.join(",\n\t");
 
-  return [insertStatement, valueStatement].join("\n").replace(/\t/g, "  ");
+  return sql.replace(/\t/g, "  ");
 }
 
 function serialize(value: any){
