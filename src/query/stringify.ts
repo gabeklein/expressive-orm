@@ -11,7 +11,7 @@ export function stringify(query: Query | Select<any>){
   lines += generateTables(query);
   lines += generateWhere(query);
 
-  return lines.replace(/\t/g, "  ");
+  return lines;
 }
 
 function generateSelect(query: Select<any>){
@@ -21,7 +21,7 @@ function generateSelect(query: Select<any>){
   const selection = [] as string[];
 
   query.selects.forEach((alias, field) => {
-    let select = "\t" + field.qualifiedName;
+    let select = field.qualifiedName;
 
     if(alias)
       select += " AS " + qualify(alias);
@@ -29,18 +29,16 @@ function generateSelect(query: Select<any>){
     selection.push(select);
   })
 
-  return "SELECT" + "\n" + selection.join(",\n");
+  return "SELECT" + selection.join(",");
 }
 
 function generateWhere(query: Query){
   if(!query.wheres.length)
     return ""
   
-  const where = query.wheres
-    .map(x => "\n\t" + x)
-    .join(" AND");
+  const where = query.wheres.join(" AND ");
 
-  return "\n" + "WHERE" + where;
+  return "WHERE" + where;
 }
 
 function generateTables(query: Query){
@@ -58,7 +56,7 @@ function generateTables(query: Query){
   lines.push(fromStatement);
 
   for(const table of joins){
-    const { name, alias, join, on } = table;
+    const { name, alias, join, on: filter } = table;
 
     const type = join!.toUpperCase();
     let statement = `${type} JOIN ${qualify(name)}`;
@@ -66,10 +64,11 @@ function generateTables(query: Query){
     if(alias)
       statement += ` AS ${qualify(alias)}`;
 
-    statement += `\n\tON ${on!.join("\n\tAND ")}`;
+    if(filter) 
+      statement += ` ON ` + filter.join(" AND ");
 
     lines.push(statement);
   }
 
-  return "\n" + lines.join("\n");
+  return " " + lines.join(" ");
 }

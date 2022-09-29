@@ -6,9 +6,9 @@ function test(){
 
 function print(stuff){
   if(typeof stuff !== "string")
-    stuff = String(stuff);
+    return String(stuff);
   
-  return "    " + stuff.replace(/\n/g, "\n    ");
+  return stuff;
 }
 
 function serialize(stuff){

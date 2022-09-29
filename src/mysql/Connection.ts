@@ -75,7 +75,7 @@ class MySQLConnection extends Connection {
     commands.push(...createTableMySQL(tables));
     commands.push(...addTableConstraints(tables))
     
-    const sql = commands.join(";\n");
+    const sql = commands.join(";");
 
     if(!this.options.dry)
       this.query(sql);
