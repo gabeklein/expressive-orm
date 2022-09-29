@@ -18,6 +18,8 @@ class Select<R> extends Query {
     
     const select = from(this.interface);
 
+    this.commit();
+
     switch(typeof select){
       case "function":
         this.state = "select";

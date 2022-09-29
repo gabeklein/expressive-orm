@@ -1,11 +1,47 @@
+// @ts-nocheck
+
 import { Entity, Int, Select, Table, VarChar } from '../src';
+
+it("will group where clauses", async () => {
+  class Foo extends Entity {
+    name = VarChar();
+    color = VarChar({
+      oneOf: ["red", "blue", "green"]
+    });
+  }
+
+  const query = new Select(where => {
+    const { from, all, any, equal, notEqual } = where;
+
+    const foo = from(Foo);
+
+    any(
+      notEqual(foo.name, "Danny"),
+      equal(foo.color, "red"),
+      all(
+        equal(foo.name, "Gabe"),
+        equal(foo.color, "green")
+      )
+    );
+
+    return foo.name;
+  });
+
+  expect(query).toMatchInlineSnapshot(`
+SELECT
+  \`Foo\`.\`name\` AS \`1\`
+FROM \`Foo\`
+WHERE
+  \`Foo\`.\`name\` <> 'Danny' OR \`Foo\`.\`color\` = 'red' OR (\`Foo\`.\`name\` = 'Gabe' AND \`Foo\`.\`color\` = 'green')
+`);
+})
 
 it("will join using single query syntax", async () => {
   class Foo extends Entity {
     name = VarChar();
     color = VarChar();
   }
-  
+
   class Bar extends Entity {
     name = VarChar();
     color = VarChar();

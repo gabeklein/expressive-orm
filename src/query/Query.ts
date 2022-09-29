@@ -26,18 +26,28 @@ declare namespace Query {
   }
 
   interface Where {
-    equal(value: any, to: any): void;
-    notEqual(value: any, to: any): void;
-    greater(value: any, than: any): void;
-    less(value: any, than: any): void;
+    any(...where: WhereOp[]): WhereOp;
+    all(...where: WhereOp[]): WhereOp;
+
+    equal(value: any, to: any): WhereOp;
+    notEqual(value: any, to: any): WhereOp;
+    greater(value: any, than: any): WhereOp;
+    less(value: any, than: any): WhereOp;
+
     from<T extends Entity>(entity: Entity.Type<T>): Query.Fields<T>;
     join<T extends Entity>(from: Entity.Type<T>, mode?: "right" | "inner"): Query.Fields<T>;
     join<T extends Entity>(from: Entity.Type<T>, mode: Query.Join): Query.Maybe<T>;
   }
 }
 
+interface WhereOp {
+  (ignore?: false): void;
+  (concat: string): void;
+}
+
 class Query {
-  wheres = new Set<string>();
+  whereOps = [] as WhereOp[]
+  wheres = [] as string[];
   tables = new Map<any, Query.Table>();
 
   interface: Query.Where;
@@ -45,9 +55,11 @@ class Query {
   source?: Table;
 
   constructor(){
-    const { add, use, where } = this;
+    const { add, group, use, where } = this;
 
     this.interface = {
+      any: group.bind(this, "OR"),
+      all: group.bind(this, "AND"),
       equal: where.bind(this, "="),
       notEqual: where.bind(this, "<>"),
       greater: where.bind(this, ">"),
@@ -55,6 +67,43 @@ class Query {
       from: use.bind(this),
       join: add.bind(this)
     }
+  }
+
+  commit(){
+    this.whereOps.forEach(apply => apply());
+  }
+
+  group(
+    keyword: "AND" | "OR",
+    ...where: WhereOp[]){
+
+    const root = this.whereOps;
+    const [cond, ...rest] = where;
+
+    const sep = ` ${keyword} `;
+  
+    const apply = (arg?: string | false) => {
+      if(arg === false){
+        const conds = where.map(where => where(false));
+
+        return `(${conds.join(sep)})`;
+      }
+
+      let concat = rest.map(cond => sep + cond(false)).join("");
+
+      if(typeof arg == "string")
+        concat += arg;
+
+      cond(concat);
+    }
+
+    root.splice(
+      root.indexOf(cond),
+      where.length,
+      apply
+    );
+
+    return apply
   }
 
   use<T extends Entity>(
@@ -118,27 +167,42 @@ class Query {
     left: Field,
     right: string | number | Field
   ){
-    const { alias, name, on } = Metadata.get(left)!;
+    const apply: WhereOp = (arg?: boolean | string) => {
+      const { alias, name, on: joinOn } = Metadata.get(left)!;
+      const column = qualify(alias || name, left.column);
+      let entry: string;
 
-    if(left.set && typeof right !== "object")
-      right = left.set(right);
+      if(right instanceof Field){
+        const { alias, name } = Metadata.get(right)!;
+        const ref = qualify(alias || name, right.column);
 
-    const column = qualify(alias || name, left.column);
+        entry = `${column} ${op} ${ref}`;
+      }
+      else {
+        if(left.set)
+          right = left.set(right);
+    
+        if(typeof right == "string")
+          right = escapeString(right);
 
-    if(typeof right == "object"){
-      const { alias, name } = Metadata.get(right)!;
-      const ref = qualify(alias || name, right.column);
-      const joinOn = on;
+        entry = `${column} ${op} ${right}`;
+      }
 
-      if(joinOn)
-        joinOn.push(`${column} ${op} ${ref}`);
-    }
-    else {
-      if(typeof right == "string")
-        right = escapeString(right);
-        
-      this.wheres.add(`${column} ${op} ${right}`);
-    }
+      if(typeof arg === "string")
+        entry += arg;
+
+      if(arg !== false)
+        if(joinOn && right instanceof Field)
+          joinOn.push(entry);
+        else
+          this.wheres.push(entry);
+
+      return entry;
+    };
+
+    this.whereOps.push(apply);
+
+    return apply;
   }
 
   toString(): string {

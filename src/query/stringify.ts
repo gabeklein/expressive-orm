@@ -33,11 +33,12 @@ function generateSelect(query: Select<any>){
 }
 
 function generateWhere(query: Query){
-  if(!query.wheres.size)
+  if(!query.wheres.length)
     return ""
   
-  const list = Array.from(query.wheres);
-  const where = list.map(x => "\n\t" + x).join(" AND");
+  const where = query.wheres
+    .map(x => "\n\t" + x)
+    .join(" AND");
 
   return "\n" + "WHERE" + where;
 }
