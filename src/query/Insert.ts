@@ -27,12 +27,10 @@ export function insertQuery<T extends Entity>(
 
       if(key in insert){
         const given = insert[key as Entity.Field<T>];
+        const value = field.set ? field.set(given) : given;
 
         include.add(column); 
-
-        values[column] = field.set
-          ? field.set(given)
-          : given;
+        values[column] = value;
       }
     })
     
