@@ -42,7 +42,7 @@ declare namespace Query {
 
 interface WhereOp {
   (ignore?: false): void;
-  (concat: string): void;
+  (modify: (where: string) => string): void;
 }
 
 class Query {
@@ -82,19 +82,21 @@ class Query {
 
     const sep = ` ${keyword} `;
   
-    const apply = (arg?: string | false) => {
+    const apply: WhereOp = (arg) => {
       if(arg === false){
         const conds = where.map(where => where(false));
 
         return `(${conds.join(sep)})`;
       }
 
-      let concat = rest.map(cond => sep + cond(false)).join("");
+      cond(where => {
+        where += rest.map(cond => sep + cond(false)).join("");
 
-      if(typeof arg == "string")
-        concat += arg;
+        if(typeof arg == "function")
+          return arg("(" + where + ")");
 
-      cond(concat);
+        return where;
+      });
     }
 
     root.splice(
@@ -167,7 +169,7 @@ class Query {
     left: Field,
     right: string | number | Field
   ){
-    const apply: WhereOp = (arg?: boolean | string) => {
+    const apply: WhereOp = (arg) => {
       const { alias, name, on: joinOn } = Metadata.get(left)!;
       const column = qualify(alias || name, left.column);
       let entry: string;
@@ -188,8 +190,8 @@ class Query {
         entry = `${column} ${op} ${right}`;
       }
 
-      if(typeof arg === "string")
-        entry += arg;
+      if(typeof arg === "function")
+        entry = arg(entry);
 
       if(arg !== false)
         if(joinOn && right instanceof Field)

@@ -36,6 +36,42 @@ WHERE
 `);
 })
 
+it("will group multiple clauses", async () => {
+  class Foo extends Entity {
+    name = VarChar();
+    color = VarChar({
+      oneOf: ["red", "blue", "green"]
+    });
+  }
+
+  const query = new Select(where => {
+    const { from, all, any, equal, notEqual } = where;
+
+    const foo = from(Foo);
+
+    any(
+      all(
+        notEqual(foo.name, "Danny"),
+        equal(foo.color, "red"),
+      ),
+      all(
+        equal(foo.name, "Gabe"),
+        equal(foo.color, "green")
+      )
+    );
+
+    return foo.name;
+  });
+
+  expect(query).toMatchInlineSnapshot(`
+SELECT
+  \`Foo\`.\`name\` AS \`1\`
+FROM \`Foo\`
+WHERE
+  (\`Foo\`.\`name\` <> 'Danny' AND \`Foo\`.\`color\` = 'red') OR (\`Foo\`.\`name\` = 'Gabe' AND \`Foo\`.\`color\` = 'green')
+`);
+})
+
 it("will join using single query syntax", async () => {
   class Foo extends Entity {
     name = VarChar();
