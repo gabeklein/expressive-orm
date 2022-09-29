@@ -69,6 +69,10 @@ class Query {
     }
   }
 
+  access(field: Field){
+    return () => field;
+  }
+
   commit(){
     this.whereOps.forEach(apply => apply());
   }

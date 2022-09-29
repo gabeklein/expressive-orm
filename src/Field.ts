@@ -52,24 +52,7 @@ class Field {
   }
 
   proxy(query: Query | Select<any>, proxy: {}){
-    let column!: number;
-
-    return () => {
-      if(query instanceof Select)
-        switch(query.state){
-          case "select": {
-            column = query.select(this);
-            return this.placeholder;
-          }
-
-          case "fetch": {
-            const value = query.rawFocus[column];
-            return value === null ? undefined : value;
-          }
-        }
-
-      return this;
-    }
+    return query.access(this);
   }
 
   static create<T extends Field>(

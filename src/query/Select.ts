@@ -8,10 +8,11 @@ declare namespace Select {
 
 class Select<R> extends Query {
   selects = new Map<Field, number | string>();
-  rawFocus!: { [alias: string]: any };
   limit?: number;
-  map?: () => R;
-  state?: Select.State;
+  
+  private getter?: () => R;
+  private state?: Select.State;
+  private focus!: { [alias: string]: any };
 
   constructor(from: Select.Function<R>){
     super();
@@ -23,7 +24,7 @@ class Select<R> extends Query {
     switch(typeof select){
       case "function":
         this.state = "select";
-        this.map = select as () => R;
+        this.getter = select as () => R;
         (select as () => R)();
       break;
 
@@ -32,7 +33,7 @@ class Select<R> extends Query {
           const column = this.selects.size + 1;
           this.selects.set(select, column);
       
-          this.map = () => this.rawFocus[column];
+          this.getter = () => this.focus[column];
         }
 
         const desc = Object.getOwnPropertyDescriptors(select);
@@ -44,9 +45,9 @@ class Select<R> extends Query {
             this.selects.set(value, key);
         }
 
-        this.map = () => {
+        this.getter = () => {
           const output = Object.create(select as {});
-          const raw = this.rawFocus;
+          const raw = this.focus;
       
           this.selects.forEach(column => {
             output[column] = raw[column];
@@ -60,6 +61,25 @@ class Select<R> extends Query {
     this.state = undefined;
   }
 
+  access(field: Field){
+    let column!: number;
+
+    return (): any => {
+      switch(this.state){
+        case "select":
+          column = this.select(field);
+          return field.placeholder;
+
+        case "fetch": {
+          const value = this.focus[column];
+          return value === null ? undefined : value;
+        }
+      }
+
+      return field;
+    }
+  }
+
   select(field: Field){
     const column = this.selects.size + 1;
     this.selects.set(field, column);
@@ -70,10 +90,10 @@ class Select<R> extends Query {
     this.state = "fetch";
     const results = [] as R[];
     
-    if(this.map)
+    if(this.getter)
       for(const row of raw){
-        this.rawFocus = row;
-        results.push(this.map());
+        this.focus = row;
+        results.push(this.getter());
       }
 
     return results;
@@ -82,7 +102,7 @@ class Select<R> extends Query {
   async get(limit?: number): Promise<R[]> {
     if(typeof limit == "number")
       if(this.limit! < limit)
-        throw new Error(`Limit of ${this.limit} is already defined in query.`);
+        throw new Error(`Limit of ${this.limit} is already specified by query.`);
       else
         this.limit = limit;
 
