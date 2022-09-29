@@ -1,3 +1,5 @@
+const { format } = require('sql-formatter');
+
 function test(){
   return true;
 }
@@ -13,7 +15,7 @@ function serialize(stuff){
   if(typeof stuff !== "string")
     stuff = String(stuff);
   
-  return stuff.replace(/^    /g, "");
+  return format(stuff);
 }
 
 module.exports = {

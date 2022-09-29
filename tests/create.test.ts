@@ -33,10 +33,28 @@ it("will create tables", () => {
   const sql = connection.createTables();
 
   expect(sql).toMatchInlineSnapshot(`
-CREATE TABLE IF NOT EXISTS Author (\`id\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,\`age\` INT NOT NULL,\`active\` TINYINT NOT NULL,\`publisherId\` INT NOT NULL);
-CREATE TABLE IF NOT EXISTS Book (\`id\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,\`authorId\` INT NOT NULL,\`rating\` INT NOT NULL);
-CREATE TABLE IF NOT EXISTS Publisher (\`id\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
-ALTER TABLE Author ADD CONSTRAINT \`FK_PublisherAuthor\` FOREIGN KEY (publisherId) REFERENCES Publisher(id);
-ALTER TABLE Book ADD CONSTRAINT \`FK_AuthorBook\` FOREIGN KEY (authorId) REFERENCES Author(id)
+CREATE TABLE
+  IF NOT EXISTS Author (
+    \`id\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    \`age\` INT NOT NULL,
+    \`active\` TINYINT NOT NULL,
+    \`publisherId\` INT NOT NULL
+  );
+
+CREATE TABLE
+  IF NOT EXISTS Book (
+    \`id\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    \`authorId\` INT NOT NULL,
+    \`rating\` INT NOT NULL
+  );
+
+CREATE TABLE
+  IF NOT EXISTS Publisher (\`id\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+ALTER TABLE
+  Author ADD CONSTRAINT \`FK_PublisherAuthor\` FOREIGN KEY (publisherId) REFERENCES Publisher (id);
+
+ALTER TABLE
+  Book ADD CONSTRAINT \`FK_AuthorBook\` FOREIGN KEY (authorId) REFERENCES Author (id)
 `);
 })

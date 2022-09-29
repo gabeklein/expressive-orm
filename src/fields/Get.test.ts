@@ -37,10 +37,9 @@ it("will integrate query on select", () => {
   expect(query).toMatchInlineSnapshot(`
 SELECT
   \`Baz\`.\`value\` AS \`1\`
-FROM \`Foo\`
-INNER JOIN \`Bar\`
-  ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-INNER JOIN \`Baz\`
-  ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
+FROM
+  \`Foo\`
+  INNER JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
+  INNER JOIN \`Baz\` ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
 `);
 })

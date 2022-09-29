@@ -23,11 +23,10 @@ it("will query via select function", () => {
   expect(query).toMatchInlineSnapshot(`
 SELECT
   \`A\`.\`value\` AS \`1\`
-FROM \`A\`
-LEFT JOIN \`B\`
-  ON \`B\`.\`id\` = \`A\`.\`bId\`
-LEFT JOIN \`C\`
-  ON \`C\`.\`id\` = \`B\`.\`cId\`
+FROM
+  \`A\`
+  LEFT JOIN \`B\` ON \`B\`.\`id\` = \`A\`.\`bId\`
+  LEFT JOIN \`C\` ON \`C\`.\`id\` = \`B\`.\`cId\`
 `);
 })
 
@@ -45,11 +44,10 @@ it("will query via select function", () => {
 SELECT
   \`A\`.\`value\` AS \`aValue\`,
   \`C\`.\`value\` AS \`cValue\`
-FROM \`A\`
-LEFT JOIN \`B\`
-  ON \`B\`.\`id\` = \`A\`.\`bId\`
-LEFT JOIN \`C\`
-  ON \`C\`.\`id\` = \`B\`.\`cId\`
+FROM
+  \`A\`
+  LEFT JOIN \`B\` ON \`B\`.\`id\` = \`A\`.\`bId\`
+  LEFT JOIN \`C\` ON \`C\`.\`id\` = \`B\`.\`cId\`
 `);
 })
 
@@ -66,11 +64,10 @@ it("will query nested relationships", () => {
   expect(query).toMatchInlineSnapshot(`
 SELECT
   \`C\`.\`label\` AS \`1\`
-FROM \`A\`
-LEFT JOIN \`B\`
-  ON \`B\`.\`id\` = \`A\`.\`bId\`
-LEFT JOIN \`C\`
-  ON \`C\`.\`id\` = \`B\`.\`cId\`
+FROM
+  \`A\`
+  LEFT JOIN \`B\` ON \`B\`.\`id\` = \`A\`.\`bId\`
+  LEFT JOIN \`C\` ON \`C\`.\`id\` = \`B\`.\`cId\`
 WHERE
   \`C\`.\`value\` = 100
 `);

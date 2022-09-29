@@ -53,13 +53,13 @@ it("will create author query", () => {
 SELECT
   \`Author\`.\`nickname\` AS \`1\`,
   \`Author\`.\`age\` AS \`2\`
-FROM \`Author\`
-LEFT JOIN \`Publisher\`
-  ON \`Publisher\`.\`id\` = \`Author\`.\`publisherId\`
+FROM
+  \`Author\`
+  LEFT JOIN \`Publisher\` ON \`Publisher\`.\`id\` = \`Author\`.\`publisherId\`
 WHERE
-  \`Author\`.\`name\` <> 'Robert' AND
-  \`Author\`.\`age\` = 3 AND
-  \`Author\`.\`nickname\` = 'Bob' AND
-  \`Author\`.\`active\` = 1
+  \`Author\`.\`name\` <> 'Robert'
+  AND \`Author\`.\`age\` = 3
+  AND \`Author\`.\`nickname\` = 'Bob'
+  AND \`Author\`.\`active\` = 1
 `);
 })

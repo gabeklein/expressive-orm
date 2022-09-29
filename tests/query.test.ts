@@ -30,9 +30,15 @@ it("will group where clauses", async () => {
   expect(query).toMatchInlineSnapshot(`
 SELECT
   \`Foo\`.\`name\` AS \`1\`
-FROM \`Foo\`
+FROM
+  \`Foo\`
 WHERE
-  \`Foo\`.\`name\` <> 'Danny' OR \`Foo\`.\`color\` = 'red' OR (\`Foo\`.\`name\` = 'Gabe' AND \`Foo\`.\`color\` = 'green')
+  \`Foo\`.\`name\` <> 'Danny'
+  OR \`Foo\`.\`color\` = 'red'
+  OR (
+    \`Foo\`.\`name\` = 'Gabe'
+    AND \`Foo\`.\`color\` = 'green'
+  )
 `);
 })
 
@@ -66,9 +72,17 @@ it("will group multiple clauses", async () => {
   expect(query).toMatchInlineSnapshot(`
 SELECT
   \`Foo\`.\`name\` AS \`1\`
-FROM \`Foo\`
+FROM
+  \`Foo\`
 WHERE
-  (\`Foo\`.\`name\` <> 'Danny' AND \`Foo\`.\`color\` = 'red') OR (\`Foo\`.\`name\` = 'Gabe' AND \`Foo\`.\`color\` = 'green')
+  (
+    \`Foo\`.\`name\` <> 'Danny'
+    AND \`Foo\`.\`color\` = 'red'
+  )
+  OR (
+    \`Foo\`.\`name\` = 'Gabe'
+    AND \`Foo\`.\`color\` = 'green'
+  )
 `);
 })
 
@@ -109,14 +123,13 @@ it("will join using single query syntax", async () => {
 SELECT
   \`Foo\`.\`name\` AS \`fooValue\`,
   \`Bar\`.\`name\` AS \`barValue\`
-FROM \`Foo\`
-INNER JOIN \`Bar\`
-  ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-LEFT JOIN \`Baz\`
-  ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
+FROM
+  \`Foo\`
+  INNER JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
+  LEFT JOIN \`Baz\` ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
 WHERE
-  \`Foo\`.\`name\` <> 'Danny' AND
-  \`Bar\`.\`rating\` > 50
+  \`Foo\`.\`name\` <> 'Danny'
+  AND \`Bar\`.\`rating\` > 50
 `);
 })
 
@@ -142,7 +155,8 @@ it("will alias tables with a schema", () => {
   expect(query).toMatchInlineSnapshot(`
 SELECT
   \`$0\`.\`name\` AS \`1\`
-FROM \`foobar\`.\`foo\` AS \`$0\`
+FROM
+  \`foobar\`.\`foo\` AS \`$0\`
 WHERE
   \`$0\`.\`color\` = 'red'
 `);
