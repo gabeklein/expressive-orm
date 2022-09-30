@@ -47,7 +47,7 @@ interface Instruction {
 
 class Query {
   pending = [] as Instruction[];
-  tables = new Map<any, Query.Table>();
+  tables = [] as Query.Table[];
   wheres = [] as string[];
 
   interface: Query.Where;
@@ -128,12 +128,15 @@ class Query {
   add<T extends Entity>(
     entity: Entity.Type<T>, mode?: Query.Join){
 
+    if(!this.source)
+      throw new Error("Must define primary Entity first; did you forget to use from?");
+
     let { name, schema } = entity.table;
     let alias: string | undefined;
 
     if(schema){
       name = qualify(schema, name);
-      alias = `$${this.tables.size}`;
+      alias = `$${this.tables.length}`;
     }
 
     return this.declare(entity, {
@@ -144,11 +147,22 @@ class Query {
     });
   }
 
+  table(from: any){
+    const table = Metadata.get(from);
+
+    if(table)
+      return table;
+    else
+      throw new Error("Value has no associated table.")
+  }
+
   declare(entity: Entity.Type, metadata?: Query.Table){
     const proxy = {} as any;
 
-    if(metadata)
-      this.tables.set(proxy, metadata);
+    if(metadata){
+      this.tables.push(metadata);
+      Metadata.set(proxy, metadata);
+    }
 
     entity.table.fields.forEach((field, key) => {
       field = Object.create(field);
@@ -170,12 +184,12 @@ class Query {
     right: string | number | Field
   ){
     const apply: Instruction = (arg) => {
-      const { alias, name, on: joinOn } = Metadata.get(left)!;
+      const { alias, name, on: joinOn } = this.table(left);
       const column = qualify(alias || name, left.column);
       let entry: string;
 
       if(right instanceof Field){
-        const { alias, name } = Metadata.get(right)!;
+        const { alias, name } = this.table(right);
         const ref = qualify(alias || name, right.column);
 
         entry = `${column} ${op} ${ref}`;

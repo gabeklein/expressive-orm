@@ -33,11 +33,8 @@ function generateSelect(query: Select<any>){
 }
 
 function generateTables(query: Query){
-  const [ from, ...joins ] = query.tables.values();
+  const [ from, ...joins ] = query.tables;
   const lines = [] as string[];
-
-  if(from.join)
-    throw new Error(`Table ${from.name} is joined but main table must be declared first.`);
 
   let fromStatement = `FROM ${qualify(from.name)}`;
 
