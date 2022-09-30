@@ -32,15 +32,6 @@ function generateSelect(query: Select<any>){
   return "SELECT" + selection.join(",");
 }
 
-function generateWhere(query: Query){
-  if(!query.wheres.length)
-    return ""
-  
-  const where = query.wheres.join(" AND ");
-
-  return "WHERE" + where;
-}
-
 function generateTables(query: Query){
   const [ from, ...joins ] = query.tables.values();
   const lines = [] as string[];
@@ -71,4 +62,13 @@ function generateTables(query: Query){
   }
 
   return " " + lines.join(" ");
+}
+
+function generateWhere(query: Query){
+  if(!query.wheres.length)
+    return ""
+  
+  const where = query.wheres.join(" AND ");
+
+  return " WHERE " + where;
 }

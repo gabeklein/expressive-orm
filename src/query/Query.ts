@@ -81,11 +81,10 @@ class Query {
     keyword: "AND" | "OR",
     ...where: Instruction[]){
 
+    const sep = ` ${keyword} `;
     const root = this.pending;
     const [cond, ...rest] = where;
 
-    const sep = ` ${keyword} `;
-  
     const apply: Instruction = (arg) => {
       if(arg === true)
         return "(" + where.map(where => where(true)).join(sep) + ")";
