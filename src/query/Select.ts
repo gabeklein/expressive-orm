@@ -1,5 +1,6 @@
 import Field from "../Field";
 import Query from "./Query";
+import { generateSelect, generateTables, generateWhere } from "./stringify";
 
 declare namespace Select {
   type Function<R> = (where: Query.Where) => R | (() => R);
@@ -103,6 +104,14 @@ class Select<R> extends Query {
       }
 
     return results;
+  }
+
+  toString(): string {
+    return [
+      generateSelect(this),
+      generateTables(this),
+      generateWhere(this)
+    ].join(" ");
   }
 
   async get(limit?: number): Promise<R[]> {

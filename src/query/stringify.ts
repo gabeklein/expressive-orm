@@ -2,19 +2,7 @@ import Query from './Query';
 import Select from './Select';
 import { qualify } from '../utility';
 
-export function stringify(query: Query | Select<any>){
-  let lines = "";
-
-  if(query instanceof Select)
-    lines += generateSelect(query);
-
-  lines += generateTables(query);
-  lines += generateWhere(query);
-
-  return lines;
-}
-
-function generateSelect(query: Select<any>){
+export function generateSelect(query: Select<any>){
   if(!query.selects.size)
     return;
 
@@ -32,7 +20,7 @@ function generateSelect(query: Select<any>){
   return "SELECT" + selection.join(",");
 }
 
-function generateTables(query: Query){
+export function generateTables(query: Query){
   const [ from, ...joins ] = query.tables;
   const lines = [] as string[];
 
@@ -58,14 +46,14 @@ function generateTables(query: Query){
     lines.push(statement);
   }
 
-  return " " + lines.join(" ");
+  return lines.join(" ");
 }
 
-function generateWhere(query: Query){
+export function generateWhere(query: Query){
   if(!query.wheres.length)
     return ""
   
   const where = query.wheres.join(" AND ");
 
-  return " WHERE " + where;
+  return "WHERE " + where;
 }

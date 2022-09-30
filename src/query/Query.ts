@@ -3,7 +3,6 @@ import Entity from '../Entity';
 import Field from '../Field';
 import Table from '../Table';
 import { escapeString, qualify } from '../utility';
-import { stringify } from './stringify';
 
 export const Metadata = new WeakMap<{}, Query.Table>();
 
@@ -222,10 +221,6 @@ class Query {
     this.pending.push(apply);
 
     return apply;
-  }
-
-  toString(): string {
-    return stringify(this);
   }
 }
 
