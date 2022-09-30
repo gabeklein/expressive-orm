@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { Entity, Int, Select, Table, VarChar } from '../src';
+import { Entity, Int, Select, Table, VarChar } from '..';
 
 it("will group where clauses", async () => {
   class Foo extends Entity {
