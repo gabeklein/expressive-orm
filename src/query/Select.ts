@@ -10,7 +10,7 @@ class Select<R> extends Query {
   selects = new Map<Field, number | string>();
   limit?: number;
   
-  private getter?: () => R;
+  private getter: () => R;
   private state?: Select.State;
   private focus!: { [alias: string]: any };
 
@@ -34,6 +34,7 @@ class Select<R> extends Query {
           this.selects.set(select, column);
       
           this.getter = () => this.focus[column];
+          break;
         }
 
         const desc = Object.getOwnPropertyDescriptors(select);
@@ -55,7 +56,12 @@ class Select<R> extends Query {
           
           return output;
         }
+        
+        break;
       }
+
+      default:
+        throw new Error("Bad argument")
     }
 
     this.state = undefined;
