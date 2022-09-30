@@ -44,7 +44,7 @@ interface Instruction {
   (modify: (where: string) => string): void;
 }
 
-class Query {
+abstract class Query {
   pending = [] as Instruction[];
   tables = [] as Query.Table[];
   wheres = [] as string[];
