@@ -35,6 +35,7 @@ class Table {
       const desc = describe(sample, key)!;
 
       this.apply(desc.value, key);
+
       define(sample, key, {
         get: () => this.focus![key],
         set: is => this.focus![key] = is

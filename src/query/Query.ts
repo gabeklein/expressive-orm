@@ -119,7 +119,7 @@ class Query {
 
     if(schema){
       name = qualify(schema, name);
-      alias = "$0"
+      alias = "$0";
     }
 
     return this.declare(entity, { name, alias });
