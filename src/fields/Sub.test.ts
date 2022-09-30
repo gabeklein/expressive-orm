@@ -1,4 +1,4 @@
-import Entity, { Enum, Int, Get, Select, VarChar } from '..';
+import Entity, { Enum, Int, Sub, Select, VarChar } from '..';
 
 function Color(){
   return Enum(["red", "green", "blue"]);
@@ -7,7 +7,7 @@ function Color(){
 class Foo extends Entity {
   color = Color();
 
-  bazValue = Get(where => {
+  bazValue = Sub(where => {
     const bar = where.join(Bar);
     const baz = where.join(Baz);
 

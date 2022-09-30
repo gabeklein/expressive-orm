@@ -7,7 +7,6 @@ import DateTime from './fields/DateTime';
 import Enum from './fields/Enum';
 import Flags from './fields/Flags';
 import Float, { Double } from './fields/Float';
-import Get from './fields/Get';
 import Int, { BigInt, SmallInt, TinyInt } from './fields/Int';
 import Json from './fields/Json';
 import Many from './fields/Many';
@@ -15,8 +14,10 @@ import Nope from './fields/Nope';
 import One from './fields/One';
 import Primary from './fields/Primary';
 import Ref from './fields/Ref';
+import Sub from './fields/Sub';
 import Table from './fields/Table';
 import Text, { LongText, MediumText, TinyText } from './fields/Text';
+import Delete from './query/Delete';
 import Query from './query/Query';
 import Select from './query/Select';
 
@@ -28,12 +29,12 @@ export {
   Char,
   Connection,
   DateTime,
+  Delete,
   Double,
   Entity,
   Enum,
   Flags,
   Float,
-  Get,
   Int,
   Json,
   LongText,
@@ -44,8 +45,9 @@ export {
   Primary,
   Query,
   Ref,
-  SmallInt,
   Select,
+  SmallInt,
+  Sub,
   Table,
   Text,
   TinyInt,

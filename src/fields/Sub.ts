@@ -2,17 +2,15 @@ import Field from "../Field";
 import Query from "../query/Query";
 import Select from "../query/Select";
 
-function Get<R>(factory: Select.Function<R>): R {
-  return GetRelation.create({ factory })
+function Sub<R>(factory: Select.Function<R>): R {
+  return SubQueryField.create({ factory })
 }
 
-class GetRelation extends Field {
+class SubQueryField extends Field {
   factory!: Select.Function<any>;
 
   proxy(query: Query, proxy: {}){
-    const table = query.source!;
-
-    table.focus = proxy;
+    query.source!.focus = proxy;
     const output = this.factory(query.interface);
     
     return typeof output == "function"
@@ -21,4 +19,4 @@ class GetRelation extends Field {
   }
 }
 
-export default Get;
+export default Sub;
