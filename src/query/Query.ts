@@ -74,6 +74,9 @@ class Query {
   }
 
   commit(){
+    if(this.source)
+      this.source.focus = undefined;
+
     this.pending.forEach(apply => apply());
   }
 
@@ -222,9 +225,6 @@ class Query {
   }
 
   toString(): string {
-    if(this.source)
-      this.source.focus = undefined;
-
     return stringify(this);
   }
 }
