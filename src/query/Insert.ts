@@ -8,37 +8,51 @@ declare namespace Insert {
   type Values<T extends Entity> = Expect<T> | Expect<T>[];
 }
 
-export default Insert;
+class Insert<T extends Entity> extends Query {
+  keys = new Set<string>();
+  entries?: { [column: string]: string }[];
 
-export function insertQuery<T extends Entity>(
-  into: Entity.Type<T>, data: Insert.Values<T>){
+  constructor(
+    public into: Entity.Type<T>,
+    data: Insert.Values<T>){
 
-  const { fields } = into.table!;
+    super();
+    this.insert(
+      Array.isArray(data) ? data : [data]
+    );
+  }
 
-  if(!Array.isArray(data))
-    data = [data];
+  insert(data: Insert.Expect<T>[]){
+    const { fields } = this.into.table;
 
-  const include = new Set<string>();
-  const entries = data.map(insert => {
-    const values = {} as { [key: string]: any };
+    this.entries = data.map(insert => {
+      const values = {} as { [key: string]: any };
+  
+      fields.forEach((field, key) => {
+        const { column } = field;
+  
+        if(key in insert){
+          const given = insert[key as Entity.Field<T>];
+          const value = field.set ? field.set(given) : given;
+  
+          this.keys.add(column); 
+          values[column] = value;
+        }
+      })
+      
+      return values;
+    });
+  }
 
-    fields.forEach((field, key) => {
-      const { column } = field;
-
-      if(key in insert){
-        const given = insert[key as Entity.Field<T>];
-        const value = field.set ? field.set(given) : given;
-
-        include.add(column); 
-        values[column] = value;
-      }
-    })
-    
-    return values;
-  });
-
-  return generate(into.name, include, entries);
+  toString(){
+    if(this.entries)
+      return generate(this.into.name, this.keys, this.entries);
+    else
+      return "???";
+  }
 }
+
+export default Insert;
 
 function generate(
   table: string,
