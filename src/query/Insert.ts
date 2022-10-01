@@ -37,8 +37,16 @@ export function insertQuery<T extends Entity>(
     return values;
   });
 
+  return generate(into.name, include, entries);
+}
+
+function generate(
+  table: string,
+  include: Set<string>,
+  entries: { [key: string]: any }[]
+){
   const keys = Array.from(include);
-  const tableName = qualify(into.name);
+  const tableName = qualify(table);
 
   const insertKeys = keys
     .map(k => qualify(k))
