@@ -1,6 +1,6 @@
-import Field from "../Field";
-import Query from "./Query";
-import { generateSelect, generateTables, generateWhere } from "./stringify";
+import Field from '../Field';
+import { qualify } from '../utility';
+import Query from './Query';
 
 declare namespace Select {
   type Function<R> = (where: Query.Where) => R | (() => R);
@@ -106,11 +106,31 @@ class Select<R> extends Query {
     return results;
   }
 
+  generateSelect(){
+    const { selects } = this;
+
+    if(!selects.size)
+      return;
+  
+    const selection = [] as string[];
+  
+    selects.forEach((alias, field) => {
+      let select = field.qualifiedName;
+  
+      if(alias)
+        select += " AS " + qualify(alias);
+  
+      selection.push(select);
+    })
+  
+    return "SELECT" + selection.join(",");
+  }
+
   toString(): string {
     return [
-      generateSelect(this),
-      generateTables(this),
-      generateWhere(this)
+      this.generateSelect(),
+      this.generateTables(),
+      this.generateWhere()
     ].join(" ");
   }
 

@@ -222,6 +222,44 @@ abstract class Query {
 
     return apply;
   }
+
+  generateTables(){
+    const [ from, ...joins ] = this.tables;
+    const lines = [] as string[];
+  
+    let fromStatement = `FROM ${qualify(from.name)}`;
+  
+    if(from.alias)
+      fromStatement += ` AS ${qualify(from.alias)}`;
+  
+    lines.push(fromStatement);
+  
+    for(const table of joins){
+      const { name, alias, join, on: filter } = table;
+  
+      const type = join!.toUpperCase();
+      let statement = `${type} JOIN ${qualify(name)}`;
+  
+      if(alias)
+        statement += ` AS ${qualify(alias)}`;
+  
+      if(filter) 
+        statement += ` ON ` + filter.join(" AND ");
+  
+      lines.push(statement);
+    }
+  
+    return lines.join(" ");
+  }
+
+  generateWhere(){
+    if(!this.wheres.length)
+      return ""
+    
+    const where = this.wheres.join(" AND ");
+  
+    return "WHERE " + where;
+  }
 }
 
 export default Query;

@@ -1,5 +1,4 @@
 import Query from "./Query";
-import { generateTables, generateWhere } from "./stringify";
 
 declare namespace Delete {
   type Function = (where: Query.Where) =>
@@ -38,9 +37,9 @@ class Delete extends Query {
     let sql = `DELETE ${rows}`;
 
     if(this.tables.length > 1 || this.remove[0].alias)
-      sql += " " + generateTables(this);
+      sql += " " + this.generateTables();
 
-    sql += " " + generateWhere(this);
+    sql += " " + this.generateWhere();
 
     return sql;
   }
