@@ -59,12 +59,11 @@ class Update<T extends Entity> extends Query {
 
   exec(){
     const { table, name } = this.type;
-    const conn = table.connection;
 
-    if(!conn)
+    if(!table.connection)
       throw new Error(`Query has no connection, have you setup entity ${name}?`);
 
-    return conn.query(this.toString());
+    return table.connection.query(this.toString());
   }
 }
 
