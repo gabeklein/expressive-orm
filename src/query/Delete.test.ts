@@ -1,20 +1,14 @@
 import Entity, { VarChar } from "..";
 import Delete from "./Delete";
 
-function Color(){
-  return VarChar({
-    oneOf: ["red", "blue", "green"]
-  })
-}
-
 class Foo extends Entity {
   value = VarChar();
-  color = Color();
+  color = VarChar();
 }
 
 class Bar extends Entity {
   value = VarChar();
-  color = Color();
+  color = VarChar();
 }
 
 it("will generate query", () => {
