@@ -1,6 +1,6 @@
 import Entity from "..";
 import { qualify } from "../utility";
-import Query from "./Query";
+import Query, { serialize } from "./Query";
 
 declare namespace Insert {
   type Expect<T extends Entity> = { [K in Entity.Field<T>]?: T[K] };
@@ -85,26 +85,4 @@ function generate(
   }).join(",");
 
   return `INSERT INTO ${tableName} (${insertKeys}) VALUES ${insertValues}`;
-}
-
-function serialize(value: any){
-  switch(typeof value){
-    case "undefined":
-      return "default";
-
-    case "object":
-      if(value === null)
-        return "NULL";
-      else
-        value = String(value);
-
-    case "string":
-      return `"` + value.replace(`"`, `\\"`) + `"`;
-
-    case "number":
-      return String(value);
-
-    default:
-      return "???";
-  }
 }

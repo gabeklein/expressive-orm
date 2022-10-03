@@ -262,4 +262,26 @@ abstract class Query {
   }
 }
 
+export function serialize(value: any){
+  switch(typeof value){
+    case "undefined":
+      return "default";
+
+    case "object":
+      if(value === null)
+        return "NULL";
+      else
+        value = String(value);
+
+    case "string":
+      return `"` + value.replace(`"`, `\\"`) + `"`;
+
+    case "number":
+      return String(value);
+
+    default:
+      return "???";
+  }
+}
+
 export default Query;
