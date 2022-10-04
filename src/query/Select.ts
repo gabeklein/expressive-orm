@@ -11,7 +11,7 @@ class Select<R> extends Query {
   selects = new Map<Field, number | string>();
   limit?: number;
   
-  private getter: () => R;
+  private map: () => R;
   private state?: Select.State;
   private focus!: { [alias: string]: any };
 
@@ -20,52 +20,47 @@ class Select<R> extends Query {
     
     const select = from(this.interface);
 
+    this.map = this.sample(select);
     this.commit();
+  }
 
-    switch(typeof select){
-      case "function":
-        this.state = "select";
-        this.getter = select as () => R;
-        (select as () => R)();
-      break;
+  private sample(select: R | (() => R)){
+    if(typeof select == "function"){
+      this.state = "select";
+      (select as () => R)();
 
-      case "object": {
-        if(select instanceof Field){
-          const column = this.selects.size + 1;
-          this.selects.set(select, column);
-      
-          this.getter = () => this.focus[column];
-          break;
-        }
+      return select as () => R;
+    }
+    else if(select instanceof Field){
+      const column = this.selects.size + 1;
+      this.selects.set(select, column);
 
-        const desc = Object.getOwnPropertyDescriptors(select);
+      return () => this.focus[column] as R;
+    }
+    else if(typeof select == "object" && select) {
+      const desc = Object.getOwnPropertyDescriptors(select);
       
-        for(const key in desc){
-          const { value } = desc[key];
-      
-          if(value instanceof Field)
-            this.selects.set(value, key);
-        }
-
-        this.getter = () => {
-          const output = Object.create(select as {});
-          const raw = this.focus;
-      
-          this.selects.forEach(column => {
-            output[column] = raw[column];
-          })
-          
-          return output;
-        }
-        
-        break;
+      for(const key in desc){
+        const { value } = desc[key];
+    
+        if(value instanceof Field)
+          this.selects.set(value, key);
       }
-
-      default:
-        throw new Error("Bad argument")
+  
+      return () => {
+        const output = Object.create(select as {});
+        const raw = this.focus;
+    
+        this.selects.forEach(column => {
+          output[column] = raw[column];
+        })
+        
+        return output as R;
+      }
     }
 
     this.state = undefined;
+    throw new Error("Bad argument");
   }
 
   access(field: Field){
@@ -97,10 +92,10 @@ class Select<R> extends Query {
     this.state = "fetch";
     const results = [] as R[];
     
-    if(this.getter)
+    if(this.map)
       for(const row of raw){
         this.focus = row;
-        results.push(this.getter());
+        results.push(this.map());
       }
 
     return results;
