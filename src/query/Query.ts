@@ -7,7 +7,7 @@ import { escapeString, qualify } from '../utility';
 export const Metadata = new WeakMap<{}, Query.Table>();
 
 declare namespace Query {
-  type Join = "left" | "right" | "inner" | "outer";
+  type Join = "left" | "right" | "inner" | "full";
 
   interface Table {
     name: string;
