@@ -2,7 +2,7 @@ import Field from '../Field';
 import Table from '../Table';
 import { escapeString, qualify } from '../utility';
 
-export function dropTablesMySQL(tables: Table[]){
+export function drop(tables: Table[]){
   const commands = [];
 
   for(const table of tables)
@@ -11,7 +11,7 @@ export function dropTablesMySQL(tables: Table[]){
   return commands;
 }
 
-export function createTableMySQL(tables: Table[]){
+export function create(tables: Table[]){
   const commands = [];
 
   for(const table of tables){
@@ -19,7 +19,7 @@ export function createTableMySQL(tables: Table[]){
     const statements = [] as string[];
 
     table.fields.forEach(field => {
-      const sql = createColumnMySQL(field);
+      const sql = createColumn(field);
 
       if(sql)
         statements.push(sql);
@@ -33,7 +33,7 @@ export function createTableMySQL(tables: Table[]){
   return commands;
 }
 
-export function addTableConstraints(tables: Table[]){
+export function constraints(tables: Table[]){
   const commands = [] as string[];
 
   for(const table of tables){
@@ -53,23 +53,23 @@ export function addTableConstraints(tables: Table[]){
   return commands;
 }
 
-export function createColumnMySQL(from: Field){
+function createColumn(from: Field){
   if(from.datatype === undefined)
     return;
 
-  const statement = [qualify(from.column), from.datatype];
+  let statement = `${qualify(from.column)} ${from.datatype}`;
 
   if(!from.nullable)
-    statement.push("NOT NULL");
+    statement += " NOT NULL";
 
   if(from.default !== undefined)
-    statement.push(`DEFAULT ${escapeString(from.default)}`);
+    statement += ` DEFAULT ${escapeString(from.default)}`;
 
   if(from.datatype == "INT" && from.increment)
-    statement.push("AUTO_INCREMENT");
+    statement += " AUTO_INCREMENT";
 
   if(from.primary)
-    statement.push("PRIMARY KEY");
+    statement += " PRIMARY KEY";
 
-  return statement.join(" ");
+  return statement;
 }

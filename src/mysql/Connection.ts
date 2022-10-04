@@ -2,7 +2,7 @@ import mysql from 'mysql';
 
 import Connection from '../connection/Connection';
 import Entity from '../Entity';
-import { addTableConstraints, createTableMySQL, dropTablesMySQL } from './generate';
+import { constraints, create, drop } from './generate';
 import * as schema from './schema';
 
 declare namespace MySQLConnection {
@@ -70,10 +70,10 @@ class MySQLConnection extends Connection {
     const commands = [] as string[];
 
     if(this.options.nuke)
-      commands.push(...dropTablesMySQL(tables));
+      commands.push(...drop(tables));
 
-    commands.push(...createTableMySQL(tables));
-    commands.push(...addTableConstraints(tables))
+    commands.push(...create(tables));
+    commands.push(...constraints(tables))
     
     const sql = commands.join(";");
 
