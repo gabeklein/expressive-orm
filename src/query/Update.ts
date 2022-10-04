@@ -6,7 +6,7 @@ import Query, { serialize } from "./Query";
 declare namespace Update {
   type Expect<T extends Entity> = { [K in Entity.Field<T>]?: T[K] };
   type Values<T extends Entity> = Expect<T> | Expect<T>[];
-  type Function<T extends Entity> = (where: Query.Where, entity: Query.Fields<T>) => Values<T>;
+  type Function<T extends Entity> = (where: Query.Where, entity: Query.Values<T>) => Values<T>;
 }
 
 class Update<T extends Entity> extends Query {

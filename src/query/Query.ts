@@ -5,6 +5,7 @@ import Table from '../Table';
 import { escapeString, qualify } from '../utility';
 
 export const Metadata = new WeakMap<{}, Query.Table>();
+declare const ENTITY: unique symbol;
 
 declare namespace Query {
   type Join = "left" | "right" | "inner" | "full";
@@ -16,24 +17,22 @@ declare namespace Query {
     on?: string[];
   }
 
-  type Fields<T extends Entity> = {
+  type Values<T extends Entity> = {
     [K in Entity.Field<T>]: Exclude<T[K], null>;
-  }
-
-  type Maybe<T extends Entity> = {
-    [K in Entity.Field<T>]: Exclude<T[K], null> | undefined;
+  } & {
+    [ENTITY]?: T
   }
 
   interface Where {
-    <T extends Entity>(entity: Entity.Type<T>): Fields<T>;
+    <T extends Entity>(entity: Entity.Type<T>): Values<T>;
     <T>(field: T): Assert<T>;
 
     any(...where: Instruction[]): Instruction;
     all(...where: Instruction[]): Instruction;
 
-    from<T extends Entity>(entity: Entity.Type<T>): Fields<T>;
-    join<T extends Entity>(from: Entity.Type<T>, mode?: "right" | "inner"): Fields<T>;
-    join<T extends Entity>(from: Entity.Type<T>, mode: Join): Maybe<T>;
+    from<T extends Entity>(entity: Entity.Type<T>): Values<T>;
+    join<T extends Entity>(from: Entity.Type<T>, mode?: "right" | "inner"): Values<T>;
+    join<T extends Entity>(from: Entity.Type<T>, mode: Join): Partial<Values<T>>;
   }
 
   interface Assert<T> {
@@ -71,7 +70,7 @@ abstract class Query {
     )
   }
 
-  assert<T extends Entity>(entity: Entity.Type<T>): Query.Fields<T>;
+  assert<T extends Entity>(entity: Entity.Type<T>): Query.Values<T>;
   assert<T>(field: T): Query.Assert<T>;
   assert(arg: any){
     const { where } = this;
@@ -130,7 +129,7 @@ abstract class Query {
   }
 
   use<T extends Entity>(
-    entity: Entity.Type<T>): Query.Fields<T>{
+    entity: Entity.Type<T>): Query.Values<T>{
 
     let { name, schema, connection } = entity.table;
     let alias: string | undefined;
