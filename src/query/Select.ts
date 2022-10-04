@@ -67,15 +67,14 @@ class Select<R> extends Query {
     let column!: number;
 
     return (): any => {
-      switch(this.state){
-        case "select":
-          column = this.select(field);
-          return field.placeholder;
+      if(this.state == "select"){
+        column = this.select(field);
+        return field.placeholder;
+      }
 
-        case "fetch": {
-          const value = this.focus[column];
-          return value === null ? undefined : value;
-        }
+      if(this.state == "fetch"){
+        const value = this.focus[column];
+        return value === null ? undefined : value;
       }
 
       return field;
