@@ -242,6 +242,15 @@ abstract class Query {
     return apply;
   }
 
+  async exec(){
+    const sql = this.toString();
+
+    if(!this.connection)
+      throw new Error("Query has no connection, have you setup entities?");
+
+    return this.connection.query(sql);
+  }
+
   generateTables(){
     const [ from, ...joins ] = this.tables;
     const lines = [] as string[];

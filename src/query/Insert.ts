@@ -50,16 +50,6 @@ class Insert<T extends Entity> extends Query {
     else
       return "???";
   }
-
-  exec(){
-    const { table, name } = this.into;
-    const conn = table.connection;
-
-    if(!conn)
-      throw new Error(`Query has no connection, have you setup entity ${name}?`);
-
-    return conn.query(this.toString());
-  }
 }
 
 export default Insert;

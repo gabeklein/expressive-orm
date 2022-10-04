@@ -129,6 +129,15 @@ class Select<R> extends Query {
     ].join(" ");
   }
 
+  async exec(){
+    const sql = this.toString();
+
+    if(!this.connection)
+      throw new Error("Query has no connection, have you setup entities?");
+
+    return this.connection.query(sql);
+  }
+
   async get(limit?: number): Promise<R[]> {
     if(typeof limit == "number")
       if(this.limit! < limit)
@@ -136,14 +145,9 @@ class Select<R> extends Query {
       else
         this.limit = limit;
 
-    const sql = String(this);
+    const response = await this.exec();
 
-    if(!this.connection)
-      throw new Error("Query has no connection, have you setup entities?");
-
-    return this.hydrate(
-      await this.connection.query(sql)
-    ); 
+    return this.hydrate(response); 
   }
   
   async getOne(orFail: false): Promise<R | undefined>;
