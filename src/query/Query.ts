@@ -25,17 +25,22 @@ declare namespace Query {
   }
 
   interface Where {
+    <T extends Entity>(entity: Entity.Type<T>): Fields<T>;
+    <T>(field: T): Assert<T>;
+
     any(...where: Instruction[]): Instruction;
     all(...where: Instruction[]): Instruction;
 
-    equal(value: any, to: any): Instruction;
-    notEqual(value: any, to: any): Instruction;
-    greater(value: any, than: any): Instruction;
-    less(value: any, than: any): Instruction;
+    from<T extends Entity>(entity: Entity.Type<T>): Fields<T>;
+    join<T extends Entity>(from: Entity.Type<T>, mode?: "right" | "inner"): Fields<T>;
+    join<T extends Entity>(from: Entity.Type<T>, mode: Join): Maybe<T>;
+  }
 
-    from<T extends Entity>(entity: Entity.Type<T>): Query.Fields<T>;
-    join<T extends Entity>(from: Entity.Type<T>, mode?: "right" | "inner"): Query.Fields<T>;
-    join<T extends Entity>(from: Entity.Type<T>, mode: Query.Join): Query.Maybe<T>;
+  interface Assert<T> {
+    is(equalTo: T): Instruction;
+    not(equalTo: T): Instruction;
+    after(than: T): Instruction;
+    before(than: T): Instruction;
   }
 }
 
@@ -54,18 +59,32 @@ abstract class Query {
   source?: Table;
 
   constructor(){
-    const { add, group, use, where } = this;
+    const { add, group, use, assert } = this;
 
-    this.interface = {
-      any: group.bind(this, "OR"),
-      all: group.bind(this, "AND"),
-      equal: where.bind(this, "="),
-      notEqual: where.bind(this, "<>"),
-      greater: where.bind(this, ">"),
-      less: where.bind(this, "<"),
-      from: use.bind(this),
-      join: add.bind(this)
-    }
+    this.interface = Object.assign(
+      assert.bind(this), {
+        any: group.bind(this, "OR"),
+        all: group.bind(this, "AND"),
+        from: use.bind(this),
+        join: add.bind(this)
+      }
+    )
+  }
+
+  assert<T extends Entity>(entity: Entity.Type<T>): Query.Fields<T>;
+  assert<T>(field: T): Query.Assert<T>;
+  assert(arg: any){
+    const { where } = this;
+
+    if(typeof arg === "function")
+      return this.use(arg);
+
+    return {
+      is: where.bind(this, "=", arg),
+      not: where.bind(this, "<>", arg),
+      after: where.bind(this, ">", arg),
+      before: where.bind(this, "<", arg)
+    } as Query.Assert<any>;
   }
 
   access(field: Field){

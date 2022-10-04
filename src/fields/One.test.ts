@@ -56,7 +56,7 @@ it("will query nested relationships", () => {
   const query = new Select(where => {
     const a = where.from(A);
 
-    where.equal(a.b.c.value, 100);
+    where(a.b.c.value).is(100);
     
     return a.b.c.label;
   })

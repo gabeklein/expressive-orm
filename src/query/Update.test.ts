@@ -8,7 +8,7 @@ class Foo extends Entity {
 
 it("will generate query", () => {
   const query = new Update(Foo, (where, foo) => {
-    where.equal(foo.color, "red");
+    where(foo.color).is("red");
 
     return {
       value: "Updated!",

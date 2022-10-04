@@ -23,8 +23,8 @@ it.skip("will create book query", () => {
   const query = new Select(where => {
     const book = where.from(Book);
 
-    where.equal(book.title, "1984");
-    where.greater(book.author, 50);
+    where(book.title).is("1984");
+    where(book.id).after(50);
 
     return book.title;
   })
@@ -36,10 +36,10 @@ it("will create author query", () => {
   const query = new Select(where => {
     const author = where.from(Author);
 
-    where.notEqual(author.name, "Robert");
-    where.equal(author.age, 3);
-    where.equal(author.nickname, "Bob");
-    where.equal(author.active, true);
+    where(author.name).not("Robert");
+    where(author.age).is(3);
+    where(author.nickname).is("Bob");
+    where(author.active).is(true);
 
     return () => ({
       name: author.nickname,

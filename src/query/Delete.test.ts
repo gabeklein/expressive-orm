@@ -14,7 +14,7 @@ class Bar extends Entity {
 it("will generate query", () => {
   const query = new Delete(where => {
     const foo = where.from(Foo);
-    where.equal(foo.value, "Hello World!");
+    where(foo.value).is("Hello World!");
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -28,7 +28,7 @@ it("will support explicit delete", () => {
   const query = new Delete(where => {
     const foo = where.from(Foo);
 
-    where.equal(foo.value, "Hello World!");
+    where(foo.value).is("Hello World!");
 
     return foo;
   });
@@ -45,8 +45,8 @@ it("will include from keyword on join", () => {
     const foo = where.from(Foo);
     const bar = where.join(Bar);
 
-    where.equal(bar.color, foo.color);
-    where.equal(bar.value, "Hello World!");
+    where(bar.color).is(foo.color);
+    where(bar.value).is("Hello World!");
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -64,8 +64,8 @@ it("will delete from multiple", () => {
     const foo = where.from(Foo);
     const bar = where.join(Bar);
 
-    where.equal(bar.color, foo.color);
-    where.equal(bar.value, "Hello World!");
+    where(bar.color).is(foo.color);
+    where(bar.value).is("Hello World!");
 
     return [foo, bar];
   });

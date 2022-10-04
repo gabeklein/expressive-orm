@@ -11,8 +11,8 @@ class Foo extends Entity {
     const bar = where.join(Bar);
     const baz = where.join(Baz);
 
-    where.equal(bar.color, this.color);
-    where.equal(baz.rating, bar.rating);
+    where(bar.color).is(this.color);
+    where(baz.rating).is(bar.rating);
 
     return baz.value;
   })

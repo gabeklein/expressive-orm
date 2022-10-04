@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { Entity, Int, Select, Table, VarChar } from '..';
 
 it("will group where clauses", async () => {
@@ -11,16 +9,14 @@ it("will group where clauses", async () => {
   }
 
   const query = new Select(where => {
-    const { from, all, any, equal, notEqual } = where;
+    const foo = where.from(Foo);
 
-    const foo = from(Foo);
-
-    any(
-      notEqual(foo.name, "Danny"),
-      equal(foo.color, "red"),
-      all(
-        equal(foo.name, "Gabe"),
-        equal(foo.color, "green")
+    where.any(
+      where(foo.name).not("Danny"),
+      where(foo.color).is("red"),
+      where.all(
+        where(foo.name).is("Gabe"),
+        where(foo.color).is("green")
       )
     );
 
@@ -51,18 +47,16 @@ it("will group multiple clauses", async () => {
   }
 
   const query = new Select(where => {
-    const { from, all, any, equal, notEqual } = where;
+    const foo = where.from(Foo);
 
-    const foo = from(Foo);
-
-    any(
-      all(
-        notEqual(foo.name, "Danny"),
-        equal(foo.color, "red"),
+    where.any(
+      where.all(
+        where(foo.name).not("Danny"),
+        where(foo.color).is("red"),
       ),
-      all(
-        equal(foo.name, "Gabe"),
-        equal(foo.color, "green")
+      where.all(
+        where(foo.name).is("Gabe"),
+        where(foo.color).is("green")
       )
     );
 
@@ -107,11 +101,11 @@ it("will join using single query syntax", async () => {
     const bar = where.join(Bar);
     const baz = where.join(Baz, "left");
 
-    where.equal(bar.color, foo.color);
-    where.equal(baz.rating, bar.rating);
+    where(bar.color).is(foo.color);
+    where(baz.rating).is(bar.rating);
 
-    where.notEqual(foo.name, "Danny");
-    where.greater(bar.rating, 50);
+    where(foo.name).not("Danny");
+    where(bar.rating).after(50);
 
     return {
       fooValue: foo.name,
@@ -147,7 +141,7 @@ it("will alias tables with a schema", () => {
   const query = new Select(where => {
     const foo = where.from(Foo);
 
-    where.equal(foo.color, "red");
+    where(foo.color).is("red");
     
     return () => foo.name;
   })
