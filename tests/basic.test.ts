@@ -24,7 +24,7 @@ it.skip("will create book query", () => {
     const book = where.from(Book);
 
     where(book.title).is("1984");
-    where(book.id).after(50);
+    where(book.id).greater(50);
 
     return book.title;
   })

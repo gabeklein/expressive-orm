@@ -39,8 +39,8 @@ declare namespace Query {
   interface Assert<T> {
     is(equalTo: T): Instruction;
     not(equalTo: T): Instruction;
-    after(than: T): Instruction;
-    before(than: T): Instruction;
+    greater(than: T): Instruction;
+    less(than: T): Instruction;
   }
 }
 
@@ -82,8 +82,8 @@ abstract class Query {
     return {
       is: where.bind(this, "=", arg),
       not: where.bind(this, "<>", arg),
-      after: where.bind(this, ">", arg),
-      before: where.bind(this, "<", arg)
+      greater: where.bind(this, ">", arg),
+      less: where.bind(this, "<", arg)
     } as Query.Assert<any>;
   }
 

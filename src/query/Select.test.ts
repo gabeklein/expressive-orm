@@ -105,7 +105,7 @@ it("will join using single query syntax", async () => {
     where(baz.rating).is(bar.rating);
 
     where(foo.name).not("Danny");
-    where(bar.rating).after(50);
+    where(bar.rating).greater(50);
 
     return {
       fooValue: foo.name,
