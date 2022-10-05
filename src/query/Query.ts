@@ -58,16 +58,14 @@ abstract class Query {
   source?: Table;
 
   constructor(){
-    const { add, group, use, assert } = this;
+    const assert = this.assert.bind(this);
 
-    this.interface = Object.assign(
-      assert.bind(this), {
-        any: group.bind(this, "OR"),
-        all: group.bind(this, "AND"),
-        from: use.bind(this),
-        join: add.bind(this)
-      }
-    )
+    this.interface = Object.assign(assert, {
+      any: this.group.bind(this, "OR"),
+      all: this.group.bind(this, "AND"),
+      from: this.use.bind(this),
+      left: this.add.bind(this)
+    })
   }
 
   assert<T extends Entity>(entity: Entity.Type<T>): Query.Values<T>;
