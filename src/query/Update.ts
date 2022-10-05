@@ -20,7 +20,7 @@ class Update<T extends Entity> extends Query {
 
     const entity = this.use(type);
     const update = from(this.interface, entity);
-    const values = {} as any;
+    const values = this.values = {} as any;
 
     this.commit();
 
@@ -29,12 +29,12 @@ class Update<T extends Entity> extends Query {
       const field = this.type.table.fields.get(key);
 
       if(!field)
-        throw new Error(`Property ${key} has no corresponding field in entity ${type.name}`);
+        throw new Error(
+          `Property ${key} has no corresponding field in entity ${type.name}`
+        );
 
       values[field.column] = field.set ? field.set(value) : value;
     });
-
-    this.values = values;
   }
 
   toString(){
