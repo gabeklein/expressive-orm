@@ -132,29 +132,13 @@ abstract class Query {
     join?: Query.Join
   ): Query.Values<T>{
 
-    const { table } = entity;
-    const tables = this.tables.length;
-  
-    let { name, schema } = table;
-    let alias: string | undefined;
-
-    if(schema){
-      name = qualify(schema, name);
-      alias = `$${tables}`;
-    }
-
     if(this.tables.length)
-      return this.declare(entity, {
-        alias,
-        join: join || "inner",
-        name,
-        on: []
-      });
+      return this.declare(entity, join || "inner");
     
-    this.source = table;
-    this.connection = table.connection;
+    this.source = entity.table;
+    this.connection = entity.table.connection;
 
-    return this.declare(entity, { name, alias });
+    return this.declare(entity);
   }
 
   table(from: any){
@@ -166,8 +150,27 @@ abstract class Query {
       throw new Error("Value has no associated table.")
   }
 
-  declare(entity: Entity.Type, metadata: Query.Table){
+  declare<T extends Entity>(entity: Entity.Type<T>): Query.Values<T>
+  declare<T extends Entity>(entity: Entity.Type<T>, join: Query.Join, on?: string[]): Query.Values<T>
+  declare(entity: Entity.Type, join?: Query.Join, on?: string[]){
+    const { table } = entity;
+    const tables = this.tables.length;
+  
+    let { name, schema } = table;
+    let alias: string | undefined;
+
+    if(schema){
+      name = qualify(schema, name);
+      alias = `$${tables}`;
+    }
+
     const proxy = {} as any;
+    const metadata: Query.Table = {
+      name,
+      alias,
+      join,
+      on: on || join && []
+    };
 
     this.tables.push(metadata);
     Metadata.set(proxy, metadata);
@@ -251,8 +254,8 @@ abstract class Query {
     for(const table of joins){
       const { name, alias, join, on: filter } = table;
   
-      const type = join!.toUpperCase();
-      let statement = `${type} JOIN ${qualify(name)}`;
+      const type = join ? join.toUpperCase() + " " : "";
+      let statement = type + `JOIN ${qualify(name)}`;
   
       if(alias)
         statement += ` AS ${qualify(alias)}`;
