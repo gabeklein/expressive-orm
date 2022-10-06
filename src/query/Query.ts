@@ -75,7 +75,7 @@ abstract class Query {
     const { where } = this;
 
     if(typeof a1 === "function")
-      return this.use(a1, a2);
+      return this.add(a1, a2);
 
     return {
       is: where.bind(this, "=", a1),
@@ -127,20 +127,6 @@ abstract class Query {
     return apply
   }
 
-  use<T extends Entity>(
-    entity: Entity.Type<T>,
-    join?: Query.Join
-  ): Query.Values<T>{
-
-    if(this.tables.length)
-      return this.declare(entity, join || "inner");
-    
-    this.source = entity.table;
-    this.connection = entity.table.connection;
-
-    return this.declare(entity);
-  }
-
   table(from: any){
     const table = Metadata.get(from);
 
@@ -150,14 +136,21 @@ abstract class Query {
       throw new Error("Value has no associated table.")
   }
 
-  declare<T extends Entity>(entity: Entity.Type<T>): Query.Values<T>
-  declare<T extends Entity>(entity: Entity.Type<T>, join: Query.Join, on?: string[]): Query.Values<T>
-  declare(entity: Entity.Type, join?: Query.Join, on?: string[]){
+  add<T extends Entity>(entity: Entity.Type<T>): Query.Values<T>
+  add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[]): Query.Values<T>
+  add(entity: Entity.Type, join?: Query.Join, on?: string[]){
     const { table } = entity;
     const tables = this.tables.length;
   
     let { name, schema } = table;
     let alias: string | undefined;
+
+    if(!this.tables.length){
+      this.source = entity.table;
+      this.connection = entity.table.connection;
+    }
+    else if(!join)
+      join = "inner";
 
     if(schema){
       name = qualify(schema, name);

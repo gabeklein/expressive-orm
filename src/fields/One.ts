@@ -58,7 +58,7 @@ class OneToManyRelation extends Field {
     const fk = qualify(type.table.name, "id");
     const lk = qualify(this.table.name, this.column);
 
-    const proxy = query.declare(type, "left", [`${fk} = ${lk}`]);
+    const proxy = query.add(type, "left", [`${fk} = ${lk}`]);
 
     return () => proxy;
   }
