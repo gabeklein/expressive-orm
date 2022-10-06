@@ -75,10 +75,7 @@ abstract class Query {
     const { where } = this;
 
     if(typeof a1 === "function")
-      if(this.tables.length)
-        return this.add(a1, a2 || "inner");
-      else
-        return this.use(a1);
+      return this.use(a1, a2);
 
     return {
       is: where.bind(this, "=", a1),
@@ -131,40 +128,33 @@ abstract class Query {
   }
 
   use<T extends Entity>(
-    entity: Entity.Type<T>): Query.Values<T>{
+    entity: Entity.Type<T>,
+    join?: Query.Join
+  ): Query.Values<T>{
 
-    let { name, schema, connection } = entity.table;
+    const { table } = entity;
+    const tables = this.tables.length;
+  
+    let { name, schema } = table;
     let alias: string | undefined;
-
-    this.source = entity.table;
-    this.connection = connection;
 
     if(schema){
       name = qualify(schema, name);
-      alias = "$0";
+      alias = `$${tables}`;
     }
+
+    if(this.tables.length)
+      return this.declare(entity, {
+        alias,
+        join: join || "inner",
+        name,
+        on: []
+      });
+    
+    this.source = table;
+    this.connection = table.connection;
 
     return this.declare(entity, { name, alias });
-  }
-
-  add<T extends Entity>(
-    entity: Entity.Type<T>,
-    join: Query.Join){
-
-    if(!this.source)
-      throw new Error("Must define primary Entity first; did you forget to use from?");
-
-    let { name, schema } = entity.table;
-    let alias: string | undefined;
-
-    if(schema){
-      name = qualify(schema, name);
-      alias = `$${this.tables.length}`;
-    }
-
-    return this.declare(entity, {
-      join, name, alias, on: []
-    });
   }
 
   table(from: any){
