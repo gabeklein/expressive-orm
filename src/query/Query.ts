@@ -166,19 +166,16 @@ abstract class Query {
       throw new Error("Value has no associated table.")
   }
 
-  declare(entity: Entity.Type, metadata?: Query.Table){
+  declare(entity: Entity.Type, metadata: Query.Table){
     const proxy = {} as any;
 
-    if(metadata){
-      this.tables.push(metadata);
-      Metadata.set(proxy, metadata);
-    }
+    this.tables.push(metadata);
+    Metadata.set(proxy, metadata);
 
     entity.table.fields.forEach((field, key) => {
       field = Object.create(field);
 
-      if(metadata)
-        Metadata.set(field, metadata);
+      Metadata.set(field, metadata);
 
       Object.defineProperty(proxy, key, {
         get: field.proxy(this, proxy)
