@@ -2,7 +2,9 @@ import Query from "./Query";
 
 declare namespace Delete {
   type Function = (where: Query.Where) =>
-    Query.Maybe<any> | Query.Maybe<any>[] | void;
+    | Partial<Query.Values<any>>
+    | Partial<Query.Values<any>>[]
+    | void;
 }
 
 class Delete extends Query {

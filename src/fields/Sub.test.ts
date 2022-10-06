@@ -8,8 +8,8 @@ class Foo extends Entity {
   color = Color();
 
   bazValue = Sub(where => {
-    const bar = where.join(Bar);
-    const baz = where.join(Baz);
+    const bar = where(Bar);
+    const baz = where(Baz);
 
     where(bar.color).is(this.color);
     where(baz.rating).is(bar.rating);
@@ -31,7 +31,7 @@ class Baz extends Entity {
 
 it("will integrate query on select", () => {
   const query = new Select(where => {
-    return where.from(Foo).bazValue;
+    return where(Foo).bazValue;
   });
 
   expect(query).toMatchInlineSnapshot(`

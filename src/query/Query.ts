@@ -23,16 +23,17 @@ declare namespace Query {
     [ENTITY]?: T
   }
 
-  interface Where {
-    <T extends Entity>(entity: Entity.Type<T>): Values<T>;
-    <T>(field: T): Assert<T>;
+  type AssertFunction = <T>(field: T) => Assert<T>;
 
+  interface WhereFunction extends AssertFunction {
+    <T extends Entity>(entity: Entity.Type<T>): Values<T>;
+    <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer"): Partial<Query.Values<T>>;
+    <T extends Entity>(entity: Entity.Type<T>, join: Query.Join): Query.Values<T>;
+  }
+
+  interface Where extends WhereFunction {
     any(...where: Instruction[]): Instruction;
     all(...where: Instruction[]): Instruction;
-
-    from<T extends Entity>(entity: Entity.Type<T>): Values<T>;
-    join<T extends Entity>(from: Entity.Type<T>, mode?: "right" | "inner"): Values<T>;
-    join<T extends Entity>(from: Entity.Type<T>, mode: Join): Partial<Values<T>>;
   }
 
   interface Assert<T> {
@@ -69,18 +70,23 @@ abstract class Query {
   }
 
   assert<T extends Entity>(entity: Entity.Type<T>): Query.Values<T>;
+  assert<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full"): Partial<Query.Values<T>>;
+  assert<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join): Query.Values<T>;
   assert<T>(field: T): Query.Assert<T>;
-  assert(arg: any){
+  assert(a1: any, a2?: Query.Join){
     const { where } = this;
 
-    if(typeof arg === "function")
-      return this.use(arg);
+    if(typeof a1 === "function")
+      if(this.tables.length)
+        return this.add(a1, a2 || "inner");
+      else
+        return this.use(a1);
 
     return {
-      is: where.bind(this, "=", arg),
-      not: where.bind(this, "<>", arg),
-      greater: where.bind(this, ">", arg),
-      less: where.bind(this, "<", arg)
+      is: where.bind(this, "=", a1),
+      not: where.bind(this, "<>", a1),
+      greater: where.bind(this, ">", a1),
+      less: where.bind(this, "<", a1)
     } as Query.Assert<any>;
   }
 

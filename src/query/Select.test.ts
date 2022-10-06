@@ -9,7 +9,7 @@ it("will group where clauses", async () => {
   }
 
   const query = new Select(where => {
-    const foo = where.from(Foo);
+    const foo = where(Foo);
 
     where.any(
       where(foo.name).not("Danny"),
@@ -47,7 +47,7 @@ it("will group multiple clauses", async () => {
   }
 
   const query = new Select(where => {
-    const foo = where.from(Foo);
+    const foo = where(Foo);
 
     where.any(
       where.all(
@@ -97,9 +97,9 @@ it("will join using single query syntax", async () => {
   }
 
   const query = new Select(where => {
-    const foo = where.from(Foo);
-    const bar = where.join(Bar);
-    const baz = where.join(Baz, "left");
+    const foo = where(Foo);
+    const bar = where(Bar);
+    const baz = where(Baz, "left");
 
     where(bar.color).is(foo.color);
     where(baz.rating).is(bar.rating);
@@ -139,7 +139,7 @@ it("will alias tables with a schema", () => {
   }
 
   const query = new Select(where => {
-    const foo = where.from(Foo);
+    const foo = where(Foo);
 
     where(foo.color).is("red");
     

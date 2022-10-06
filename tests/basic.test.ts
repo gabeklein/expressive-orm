@@ -21,7 +21,7 @@ class Book extends Entity {
 //TODO: fix
 it.skip("will create book query", () => {
   const query = new Select(where => {
-    const book = where.from(Book);
+    const book = where(Book);
 
     where(book.title).is("1984");
     where(book.id).greater(50);
@@ -34,7 +34,7 @@ it.skip("will create book query", () => {
 
 it("will create author query", () => {
   const query = new Select(where => {
-    const author = where.from(Author);
+    const author = where(Author);
 
     where(author.name).not("Robert");
     where(author.age).is(3);

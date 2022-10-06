@@ -4,9 +4,9 @@ import { Column, KeyColumnUsage, ReferentialConstraints } from './schema';
 
 async function getColumns(schema: string){
   return Select.get(where => {
-    const column = where.from(Column);
-    const usage = where.join(KeyColumnUsage, "left");
-    const ref = where.join(ReferentialConstraints, "left");
+    const column = where(Column);
+    const usage = where(KeyColumnUsage, "left");
+    const ref = where(ReferentialConstraints, "left");
 
     where(usage.tableSchema).is(column.schema);
     where(usage.tableName).is(column.tableName);

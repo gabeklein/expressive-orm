@@ -67,7 +67,7 @@ abstract class Entity {
     from: Entity.Where<T, R>
   ){
     return new Select(where => {
-      return from(where.from(this), where);
+      return from(where(this), where);
     })
   }
 

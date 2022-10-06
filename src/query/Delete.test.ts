@@ -13,7 +13,7 @@ class Bar extends Entity {
 
 it("will generate query", () => {
   const query = new Delete(where => {
-    const foo = where.from(Foo);
+    const foo = where(Foo);
     where(foo.value).is("Hello World!");
   });
 
@@ -26,7 +26,7 @@ WHERE
 
 it("will support explicit delete", () => {
   const query = new Delete(where => {
-    const foo = where.from(Foo);
+    const foo = where(Foo);
 
     where(foo.value).is("Hello World!");
 
@@ -42,8 +42,8 @@ WHERE
 
 it("will include from keyword on join", () => {
   const query = new Delete(where => {
-    const foo = where.from(Foo);
-    const bar = where.join(Bar);
+    const foo = where(Foo);
+    const bar = where(Bar);
 
     where(bar.color).is(foo.color);
     where(bar.value).is("Hello World!");
@@ -61,8 +61,8 @@ WHERE
 
 it("will delete from multiple", () => {
   const query = new Delete(where => {
-    const foo = where.from(Foo);
-    const bar = where.join(Bar);
+    const foo = where(Foo);
+    const bar = where(Bar);
 
     where(bar.color).is(foo.color);
     where(bar.value).is("Hello World!");
