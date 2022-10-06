@@ -36,10 +36,10 @@ declare namespace Query {
   }
 
   interface Assert<T> {
-    is(equalTo: T): Instruction;
-    not(equalTo: T): Instruction;
-    greater(than: T): Instruction;
-    less(than: T): Instruction;
+    is(equalTo: T | undefined): Instruction;
+    not(equalTo: T | undefined): Instruction;
+    greater(than: T | undefined): Instruction;
+    less(than: T | undefined): Instruction;
   }
 }
 
