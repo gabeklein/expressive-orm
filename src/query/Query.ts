@@ -63,9 +63,7 @@ abstract class Query {
 
     this.interface = Object.assign(assert, {
       any: this.group.bind(this, "OR"),
-      all: this.group.bind(this, "AND"),
-      from: this.use.bind(this),
-      left: this.add.bind(this)
+      all: this.group.bind(this, "AND")
     })
   }
 
