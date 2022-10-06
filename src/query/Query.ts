@@ -150,7 +150,8 @@ abstract class Query {
   }
 
   add<T extends Entity>(
-    entity: Entity.Type<T>, mode?: Query.Join){
+    entity: Entity.Type<T>,
+    join: Query.Join){
 
     if(!this.source)
       throw new Error("Must define primary Entity first; did you forget to use from?");
@@ -164,10 +165,7 @@ abstract class Query {
     }
 
     return this.declare(entity, {
-      join: mode || "inner",
-      name,
-      alias,
-      on: []
+      join, name, alias, on: []
     });
   }
 
