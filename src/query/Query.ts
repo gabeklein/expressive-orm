@@ -230,40 +230,25 @@ abstract class Query {
     return cond;
   }
 
-  where(
-    op: string,
-    left: Field,
-    right: string | number | Field
-  ){
+  where(op: string, left: Field, right: string | number){
     const apply: Instruction = (arg) => {
-      const { alias, name, on: joinOn } = this.table(left);
-      const column = qualify(alias || name, left.column);
+      const table = this.table(left);
+      const column = qualify(table.alias || table.name, left.column);
       let entry: string;
 
-      if(right instanceof Field){
-        const { alias, name } = this.table(right);
-        const ref = qualify(alias || name, right.column);
+      if(left.set)
+        right = left.set(right);
 
-        entry = `${column} ${op} ${ref}`;
-      }
-      else {
-        if(left.set)
-          right = left.set(right);
-    
-        if(typeof right == "string")
-          right = escapeString(right);
+      if(typeof right == "string")
+        right = escapeString(right);
 
-        entry = `${column} ${op} ${right}`;
-      }
+      entry = `${column} ${op} ${right}`;
 
       if(typeof arg === "function")
         entry = arg(entry);
 
       if(arg !== true)
-        if(joinOn && right instanceof Field)
-          joinOn.push(entry);
-        else
-          this.wheres.push(entry);
+        this.wheres.push(entry);
 
       return entry;
     };
