@@ -106,10 +106,7 @@ abstract class Query {
     this.pending.forEach(apply => apply());
   }
 
-  group(
-    keyword: "AND" | "OR",
-    ...where: Instruction[]){
-
+  group(keyword: "AND" | "OR", ...where: Instruction[]){
     const sep = ` ${keyword} `;
     const root = this.pending;
     const [cond, ...rest] = where;
@@ -167,22 +164,18 @@ abstract class Query {
     else if(!join)
       join = "inner";
 
-    const proxy = {} as any;
-    const metadata: Query.Table = {
-      name,
-      alias,
-      join,
-      on: this.join(name, entity, on)
-    };
+    on = this.join(name, entity, on);
 
-    this.tables.push(metadata);
+    const proxy = {} as any;
+    const metadata = { alias, join, name, on };
+
     Metadata.set(proxy, metadata);
+    this.tables.push(metadata);
 
     entity.table.fields.forEach((field, key) => {
       field = Object.create(field);
 
       Metadata.set(field, metadata);
-
       Object.defineProperty(proxy, key, {
         get: field.proxy(this, proxy)
       })
@@ -278,7 +271,7 @@ abstract class Query {
     lines.push(fromStatement);
   
     for(const table of joins){
-      const { name, alias, join, on: filter } = table;
+      const { name, alias, join, on } = table;
   
       const type = join ? join.toUpperCase() + " " : "";
       let statement = type + `JOIN ${qualify(name)}`;
@@ -286,8 +279,8 @@ abstract class Query {
       if(alias)
         statement += ` AS ${qualify(alias)}`;
   
-      if(filter) 
-        statement += ` ON ` + filter.join(" AND ");
+      if(on) 
+        statement += ` ON ` + on.join(" AND ");
   
       lines.push(statement);
     }
@@ -297,7 +290,7 @@ abstract class Query {
 
   generateWhere(){
     if(!this.wheres.length)
-      return ""
+      return "";
     
     const where = this.wheres.join(" AND ");
   
