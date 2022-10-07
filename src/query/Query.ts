@@ -23,12 +23,17 @@ declare namespace Query {
     [ENTITY]?: T
   }
 
+  type Compare<T extends Entity> = {
+    [K in Entity.Field<T>]?: T[K];
+  }
+
   type AssertFunction = <T>(field: T) => Assert<T>;
 
   interface WhereFunction extends AssertFunction {
     <T extends Entity>(entity: Entity.Type<T>): Values<T>;
-    <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer"): Partial<Query.Values<T>>;
-    <T extends Entity>(entity: Entity.Type<T>, join: Query.Join): Query.Values<T>;
+    <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer", on?: Query.Compare<T>): Partial<Query.Values<T>>;
+    <T extends Entity>(entity: Entity.Type<T>, join: Query.Join, on?: Query.Compare<T>): Query.Values<T>;
+    <T extends Entity>(entity: Entity.Type<T>, on: Query.Compare<T>): Query.Values<T>;
   }
 
   interface Where extends WhereFunction {
@@ -67,22 +72,22 @@ abstract class Query {
     })
   }
 
-  assert<T extends Entity>(entity: Entity.Type<T>): Query.Values<T>;
-  assert<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full"): Partial<Query.Values<T>>;
-  assert<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join): Query.Values<T>;
+  assert<T extends Entity>(entity: Entity.Type<T>, on?: Query.Compare<T>): Query.Values<T>;
+  assert<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on?: Query.Compare<T>): Partial<Query.Values<T>>;
+  assert<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: Query.Compare<T>): Query.Values<T>;
   assert<T>(field: T): Query.Assert<T>;
-  assert(a1: any, a2?: Query.Join){
+  assert(a1: any, a2?: Query.Join | {}, a3?: {}){
     const { where } = this;
 
-    if(typeof a1 === "function")
-      return this.add(a1, a2);
+    if(typeof a1 !== "function")
+      return {
+        is: where.bind(this, "=", a1),
+        not: where.bind(this, "<>", a1),
+        greater: where.bind(this, ">", a1),
+        less: where.bind(this, "<", a1)
+      } as Query.Assert<any>;
 
-    return {
-      is: where.bind(this, "=", a1),
-      not: where.bind(this, "<>", a1),
-      greater: where.bind(this, ">", a1),
-      less: where.bind(this, "<", a1)
-    } as Query.Assert<any>;
+    return this.add(a1, a2 as any, a3);
   }
 
   access(field: Field){
@@ -136,14 +141,25 @@ abstract class Query {
       throw new Error("Value has no associated table.")
   }
 
-  add<T extends Entity>(entity: Entity.Type<T>): Query.Values<T>
-  add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[]): Query.Values<T>
-  add(entity: Entity.Type, join?: Query.Join, on?: string[]){
+  add<T extends Entity>(entity: Entity.Type<T>, on?: Query.Compare<T>): Query.Values<T>;
+  add<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on?: Query.Compare<T>): Partial<Query.Values<T>>;
+  add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>): Query.Values<T>;
+  add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join | Query.Compare<T>, on?: string[] | Query.Compare<T>){
     const { table } = entity;
     const tables = this.tables.length;
+
+    if(typeof join == "object"){
+      on = join;
+      join = "inner";
+    }
   
     let { name, schema } = table;
     let alias: string | undefined;
+
+    if(schema){
+      name = qualify(schema, name);
+      alias = `$${tables}`;
+    }
 
     if(!this.tables.length){
       this.source = entity.table;
@@ -152,17 +168,12 @@ abstract class Query {
     else if(!join)
       join = "inner";
 
-    if(schema){
-      name = qualify(schema, name);
-      alias = `$${tables}`;
-    }
-
     const proxy = {} as any;
     const metadata: Query.Table = {
       name,
       alias,
       join,
-      on: on || join && []
+      on: this.join(name, entity, on)
     };
 
     this.tables.push(metadata);
@@ -179,6 +190,44 @@ abstract class Query {
     })
 
     return proxy;
+  }
+
+  join<T extends Entity>(
+    table: string,
+    entity: Entity.Type<T>,
+    on?: string[] | Query.Compare<T>){
+
+    if(!this.tables.length)
+      return;
+
+    if(Array.isArray(on))
+      return on;
+
+    const cond = [] as string[];
+    const { fields } = entity.table;
+
+    for(const key in on){
+      const field = fields.get(key);
+      const value = (on as any)[key];
+
+      if(!field)
+        throw new Error(`${key} is not a valid field in ${entity}`);
+
+      const left = qualify(table) + "." + qualify(field.column);
+      let right: string;
+
+      if(value instanceof Field){
+        const table = Metadata.get(value)!;
+
+        right = qualify(table.name) + "." + qualify(value.column);
+      }
+      else
+        right = typeof value == "string" ? escapeString(value) : value;
+
+      cond.push(`${left} = ${right}`);
+    }
+    
+    return cond;
   }
 
   where(

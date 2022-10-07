@@ -98,11 +98,8 @@ it("will join using single query syntax", async () => {
 
   const query = new Select(where => {
     const foo = where(Foo);
-    const bar = where(Bar);
-    const baz = where(Baz, "left");
-
-    where(bar.color).is(foo.color);
-    where(baz.rating).is(bar.rating);
+    const bar = where(Bar, { color: foo.color });
+    const baz = where(Baz, "left", { rating: bar.rating });
 
     where(foo.name).not("Danny");
     where(bar.rating).greater(50);

@@ -5,16 +5,18 @@ import { Column, KeyColumnUsage, ReferentialConstraints } from './schema';
 async function getColumns(schema: string){
   return Select.get(where => {
     const column = where(Column);
-    const usage = where(KeyColumnUsage, "left");
-    const ref = where(ReferentialConstraints, "left");
 
-    where(usage.tableSchema).is(column.schema);
-    where(usage.tableName).is(column.tableName);
-    where(usage.columnName).is(column.name);
+    const usage = where(KeyColumnUsage, "left", {
+      tableSchema: column.schema,
+      tableName: column.tableName,
+      columnName: column.name
+    });
 
-    where(ref.constraintName).is(usage.constraintName);
-    where(ref.constraintSchema).is(column.schema);
-    where(ref.tableName).is(column.tableName);
+    const ref = where(ReferentialConstraints, "left", {
+      constraintName: usage.constraintName,
+      constraintSchema: column.schema,
+      tableName: column.tableName
+    });
 
     where(column.schema).is(schema);
 

@@ -8,11 +8,8 @@ class Foo extends Entity {
   color = Color();
 
   bazValue = Sub(where => {
-    const bar = where(Bar);
-    const baz = where(Baz);
-
-    where(bar.color).is(this.color);
-    where(baz.rating).is(bar.rating);
+    const bar = where(Bar, { color: this.color });
+    const baz = where(Baz, { rating: bar.rating });
 
     return baz.value;
   })
