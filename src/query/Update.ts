@@ -18,7 +18,7 @@ class Update<T extends Entity> extends Query {
 
     super();
 
-    const entity = this.add(type);
+    const entity = this.add(type, "inner");
     const update = from(this.interface, entity);
     const values = this.values = {} as any;
 

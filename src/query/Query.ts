@@ -73,11 +73,16 @@ abstract class Query {
   }
 
   assert<T extends Entity>(entity: Entity.Type<T>, on?: Query.Compare<T>): Query.Values<T>;
-  assert<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on?: Query.Compare<T>): Partial<Query.Values<T>>;
-  assert<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: Query.Compare<T>): Query.Values<T>;
+  assert<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on: Query.Compare<T>): Partial<Query.Values<T>>;
+  assert<T extends Entity>(entity: Entity.Type<T>, join: Query.Join, on: Query.Compare<T>): Query.Values<T>;
   assert<T>(field: T): Query.Assert<T>;
   assert(a1: any, a2?: Query.Join | {}, a3?: {}){
     const { where } = this;
+
+    if(typeof a2 == "object"){
+      a3 = a2;
+      a2 = "inner";
+    }
 
     if(typeof a1 !== "function")
       return {
@@ -141,17 +146,11 @@ abstract class Query {
       throw new Error("Value has no associated table.")
   }
 
-  add<T extends Entity>(entity: Entity.Type<T>, on?: Query.Compare<T>): Query.Values<T>;
   add<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on?: Query.Compare<T>): Partial<Query.Values<T>>;
   add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>): Query.Values<T>;
-  add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join | Query.Compare<T>, on?: string[] | Query.Compare<T>){
+  add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>){
     const { table } = entity;
     const tables = this.tables.length;
-
-    if(typeof join == "object"){
-      on = join;
-      join = "inner";
-    }
   
     let { name, schema } = table;
     let alias: string | undefined;
