@@ -109,14 +109,16 @@ it("will join using single query syntax", async () => {
 
     return {
       fooValue: foo.name,
-      barValue: bar.name
+      barValue: bar.name,
+      bazRating: baz.rating
     }
   });
 
   expect(query).toMatchInlineSnapshot(`
 SELECT
   \`Foo\`.\`name\` AS \`fooValue\`,
-  \`Bar\`.\`name\` AS \`barValue\`
+  \`Bar\`.\`name\` AS \`barValue\`,
+  \`Baz\`.\`rating\` AS \`bazRating\`
 FROM
   \`Foo\`
   INNER JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
