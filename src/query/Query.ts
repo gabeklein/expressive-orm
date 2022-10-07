@@ -11,6 +11,7 @@ declare namespace Query {
   type Join = "left" | "right" | "inner" | "full";
 
   interface Table {
+    entity: Entity.Type;
     name: string;
     join?: Query.Join;
     alias?: string;
@@ -34,6 +35,7 @@ declare namespace Query {
     <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer", on?: Query.Compare<T>): Partial<Query.Values<T>>;
     <T extends Entity>(entity: Entity.Type<T>, join: Query.Join, on?: Query.Compare<T>): Query.Values<T>;
     <T extends Entity>(entity: Entity.Type<T>, on: Query.Compare<T>): Query.Values<T>;
+    <T extends Entity>(entity: Query.Values<T>): { has(values: Query.Compare<T>): void };
   }
 
   interface Where extends WhereFunction {
@@ -75,6 +77,7 @@ abstract class Query {
   assert<T extends Entity>(entity: Entity.Type<T>, on?: Query.Compare<T>): Query.Values<T>;
   assert<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on: Query.Compare<T>): Partial<Query.Values<T>>;
   assert<T extends Entity>(entity: Entity.Type<T>, join: Query.Join, on: Query.Compare<T>): Query.Values<T>;
+  assert<T extends Entity>(entity: Query.Values<T>): { has(values: Query.Compare<T>): void };
   assert<T>(field: T): Query.Assert<T>;
   assert(a1: any, a2?: Query.Join | {}, a3?: {}){
     const { where } = this;
@@ -84,7 +87,10 @@ abstract class Query {
       a2 = "inner";
     }
 
-    if(typeof a1 !== "function")
+    if(typeof a1 == "function")
+      return this.add(a1, a2 as any, a3);
+
+    if(a1 instanceof Field)
       return {
         is: where.bind(this, "=", a1),
         not: where.bind(this, "<>", a1),
@@ -92,7 +98,17 @@ abstract class Query {
         less: where.bind(this, "<", a1)
       } as Query.Assert<any>;
 
-    return this.add(a1, a2 as any, a3);
+    const info = Metadata.get(a1);
+
+    if(info){
+      return {
+        has: (values: {}) => {
+          this.wheres.push(
+            ...whereObject(info.name, info.entity, values)
+          )
+        }
+      }
+    }
   }
 
   access(field: Field){
@@ -164,10 +180,12 @@ abstract class Query {
     else if(!join)
       join = "inner";
 
-    on = this.join(name, entity, on);
+    on = !this.tables.length ? undefined :
+      Array.isArray(on) ? on :
+      whereObject(name, entity, on)
 
     const proxy = {} as any;
-    const metadata = { alias, join, name, on };
+    const metadata = { alias, entity, join, name, on };
 
     Metadata.set(proxy, metadata);
     this.tables.push(metadata);
@@ -182,44 +200,6 @@ abstract class Query {
     })
 
     return proxy;
-  }
-
-  join<T extends Entity>(
-    table: string,
-    entity: Entity.Type<T>,
-    on?: string[] | Query.Compare<T>){
-
-    if(!this.tables.length)
-      return;
-
-    if(Array.isArray(on))
-      return on;
-
-    const cond = [] as string[];
-    const { fields } = entity.table;
-
-    for(const key in on){
-      const field = fields.get(key);
-      const value = (on as any)[key];
-
-      if(!field)
-        throw new Error(`${key} is not a valid field in ${entity}`);
-
-      const left = qualify(table) + "." + qualify(field.column);
-      let right: string;
-
-      if(value instanceof Field){
-        const table = Metadata.get(value)!;
-
-        right = qualify(table.name) + "." + qualify(value.column);
-      }
-      else
-        right = typeof value == "string" ? escapeString(value) : value;
-
-      cond.push(`${left} = ${right}`);
-    }
-    
-    return cond;
   }
 
   where(op: string, left: Field, right: string | number){
@@ -296,6 +276,38 @@ abstract class Query {
   
     return "WHERE " + where;
   }
+}
+
+function whereObject<T extends Entity>(
+  table: string,
+  entity: Entity.Type<T>,
+  on?: Query.Compare<T>){
+
+  const cond = [] as string[];
+  const { fields } = entity.table;
+
+  for(const key in on){
+    const field = fields.get(key);
+    const value = (on as any)[key];
+
+    if(!field)
+      throw new Error(`${key} is not a valid field in ${entity}`);
+
+    const left = qualify(table) + "." + qualify(field.column);
+    let right: string;
+
+    if(value instanceof Field){
+      const table = Metadata.get(value)!;
+
+      right = qualify(table.name) + "." + qualify(value.column);
+    }
+    else
+      right = typeof value == "string" ? escapeString(value) : value;
+
+    cond.push(`${left} = ${right}`);
+  }
+  
+  return cond;
 }
 
 export function serialize(value: any){

@@ -1,13 +1,13 @@
 import { Entity, Int, Select, Table, VarChar } from '..';
 
-it("will group where clauses", async () => {
-  class Foo extends Entity {
-    name = VarChar();
-    color = VarChar({
-      oneOf: ["red", "blue", "green"]
-    });
-  }
+class Foo extends Entity {
+  name = VarChar();
+  color = VarChar({
+    oneOf: ["red", "blue", "green"]
+  });
+}
 
+it("will group where clauses", async () => {
   const query = new Select(where => {
     const foo = where(Foo);
 
@@ -38,14 +38,30 @@ WHERE
 `);
 })
 
-it("will group multiple clauses", async () => {
-  class Foo extends Entity {
-    name = VarChar();
-    color = VarChar({
-      oneOf: ["red", "blue", "green"]
-    });
-  }
+it("will match values via objects", () => {
+  const query = new Select(where => {
+    const foo = where(Foo);
 
+    where(foo).has({
+      name: "Gabe",
+      color: "blue"
+    })
+
+    return foo.name;
+  });
+
+  expect(query).toMatchInlineSnapshot(`
+SELECT
+  \`Foo\`.\`name\` AS \`1\`
+FROM
+  \`Foo\`
+WHERE
+  \`Foo\`.\`name\` = 'Gabe'
+  AND \`Foo\`.\`color\` = 'blue'
+`)
+})
+
+it("will group multiple clauses", async () => {
   const query = new Select(where => {
     const foo = where(Foo);
 
@@ -81,11 +97,6 @@ WHERE
 })
 
 it("will join using single query syntax", async () => {
-  class Foo extends Entity {
-    name = VarChar();
-    color = VarChar();
-  }
-
   class Bar extends Entity {
     name = VarChar();
     color = VarChar();
