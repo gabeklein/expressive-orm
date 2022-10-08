@@ -51,6 +51,41 @@ abstract class Entity {
   static connection?: Connection;
   static focus?: { [key: string]: any };
 
+  static ensure<T extends Entity>(
+    this: Entity.Type<T>,
+    connection?: Connection){
+
+    if(!REGISTER.has(this)){
+      REGISTER.add(this);
+
+      this.tableName = /class (\w+?) /.exec(this.toString())![1];
+      this.schemaName = "";
+      this.connection = connection;
+      this.fields = new Map();
+      this.deps = new Set();
+      
+      const sample = new (this as any)();
+      
+      for(const key in sample){
+        const { value } = describe(sample, key)!;
+  
+        const instruction = INSTRUCTION.get(value);    
+  
+        if(instruction){
+          INSTRUCTION.delete(value);
+          instruction(this, key);
+        }
+  
+        define(sample, key, {
+          get: () => this.focus![key],
+          set: is => this.focus![key] = is
+        })
+      }
+    }
+
+    return this;
+  }
+
   static field(instruction: Entity.Instruction){
     const placeholder = Symbol(`ORM instruction`);
     INSTRUCTION.set(placeholder, instruction);
@@ -119,41 +154,6 @@ abstract class Entity {
     from: Entity.Where<T, R>
   ){
     return this.select(from).getOne();
-  }
-
-  static ensure<T extends Entity>(
-    this: Entity.Type<T>,
-    connection?: Connection){
-
-    if(!REGISTER.has(this)){
-      REGISTER.add(this);
-
-      this.tableName = /class (\w+?) /.exec(this.toString())![1];
-      this.schemaName = "";
-      this.connection = connection;
-      this.fields = new Map();
-      this.deps = new Set();
-      
-      const sample = new (this as any)();
-      
-      for(const key in sample){
-        const { value } = describe(sample, key)!;
-  
-        const instruction = INSTRUCTION.get(value);    
-  
-        if(instruction){
-          INSTRUCTION.delete(value);
-          instruction(this, key);
-        }
-  
-        define(sample, key, {
-          get: () => this.focus![key],
-          set: is => this.focus![key] = is
-        })
-      }
-    }
-
-    return this;
   }
 }
 
