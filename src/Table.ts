@@ -43,33 +43,6 @@ class Table {
     }
   }
 
-  map<T extends Entity>(
-    getter: Table.MapFunction<T>,
-    cache?: boolean){
-
-    const proxy = {} as any;
-
-    for(const [key, type] of this.fields)
-      define(proxy, key, {
-        configurable: true,
-        get: () => {
-          const value = getter.call(
-            proxy,
-            type,
-            key as Entity.Field<T>,
-            proxy
-          );
-
-          if(cache !== false)
-            define(proxy, key, { value });
-
-          return value;
-        }
-      })
-    
-    return proxy;
-  }
-
   apply(value: any, key: string){
     const instruction = INSTRUCTION.get(value);    
 

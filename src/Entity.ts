@@ -8,6 +8,8 @@ import Table from './Table';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
+const define = Object.defineProperty;
+
 declare namespace Entity {
   type Type<T extends Entity = Entity> =
     typeof Entity & (abstract new () => T);
@@ -57,9 +59,30 @@ abstract class Entity {
    */
   static map<T extends Entity>(
     this: Entity.Type<T>,
-    getValue: (type: Field, key: Entity.Field<T>) => any
+    getValue: (type: Field, key: Entity.Field<T>, proxy: {}) => any,
+    cache?: boolean
   ){
-    return this.table.map(getValue);
+    const proxy = {} as any;
+
+    for(const [key, type] of this.table.fields)
+      define(proxy, key, {
+        configurable: true,
+        get: () => {
+          const value = getValue.call(
+            proxy,
+            type,
+            key as Entity.Field<T>,
+            proxy
+          );
+
+          if(cache !== false)
+            define(proxy, key, { value });
+
+          return value;
+        }
+      })
+    
+    return proxy;
   }
 
   static select<T extends Entity, R>(
