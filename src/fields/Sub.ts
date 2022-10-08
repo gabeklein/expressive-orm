@@ -10,7 +10,7 @@ class SubQueryField extends Field {
   factory!: Select.Function<any>;
 
   proxy(query: Query, proxy: {}){
-    query.source!.focus = proxy;
+    query.main!.focus = proxy;
     const output = this.factory(query.interface);
     
     return typeof output == "function"

@@ -17,6 +17,7 @@ class Update<T extends Entity> extends Query {
     from: Update.Function<T>){
 
     super();
+    type.ensure()
 
     const entity = this.add(type, "inner");
     const update = from(this.interface, entity);
@@ -26,7 +27,7 @@ class Update<T extends Entity> extends Query {
 
     Object.entries(update).forEach((entry) => {
       const [key, value] = entry;
-      const field = this.type.table.fields.get(key);
+      const field = this.type.fields.get(key);
 
       if(!field)
         throw new Error(
@@ -38,7 +39,7 @@ class Update<T extends Entity> extends Query {
   }
 
   toString(){
-    const tableName = qualify(this.type.table.name);
+    const tableName = qualify(this.type.tableName);
     const values = [] as string[];
 
     Object.entries(this.values).forEach(entry => {

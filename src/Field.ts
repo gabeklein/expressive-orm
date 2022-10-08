@@ -1,6 +1,6 @@
+import Entity from '.';
 import Query, { Metadata } from './query/Query';
 import Select from './query/Select';
-import Table from './Table';
 import { qualify } from './utility';
 
 namespace Field {
@@ -26,7 +26,7 @@ class Field {
   set?(value: any): any;
 
   constructor(
-    public table: Table,
+    public table: Entity.Type,
     public property: string
   ){
     this.column = property;
@@ -58,7 +58,7 @@ class Field {
   static create<T extends Field>(
     this: Field.Type<T>, options?: Partial<T>){
 
-    return Table.use((parent, key) => {
+    return Entity.field((parent, key) => {
       const instance = new this(parent, key);
       instance.init(options);
       return instance;

@@ -16,6 +16,8 @@ class Insert<T extends Entity> extends Query {
     public into: Entity.Type<T>,
     data: Insert.Values<T>){
 
+    into.ensure();
+
     super();
     this.insert(
       Array.isArray(data) ? data : [data]
@@ -23,7 +25,7 @@ class Insert<T extends Entity> extends Query {
   }
 
   insert(data: Insert.Expect<T>[]){
-    const { fields } = this.into.table;
+    const { fields } = this.into;
 
     this.entries = data.map(insert => {
       const values = {} as { [key: string]: any };

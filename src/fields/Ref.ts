@@ -33,7 +33,7 @@ class ForeignKeyColumn extends Field {
   type!: Entity.Type;
 
   init(options: Partial<this>){
-    this.table.dependancies.add(this.type.table);
+    this.table.deps.add(this.type);
     super.init(options);
   }
 

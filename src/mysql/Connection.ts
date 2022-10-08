@@ -39,7 +39,7 @@ class MySQLConnection extends Connection {
         : mysql.createConnection(config);
 
     Object.values<typeof Entity>(schema).forEach(entity => {
-      entity.init(this);
+      entity.ensure(this);
     })
 
     if(entities)

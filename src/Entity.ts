@@ -4,15 +4,19 @@ import Primary from './fields/Primary';
 import Insert from './query/Insert';
 import Query from './query/Query';
 import Select from './query/Select';
-import Table from './Table';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
+const REGISTER = new Set<Entity.Type>();
+const INSTRUCTION = new Map<symbol, Entity.Instruction>();
+
+const describe = Object.getOwnPropertyDescriptor;
 const define = Object.defineProperty;
 
 declare namespace Entity {
   type Type<T extends Entity = Entity> =
-    typeof Entity & (abstract new () => T);
+    & (abstract new () => T)
+    & typeof Entity;
 
   type List<T extends Entity> = T[];
 
@@ -31,27 +35,26 @@ declare namespace Entity {
 
   type Where<T extends Entity, R> =
     (source: Query.Values<T>, query: Query.Where) => () => R;
+
+  type Instruction = (parent: Entity.Type, key: string) => void;
 }
 
 abstract class Entity {
-  table!: Table;
+  table!: Entity.Type;
 
   id = Primary();
 
-  constructor(){
-    Object.defineProperty(this, "table", {
-      configurable: true,
-      get(){
-        return Table.get(this.constructor);
-      },
-      set(callback: any){
-        Table.get(this.constructor).apply(callback, "table");
-      }
-    })
-  }
+  static tableName: string;
+  static schemaName: string;
+  static fields: Map<string, Field>;
+  static deps: Set<Entity.Type>;
+  static connection?: Connection;
+  static focus?: { [key: string]: any };
 
-  static get table(): Table {
-    return Table.get(this);
+  static field(instruction: Entity.Instruction){
+    const placeholder = Symbol(`ORM instruction`);
+    INSTRUCTION.set(placeholder, instruction);
+    return placeholder as any;
   }
 
   /**
@@ -64,7 +67,10 @@ abstract class Entity {
   ){
     const proxy = {} as any;
 
-    for(const [key, type] of this.table.fields)
+    if(!REGISTER.has(this))
+      this.ensure();
+
+    for(const [key, type] of this.fields)
       define(proxy, key, {
         configurable: true,
         get: () => {
@@ -115,11 +121,39 @@ abstract class Entity {
     return this.select(from).getOne();
   }
 
-  static init<T extends Entity>(
+  static ensure<T extends Entity>(
     this: Entity.Type<T>,
     connection?: Connection){
 
-    return new Table(this, connection);
+    if(!REGISTER.has(this)){
+      REGISTER.add(this);
+
+      this.tableName = /class (\w+?) /.exec(this.toString())![1];
+      this.schemaName = "";
+      this.connection = connection;
+      this.fields = new Map();
+      this.deps = new Set();
+      
+      const sample = new (this as any)();
+      
+      for(const key in sample){
+        const { value } = describe(sample, key)!;
+  
+        const instruction = INSTRUCTION.get(value);    
+  
+        if(instruction){
+          INSTRUCTION.delete(value);
+          instruction(this, key);
+        }
+  
+        define(sample, key, {
+          get: () => this.focus![key],
+          set: is => this.focus![key] = is
+        })
+      }
+    }
+
+    return this;
   }
 }
 

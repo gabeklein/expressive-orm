@@ -1,6 +1,5 @@
 import Entity from '../Entity';
 import getColumns from '../mysql/getColumns';
-import Table from '../Table';
 import Schema from './Schema';
 
 namespace Connection {
@@ -12,7 +11,7 @@ namespace Connection {
 abstract class Connection {
   database?: string;
 
-  managed = new Map<typeof Entity, Table>();
+  managed = new Set<typeof Entity>();
   schema = {} as { [name: string]: Schema };
 
   abstract query(queryString: string): Promise<any>;
@@ -22,10 +21,8 @@ abstract class Connection {
   apply(from: Connection.Entities){
     const entities = Object.values<typeof Entity>(from);
 
-    for(const type of entities){
-      const table = type.init(this);
-      this.managed.set(type, table);
-    }
+    for(const type of entities)
+      this.managed.add(type.ensure(this));
 
     return this;
   }

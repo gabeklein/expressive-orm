@@ -36,11 +36,11 @@ class OneToManyRelation extends Field {
   init(options: Partial<this>){
     super.init(options);
 
-    const foreign = this.type.table;
+    const foreign = this.type.ensure();
     const foreignKey = "id";
     const local = `FK_${foreign.name}${this.table.name}`;
 
-    this.table.dependancies.add(foreign);
+    this.table.deps.add(foreign);
 
     if(!options.column)
       this.column = decapitalize(foreign.name) + "Id";
@@ -55,7 +55,7 @@ class OneToManyRelation extends Field {
   proxy(query: Query){
     let { type } = this;
 
-    const fk = qualify(type.table.name, "id");
+    const fk = qualify(type.tableName, "id");
     const lk = qualify(this.table.name, this.column);
 
     const proxy = query.add(type, "left", [`${fk} = ${lk}`]);

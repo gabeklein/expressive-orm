@@ -1,8 +1,8 @@
+import Entity from '..';
 import Field from '../Field';
-import Table from '../Table';
 import { escapeString, qualify } from '../utility';
 
-export function drop(tables: Table[]){
+export function drop(tables: Entity.Type[]){
   const commands = [];
 
   for(const table of tables)
@@ -11,11 +11,11 @@ export function drop(tables: Table[]){
   return commands;
 }
 
-export function create(tables: Table[]){
+export function create(tables: Entity.Type[]){
   const commands = [];
 
   for(const table of tables){
-    const tableName = table.name;
+    const { tableName } = table;
     const statements = [] as string[];
 
     table.fields.forEach(field => {
@@ -33,7 +33,7 @@ export function create(tables: Table[]){
   return commands;
 }
 
-export function constraints(tables: Table[]){
+export function constraints(tables: Entity.Type[]){
   const commands = [] as string[];
 
   for(const table of tables){

@@ -1,7 +1,6 @@
 import Connection from '../connection/Connection';
 import Entity from '../Entity';
 import Field from '../Field';
-import Table from '../Table';
 import { escapeString, qualify } from '../utility';
 
 export const Metadata = new WeakMap<{}, Query.Table>();
@@ -63,7 +62,7 @@ abstract class Query {
 
   interface: Query.Where;
   connection?: Connection;
-  source?: Table;
+  main?: Entity.Type;
 
   constructor(){
     const assert = this.assert.bind(this);
@@ -116,8 +115,8 @@ abstract class Query {
   }
 
   commit(){
-    if(this.source)
-      this.source.focus = undefined;
+    if(this.main)
+      this.main.focus = undefined;
 
     this.pending.forEach(apply => apply());
   }
@@ -162,25 +161,30 @@ abstract class Query {
   add<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on?: Query.Compare<T>): Partial<Query.Values<T>>;
   add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>): Query.Values<T>;
   add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>){
-    const { table } = entity;
-    const tables = this.tables.length;
+    const { tables } = this;
   
-    let { name, schema } = table;
     let alias: string | undefined;
+    
+    entity.ensure();
+  
+    let {
+      tableName: name,
+      schemaName: schema
+    } = entity;
 
     if(schema){
       name = qualify(schema, name);
-      alias = `$${tables}`;
+      alias = `$${tables.length}`;
     }
 
     if(!this.tables.length){
-      this.source = entity.table;
-      this.connection = entity.table.connection;
+      this.main = entity;
+      this.connection = entity.connection;
     }
     else if(!join)
       join = "inner";
 
-    on = !this.tables.length ? undefined :
+    on = !tables.length ? undefined :
       Array.isArray(on) ? on :
       whereObject(name, entity, on)
 
@@ -188,9 +192,9 @@ abstract class Query {
     const metadata = { alias, entity, join, name, on };
 
     Metadata.set(proxy, metadata);
-    this.tables.push(metadata);
+    tables.push(metadata);
 
-    entity.table.fields.forEach((field, key) => {
+    entity.fields.forEach((field, key) => {
       field = Object.create(field);
 
       Metadata.set(field, metadata);
@@ -285,7 +289,7 @@ function whereObject<T extends Entity>(
   on?: Query.Compare<T>){
 
   const cond = [] as string[];
-  const { fields } = entity.table;
+  const { fields } = entity;
 
   for(const key in on){
     const field = fields.get(key);

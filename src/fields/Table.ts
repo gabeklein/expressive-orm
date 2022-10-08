@@ -1,4 +1,4 @@
-import TableDefinition from "../Table";
+import Entity from '..';
 
 namespace Table {
   export interface Options {
@@ -7,17 +7,22 @@ namespace Table {
   }
 }
 
-function Table(name: string, opts?: Table.Options): TableDefinition;
-function Table(opts: Table.Options): TableDefinition;
+function Table(name: string, opts?: Table.Options): Entity.Type;
+function Table(opts: Table.Options): Entity.Type;
 function Table(arg1: string | Table.Options, arg2?: Table.Options){
-  return TableDefinition.use((parent) => {
+  return Entity.field((parent) => {
     if(typeof arg1 == "string"){
       const [name, schema] = arg1.split(".").reverse();
 
       arg1 = { schema, ...arg2, name };
     }
 
-    Object.assign(parent, arg1);
+    const { name, schema, ...rest } = arg1;
+
+    Object.assign(parent, rest, {
+      tableName: name,
+      schemaName: schema
+    });
   })
 }
 
