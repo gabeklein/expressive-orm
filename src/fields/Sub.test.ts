@@ -36,7 +36,7 @@ SELECT
   \`Baz\`.\`value\` AS \`1\`
 FROM
   \`Foo\`
-  INNER JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-  INNER JOIN \`Baz\` ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
+  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
+  JOIN \`Baz\` ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
 `);
 })

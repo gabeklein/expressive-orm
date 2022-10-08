@@ -252,10 +252,11 @@ abstract class Query {
   
     for(const table of joins){
       const { name, alias, join, on } = table;
-  
-      const type = join ? join.toUpperCase() + " " : "";
-      let statement = type + `JOIN ${qualify(name)}`;
-  
+      let statement = `JOIN ${qualify(name)}`;
+
+      if(join && join !== "inner")
+        statement = join.toUpperCase() + " " + statement;
+
       if(alias)
         statement += ` AS ${qualify(alias)}`;
   

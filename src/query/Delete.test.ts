@@ -53,7 +53,7 @@ it("will include from keyword on join", () => {
 DELETE Foo
 FROM
   \`Foo\`
-  INNER JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
+  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
 WHERE
   \`Bar\`.\`value\` = 'Hello World!'
 `);
@@ -74,7 +74,7 @@ DELETE Foo,
 Bar
 FROM
   \`Foo\`
-  INNER JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
+  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
 WHERE
   \`Bar\`.\`value\` = 'Hello World!'
 `);

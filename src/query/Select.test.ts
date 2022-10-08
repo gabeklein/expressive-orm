@@ -129,7 +129,7 @@ SELECT
   \`Baz\`.\`rating\` AS \`bazRating\`
 FROM
   \`Foo\`
-  INNER JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
+  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
   LEFT JOIN \`Baz\` ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
 WHERE
   \`Foo\`.\`name\` <> 'Danny'
