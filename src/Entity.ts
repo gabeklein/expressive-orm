@@ -102,8 +102,7 @@ abstract class Entity {
   ){
     const proxy = {} as any;
 
-    if(!REGISTER.has(this))
-      this.ensure();
+    this.ensure();
 
     for(const [key, type] of this.fields)
       define(proxy, key, {
