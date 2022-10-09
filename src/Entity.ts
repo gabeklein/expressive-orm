@@ -40,8 +40,7 @@ declare namespace Entity {
 }
 
 abstract class Entity {
-  table!: Entity.Type;
-
+  this!: Entity.Type;
   id = Primary();
 
   static table: string;

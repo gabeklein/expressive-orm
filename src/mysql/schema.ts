@@ -7,7 +7,7 @@ import Table from '../fields/Table';
 import Text from '../fields/Text';
 
 export class Column extends Entity {
-  table = Table({
+  this = Table({
     name: "COLUMNS",
     schema: "information_schema"
   });
@@ -132,7 +132,7 @@ export class Column extends Entity {
 }
 
 export class Constraint extends Entity {
-  table = Table({
+  this = Table({
     name: "TABLE_CONSTRAINTS",
     schema: "information_schema"
   });
@@ -177,7 +177,7 @@ export class Constraint extends Entity {
 }
 
 export class KeyColumnUsage extends Entity {
-  table = Table({
+  this = Table({
     name: "KEY_COLUMN_USAGE",
     schema: "information_schema"
   })
@@ -230,7 +230,7 @@ export class KeyColumnUsage extends Entity {
 }
 
 export class ReferentialConstraints extends Entity {
-  table = Table({
+  this = Table({
     name: "REFERENTIAL_CONSTRAINTS",
     schema: "information_schema"
   })

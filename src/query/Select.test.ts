@@ -139,9 +139,9 @@ WHERE
 
 it("will alias tables with a schema", () => {
   class Foo extends Entity {
-    table = Table({
-      schema: "foobar",
-      name: "foo"
+    this = Table({
+      name: "foo",
+      schema: "foobar"
     })
 
     name = VarChar();
