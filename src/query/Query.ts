@@ -36,6 +36,7 @@ declare namespace Query {
     <T extends Entity>(entity: Entity.Type<T>, join: Join, on?: Compare<T>): Values<T>;
     <T extends Entity>(entity: Entity.Type<T>, on: Compare<T>): Values<T>;
     <T extends Entity>(entity: Values<T>): { has(values: Compare<T>): void };
+    <T>(field: T): Query.Assert<T>;
   }
 
   interface Where extends WhereFunction {
