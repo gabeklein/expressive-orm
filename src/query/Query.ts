@@ -32,10 +32,10 @@ declare namespace Query {
 
   interface WhereFunction extends AssertFunction {
     <T extends Entity>(entity: Entity.Type<T>): Values<T>;
-    <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer", on?: Query.Compare<T>): Partial<Query.Values<T>>;
-    <T extends Entity>(entity: Entity.Type<T>, join: Query.Join, on?: Query.Compare<T>): Query.Values<T>;
-    <T extends Entity>(entity: Entity.Type<T>, on: Query.Compare<T>): Query.Values<T>;
-    <T extends Entity>(entity: Query.Values<T>): { has(values: Query.Compare<T>): void };
+    <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer", on?: Compare<T>): Partial<Values<T>>;
+    <T extends Entity>(entity: Entity.Type<T>, join: Join, on?: Compare<T>): Values<T>;
+    <T extends Entity>(entity: Entity.Type<T>, on: Compare<T>): Values<T>;
+    <T extends Entity>(entity: Values<T>): { has(values: Compare<T>): void };
   }
 
   interface Where extends WhereFunction {
