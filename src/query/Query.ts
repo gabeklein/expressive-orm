@@ -67,20 +67,17 @@ abstract class Query {
   main?: Entity.Type;
 
   constructor(){
-    const assert = this.assert.bind(this);
-
-    this.interface = Object.assign(assert, {
+    this.interface = Object.assign(this.assert, {
       any: this.group.bind(this, "OR"),
       all: this.group.bind(this, "AND")
     })
   }
 
-  assert<T extends Entity>(entity: Entity.Type<T>, on?: Query.Compare<T>): Query.Values<T>;
-  assert<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on: Query.Compare<T>): Partial<Query.Values<T>>;
-  assert<T extends Entity>(entity: Entity.Type<T>, join: Query.Join, on: Query.Compare<T>): Query.Values<T>;
-  assert<T extends Entity>(entity: Query.Values<T>): { has(values: Query.Compare<T>): void };
-  assert<T>(field: T): Query.Assert<T>;
-  assert(a1: any, a2?: Query.Join | {}, a3?: {}){
+  assert = (
+    a1: any,
+    a2?: Query.Join | {},
+    a3?: {}
+  ): any => {
     const { where } = this;
 
     if(typeof a2 == "object"){
