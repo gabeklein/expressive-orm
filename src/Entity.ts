@@ -44,8 +44,8 @@ abstract class Entity {
 
   id = Primary();
 
-  static tableName: string;
-  static schemaName: string;
+  static table: string;
+  static schema: string;
   static fields: Map<string, Field>;
   static deps: Set<Entity.Type>;
   static connection?: Connection;
@@ -58,8 +58,8 @@ abstract class Entity {
     if(!REGISTER.has(this)){
       REGISTER.add(this);
 
-      this.tableName = /class (\w+?) /.exec(this.toString())![1];
-      this.schemaName = "";
+      this.table = /class (\w+?) /.exec(this.toString())![1];
+      this.schema = "";
       this.connection = connection;
       this.fields = new Map();
       this.deps = new Set();

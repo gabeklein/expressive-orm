@@ -39,7 +39,7 @@ class Update<T extends Entity> extends Query {
   }
 
   toString(){
-    const tableName = qualify(this.type.tableName);
+    const tableName = qualify(this.type.table);
     const values = [] as string[];
 
     Object.entries(this.values).forEach(entry => {

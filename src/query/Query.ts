@@ -168,8 +168,8 @@ abstract class Query {
     entity.ensure();
   
     let {
-      tableName: name,
-      schemaName: schema
+      table: name,
+      schema
     } = entity;
 
     if(schema){

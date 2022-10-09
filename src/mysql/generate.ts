@@ -15,7 +15,7 @@ export function create(tables: Entity.Type[]){
   const commands = [];
 
   for(const table of tables){
-    const { tableName } = table;
+    const { table: tableName } = table;
     const statements = [] as string[];
 
     table.fields.forEach(field => {

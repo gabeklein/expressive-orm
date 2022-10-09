@@ -17,12 +17,9 @@ function Table(arg1: string | Table.Options, arg2?: Table.Options){
       arg1 = { schema, ...arg2, name };
     }
 
-    const { name, schema, ...rest } = arg1;
+    const { name: table, ...rest } = arg1;
 
-    Object.assign(parent, rest, {
-      tableName: name,
-      schemaName: schema
-    });
+    Object.assign(parent, rest, { table });
   })
 }
 
