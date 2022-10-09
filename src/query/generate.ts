@@ -1,0 +1,97 @@
+import Entity from "..";
+import Field from "../Field";
+import { escapeString, qualify } from "../utility";
+import Query, { Metadata } from "./Query";
+
+export function generateWhere(query: Query){
+  if(!query.wheres.length)
+    return "";
+  
+  const where = query.wheres.join(" AND ");
+
+  return "WHERE " + where;
+}
+
+export function generateTables(query: Query){
+  const [ from, ...joins ] = query.tables;
+  const lines = [] as string[];
+
+  let fromStatement = `FROM ${qualify(from.name)}`;
+
+  if(from.alias)
+    fromStatement += ` AS ${qualify(from.alias)}`;
+
+  lines.push(fromStatement);
+
+  for(const table of joins){
+    const { name, alias, join, on } = table;
+    let statement = `JOIN ${qualify(name)}`;
+
+    if(join && join !== "inner")
+      statement = join.toUpperCase() + " " + statement;
+
+    if(alias)
+      statement += ` AS ${qualify(alias)}`;
+
+    if(on) 
+      statement += ` ON ` + on.join(" AND ");
+
+    lines.push(statement);
+  }
+
+  return lines.join(" ");
+}
+
+export function serialize(value: any){
+  switch(typeof value){
+    case "undefined":
+      return "default";
+
+    case "object":
+      if(value === null)
+        return "NULL";
+      else
+        value = String(value);
+
+    case "string":
+      return `"` + value.replace(`"`, `\\"`) + `"`;
+
+    case "number":
+      return String(value);
+
+    default:
+      return "???";
+  }
+}
+
+export function whereObject<T extends Entity>(
+  table: string,
+  entity: Entity.Type<T>,
+  on?: Query.Compare<T>){
+
+  const cond = [] as string[];
+  const { fields } = entity;
+
+  for(const key in on){
+    const field = fields.get(key);
+    const value = (on as any)[key];
+
+    if(!field)
+      throw new Error(`${key} is not a valid field in ${entity}`);
+
+    const left = qualify(table) + "." + qualify(field.column);
+    let right: string;
+
+    if(value instanceof Field){
+      const table = Metadata.get(value)!;
+
+      right = qualify(table.name) + "." + qualify(value.column);
+    }
+    else
+      right = typeof value == "string" ? escapeString(value) : value;
+
+    cond.push(`${left} = ${right}`);
+  }
+  
+  return cond;
+}

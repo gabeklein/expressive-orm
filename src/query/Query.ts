@@ -2,6 +2,7 @@ import Connection from '../connection/Connection';
 import Entity from '../Entity';
 import Field from '../Field';
 import { escapeString, qualify } from '../utility';
+import { whereObject } from './generate';
 
 export const Metadata = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
@@ -162,18 +163,11 @@ abstract class Query {
   add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>): Query.Values<T>;
   add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>){
     const { tables } = this;
-  
+    let { schema, table } = entity.ensure();
     let alias: string | undefined;
-    
-    entity.ensure();
-  
-    let {
-      table: name,
-      schema
-    } = entity;
 
     if(schema){
-      name = qualify(schema, name);
+      table = qualify(schema, table);
       alias = `$${tables.length}`;
     }
 
@@ -186,10 +180,10 @@ abstract class Query {
 
     on = !tables.length ? undefined :
       Array.isArray(on) ? on :
-      whereObject(name, entity, on)
+      whereObject(table, entity, on)
 
     const proxy = {} as any;
-    const metadata = { alias, entity, join, name, on };
+    const metadata = { alias, entity, join, name: table, on };
 
     Metadata.set(proxy, metadata);
     tables.push(metadata);
@@ -241,100 +235,7 @@ abstract class Query {
       throw new Error("Query has no connection, have you setup entities?");
 
     return this.connection.query(sql);
-  }
-
-  generateTables(){
-    const [ from, ...joins ] = this.tables;
-    const lines = [] as string[];
-  
-    let fromStatement = `FROM ${qualify(from.name)}`;
-  
-    if(from.alias)
-      fromStatement += ` AS ${qualify(from.alias)}`;
-  
-    lines.push(fromStatement);
-  
-    for(const table of joins){
-      const { name, alias, join, on } = table;
-      let statement = `JOIN ${qualify(name)}`;
-
-      if(join && join !== "inner")
-        statement = join.toUpperCase() + " " + statement;
-
-      if(alias)
-        statement += ` AS ${qualify(alias)}`;
-  
-      if(on) 
-        statement += ` ON ` + on.join(" AND ");
-  
-      lines.push(statement);
-    }
-  
-    return lines.join(" ");
-  }
-
-  generateWhere(){
-    if(!this.wheres.length)
-      return "";
-    
-    const where = this.wheres.join(" AND ");
-  
-    return "WHERE " + where;
-  }
-}
-
-function whereObject<T extends Entity>(
-  table: string,
-  entity: Entity.Type<T>,
-  on?: Query.Compare<T>){
-
-  const cond = [] as string[];
-  const { fields } = entity;
-
-  for(const key in on){
-    const field = fields.get(key);
-    const value = (on as any)[key];
-
-    if(!field)
-      throw new Error(`${key} is not a valid field in ${entity}`);
-
-    const left = qualify(table) + "." + qualify(field.column);
-    let right: string;
-
-    if(value instanceof Field){
-      const table = Metadata.get(value)!;
-
-      right = qualify(table.name) + "." + qualify(value.column);
-    }
-    else
-      right = typeof value == "string" ? escapeString(value) : value;
-
-    cond.push(`${left} = ${right}`);
-  }
-  
-  return cond;
-}
-
-export function serialize(value: any){
-  switch(typeof value){
-    case "undefined":
-      return "default";
-
-    case "object":
-      if(value === null)
-        return "NULL";
-      else
-        value = String(value);
-
-    case "string":
-      return `"` + value.replace(`"`, `\\"`) + `"`;
-
-    case "number":
-      return String(value);
-
-    default:
-      return "???";
-  }
+  } 
 }
 
 export default Query;

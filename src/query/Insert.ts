@@ -1,6 +1,7 @@
-import Entity from "..";
-import { qualify } from "../utility";
-import Query, { serialize } from "./Query";
+import Entity from '../Entity';
+import { qualify } from '../utility';
+import { serialize } from './generate';
+import Query from './Query';
 
 declare namespace Insert {
   type Expect<T extends Entity> = { [K in Entity.Field<T>]?: T[K] };

@@ -1,7 +1,8 @@
-import Entity from "..";
-import Field from "../Field";
-import { qualify } from "../utility";
-import Query, { serialize } from "./Query";
+import Entity from '../Entity';
+import Field from '../Field';
+import { qualify } from '../utility';
+import { generateTables, generateWhere, serialize } from './generate';
+import Query from './Query';
 
 declare namespace Update {
   type Expect<T extends Entity> = { [K in Entity.Field<T>]?: T[K] };
@@ -42,18 +43,16 @@ class Update<T extends Entity> extends Query {
     const tableName = qualify(this.type.table);
     const values = [] as string[];
 
-    Object.entries(this.values).forEach(entry => {
-      const [column, value] = entry;
-
+    Object.entries(this.values).forEach(([column, value]) => {
       values.push(`${qualify(column)} = ${serialize(value)}`);
     })
 
     let sql = `UPDATE ${tableName} SET ${values.join(", ")}`;
 
     if(this.tables.length > 1 || this.tables[0].alias)
-      sql += " " + this.generateTables();
+      sql += " " + generateTables(this);
 
-    sql += " " + this.generateWhere();
+    sql += " " + generateWhere(this);
 
     return sql;
   }

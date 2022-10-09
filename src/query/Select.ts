@@ -1,5 +1,6 @@
 import Field from '../Field';
 import { qualify } from '../utility';
+import { generateTables, generateWhere } from './generate';
 import Query from './Query';
 
 declare namespace Select {
@@ -123,8 +124,8 @@ class Select<R> extends Query {
   toString(): string {
     return [
       this.generateSelect(),
-      this.generateTables(),
-      this.generateWhere()
+      generateTables(this),
+      generateWhere(this)
     ].join(" ");
   }
 
