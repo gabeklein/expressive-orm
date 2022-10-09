@@ -3,11 +3,11 @@ import Query, { Metadata } from './query/Query';
 import Select from './query/Select';
 import { qualify } from './utility';
 
-namespace Field {
-  export type Type<T extends Field = Field> =
+declare namespace Field {
+  type Type<T extends Field = Field> =
     typeof Field & (new (...args: any[]) => T);
 
-  export type Callback<T extends Field> = (field: T, key: string) => void;
+  type Callback<T extends Field> = (field: T, key: string) => void;
 }
 
 class Field {
