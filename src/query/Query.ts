@@ -159,12 +159,17 @@ abstract class Query {
       alias = `$${tables.length}`;
     }
 
-    if(!this.tables.length){
+    if(this.tables.length){
+      if(this.connection !== entity.connection)
+        throw new Error(`Joined entity ${entity} does not share an SQL connection with ${this.main}`);
+    
+      if(!join)
+        join = "inner";
+    }
+    else {
       this.main = entity;
       this.connection = entity.connection;
     }
-    else if(!join)
-      join = "inner";
 
     on = !tables.length ? undefined :
       Array.isArray(on) ? on :
