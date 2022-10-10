@@ -125,15 +125,6 @@ class Select<R> extends Query {
     return select;
   }
 
-  async exec(){
-    const sql = this.toString();
-
-    if(!this.connection)
-      throw new Error("Query has no connection, have you setup entities?");
-
-    return this.connection.query(sql);
-  }
-
   async get(limit?: number): Promise<R[]> {
     if(typeof limit == "number")
       if(this.limit! < limit)
