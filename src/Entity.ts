@@ -63,19 +63,18 @@ abstract class Entity {
       this.fields = new Map();
       this.deps = new Set();
       
-      const sample = new (this as any)();
+      const prime = new (this as any)();
       
-      for(const key in sample){
-        const { value } = describe(sample, key)!;
-  
+      for(const key in prime){
+        const { value } = describe(prime, key)!;
         const instruction = INSTRUCTION.get(value);    
   
-        if(instruction){
-          INSTRUCTION.delete(value);
-          instruction(this, key);
-        }
+        if(!instruction)
+          continue;
   
-        define(sample, key, {
+        INSTRUCTION.delete(value);
+        instruction(this, key);
+        define(prime, key, {
           get: () => this.focus![key],
           set: is => this.focus![key] = is
         })
