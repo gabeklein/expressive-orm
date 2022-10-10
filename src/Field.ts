@@ -39,23 +39,20 @@ class Field {
     this.column = property;
   }
 
-  compare(
-    query: Query,
-    operator: string){
+  get qualifiedName(){
+    const { alias, name } = Metadata.get(this)!;
+    return qualify(alias || name, this.column);
+  }
 
+  compare(query: Query, op: string){
     return (value: any) => {
-      query.where(operator, this, value);
+      query.assert(op, this, value);
     }
   }
 
   init(options?: Partial<this>){
     this.table.fields.set(this.property, this);
     Object.assign(this, options);
-  }
-
-  get qualifiedName(){
-    const { alias, name } = Metadata.get(this)!;
-    return qualify(alias || name, this.column);
   }
 
   proxy(query: Query | Select<any>, proxy: {}){
