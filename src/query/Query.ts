@@ -28,18 +28,14 @@ declare namespace Query {
     [K in Entity.Field<T>]?: T[K];
   }
 
-  type AssertFunction = <T>(field: T) => Assert<T>;
-
-  interface WhereFunction extends AssertFunction {
+  interface Where {
     <T extends Entity>(entity: Entity.Type<T>): Values<T>;
     <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer", on?: Compare<T>): Partial<Values<T>>;
     <T extends Entity>(entity: Entity.Type<T>, join: Join, on?: Compare<T>): Values<T>;
     <T extends Entity>(entity: Entity.Type<T>, on: Compare<T>): Values<T>;
     <T extends Entity>(entity: Values<T>): { has(values: Compare<T>): void };
     <T>(field: T): Query.Assert<T>;
-  }
 
-  interface Where extends WhereFunction {
     any(...where: Instruction[]): Instruction;
     all(...where: Instruction[]): Instruction;
   }
