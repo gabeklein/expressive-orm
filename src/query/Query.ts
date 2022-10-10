@@ -196,7 +196,6 @@ abstract class Query {
   assert(op: string, left: Field, right: string | number){
     const apply: Instruction = (arg) => {
       const column = left.qualifiedName;
-      let entry: string;
 
       if(left.set)
         right = left.set(right);
@@ -204,7 +203,7 @@ abstract class Query {
       if(typeof right == "string")
         right = escapeString(right);
 
-      entry = `${column} ${op} ${right}`;
+      let entry = `${column} ${op} ${right}`;
 
       if(typeof arg === "function")
         entry = arg(entry);
