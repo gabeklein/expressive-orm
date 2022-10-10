@@ -72,7 +72,7 @@ abstract class Query {
         a3 = a2, a2 = "inner";
   
       return typeof a1 == "function"
-        ? this.add(a1, a2 as any, a3)
+        ? this.table(a1, a2 as any, a3)
         : this.compare(a1);
     }
 
@@ -147,9 +147,9 @@ abstract class Query {
     return apply
   }
 
-  add<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on?: Query.Compare<T>): Partial<Query.Values<T>>;
-  add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>): Query.Values<T>;
-  add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>){
+  table<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on?: Query.Compare<T>): Partial<Query.Values<T>>;
+  table<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>): Query.Values<T>;
+  table<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>){
     const { tables } = this;
     let { schema, table } = entity.ensure();
     let alias: string | undefined;
