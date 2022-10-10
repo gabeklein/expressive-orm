@@ -1,5 +1,5 @@
 import { generateTables, generateWhere } from './generate';
-import Query from './Query';
+import Query, { Metadata } from './Query';
 
 declare namespace Delete {
   type Function = (where: Query.Where) =>
@@ -15,11 +15,12 @@ class Delete extends Query {
     super();
 
     const select = from(this.interface);
+    const resolve = (x: any) => Metadata.get(x)!;
 
     if(select)
       this.remove = Array.isArray(select)
-        ? select.map(x => this.table(x))
-        : [ this.table(select) ]
+        ? select.map(resolve)
+        : [ resolve(select) ]
     else {
       const from = this.tables[0];
 

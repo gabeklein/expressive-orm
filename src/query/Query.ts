@@ -144,15 +144,6 @@ abstract class Query {
     return apply
   }
 
-  table(from: any){
-    const table = Metadata.get(from);
-
-    if(table)
-      return table;
-    else
-      throw new Error("Value has no associated table.")
-  }
-
   add<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on?: Query.Compare<T>): Partial<Query.Values<T>>;
   add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>): Query.Values<T>;
   add<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>){
@@ -196,8 +187,7 @@ abstract class Query {
 
   assert(op: string, left: Field, right: string | number){
     const apply: Instruction = (arg) => {
-      const table = this.table(left);
-      const column = qualify(table.alias || table.name, left.column);
+      const column = left.qualifiedName;
       let entry: string;
 
       if(left.set)
