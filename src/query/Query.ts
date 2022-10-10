@@ -63,18 +63,18 @@ abstract class Query {
   main?: Entity.Type;
 
   constructor(){
-    this.interface = Object.assign(this.assert, {
+    this.interface = Object.assign(this.where, {
       any: this.group.bind(this, "OR"),
       all: this.group.bind(this, "AND")
     })
   }
 
-  assert = (
+  where = (
     a1: any,
     a2?: Query.Join | {},
     a3?: {}
   ): any => {
-    const { where } = this;
+    const { assert: where } = this;
 
     if(typeof a2 == "object"){
       a3 = a2;
@@ -194,7 +194,7 @@ abstract class Query {
     return proxy;
   }
 
-  where(op: string, left: Field, right: string | number){
+  assert(op: string, left: Field, right: string | number){
     const apply: Instruction = (arg) => {
       const table = this.table(left);
       const column = qualify(table.alias || table.name, left.column);
