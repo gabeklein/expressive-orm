@@ -101,32 +101,28 @@ class Select<R> extends Query {
     return results;
   }
 
-  generateSelect(){
-    const { selects } = this;
-
-    if(!selects.size)
-      return;
-  
-    const selection = [] as string[];
-  
-    selects.forEach((alias, field) => {
-      let select = field.qualifiedName;
-  
-      if(alias)
-        select += " AS " + qualify(alias);
-  
-      selection.push(select);
-    })
-  
-    return "SELECT" + selection.join(",");
-  }
-
   toString(): string {
-    return [
-      this.generateSelect(),
-      generateTables(this),
-      generateWhere(this)
-    ].join(" ");
+    let select = "";
+
+    if(this.selects.size){
+      const selection = [] as string[];
+    
+      this.selects.forEach((alias, field) => {
+        let select = field.qualifiedName;
+    
+        if(alias)
+          select += " AS " + qualify(alias);
+    
+        selection.push(select);
+      })
+
+      select += "SELECT" + selection.join(",");
+    }
+
+    select += " " + generateTables(this);
+    select += " " + generateWhere(this);
+
+    return select;
   }
 
   async exec(){
