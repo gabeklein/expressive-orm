@@ -1,9 +1,7 @@
 import Field from '../Field';
 
 declare namespace Bool {
-  interface Options {
-    column?: string;
-    nullable?: boolean;
+  interface Options extends Field.Options {
     either?: readonly [string, string];
   }
 

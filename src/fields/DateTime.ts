@@ -1,20 +1,18 @@
 import Field from '../Field';
 
 declare namespace DateTime {
-  interface Options<T> {
-    column?: string;
+  interface Options extends Field.Options {
     default?: "NOW" | Date;
-    nullable?: boolean;
   }
 
-  interface Optional<T> extends Options<T> {
+  interface Optional extends Options {
     nullable?: true;
   }
 }
 
-function DateTime<T>(options: DateTime.Optional<T>): Date | null | undefined;
-function DateTime<T>(options?: DateTime.Options<T>): Date;
-function DateTime<T>(options?: DateTime.Options<T>){
+function DateTime<T>(options: DateTime.Optional): Date | null | undefined;
+function DateTime(options?: DateTime.Options): Date;
+function DateTime(options?: DateTime.Options){
   return DateTimeColumn.create({
     ...options, datatype: 'DATETIME'
   });

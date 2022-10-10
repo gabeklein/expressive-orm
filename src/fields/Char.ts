@@ -1,13 +1,9 @@
 import Field from '../Field';
 
 declare namespace Char {
-  interface Options {
-    column?: string;
-    default?: string;
+  interface Options extends Field.Options {
     length?: number;
-    nullable?: boolean;
     oneOf?: any[];
-    unique?: boolean;
     variable?: boolean;
   }
 

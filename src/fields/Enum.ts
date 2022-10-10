@@ -1,9 +1,7 @@
 import Field from '../Field';
 
 declare namespace Enum {
-  interface Options<T extends string> {
-    column?: string;
-    nullable?: boolean;
+  interface Options<T extends string> extends Field.Options {
     values: T[];
   }
 

@@ -6,10 +6,8 @@ import Query from '../query/Query';
 import { decapitalize, qualify, sql } from '../utility';
 
 declare namespace One {
-  interface Options<T extends Entity> {
+  interface Options<T extends Entity> extends Field.Options {
     type?: Entity.Type<T>;
-    column?: string;
-    nullable?: boolean;
   }
 
   interface Optional<T extends Entity> extends Options<T> {

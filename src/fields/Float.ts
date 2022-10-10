@@ -1,11 +1,7 @@
 import Field from '../Field';
 
 declare namespace Float {
-  interface Options {
-    column?: string;
-    unique?: boolean;
-    default?: number;
-    nullable?: boolean;
+  interface Options extends Field.Options {
     double?: boolean;
   }
 

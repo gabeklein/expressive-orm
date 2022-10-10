@@ -1,10 +1,7 @@
 import Field from '../Field';
 
 declare namespace Json {
-  interface Options<T> {
-    column?: string;
-    nullable?: boolean;
-  }
+  interface Options<T> extends Field.Options {}
 
   interface Optional<T> extends Options<T> {
     nullable?: true;

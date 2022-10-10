@@ -1,9 +1,7 @@
 import Field from '../Field';
 
 declare namespace Flags {
-  interface Options<T> {
-    column?: string;
-    nullable?: boolean;
+  interface Options<T> extends Field.Options {
     values: T[];
   }
 

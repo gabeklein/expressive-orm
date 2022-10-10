@@ -4,6 +4,13 @@ import Select from './query/Select';
 import { qualify } from './utility';
 
 declare namespace Field {
+  interface Options {
+    column?: string;
+    default?: any;
+    nullable?: boolean;
+    unique?: boolean;
+  }
+
   type Type<T extends Field = Field> =
     typeof Field & (new (...args: any[]) => T);
 

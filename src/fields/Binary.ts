@@ -1,11 +1,7 @@
 import Field from '../Field';
 
 declare namespace Binary {
-  interface Options {
-    column?: string;
-    unique?: boolean;
-    default?: string;
-    nullable?: boolean;
+  interface Options extends Field.Options {
     length?: number;
     variable?: boolean;
   }

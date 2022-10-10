@@ -1,12 +1,8 @@
 import Field from '../Field';
 
 declare namespace Int {
-  interface Options {
+  interface Options extends Field.Options {
     size?: "tiny" | "small" | "big";
-    column?: string;
-    unique?: boolean;
-    default?: number;
-    nullable?: boolean;
   }
 
   interface Optional extends Options {

@@ -1,12 +1,8 @@
 import Field from '../Field';
 
 declare namespace Text {
-  interface Options {
-    size?: "tiny" | "medium" | "long"
-    column?: string;
-    unique?: boolean;
-    default?: string;
-    nullable?: boolean;
+  interface Options extends Field.Options {
+    size?: "tiny" | "medium" | "long";
   }
 
   interface Optional extends Options {

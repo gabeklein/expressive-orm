@@ -2,10 +2,8 @@ import Entity from '../Entity';
 import Field from '../Field';
 
 declare namespace Ref {
-  interface Options<T extends Entity> {
+  interface Options<T extends Entity> extends Field.Options {
     type?: Entity.Type<T>;
-    column?: string;
-    nullable?: boolean;
   }
 
   interface Optional<T extends Entity> extends Options<T> {
