@@ -34,7 +34,7 @@ declare namespace Entity {
   type Field<T extends Entity> = Exclude<keyof T, "table">;
 
   type Where<T extends Entity, R> =
-    (source: Query.Values<T>, query: Query.Where) => () => R;
+    (source: Query.Type<T>, query: Query.Where) => () => R;
 
   type Instruction = (parent: Entity.Type, key: string) => void;
 }

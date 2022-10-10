@@ -18,7 +18,7 @@ declare namespace Query {
     on?: string[];
   }
 
-  type Values<T extends Entity> = {
+  type Type<T extends Entity> = {
     [K in Entity.Field<T>]: Exclude<T[K], null>;
   } & {
     [ENTITY]?: T
@@ -29,11 +29,11 @@ declare namespace Query {
   }
 
   interface Where {
-    <T extends Entity>(entity: Entity.Type<T>): Values<T>;
-    <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer", on?: Compare<T>): Partial<Values<T>>;
-    <T extends Entity>(entity: Entity.Type<T>, join: Join, on?: Compare<T>): Values<T>;
-    <T extends Entity>(entity: Entity.Type<T>, on: Compare<T>): Values<T>;
-    <T extends Entity>(entity: Values<T>): { has(values: Compare<T>): void };
+    <T extends Entity>(entity: Entity.Type<T>): Type<T>;
+    <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer", on?: Compare<T>): Partial<Type<T>>;
+    <T extends Entity>(entity: Entity.Type<T>, join: Join, on?: Compare<T>): Type<T>;
+    <T extends Entity>(entity: Entity.Type<T>, on: Compare<T>): Type<T>;
+    <T extends Entity>(entity: Type<T>): { has(values: Compare<T>): void };
     <T>(field: T): Query.Assert<T>;
 
     any(...where: Instruction[]): Instruction;
@@ -147,8 +147,8 @@ abstract class Query {
     return apply
   }
 
-  table<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on?: Query.Compare<T>): Partial<Query.Values<T>>;
-  table<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>): Query.Values<T>;
+  table<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on?: Query.Compare<T>): Partial<Query.Type<T>>;
+  table<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>): Query.Type<T>;
   table<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>){
     const { tables } = this;
     let { schema, table } = entity.ensure();

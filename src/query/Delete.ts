@@ -3,8 +3,8 @@ import Query, { Metadata } from './Query';
 
 declare namespace Delete {
   type Function = (where: Query.Where) =>
-    | Partial<Query.Values<any>>
-    | Partial<Query.Values<any>>[]
+    | Partial<Query.Type<any>>
+    | Partial<Query.Type<any>>[]
     | void;
 }
 
