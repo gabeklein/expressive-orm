@@ -63,44 +63,47 @@ abstract class Query {
   main?: Entity.Type;
 
   constructor(){
-    this.interface = Object.assign(this.where, {
+    const where = (
+      a1: any,
+      a2?: Query.Join | {},
+      a3?: {}): any => {
+
+      if(typeof a2 == "object")
+        a3 = a2, a2 = "inner";
+  
+      return typeof a1 == "function"
+        ? this.add(a1, a2 as any, a3)
+        : this.compare(a1);
+    }
+
+    this.interface = Object.assign(where, {
       any: this.group.bind(this, "OR"),
       all: this.group.bind(this, "AND")
     })
   }
 
-  where = (
-    a1: any,
-    a2?: Query.Join | {},
-    a3?: {}
-  ): any => {
-    const { assert: where } = this;
+  compare(a1: Field | any){
+    if(a1 instanceof Field){
+      const { assert } = this;
 
-    if(typeof a2 == "object"){
-      a3 = a2;
-      a2 = "inner";
-    }
-
-    if(typeof a1 == "function")
-      return this.add(a1, a2 as any, a3);
-
-    if(a1 instanceof Field)
       return {
-        is: where.bind(this, "=", a1),
-        not: where.bind(this, "<>", a1),
-        greater: where.bind(this, ">", a1),
-        less: where.bind(this, "<", a1)
+        is: assert.bind(this, "=", a1),
+        not: assert.bind(this, "<>", a1),
+        greater: assert.bind(this, ">", a1),
+        less: assert.bind(this, "<", a1)
       } as Query.Assert<any>;
+    }
 
     const info = Metadata.get(a1);
 
-    if(info){
-      return {
-        has: (values: {}) => {
-          this.wheres.push(
-            ...whereObject(info.name, info.entity, values)
-          )
-        }
+    if(!info)
+      throw new Error(`Cannot create assertions for ${a1}. Must be a field or full entity.`);
+
+    return {
+      has: (values: {}) => {
+        this.wheres.push(
+          ...whereObject(info.name, info.entity, values)
+        )
       }
     }
   }
