@@ -59,7 +59,6 @@ class Select<R> extends Query {
       }
     }
 
-    this.state = undefined;
     throw new Error("Bad argument");
   }
 
