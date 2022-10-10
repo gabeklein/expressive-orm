@@ -19,13 +19,12 @@ class Select<R> extends Query {
   constructor(from: Select.Function<R>){
     super();
 
-    this.map = this.build(from);
+    const select = from(this.interface);
+    this.map = this.build(select);
     this.commit();
   }
 
-  private build(from: Select.Function<R>){
-    const select = from(this.interface);
-
+  private build(select: R | (() => R)){
     if(typeof select == "function"){
       this.state = "select";
       (select as () => R)();
