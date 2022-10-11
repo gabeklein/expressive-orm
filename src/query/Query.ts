@@ -159,7 +159,7 @@ abstract class Query {
       alias = `$${tables.length}`;
     }
 
-    if(this.tables.length){
+    if(tables.length){
       if(this.connection !== entity.connection)
         throw new Error(`Joined entity ${entity} does not share an SQL connection with ${this.main}`);
     

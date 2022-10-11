@@ -25,6 +25,8 @@ class Select<R> extends Query {
   }
 
   private build(select: R | (() => R)){
+    const { selects } = this;
+
     if(typeof select == "function"){
       this.state = "select";
       (select as () => R)();
@@ -32,8 +34,8 @@ class Select<R> extends Query {
       return select as () => R;
     }
     else if(select instanceof Field){
-      const column = this.selects.size + 1;
-      this.selects.set(select, column);
+      const column = selects.size + 1;
+      selects.set(select, column);
 
       return () => this.focus[column] as R;
     }
@@ -44,14 +46,14 @@ class Select<R> extends Query {
         const { value } = desc[key];
     
         if(value instanceof Field)
-          this.selects.set(value, key);
+          selects.set(value, key);
       }
   
       return () => {
         const output = Object.create(select as {});
         const raw = this.focus;
     
-        this.selects.forEach(column => {
+        selects.forEach(column => {
           output[column] = raw[column];
         })
         
