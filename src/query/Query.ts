@@ -108,8 +108,8 @@ abstract class Query {
     }
   }
 
-  access(field: Field){
-    return () => field;
+  access(field: Field): any {
+    return field;
   }
 
   commit(){

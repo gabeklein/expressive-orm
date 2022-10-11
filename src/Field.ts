@@ -55,8 +55,8 @@ class Field {
     Object.assign(this, options);
   }
 
-  proxy(query: Query | Select<any>, proxy: {}){
-    return query.access(this);
+  proxy(query: Query | Select<any>, _proxy: {}){
+    return () => query.access(this);
   }
 
   static create<T extends Field>(

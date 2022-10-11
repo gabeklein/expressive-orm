@@ -13,7 +13,6 @@ class Select<R> extends Query {
   limit?: number;
   
   private map: () => R;
-  private state?: Select.State;
   private focus!: { [alias: string]: any };
 
   constructor(from: Select.Function<R>){
@@ -27,19 +26,28 @@ class Select<R> extends Query {
   private build(select: R | (() => R)){
     const { selects } = this;
 
+    if(select instanceof Field){
+      selects.set(select, 1);
+
+      return () => this.focus[1] as R;
+    }
     if(typeof select == "function"){
-      this.state = "select";
+      this.access = field => {
+        selects.set(field, selects.size + 1);
+        return field.placeholder;
+      };
+
       (select as () => R)();
+
+      this.access = field => {
+        const column = selects.get(field)!;
+        const value = this.focus[column];
+        return value === null ? undefined : value;
+      }
 
       return select as () => R;
     }
-    else if(select instanceof Field){
-      const column = selects.size + 1;
-      selects.set(select, column);
-
-      return () => this.focus[column] as R;
-    }
-    else if(typeof select == "object" && select) {
+    if(typeof select == "object" && select) {
       const desc = Object.getOwnPropertyDescriptors(select);
       
       for(const key in desc){
@@ -64,32 +72,7 @@ class Select<R> extends Query {
     throw new Error("Bad argument");
   }
 
-  access(field: Field){
-    let column!: number;
-
-    return (): any => {
-      if(this.state == "select"){
-        column = this.select(field);
-        return field.placeholder;
-      }
-
-      if(this.state == "fetch"){
-        const value = this.focus[column];
-        return value === null ? undefined : value;
-      }
-
-      return field;
-    }
-  }
-
-  select(field: Field){
-    const column = this.selects.size + 1;
-    this.selects.set(field, column);
-    return column;
-  }
-
   hydrate(raw: any[]){
-    this.state = "fetch";
     const results = [] as R[];
     
     if(this.map)
@@ -102,27 +85,28 @@ class Select<R> extends Query {
   }
 
   toString(): string {
-    let select = "";
+    const { selects } = this;
+    let query = "";
 
-    if(this.selects.size){
-      const selection = [] as string[];
+    if(selects.size){
+      const keys = [] as string[];
     
-      this.selects.forEach((alias, field) => {
+      selects.forEach((alias, field) => {
         let select = field.qualifiedName;
     
         if(alias)
           select += " AS " + qualify(alias);
     
-        selection.push(select);
+        keys.push(select);
       })
 
-      select += "SELECT" + selection.join(",");
+      query += "SELECT" + keys.join(",");
     }
 
-    select += " " + generateTables(this);
-    select += " " + generateWhere(this);
+    query += " " + generateTables(this);
+    query += " " + generateWhere(this);
 
-    return select;
+    return query;
   }
 
   async get(limit?: number): Promise<R[]> {
