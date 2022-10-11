@@ -3,6 +3,26 @@ import Field from "../Field";
 import { escapeString, qualify } from "../utility";
 import Query, { Metadata } from "./Query";
 
+export function generateSelect(
+  selects: Map<Field, number | string>
+){
+  if(!selects.size)
+    throw new Error("Nothing is selected by this query.");
+
+  const keys = [] as string[];
+  
+  selects.forEach((alias, field) => {
+    let select = field.qualifiedName;
+
+    if(alias)
+      select += " AS " + qualify(alias);
+
+    keys.push(select);
+  })
+
+  return "SELECT" + keys.join(",");
+}
+
 export function generateWhere(query: Query){
   if(!query.wheres.length)
     return "";

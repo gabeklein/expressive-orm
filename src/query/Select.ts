@@ -1,6 +1,5 @@
 import Field from '../Field';
-import { qualify } from '../utility';
-import { generateTables, generateWhere } from './generate';
+import { generateSelect, generateTables, generateWhere } from './generate';
 import Query from './Query';
 
 declare namespace Select {
@@ -83,28 +82,11 @@ class Select<R> extends Query {
   }
 
   toString(): string {
-    const { selects } = this;
-    let query = "";
-
-    if(selects.size){
-      const keys = [] as string[];
-    
-      selects.forEach((alias, field) => {
-        let select = field.qualifiedName;
-    
-        if(alias)
-          select += " AS " + qualify(alias);
-    
-        keys.push(select);
-      })
-
-      query += "SELECT" + keys.join(",");
-    }
-
-    query += " " + generateTables(this);
-    query += " " + generateWhere(this);
-
-    return query;
+    return [
+      generateSelect(this.selects),
+      generateTables(this),
+      generateWhere(this)
+    ].join(" ");
   }
 
   async get(limit?: number): Promise<R[]> {
