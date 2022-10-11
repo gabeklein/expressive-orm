@@ -12,26 +12,28 @@ class Select<R> extends Query {
   selects = new Map<Field, number | string>();
   limit?: number;
   
-  private map: () => R;
-  private focus!: { [alias: string]: any };
+  private hydrate: (raw: any[]) => R[];
 
   constructor(from: Select.Function<R>){
     super();
 
     const select = from(this.interface);
-    this.map = this.build(select);
+    this.hydrate = this.build(select);
     this.commit();
   }
 
-  private build(select: R | (() => R)){
+  private build(select: R | (() => R)): (raw: any[]) => R[] {
     const { selects } = this;
 
     if(select instanceof Field){
       selects.set(select, 1);
 
-      return () => this.focus[1] as R;
+      return raw => raw.map(row => row[1]);
     }
+
     if(typeof select == "function"){
+      let focus: any;
+
       this.access = field => {
         selects.set(field, selects.size + 1);
         return field.placeholder;
@@ -40,14 +42,23 @@ class Select<R> extends Query {
       (select as () => R)();
 
       this.access = field => {
-        const column = selects.get(field)!;
-        const value = this.focus[column];
+        const value = focus[selects.get(field)!];
         return value === null ? undefined : value;
       }
 
-      return select as () => R;
+      return raw => {
+        const results = [] as R[];
+
+        for(const row of raw){
+          focus = row;
+          results.push((select as () => R)());
+        }
+
+        return results;
+      }
     }
-    if(typeof select == "object" && select) {
+
+    if(select && typeof select == "object"){
       const desc = Object.getOwnPropertyDescriptors(select);
       
       for(const key in desc){
@@ -57,31 +68,18 @@ class Select<R> extends Query {
           selects.set(value, key);
       }
   
-      return () => {
+      return raw => raw.map(row => {
         const output = Object.create(select as {});
-        const raw = this.focus;
     
         selects.forEach(column => {
-          output[column] = raw[column];
+          output[column] = row[column];
         })
         
         return output as R;
-      }
+      })
     }
 
     throw new Error("Bad argument");
-  }
-
-  hydrate(raw: any[]){
-    const results = [] as R[];
-    
-    if(this.map)
-      for(const row of raw){
-        this.focus = row;
-        results.push(this.map());
-      }
-
-    return results;
   }
 
   toString(): string {
