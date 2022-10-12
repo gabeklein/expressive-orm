@@ -1,4 +1,4 @@
-import { Bool, Entity, Int, Many, One, Select, VarChar } from '../src';
+import { Bool, Entity, Int, Many, One, Query, VarChar } from '../src';
 
 class Author extends Entity {
   name = VarChar();
@@ -20,20 +20,20 @@ class Book extends Entity {
 
 //TODO: fix
 it.skip("will create book query", () => {
-  const query = new Select(where => {
+  const query = new Query(where => {
     const book = where(Book);
 
     where(book.title).is("1984");
     where(book.id).greater(50);
 
-    return book.title;
+    return where.get(book.title);
   })
 
   expect(query).toMatchInlineSnapshot();
 })
 
 it("will create author query", () => {
-  const query = new Select(where => {
+  const query = new Query(where => {
     const author = where(Author);
 
     where(author.name).not("Robert");
@@ -41,10 +41,10 @@ it("will create author query", () => {
     where(author.nickname).is("Bob");
     where(author.active).is(true);
 
-    return () => ({
+    return where.get(() => ({
       name: author.nickname,
       age: author.age
-    })
+    }))
   })
 
   const sql = query.toString();

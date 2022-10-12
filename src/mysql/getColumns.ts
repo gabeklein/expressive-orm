@@ -1,9 +1,9 @@
 import Schema from '../connection/Schema';
-import Select from '../query/Select';
+import Query from '../query/Query';
 import { Column, KeyColumnUsage, ReferentialConstraints } from './schema';
 
 async function getColumns(schema: string){
-  return Select.get(where => {
+  return Query.get(where => {
     const column = where(Column);
 
     const usage = where(KeyColumnUsage, "left", {

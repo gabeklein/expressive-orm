@@ -1,5 +1,5 @@
-import Entity, { VarChar } from "..";
-import Update from "./Update";
+import Entity, { VarChar } from "../src";
+import Query from "../src/query/Query";
 
 class Foo extends Entity {
   value = VarChar();
@@ -7,13 +7,15 @@ class Foo extends Entity {
 }
 
 it("will generate query", () => {
-  const query = new Update(Foo, (where, foo) => {
+  const query = new Query(where => {
+    const foo = where(Foo);
+
     where(foo.color).is("red");
 
-    return {
+    where.update(foo, {
       value: "Updated!",
       color: "blue"
-    }
+    })
   });
 
   expect(query).toMatchInlineSnapshot(`

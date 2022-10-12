@@ -1,13 +1,12 @@
 import Field from "../Field";
 import Query from "../query/Query";
-import Select from "../query/Select";
 
-function Sub<R>(factory: Select.Function<R>): R {
+function Sub<R>(factory: Query.Function<R>): R {
   return SubQueryField.create({ factory })
 }
 
 class SubQueryField extends Field {
-  factory!: Select.Function<any>;
+  factory!: Query.Function<any>;
 
   proxy(query: Query, proxy: {}){
     query.main!.focus = proxy;

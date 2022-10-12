@@ -1,9 +1,7 @@
 import Connection from './connection/Connection';
 import Field from './Field';
 import Primary from './fields/Primary';
-import Insert from './query/Insert';
 import Query from './query/Query';
-import Select from './query/Select';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
@@ -123,35 +121,35 @@ abstract class Entity {
     return proxy;
   }
 
-  static select<T extends Entity, R>(
-    this: Entity.Type<T>,
-    from: Entity.Where<T, R>
-  ){
-    return new Select(where => {
-      return from(where(this), where);
-    })
-  }
+  // static select<T extends Entity, R>(
+  //   this: Entity.Type<T>,
+  //   from: Entity.Where<T, R>
+  // ){
+  //   return new Query(where => {
+  //     return from(where(this), where);
+  //   })
+  // }
 
-  static insert<T extends Entity, R>(
-    this: Entity.Type<T>,
-    data: Insert.Values<T>
-  ){
-    return new Insert(this, data).exec();
-  }
+  // static insert<T extends Entity, R>(
+  //   this: Entity.Type<T>,
+  //   data: Insert.Values<T>
+  // ){
+  //   return new Insert(this, data).exec();
+  // }
 
-  static async get<T extends Entity, R>(
-    this: Entity.Type<T>,
-    from: Entity.Where<T, R>
-  ){
-    return this.select(from).get();
-  }
+  // static async get<T extends Entity, R>(
+  //   this: Entity.Type<T>,
+  //   from: Entity.Where<T, R>
+  // ){
+  //   return this.select(from).get();
+  // }
 
-  static async getOne<T extends Entity, R>(
-    this: Entity.Type<T>,
-    from: Entity.Where<T, R>
-  ){
-    return this.select(from).getOne();
-  }
+  // static async getOne<T extends Entity, R>(
+  //   this: Entity.Type<T>,
+  //   from: Entity.Where<T, R>
+  // ){
+  //   return this.select(from).getOne();
+  // }
 }
 
 export default Entity;

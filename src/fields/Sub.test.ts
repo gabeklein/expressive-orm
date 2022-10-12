@@ -1,4 +1,4 @@
-import Entity, { Enum, Int, Sub, Select, VarChar } from '..';
+import Entity, { Enum, Int, Sub, VarChar, Query } from '..';
 
 function Color(){
   return Enum(["red", "green", "blue"]);
@@ -11,7 +11,7 @@ class Foo extends Entity {
     const bar = where(Bar, { color: this.color });
     const baz = where(Baz, { rating: bar.rating });
 
-    return baz.value;
+    return where.getOne(baz.value);
   })
 }
 
@@ -26,9 +26,11 @@ class Baz extends Entity {
   rating = Int();
 }
 
-it("will integrate query on select", () => {
-  const query = new Select(where => {
-    return where(Foo).bazValue;
+it.skip("will integrate query on select", () => {
+  const query = new Query(where => {
+    const { bazValue } = where(Foo);
+
+    return where.get(bazValue);
   });
 
   expect(query).toMatchInlineSnapshot(`

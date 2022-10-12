@@ -23,7 +23,7 @@ export function generateSelect(
   return "SELECT" + keys.join(",");
 }
 
-export function generateWhere(query: Query){
+export function generateWhere(query: Query<any>){
   if(!query.wheres.length)
     return "";
   
@@ -32,7 +32,7 @@ export function generateWhere(query: Query){
   return "WHERE " + where;
 }
 
-export function generateTables(query: Query){
+export function generateTables(query: Query<any>){
   const [ from, ...joins ] = query.tables;
   const lines = [] as string[];
 

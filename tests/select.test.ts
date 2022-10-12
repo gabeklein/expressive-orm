@@ -1,4 +1,4 @@
-import { Entity, Int, Select, Table, VarChar } from '..';
+import { Entity, Int, Query, Table, VarChar } from '../src';
 
 class Foo extends Entity {
   name = VarChar();
@@ -8,7 +8,7 @@ class Foo extends Entity {
 }
 
 it("will group where clauses", async () => {
-  const query = new Select(where => {
+  const query = new Query(where => {
     const foo = where(Foo);
 
     where.any(
@@ -20,7 +20,7 @@ it("will group where clauses", async () => {
       )
     );
 
-    return foo.name;
+    return where.get(foo.name);
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -39,7 +39,7 @@ WHERE
 })
 
 it("will match values via objects", () => {
-  const query = new Select(where => {
+  const query = new Query(where => {
     const foo = where(Foo);
 
     where(foo).has({
@@ -47,7 +47,7 @@ it("will match values via objects", () => {
       color: "blue"
     })
 
-    return foo.name;
+    return where.get(foo.name);
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -62,7 +62,7 @@ WHERE
 })
 
 it("will group multiple clauses", async () => {
-  const query = new Select(where => {
+  const query = new Query(where => {
     const foo = where(Foo);
 
     where.any(
@@ -76,7 +76,7 @@ it("will group multiple clauses", async () => {
       )
     );
 
-    return foo.name;
+    return where.get(foo.name);
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -107,7 +107,7 @@ it("will join using single query syntax", async () => {
     rating = Int();
   }
 
-  const query = new Select(where => {
+  const query = new Query(where => {
     const foo = where(Foo);
     const bar = where(Bar, { color: foo.color });
     const baz = where(Baz, "left", { rating: bar.rating });
@@ -115,11 +115,11 @@ it("will join using single query syntax", async () => {
     where(foo.name).not("Danny");
     where(bar.rating).greater(50);
 
-    return {
+    return where.get({
       fooValue: foo.name,
       barValue: bar.name,
       bazRating: baz.rating
-    }
+    })
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -148,12 +148,12 @@ it("will alias tables with a schema", () => {
     color = VarChar();
   }
 
-  const query = new Select(where => {
+  const query = new Query(where => {
     const foo = where(Foo);
 
     where(foo.color).is("red");
     
-    return () => foo.name;
+    return where.get(foo.name);
   })
 
   expect(query).toMatchInlineSnapshot(`

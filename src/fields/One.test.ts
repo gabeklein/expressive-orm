@@ -1,4 +1,4 @@
-import Entity, { Int, One, Select, VarChar } from '../';
+import Entity, { Int, One, Query, VarChar } from '../';
 
 class A extends Entity {
   b = One(B);
@@ -15,9 +15,10 @@ class C extends Entity {
 }
 
 it("will query via select function", () => {
-  const query = new Select(where => {
+  const query = new Query(where => {
     const a = where(A);
-    return () => a.value;
+
+    return where.get(() => a.value);
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -30,14 +31,14 @@ FROM
 `);
 })
 
-it("will query via select function", () => {
-  const query = new Select(where => {
+it("will select via an object", () => {
+  const query = new Query(where => {
     const a = where(A);
 
-    return {
+    return where.get({
       aValue: a.value,
       cValue: a.b.c.value
-    };
+    })
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -53,12 +54,12 @@ FROM
 
 it("will query nested relationships", () => {
   // TODO: fix types
-  const query = new Select(where => {
+  const query = new Query(where => {
     const a = where(A);
 
     where(a.b.c.value).is(100);
     
-    return a.b.c.label;
+    return where.get(a.b.c.label);
   })
 
   expect(query).toMatchInlineSnapshot(`

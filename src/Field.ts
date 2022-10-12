@@ -1,6 +1,5 @@
 import Entity from '.';
 import Query, { Metadata } from './query/Query';
-import Select from './query/Select';
 import { qualify } from './utility';
 
 declare namespace Field {
@@ -55,7 +54,7 @@ class Field {
     Object.assign(this, options);
   }
 
-  proxy(query: Query | Select<any>, _proxy: {}){
+  proxy(query: Query<any>, _proxy: {}){
     return () => query.access(this);
   }
 

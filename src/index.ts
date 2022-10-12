@@ -17,9 +17,7 @@ import Ref from './fields/Ref';
 import Sub from './fields/Sub';
 import Table from './fields/Table';
 import Text, { LongText, MediumText, TinyText } from './fields/Text';
-import Delete from './query/Delete';
 import Query from './query/Query';
-import Select from './query/Select';
 
 export default Entity;
 export {
@@ -29,7 +27,6 @@ export {
   Char,
   Connection,
   DateTime,
-  Delete,
   Double,
   Entity,
   Enum,
@@ -45,7 +42,6 @@ export {
   Primary,
   Query,
   Ref,
-  Select,
   SmallInt,
   Sub,
   Table,

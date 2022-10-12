@@ -1,5 +1,4 @@
-import Entity, { VarChar } from "..";
-import Delete from "./Delete";
+import Entity, { Query, VarChar } from '../src';
 
 class Foo extends Entity {
   value = VarChar();
@@ -12,10 +11,12 @@ class Bar extends Entity {
 }
 
 it("will generate query", () => {
-  const query = new Delete(where => {
+  const query = new Query(where => {
     const foo = where(Foo);
 
     where(foo.value).is("Hello World!");
+
+    where.delete(foo);
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -25,28 +26,14 @@ WHERE
 `);
 })
 
-it("will support explicit delete", () => {
-  const query = new Delete(where => {
-    const foo = where(Foo);
-
-    where(foo.value).is("Hello World!");
-
-    return foo;
-  });
-
-  expect(query).toMatchInlineSnapshot(`
-DELETE Foo
-WHERE
-  \`Foo\`.\`value\` = 'Hello World!'
-`);
-})
-
-it("will include from keyword on join", () => {
-  const query = new Delete(where => {
+it("will include FROM statement where JOIN exists", () => {
+  const query = new Query(where => {
     const foo = where(Foo);
     const bar = where(Bar, { color: foo.color });
 
     where(bar.value).is("Hello World!");
+
+    where.delete(foo);
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -60,13 +47,13 @@ WHERE
 })
 
 it("will delete from multiple", () => {
-  const query = new Delete(where => {
+  const query = new Query(where => {
     const foo = where(Foo);
     const bar = where(Bar, { color: foo.color });
 
     where(bar.value).is("Hello World!");
 
-    return [foo, bar];
+    where.delete(foo, bar);
   });
 
   expect(query).toMatchInlineSnapshot(`

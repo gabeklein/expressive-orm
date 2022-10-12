@@ -3,6 +3,7 @@ import Entity from '../Entity';
 import Field from '../Field';
 import { escapeString, qualify } from '../utility';
 import { whereObject } from './generate';
+import { deleteQuery, fetchQuery, getQuery, updateQuery } from './verbs';
 
 export const Metadata = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
@@ -18,6 +19,8 @@ declare namespace Query {
     on?: string[];
   }
 
+  type Execute<T> = () => Promise<T>;
+
   type Type<T extends Entity> = {
     [K in Entity.Field<T>]: Exclude<T[K], null>;
   } & {
@@ -28,24 +31,55 @@ declare namespace Query {
     [K in Entity.Field<T>]?: T[K];
   }
 
-  interface Where {
-    <T extends Entity>(entity: Entity.Type<T>): Type<T>;
-    <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer", on?: Compare<T>): Partial<Type<T>>;
-    <T extends Entity>(entity: Entity.Type<T>, join: Join, on?: Compare<T>): Type<T>;
-    <T extends Entity>(entity: Entity.Type<T>, on: Compare<T>): Type<T>;
+  // TODO: make this default/nullable aware.
+  type Update<T extends Entity> = {
+    [K in Entity.Field<T>]?: Exclude<T[K], undefined>;
+  }
+
+  interface Verbs {
+    get<T>(select: () => T): Execute<T[]>;
+    get<T>(select: T): Execute<T[]>;
+
+    get<T>(limit: number, select: () => T): Execute<T[]>;
+    get<T>(limit: number, select: T): Execute<T[]>;
+
+    getOne<T>(select: () => T, orFail: true): Execute<T>;
+    getOne<T>(select: T, orFail: true): Execute<T>;
+    getOne<T>(select: () => T, orFail?: boolean): Execute<T | undefined>;
+    getOne<T>(select: T, orFail?: boolean): Execute<T | undefined>;
+
+    getOneOrFail<T>(select: () => T): Execute<T>;
+    getOneOrFail<T>(select: T): Execute<T>;
+
+    delete(...entries: Query.Type<any>[]): void;
+    update<T extends Entity>(entry: Query.Type<T>, values: Query.Update<T>): void;
+  }
+
+  interface Assert {
     <T extends Entity>(entity: Type<T>): { has(values: Compare<T>): void };
-    <T>(field: T): Query.Assert<T>;
+    <T>(field: T): Query.Assertions<T>;
 
     any(...where: Instruction[]): Instruction;
     all(...where: Instruction[]): Instruction;
   }
 
-  interface Assert<T> {
+  interface Where extends Verbs, Assert {
+    <T extends Entity>(entity: Entity.Type<T>): Type<T>;
+    <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer", on?: Compare<T>): Partial<Type<T>>;
+    <T extends Entity>(entity: Entity.Type<T>, join: Join, on?: Compare<T>): Type<T>;
+    <T extends Entity>(entity: Entity.Type<T>, on: Compare<T>): Type<T>;
+  }
+
+  interface Assertions<T> {
     is(equalTo: T | undefined): Instruction;
     not(equalTo: T | undefined): Instruction;
     greater(than: T | undefined): Instruction;
     less(than: T | undefined): Instruction;
   }
+
+  type Function<R> = (where: Query.Where) => Execute<R> | void;
+
+  type Output<T> = T extends void ? { rowsAffected: number } : T;
 }
 
 interface Instruction {
@@ -53,16 +87,40 @@ interface Instruction {
   (modify: (where: string) => string): void;
 }
 
-abstract class Query {
+class Query<T = void> {
   pending = [] as Instruction[];
   tables = [] as Query.Table[];
   wheres = [] as string[];
 
-  interface: Query.Where;
+  interface = this.prepare();
   connection?: Connection;
   main?: Entity.Type;
 
-  constructor(){
+  async run(){
+    return { affected: 0 } as unknown as Query.Output<T>;
+  }
+
+  async send(){
+    const sql = this.toString();
+
+    if(!this.connection)
+      throw new Error("Query has no connection, have you setup entities?");
+
+    return this.connection.query(sql);
+  }
+
+  constructor(from?: Query.Function<T>){
+    this.interface = this.prepare();
+    
+    if(from){
+      const exec = from(this.interface);
+
+      if(exec)
+        this.run = exec as any;
+    }
+  }
+
+  private prepare(): Query.Where {
     const where = (
       a1: any,
       a2?: Query.Join | {},
@@ -76,10 +134,47 @@ abstract class Query {
         : this.compare(a1);
     }
 
-    this.interface = Object.assign(where, {
+    const select: Query.Verbs = {
+      get: (a1: any, a2?: any) => {
+        if(!a2)
+          a2 = a1, a1 = undefined;
+    
+        return getQuery(this, a2, a1);
+      },
+      getOne: (select, orFail) => {
+        return fetchQuery(this, select, orFail);
+      },
+      getOneOrFail: (from) => {
+        return fetchQuery(this, from, true);
+      },
+      delete: (...from: Query.Type<any>[]) => {
+        deleteQuery(this, from);
+      },
+      update: (from: Query.Type<any>, update: Query.Update<any>) => {
+        updateQuery(this, from, update);
+      }
+    }
+
+    return Object.assign(where, select, {
       any: this.group.bind(this, "OR"),
-      all: this.group.bind(this, "AND")
+      all: this.group.bind(this, "AND"),
     })
+  }
+
+  access(field: Field): any {
+    return field;
+  }
+
+  commit(toString: () => string){
+    if(this.hasOwnProperty("toString"))
+      throw new Error("Query has already been committed.");
+
+    this.toString = toString;
+
+    if(this.main)
+      this.main.focus = undefined;
+
+    this.pending.forEach(apply => apply());
   }
 
   compare(a1: Field | any){
@@ -91,7 +186,7 @@ abstract class Query {
         not: assert.bind(this, "<>", a1),
         greater: assert.bind(this, ">", a1),
         less: assert.bind(this, "<", a1)
-      } as Query.Assert<any>;
+      } as Query.Assertions<any>;
     }
 
     const info = Metadata.get(a1);
@@ -106,17 +201,6 @@ abstract class Query {
         )
       }
     }
-  }
-
-  access(field: Field): any {
-    return field;
-  }
-
-  commit(){
-    if(this.main)
-      this.main.focus = undefined;
-
-    this.pending.forEach(apply => apply());
   }
 
   group(keyword: "AND" | "OR", ...where: Instruction[]){
@@ -219,14 +303,30 @@ abstract class Query {
     return apply;
   }
 
-  async exec(){
-    const sql = this.toString();
+  static find<T>(from: (where: Query.Where) => T | (() => T)){
+    const query = new this(where => {
+      return where.getOne<T>(from(where) as any);
+    })
 
-    if(!this.connection)
-      throw new Error("Query has no connection, have you setup entities?");
+    return query.run();
+  }
 
-    return this.connection.query(sql);
-  } 
+  // TODO: why are types not inferred?
+  static get<T>(from: (where: Query.Where) => T | (() => T)){
+    const query = new this(where => {
+      return where.get<T>(from(where) as any);
+    })
+
+    return query.run();
+  }
+
+  static getOne<T>(from: (where: Query.Where) => T | (() => T)){
+    const query = new this(where => {
+      return where.getOne<T>(from(where) as any, true);
+    })
+
+    return query.run();
+  }
 }
 
 export default Query;
