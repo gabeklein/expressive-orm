@@ -3,7 +3,7 @@ import { qualify } from '../utility';
 import { generateSelect, generateTables, generateWhere, serialize } from './generate';
 import Query, { RelevantTable } from './Query';
 
-export function selectOps<T>(query: Query<T>): Query.Verbs {
+export function queryVerbs<T>(query: Query<T>): Query.Verbs {
   return {
     get(a1: any, a2?: any){
       if(!a2)

@@ -3,7 +3,7 @@ import Entity from '../Entity';
 import Field from '../Field';
 import { escapeString, qualify } from '../utility';
 import { generateTables, generateWhere, whereObject } from './generate';
-import { deleteQuery, fetchQuery, getQuery, updateQuery } from './verbs';
+import { queryVerbs } from './verbs';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
@@ -146,28 +146,9 @@ class Query<T = void> {
         : this.compare(a1);
     }
 
-    const select: Query.Verbs = {
-      get: (a1: any, a2?: any) => {
-        if(!a2)
-          a2 = a1, a1 = undefined;
-    
-        return getQuery(this, a2, a1);
-      },
-      getOne: (select, orFail) => {
-        return fetchQuery(this, select, orFail);
-      },
-      getOneOrFail: (from) => {
-        return fetchQuery(this, from, true);
-      },
-      delete: (...from: Query.Type<any>[]) => {
-        deleteQuery(this, from);
-      },
-      update: (from: Query.Type<any>, update: Query.Update<any>) => {
-        updateQuery(this, from, update);
-      }
-    }
+    const verbs = queryVerbs(this);
 
-    return Object.assign(where, select, {
+    return Object.assign(where, verbs, {
       any: this.group.bind(this, "OR"),
       all: this.group.bind(this, "AND"),
     })
