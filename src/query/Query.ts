@@ -1,7 +1,7 @@
 import Connection from '../connection/Connection';
 import Entity from '../Entity';
 import Field from '../Field';
-import { escapeString, qualify } from '../utility';
+import { qualify } from '../utility';
 import { generateTables, generateWhere, whereObject } from './generate';
 import { queryVerbs } from './verbs';
 
@@ -57,7 +57,7 @@ declare namespace Query {
 
   interface Assert {
     <T extends Entity>(entity: Type<T>): { has(values: Compare<T>): void };
-    <T>(field: T): Query.Assertions<T>;
+    <T>(field: T): Field.Assertions<T>;
 
     any(...where: Instruction[]): Instruction;
     all(...where: Instruction[]): Instruction;
@@ -68,13 +68,6 @@ declare namespace Query {
     <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer", on?: Compare<T>): Partial<Type<T>>;
     <T extends Entity>(entity: Entity.Type<T>, join: Join, on?: Compare<T>): Type<T>;
     <T extends Entity>(entity: Entity.Type<T>, on: Compare<T>): Type<T>;
-  }
-
-  interface Assertions<T> {
-    is(equalTo: T | undefined): Instruction;
-    not(equalTo: T | undefined): Instruction;
-    greater(than: T | undefined): Instruction;
-    less(than: T | undefined): Instruction;
   }
 
   type Function<R> = (where: Query.Where) => Execute<R> | void;
@@ -140,10 +133,14 @@ class Query<T = void> {
 
       if(typeof a2 == "object")
         a3 = a2, a2 = "inner";
+
+      if(typeof a1 == "function")
+        return this.table(a1, a2 as any, a3);
+
+      if(a1 instanceof Field)
+        return a1.where(this);
   
-      return typeof a1 == "function"
-        ? this.table(a1, a2 as any, a3)
-        : this.compare(a1);
+      return this.compare(a1);
     }
 
     const verbs = queryVerbs(this);
@@ -170,18 +167,7 @@ class Query<T = void> {
     this.pending.forEach(apply => apply());
   }
 
-  compare(a1: Field | any){
-    if(a1 instanceof Field){
-      const { assert } = this;
-
-      return {
-        is: assert.bind(this, "=", a1),
-        not: assert.bind(this, "<>", a1),
-        greater: assert.bind(this, ">", a1),
-        less: assert.bind(this, "<", a1)
-      } as Query.Assertions<any>;
-    }
-
+  compare(a1: any){
     const info = RelevantTable.get(a1);
 
     if(!info)
@@ -276,15 +262,9 @@ class Query<T = void> {
     return proxy;
   }
 
-  assert(op: string, left: Field, right: string | number){
+  assert(op: string, left: Field, right: any){
     const apply: Instruction = (arg) => {
       const column = left.qualifiedName;
-
-      if(left.set)
-        right = left.set(right);
-
-      if(typeof right == "string")
-        right = escapeString(right);
 
       let entry = `${column} ${op} ${right}`;
 

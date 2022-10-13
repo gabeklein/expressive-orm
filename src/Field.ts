@@ -1,6 +1,6 @@
 import Entity from '.';
 import Query, { RelevantTable } from './query/Query';
-import { qualify } from './utility';
+import { escapeString, qualify } from './utility';
 
 declare namespace Field {
   interface Options {
@@ -14,6 +14,18 @@ declare namespace Field {
     typeof Field & (new (...args: any[]) => T);
 
   type Callback<T extends Field> = (field: T, key: string) => void;
+
+  interface Instruction {
+    (skip?: true): void;
+    (modify: (where: string) => string): void;
+  }
+
+  interface Assertions<T> {
+    is(equalTo: T | undefined): Instruction;
+    not(equalTo: T | undefined): Instruction;
+    greater(than: T | undefined): Instruction;
+    less(than: T | undefined): Instruction;
+  } 
 }
 
 class Field {
@@ -38,14 +50,31 @@ class Field {
     this.column = property;
   }
 
+  where(query: Query<any>): Field.Assertions<any> {
+    return {
+      is: this.assert(query, "="),
+      not: this.assert(query, "<>"),
+      greater: this.assert(query, ">"),
+      less: this.assert(query, "<"),
+    }
+  }
+
   get qualifiedName(){
     const { alias, name } = RelevantTable.get(this)!;
     return qualify(alias || name, this.column);
   }
 
-  compare(query: Query, op: string){
+  assert(query: Query, op: string){
     return (value: any) => {
-      query.assert(op, this, value);
+      if(!(value instanceof Field)){
+        if(this.set)
+          value = this.set(value);
+
+        if(typeof value == "string")
+          value = escapeString(value);
+      }
+
+      return query.assert(op, this, value);
     }
   }
 
