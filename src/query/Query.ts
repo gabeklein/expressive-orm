@@ -87,7 +87,7 @@ class Query<T = void> {
   tables = [] as Query.Table[];
   wheres = [] as string[];
 
-  interface = this.prepare();
+  where = this.prepare();
   connection?: Connection;
   main?: Entity.Type;
 
@@ -115,10 +115,10 @@ class Query<T = void> {
   }
 
   constructor(from?: Query.Function<T>){
-    this.interface = this.prepare();
+    this.where = this.prepare();
     
     if(from){
-      const exec = from(this.interface);
+      const exec = from(this.where);
 
       if(exec)
         this.run = exec as any;

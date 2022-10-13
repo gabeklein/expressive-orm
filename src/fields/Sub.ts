@@ -10,7 +10,7 @@ class SubQueryField extends Field {
 
   proxy(query: Query, proxy: {}){
     query.main!.focus = proxy;
-    const output = this.factory(query.interface);
+    const output = this.factory(query.where);
     
     return typeof output == "function"
       ? output
