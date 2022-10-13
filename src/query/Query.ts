@@ -79,6 +79,8 @@ declare namespace Query {
 
   type Function<R> = (where: Query.Where) => Execute<R> | void;
 
+  type SelectFunction<R> = (where: Query.Where) => R | (() => R);
+
   type Output<T> = T extends void ? number : T;
 }
 
@@ -317,31 +319,6 @@ class Query<T = void> {
     this.pending.push(apply);
 
     return apply;
-  }
-
-  static find<T>(from: (where: Query.Where) => T | (() => T)){
-    const query = new this(where => {
-      return where.getOne<T>(from(where) as any);
-    })
-
-    return query.run();
-  }
-
-  // TODO: why are types not inferred?
-  static get<T>(from: (where: Query.Where) => T | (() => T)){
-    const query = new this(where => {
-      return where.get<T>(from(where) as any);
-    })
-
-    return query.run();
-  }
-
-  static getOne<T>(from: (where: Query.Where) => T | (() => T)){
-    const query = new this(where => {
-      return where.getOne<T>(from(where) as any, true);
-    })
-
-    return query.run();
   }
 }
 
