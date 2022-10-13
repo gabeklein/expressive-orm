@@ -1,0 +1,23 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`will alias tables with a schema 1`] = `
+	SELECT
+	  COUNT(*)
+	FROM
+	  \`foobar\`.\`foo\` AS \`$0\`
+	WHERE
+	  \`$0\`.\`color\` = 'red'
+`;
+
+exports[`will join using single query syntax 1`] = `
+	SELECT
+	  COUNT(*)
+	FROM
+	  \`Foo\`
+	  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	  JOIN \`Baz\` ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
+	WHERE
+	  \`Foo\`.\`name\` <> 'Danny'
+	  AND \`Bar\`.\`rating\` > 50
+	  AND \`Baz\`.\`color\` = 'blue'
+`;

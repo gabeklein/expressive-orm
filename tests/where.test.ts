@@ -27,17 +27,7 @@ it("will emit where clauses", () => {
     where(test.d).less(4);
   });
 
-  expect(query).toMatchInlineSnapshot(`
-SELECT
-  COUNT(*)
-FROM
-  \`Test\`
-WHERE
-  \`Test\`.\`a\` = 1
-  AND \`Test\`.\`b\` <> 2
-  AND \`Test\`.\`c\` > 3
-  AND \`Test\`.\`d\` < 4
-`);
+  expect(query).toMatchSnapshot();
 })
 
 it("will assert a joined property's value", () => {
@@ -48,15 +38,7 @@ it("will assert a joined property's value", () => {
     where(bar.value).is(42);
   });
   
-  expect(query).toMatchInlineSnapshot(`
-SELECT
-  COUNT(*)
-FROM
-  \`Foo\`
-  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-WHERE
-  \`Bar\`.\`value\` = 42
-`);
+  expect(query).toMatchSnapshot();
 })
 
 it.skip("will assert an implictly joined value", () => {
@@ -84,46 +66,5 @@ it("will match values via object", () => {
     })
   });
 
-  expect(query).toMatchInlineSnapshot(`
-SELECT
-  COUNT(*)
-FROM
-  \`Foo\`
-WHERE
-  \`Foo\`.\`name\` = 'Gabe'
-  AND \`Foo\`.\`color\` = 'blue'
-`)
-})
-
-it("will group multiple clauses", async () => {
-  const query = new Query(where => {
-    const foo = where(Foo);
-
-    where.any(
-      where.all(
-        where(foo.name).not("Danny"),
-        where(foo.color).is("red"),
-      ),
-      where.all(
-        where(foo.name).is("Gabe"),
-        where(foo.color).is("green")
-      )
-    );
-  });
-
-  expect(query).toMatchInlineSnapshot(`
-SELECT
-  COUNT(*)
-FROM
-  \`Foo\`
-WHERE
-  (
-    \`Foo\`.\`name\` <> 'Danny'
-    AND \`Foo\`.\`color\` = 'red'
-  )
-  OR (
-    \`Foo\`.\`name\` = 'Gabe'
-    AND \`Foo\`.\`color\` = 'green'
-  )
-`);
+  expect(query).toMatchSnapshot();
 })

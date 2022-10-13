@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`will assert a joined property's value 1`] = `
+	SELECT
+	  COUNT(*)
+	FROM
+	  \`Foo\`
+	  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	WHERE
+	  \`Bar\`.\`value\` = 42
+`;
+
+exports[`will emit where clauses 1`] = `
+	SELECT
+	  COUNT(*)
+	FROM
+	  \`Test\`
+	WHERE
+	  \`Test\`.\`a\` = 1
+	  AND \`Test\`.\`b\` <> 2
+	  AND \`Test\`.\`c\` > 3
+	  AND \`Test\`.\`d\` < 4
+`;
+
+exports[`will match values via object 1`] = `
+	SELECT
+	  COUNT(*)
+	FROM
+	  \`Foo\`
+	WHERE
+	  \`Foo\`.\`name\` = 'Gabe'
+	  AND \`Foo\`.\`color\` = 'blue'
+`;

@@ -27,18 +27,7 @@ it("will join using single query syntax", async () => {
     where(baz.color).is("blue");
   });
 
-  expect(query).toMatchInlineSnapshot(`
-SELECT
-  COUNT(*)
-FROM
-  \`Foo\`
-  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-  JOIN \`Baz\` ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
-WHERE
-  \`Foo\`.\`name\` <> 'Danny'
-  AND \`Bar\`.\`rating\` > 50
-  AND \`Baz\`.\`color\` = 'blue'
-`);
+  expect(query).toMatchSnapshot();
 })
 
 it("will alias tables with a schema", () => {
@@ -58,12 +47,5 @@ it("will alias tables with a schema", () => {
     where(foo.color).is("red");
   })
 
-  expect(query).toMatchInlineSnapshot(`
-SELECT
-  COUNT(*)
-FROM
-  \`foobar\`.\`foo\` AS \`$0\`
-WHERE
-  \`$0\`.\`color\` = 'red'
-`);
+  expect(query).toMatchSnapshot();
 })

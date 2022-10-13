@@ -1,0 +1,46 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`joins will select implicit joined values 1`] = `
+	SELECT
+	  \`Foo\`.\`name\` AS \`1\`
+	FROM
+	  \`Bar\`
+	  LEFT JOIN \`Foo\` ON \`Foo\`.\`id\` = \`Bar\`.\`fooId\`
+`;
+
+exports[`joins will select joined values 1`] = `
+	SELECT
+	  \`Foo\`.\`name\` AS \`fooValue\`,
+	  \`Bar\`.\`name\` AS \`barValue\`,
+	  \`Baz\`.\`rating\` AS \`bazRating\`
+	FROM
+	  \`Foo\`
+	  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	  LEFT JOIN \`Baz\` ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
+	WHERE
+	  \`Foo\`.\`name\` <> 'Danny'
+	  AND \`Bar\`.\`rating\` > 50
+`;
+
+exports[`where.get will select a field directly 1`] = `
+	SELECT
+	  \`Foo\`.\`bar\` AS \`1\`
+	FROM
+	  \`Foo\`
+`;
+
+exports[`where.get will select via map function 1`] = `
+	SELECT
+	  \`Foo\`.\`bar\` AS \`1\`,
+	  \`Foo\`.\`baz\` AS \`2\`
+	FROM
+	  \`Foo\`
+`;
+
+exports[`where.get will select via object 1`] = `
+	SELECT
+	  \`Foo\`.\`bar\` AS \`bar\`,
+	  \`Foo\`.\`baz\` AS \`baz\`
+	FROM
+	  \`Foo\`
+`;

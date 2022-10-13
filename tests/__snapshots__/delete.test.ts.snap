@@ -1,0 +1,26 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`will delete from multiple 1`] = `
+	DELETE Foo,
+	Bar
+	FROM
+	  \`Foo\`
+	  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	WHERE
+	  \`Bar\`.\`value\` = 'Hello World!'
+`;
+
+exports[`will generate query 1`] = `
+	DELETE Foo
+	WHERE
+	  \`Foo\`.\`value\` = 'Hello World!'
+`;
+
+exports[`will include FROM statement where JOIN exists 1`] = `
+	DELETE Foo
+	FROM
+	  \`Foo\`
+	  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	WHERE
+	  \`Bar\`.\`value\` = 'Hello World!'
+`;

@@ -13,13 +13,7 @@ describe("where.get", () => {
       return where.get({ bar, baz })
     })
   
-    expect(query).toMatchInlineSnapshot(`
-SELECT
-  \`Foo\`.\`bar\` AS \`bar\`,
-  \`Foo\`.\`baz\` AS \`baz\`
-FROM
-  \`Foo\`
-`);
+    expect(query).toMatchSnapshot();
   })
   
   it("will select via map function", () => {
@@ -34,13 +28,7 @@ FROM
       });
     })
   
-    expect(query).toMatchInlineSnapshot(`
-SELECT
-  \`Foo\`.\`bar\` AS \`1\`,
-  \`Foo\`.\`baz\` AS \`2\`
-FROM
-  \`Foo\`
-`);
+    expect(query).toMatchSnapshot();
   })
   
   it("will select a field directly", () => {
@@ -50,12 +38,7 @@ FROM
       return where.get(bar);
     })
   
-    expect(query).toMatchInlineSnapshot(`
-SELECT
-  \`Foo\`.\`bar\` AS \`1\`
-FROM
-  \`Foo\`
-`);
+    expect(query).toMatchSnapshot();
   })
 })
 
@@ -91,19 +74,7 @@ describe("joins", () => {
       })
     });
   
-    expect(query).toMatchInlineSnapshot(`
-  SELECT
-    \`Foo\`.\`name\` AS \`fooValue\`,
-    \`Bar\`.\`name\` AS \`barValue\`,
-    \`Baz\`.\`rating\` AS \`bazRating\`
-  FROM
-    \`Foo\`
-    JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-    LEFT JOIN \`Baz\` ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
-  WHERE
-    \`Foo\`.\`name\` <> 'Danny'
-    AND \`Bar\`.\`rating\` > 50
-  `);
+    expect(query).toMatchSnapshot();
   })
 
   it("will select implicit joined values", async () => {
@@ -118,12 +89,6 @@ describe("joins", () => {
       return where.get(bar.foo.name)
     });
   
-    expect(query).toMatchInlineSnapshot(`
-SELECT
-  \`Foo\`.\`name\` AS \`1\`
-FROM
-  \`Bar\`
-  LEFT JOIN \`Foo\` ON \`Foo\`.\`id\` = \`Bar\`.\`fooId\`
-`);
+    expect(query).toMatchSnapshot();
   })
 })

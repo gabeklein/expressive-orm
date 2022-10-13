@@ -19,11 +19,7 @@ it("will generate query", () => {
     where.delete(foo);
   });
 
-  expect(query).toMatchInlineSnapshot(`
-DELETE Foo
-WHERE
-  \`Foo\`.\`value\` = 'Hello World!'
-`);
+  expect(query).toMatchSnapshot();
 })
 
 it("will include FROM statement where JOIN exists", () => {
@@ -36,14 +32,7 @@ it("will include FROM statement where JOIN exists", () => {
     where.delete(foo);
   });
 
-  expect(query).toMatchInlineSnapshot(`
-DELETE Foo
-FROM
-  \`Foo\`
-  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-WHERE
-  \`Bar\`.\`value\` = 'Hello World!'
-`);
+  expect(query).toMatchSnapshot();
 })
 
 it("will delete from multiple", () => {
@@ -56,13 +45,5 @@ it("will delete from multiple", () => {
     where.delete(foo, bar);
   });
 
-  expect(query).toMatchInlineSnapshot(`
-DELETE Foo,
-Bar
-FROM
-  \`Foo\`
-  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-WHERE
-  \`Bar\`.\`value\` = 'Hello World!'
-`);
+  expect(query).toMatchSnapshot();
 })

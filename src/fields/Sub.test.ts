@@ -33,12 +33,5 @@ it.skip("will integrate query on select", () => {
     return where.get(bazValue);
   });
 
-  expect(query).toMatchInlineSnapshot(`
-SELECT
-  \`Baz\`.\`value\` AS \`1\`
-FROM
-  \`Foo\`
-  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-  JOIN \`Baz\` ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
-`);
+  expect(query).toMatchSnapshot();
 })

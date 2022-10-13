@@ -18,13 +18,5 @@ it("will generate query", () => {
     })
   });
 
-  expect(query).toMatchInlineSnapshot(`
-UPDATE
-  \`Foo\`
-SET
-  \`value\` = "Updated!",
-  \`color\` = "blue"
-WHERE
-  \`Foo\`.\`color\` = 'red'
-`);
+  expect(query).toMatchSnapshot();
 })

@@ -21,14 +21,7 @@ it("will query via select function", () => {
     return where.get(() => a.value);
   });
 
-  expect(query).toMatchInlineSnapshot(`
-SELECT
-  \`A\`.\`value\` AS \`1\`
-FROM
-  \`A\`
-  LEFT JOIN \`B\` ON \`B\`.\`id\` = \`A\`.\`bId\`
-  LEFT JOIN \`C\` ON \`C\`.\`id\` = \`B\`.\`cId\`
-`);
+  expect(query).toMatchSnapshot();
 })
 
 it("will select via an object", () => {
@@ -41,15 +34,7 @@ it("will select via an object", () => {
     })
   });
 
-  expect(query).toMatchInlineSnapshot(`
-SELECT
-  \`A\`.\`value\` AS \`aValue\`,
-  \`C\`.\`value\` AS \`cValue\`
-FROM
-  \`A\`
-  LEFT JOIN \`B\` ON \`B\`.\`id\` = \`A\`.\`bId\`
-  LEFT JOIN \`C\` ON \`C\`.\`id\` = \`B\`.\`cId\`
-`);
+  expect(query).toMatchSnapshot();
 })
 
 it("will query nested relationships", () => {
@@ -62,14 +47,5 @@ it("will query nested relationships", () => {
     return where.get(a.b.c.label);
   })
 
-  expect(query).toMatchInlineSnapshot(`
-SELECT
-  \`C\`.\`label\` AS \`1\`
-FROM
-  \`A\`
-  LEFT JOIN \`B\` ON \`B\`.\`id\` = \`A\`.\`bId\`
-  LEFT JOIN \`C\` ON \`C\`.\`id\` = \`B\`.\`cId\`
-WHERE
-  \`C\`.\`value\` = 100
-`);
+  expect(query).toMatchSnapshot();
 })

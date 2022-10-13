@@ -1,0 +1,31 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`will query nested relationships 1`] = `
+	SELECT
+	  \`C\`.\`label\` AS \`1\`
+	FROM
+	  \`A\`
+	  LEFT JOIN \`B\` ON \`B\`.\`id\` = \`A\`.\`bId\`
+	  LEFT JOIN \`C\` ON \`C\`.\`id\` = \`B\`.\`cId\`
+	WHERE
+	  \`C\`.\`value\` = 100
+`;
+
+exports[`will query via select function 1`] = `
+	SELECT
+	  \`A\`.\`value\` AS \`1\`
+	FROM
+	  \`A\`
+	  LEFT JOIN \`B\` ON \`B\`.\`id\` = \`A\`.\`bId\`
+	  LEFT JOIN \`C\` ON \`C\`.\`id\` = \`B\`.\`cId\`
+`;
+
+exports[`will select via an object 1`] = `
+	SELECT
+	  \`A\`.\`value\` AS \`aValue\`,
+	  \`C\`.\`value\` AS \`cValue\`
+	FROM
+	  \`A\`
+	  LEFT JOIN \`B\` ON \`B\`.\`id\` = \`A\`.\`bId\`
+	  LEFT JOIN \`C\` ON \`C\`.\`id\` = \`B\`.\`cId\`
+`;
