@@ -1,4 +1,4 @@
-import Entity, { Enum, Int, Sub, VarChar, Query } from '..';
+import Entity, { Enum, Int, Sub, VarChar, Query } from '../src';
 
 function Color(){
   return Enum(["red", "green", "blue"]);

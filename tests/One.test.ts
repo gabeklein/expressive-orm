@@ -1,4 +1,4 @@
-import Entity, { Int, One, Query, VarChar } from '../';
+import Entity, { Int, One, Query, VarChar } from '../src';
 
 class A extends Entity {
   b = One(B);
