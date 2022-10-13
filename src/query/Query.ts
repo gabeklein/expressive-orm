@@ -108,7 +108,7 @@ class Query<T = void> {
     return String(this);
   }
 
-  async run(){
+  async run(): Promise<T> {
     return this.send().then(res => res[0]["COUNT(*)"]);
   }
 
@@ -300,6 +300,10 @@ class Query<T = void> {
     this.pending.push(apply);
 
     return apply;
+  }
+
+  static run<R>(where: Query.Function<R>){
+    return new Query(where).run();
   }
 }
 
