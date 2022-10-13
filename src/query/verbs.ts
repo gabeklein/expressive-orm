@@ -1,7 +1,7 @@
 import Field from '../Field';
 import { qualify } from '../utility';
 import { generateSelect, generateTables, generateWhere, serialize } from './generate';
-import Query, { Metadata } from './Query';
+import Query, { RelevantTable } from './Query';
 
 export function selectOps<T>(query: Query<T>): Query.Verbs {
   return {
@@ -58,7 +58,7 @@ export function deleteQuery(
   from: Query.Type<any>[]){
 
   const targets = from.map(entity => {
-    const table = Metadata.get(entity);
+    const table = RelevantTable.get(entity);
 
     if(table)
       return table;
@@ -85,7 +85,7 @@ export function updateQuery(
   from: Query.Type<any>,
   update: Query.Update<any>
 ){
-  const meta = Metadata.get(from);
+  const meta = RelevantTable.get(from);
 
   if(!meta)
     throw new Error(`Argument ${from} is not a query entity.`);

@@ -1,7 +1,7 @@
 import Entity from "..";
 import Field from "../Field";
 import { escapeString, qualify } from "../utility";
-import Query, { Metadata } from "./Query";
+import Query, { RelevantTable } from "./Query";
 
 export function generateSelect(
   selects: Map<Field, number | string>
@@ -103,7 +103,7 @@ export function whereObject<T extends Entity>(
     let right: string;
 
     if(value instanceof Field){
-      const table = Metadata.get(value)!;
+      const table = RelevantTable.get(value)!;
 
       right = qualify(table.name) + "." + qualify(value.column);
     }

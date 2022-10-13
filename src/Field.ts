@@ -1,5 +1,5 @@
 import Entity from '.';
-import Query, { Metadata } from './query/Query';
+import Query, { RelevantTable } from './query/Query';
 import { qualify } from './utility';
 
 declare namespace Field {
@@ -39,7 +39,7 @@ class Field {
   }
 
   get qualifiedName(){
-    const { alias, name } = Metadata.get(this)!;
+    const { alias, name } = RelevantTable.get(this)!;
     return qualify(alias || name, this.column);
   }
 

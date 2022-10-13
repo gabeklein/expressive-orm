@@ -5,7 +5,7 @@ import { escapeString, qualify } from '../utility';
 import { generateTables, generateWhere, whereObject } from './generate';
 import { deleteQuery, fetchQuery, getQuery, updateQuery } from './verbs';
 
-export const Metadata = new WeakMap<{}, Query.Table>();
+export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
 
 declare namespace Query {
@@ -199,7 +199,7 @@ class Query<T = void> {
       } as Query.Assertions<any>;
     }
 
-    const info = Metadata.get(a1);
+    const info = RelevantTable.get(a1);
 
     if(!info)
       throw new Error(`Cannot create assertions for ${a1}. Must be a field or full entity.`);
@@ -247,6 +247,7 @@ class Query<T = void> {
     const { tables } = this;
     let { schema, table } = entity.ensure();
     let alias: string | undefined;
+    let where: string[] | undefined;
 
     if(schema){
       table = qualify(schema, table);
@@ -259,26 +260,31 @@ class Query<T = void> {
     
       if(!join)
         join = "inner";
+
+      where = Array.isArray(on) ? on :
+        whereObject(table, entity, on);
     }
     else {
       this.main = entity;
       this.connection = entity.connection;
-    }
-
-    on = !tables.length ? undefined :
-      Array.isArray(on) ? on :
-      whereObject(table, entity, on)
+    } 
 
     const proxy = {} as any;
-    const metadata = { alias, entity, join, name: table, on };
+    const metadata = {
+      alias,
+      entity,
+      join,
+      name: table,
+      on: where
+    };
 
-    Metadata.set(proxy, metadata);
+    RelevantTable.set(proxy, metadata);
     tables.push(metadata);
 
     entity.fields.forEach((field, key) => {
       field = Object.create(field);
 
-      Metadata.set(field, metadata);
+      RelevantTable.set(field, metadata);
       Object.defineProperty(proxy, key, {
         get: field.proxy(this, proxy)
       })
