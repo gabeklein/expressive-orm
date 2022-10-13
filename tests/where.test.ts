@@ -25,13 +25,11 @@ it("will emit where clauses", () => {
     where(test.b).not(2);
     where(test.c).greater(3);
     where(test.d).less(4);
-
-    return where.get(test.a);
   });
 
   expect(query).toMatchInlineSnapshot(`
 SELECT
-  \`Test\`.\`a\` AS \`1\`
+  COUNT(*)
 FROM
   \`Test\`
 WHERE
@@ -48,13 +46,11 @@ it("will assert a joined property's value", () => {
     const bar = where(Bar, { color: foo.color });
 
     where(bar.value).is(42);
-
-    return where.get(foo.name);
   });
   
   expect(query).toMatchInlineSnapshot(`
 SELECT
-  \`Foo\`.\`name\` AS \`1\`
+  COUNT(*)
 FROM
   \`Foo\`
   JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
@@ -73,8 +69,6 @@ it.skip("will assert an implictly joined value", () => {
     const bar = where(Bar);
 
     where(bar.foo.color).is("blue");
-
-    return where.get(bar.greeting);
   });
   
   expect(query).toMatchInlineSnapshot();
@@ -88,13 +82,11 @@ it("will match values via object", () => {
       name: "Gabe",
       color: "blue"
     })
-
-    return where.get(foo.name);
   });
 
   expect(query).toMatchInlineSnapshot(`
 SELECT
-  \`Foo\`.\`name\` AS \`1\`
+  COUNT(*)
 FROM
   \`Foo\`
 WHERE
@@ -117,13 +109,11 @@ it("will group multiple clauses", async () => {
         where(foo.color).is("green")
       )
     );
-
-    return where.get(foo.name);
   });
 
   expect(query).toMatchInlineSnapshot(`
 SELECT
-  \`Foo\`.\`name\` AS \`1\`
+  COUNT(*)
 FROM
   \`Foo\`
 WHERE

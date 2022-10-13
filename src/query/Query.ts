@@ -2,7 +2,7 @@ import Connection from '../connection/Connection';
 import Entity from '../Entity';
 import Field from '../Field';
 import { escapeString, qualify } from '../utility';
-import { whereObject } from './generate';
+import { generateTables, generateWhere, whereObject } from './generate';
 import { deleteQuery, fetchQuery, getQuery, updateQuery } from './verbs';
 
 export const Metadata = new WeakMap<{}, Query.Table>();
@@ -79,7 +79,7 @@ declare namespace Query {
 
   type Function<R> = (where: Query.Where) => Execute<R> | void;
 
-  type Output<T> = T extends void ? { rowsAffected: number } : T;
+  type Output<T> = T extends void ? number : T;
 }
 
 interface Instruction {
@@ -96,8 +96,18 @@ class Query<T = void> {
   connection?: Connection;
   main?: Entity.Type;
 
+  toString(): string {
+    this.commit(() => [
+      "SELECT COUNT(*)",
+      generateTables(this),
+      generateWhere(this)
+    ].join(" "));
+
+    return String(this);
+  }
+
   async run(){
-    return { affected: 0 } as unknown as Query.Output<T>;
+    return this.send().then(res => res[0]["COUNT(*)"]);
   }
 
   async send(){
