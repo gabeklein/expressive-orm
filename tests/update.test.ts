@@ -1,9 +1,9 @@
-import Entity, { VarChar } from "../src";
+import Entity, { Column } from "../src";
 import Query from "../src/query/Query";
 
 class Foo extends Entity {
-  value = VarChar();
-  color = VarChar();
+  value = Column();
+  color = Column();
 }
 
 it("will generate query", () => {

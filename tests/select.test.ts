@@ -1,8 +1,8 @@
-import Entity, { Int, One, Query, VarChar } from '../src';
+import Entity, { Column, One, Query } from '../src';
 
 class Foo extends Entity {
-  bar = VarChar();
-  baz = VarChar();
+  bar = Column();
+  baz = Column();
 }
 
 describe("where.get", () => {
@@ -44,19 +44,19 @@ describe("where.get", () => {
 
 describe("joins", () => {
   class Foo extends Entity {
-    name = VarChar();
-    color = VarChar();
+    name = Column();
+    color = Column();
   }
 
   it("will select joined values", async () => {
     class Bar extends Entity {
-      name = VarChar();
-      color = VarChar();
-      rating = Int();
+      name = Column();
+      color = Column();
+      rating = Column();
     }
     
     class Baz extends Entity {
-      rating = Int();
+      rating = Column();
     }
   
     const query = new Query(where => {
@@ -79,7 +79,7 @@ describe("joins", () => {
 
   it("will select implicit joined values", async () => {
     class Bar extends Entity {
-      name = VarChar();
+      name = Column();
       foo = One(Foo);
     }
   

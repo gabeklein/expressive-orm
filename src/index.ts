@@ -1,5 +1,6 @@
 import Connection from './connection/Connection';
 import Entity from './Entity';
+import Column from './fields/Column';
 import Many from './fields/Many';
 import Nope from './fields/Nope';
 import One from './fields/One';
@@ -13,6 +14,7 @@ export * from './mysql';
 
 export default Entity;
 export {
+  Column,
   Connection,
   Entity,
   Many,

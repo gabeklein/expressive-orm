@@ -1,11 +1,7 @@
-import Entity, { Enum, Int, Sub, VarChar, Query } from '../src';
-
-function Color(){
-  return Enum(["red", "green", "blue"]);
-}
+import Entity, { Column, Query, Sub } from '../src';
 
 class Foo extends Entity {
-  color = Color();
+  color = Column();
 
   bazValue = Sub(where => {
     const bar = where(Bar, { color: this.color });
@@ -16,14 +12,14 @@ class Foo extends Entity {
 }
 
 class Bar extends Entity {
-  value = VarChar();
-  color = Color();
-  rating = Int();
+  value = Column();
+  color = Column();
+  rating = Column();
 }
 
 class Baz extends Entity {
-  value = VarChar();
-  rating = Int();
+  value = Column();
+  rating = Column();
 }
 
 it.skip("will integrate query on select", () => {

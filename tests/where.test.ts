@@ -1,21 +1,21 @@
-import { Entity, Int, One, Query, VarChar } from '../src';
+import { Column, Entity, One, Query } from '../src';
 
 class Foo extends Entity {
-  name = VarChar();
-  color = VarChar();
+  name = Column();
+  color = Column();
 }
 
 class Bar extends Entity {
-  value = Int();
-  color = VarChar();
+  value = Column();
+  color = Column();
 }
 
 it("will emit where clauses", () => {
   class Test extends Entity {
-    a = Int();
-    b = Int();
-    c = Int();
-    d = Int();
+    a = Column();
+    b = Column();
+    c = Column();
+    d = Column();
   }
 
   const query = new Query(where => {

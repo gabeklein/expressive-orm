@@ -1,20 +1,20 @@
-import { Entity, Int, Query, Table, VarChar } from '../src';
+import { Column, Entity, Query, Table } from '../src';
 
 class Foo extends Entity {
-  name = VarChar();
-  color = VarChar();
+  name = Column();
+  color = Column();
 }
 
 it("will join using single query syntax", async () => {
   class Bar extends Entity {
-    name = VarChar();
-    color = VarChar();
-    rating = Int();
+    name = Column();
+    color = Column();
+    rating = Column();
   }
   
   class Baz extends Entity {
-    color = VarChar();
-    rating = Int();
+    color = Column();
+    rating = Column();
   }
 
   const query = new Query(where => {
@@ -37,8 +37,8 @@ it("will alias tables with a schema", () => {
       schema: "foobar"
     })
 
-    name = VarChar();
-    color = VarChar();
+    name = Column();
+    color = Column();
   }
 
   const query = new Query(where => {
