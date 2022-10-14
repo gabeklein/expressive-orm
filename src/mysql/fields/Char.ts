@@ -1,4 +1,4 @@
-import Field from '../Field';
+import Field from '../../Field';
 
 declare namespace Char {
   interface Options extends Field.Options {

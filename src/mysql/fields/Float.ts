@@ -1,4 +1,4 @@
-import Field from '../Field';
+import Field from '../../Field';
 
 declare namespace Float {
   interface Options extends Field.Options {
