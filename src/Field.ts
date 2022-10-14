@@ -10,8 +10,7 @@ declare namespace Field {
     unique?: boolean;
   }
 
-  type Type<T extends Field = Field> =
-    typeof Field & (new (...args: any[]) => T);
+  type Type<T extends Field = Field> = typeof Field & (new (...args: any[]) => T);
 
   type Callback<T extends Field> = (field: T, key: string) => void;
 

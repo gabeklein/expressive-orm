@@ -5,7 +5,6 @@ import { InstructionsUsed } from './entities';
 import { idealCase, parseType } from './util';
 
 const TYPES: any = {
-  "blob": "Nope",
   "int": "Int",
   "tinyint": "TinyInt",
   "smallint": "SmallInt",
@@ -32,7 +31,7 @@ export function instruction(column: Schema.Column){
   const key = isPrimary ? "id" : idealCase(name, true);
   const subtype = parseType(type)!;
 
-  let fieldType = TYPES[dataType] || "Nope";
+  let fieldType = TYPES[dataType] || "Column";
   let collapse: string | undefined;
   const opts: t.object.Abstract = {};
 
