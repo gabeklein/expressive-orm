@@ -91,6 +91,41 @@ class Query<T = void> {
   connection?: Connection;
   main?: Entity.Type;
 
+  constructor(from?: Query.Function<T>){
+    this.where = this.prepare();
+    
+    if(from){
+      const exec = from(this.where);
+
+      if(exec)
+        this.run = exec as any;
+    }
+  }
+
+  private prepare(): Query.Where {
+    const where = (
+      a1: any, a2?: any, a3?: {}): any => {
+
+      if(typeof a2 == "object")
+        a3 = a2, a2 = "inner";
+
+      if(typeof a1 == "function")
+        return this.table(a1, a2, a3);
+
+      if(a1 instanceof Field)
+        return a1.where(this);
+  
+      return this.compare(a1);
+    }
+
+    const verbs = queryVerbs(this);
+
+    return Object.assign(where, verbs, {
+      any: this.group.bind(this, "OR"),
+      all: this.group.bind(this, "AND"),
+    })
+  }
+
   toString(): string {
     this.commit(() => [
       "SELECT COUNT(*)",
@@ -112,43 +147,6 @@ class Query<T = void> {
       throw new Error("Query has no connection, have you setup entities?");
 
     return this.connection.query(sql);
-  }
-
-  constructor(from?: Query.Function<T>){
-    this.where = this.prepare();
-    
-    if(from){
-      const exec = from(this.where);
-
-      if(exec)
-        this.run = exec as any;
-    }
-  }
-
-  private prepare(): Query.Where {
-    const where = (
-      a1: any,
-      a2?: Query.Join | {},
-      a3?: {}): any => {
-
-      if(typeof a2 == "object")
-        a3 = a2, a2 = "inner";
-
-      if(typeof a1 == "function")
-        return this.table(a1, a2 as any, a3);
-
-      if(a1 instanceof Field)
-        return a1.where(this);
-  
-      return this.compare(a1);
-    }
-
-    const verbs = queryVerbs(this);
-
-    return Object.assign(where, verbs, {
-      any: this.group.bind(this, "OR"),
-      all: this.group.bind(this, "AND"),
-    })
   }
 
   access(field: Field): any {
