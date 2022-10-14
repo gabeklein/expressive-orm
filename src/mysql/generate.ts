@@ -15,18 +15,18 @@ export function create(tables: Entity.Type[]){
   const commands = [];
 
   for(const table of tables){
-    const { table: tableName } = table;
+    const { table: name } = table;
     const statements = [] as string[];
 
     table.fields.forEach(field => {
-      const sql = createColumn(field);
+      const sql = column(field);
 
       if(sql)
         statements.push(sql);
     });
 
     commands.push(
-      `CREATE TABLE IF NOT EXISTS ${tableName} (${statements.join(",")})`
+      `CREATE TABLE IF NOT EXISTS ${name} (${statements.join(",")})`
     )
   }
 
@@ -53,7 +53,7 @@ export function constraints(tables: Entity.Type[]){
   return commands;
 }
 
-function createColumn(from: Field){
+function column(from: Field){
   if(from.datatype === undefined)
     return;
 
