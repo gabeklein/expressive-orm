@@ -11,6 +11,7 @@ declare namespace MySQLConnection {
     maxConnections?: number;
     sync?: boolean;
     nuke?: boolean;
+    use?: Connection.Entities
   }
 }
 
@@ -19,11 +20,11 @@ class MySQLConnection extends Connection {
   connection?: mysql.Connection | mysql.Pool;
   database?: string;
 
-  constructor(
-    opts: MySQLConnection.Config = {},
-    entities?: Connection.Entities){
-
+  constructor(opts: MySQLConnection.Config | Entity.Type[] = {}){
     super();
+
+    if(Array.isArray(opts))
+      opts = { use: opts };
 
     const config: mysql.ConnectionConfig = {
       ...opts,
@@ -38,12 +39,12 @@ class MySQLConnection extends Connection {
         ? mysql.createPool(config)
         : mysql.createConnection(config);
 
-    Object.values<typeof Entity>(schema).forEach(entity => {
+    Object.values<Entity.Type>(schema).forEach(entity => {
       entity.ensure(this);
     })
 
-    if(entities)
-      this.apply(entities);
+    if(opts.use)
+      this.apply(opts.use);
   }
 
   query<T extends {} = any>(qs: string){

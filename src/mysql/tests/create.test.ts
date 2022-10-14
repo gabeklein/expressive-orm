@@ -23,14 +23,15 @@ it("will create tables", () => {
 
   const connection =
     new MySQLConnection({
-      dry: true
-    }, {
-      Author,
-      Book,
-      Publisher
+      dry: true,
+      use: [
+        Author,
+        Book,
+        Publisher
+      ]
     });
 
-  const sql = connection.createTables();
+  const sql = connection.createTables(true);
 
   expect(sql).toMatchSnapshot();
 })
