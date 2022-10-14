@@ -26,22 +26,21 @@ class MySQLConnection extends Connection {
     if(Array.isArray(opts))
       opts = { use: opts };
 
-    const config: mysql.ConnectionConfig = {
-      ...opts,
-      multipleStatements: true
-    }
-    
     this.database = opts.database;
     this.options = opts;
 
+    opts.multipleStatements = true;
+
     if(!opts.dry)
       this.connection = opts.maxConnections! > 1
-        ? mysql.createPool(config)
-        : mysql.createConnection(config);
+        ? mysql.createPool({ ...opts,
+          connectionLimit: opts.maxConnections
+        })
+        : mysql.createConnection(opts);
 
-    Object.values<Entity.Type>(schema).forEach(entity => {
-      entity.ensure(this);
-    })
+    Object
+      .values<Entity.Type>(schema)
+      .forEach(entity => entity.ensure(this))
 
     if(opts.use)
       this.apply(opts.use);
@@ -62,8 +61,19 @@ class MySQLConnection extends Connection {
   }
 
   close(){
-    if(this.connection)
-      this.connection.end();
+    const { connection } = this;
+
+    if(!connection)
+      return Promise.reject(new Error("No connection"));
+
+    return new Promise<void>((res, rej) => {
+      connection.end(error => {
+        if(error)
+          rej(error)
+        else
+          res();
+      });
+    })
   }
 
   createTables(dryRun: true): string; 
