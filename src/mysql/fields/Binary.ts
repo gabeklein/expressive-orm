@@ -1,4 +1,5 @@
 import Field from '../../Field';
+import Column from '../../fields/Column';
 
 declare namespace Binary {
   interface Options extends Field.Options {
@@ -17,17 +18,13 @@ function Binary(a1: Binary.Options = {}){
   const datatype =
     `${a1.variable ? "VAR" : ""}BINARY(${a1.length || 1})`
 
-  return BinaryColumn.create({ ...a1, datatype });
+  return Column({ ...a1, datatype });
 }
 
 function VarBinary(options: Binary.Optional): never | null | undefined;
 function VarBinary(options?: Binary.Options): never;
 function VarBinary(options?: Binary.Options){
-  return BinaryColumn.create({ ...options, variable: true });
-}
-
-class BinaryColumn extends Field {
-  variable = false;
+  return Column(options);
 }
 
 export default Binary;

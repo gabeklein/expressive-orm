@@ -1,4 +1,5 @@
 import Field from '../../Field';
+import Column from '../../fields/Column';
 
 declare namespace DateTime {
   interface Options extends Field.Options {
@@ -13,22 +14,16 @@ declare namespace DateTime {
 function DateTime<T>(options: DateTime.Optional): Date | null | undefined;
 function DateTime(options?: DateTime.Options): Date;
 function DateTime(options?: DateTime.Options){
-  return DateTimeColumn.create({
-    ...options, datatype: 'DATETIME'
+  return Column({
+    ...options,
+    datatype: 'DATETIME',
+    get(dt: string){
+      return new Date(dt.replace(/[-]/g, '/'))
+    },
+    set(date: Date){
+      return date.toISOString().slice(0, 19).replace("T", " ");
+    }
   });
-}
-
-class DateTimeColumn extends Field {
-  values = [] as any[];
-  placeholder = "";
-
-  get(dt: string){
-    return new Date(dt.replace(/[-]/g, '/'))
-  }
-
-  set(date: Date){
-    return date.toISOString().slice(0, 19).replace("T", " ");
-  }
 }
 
 export default DateTime;

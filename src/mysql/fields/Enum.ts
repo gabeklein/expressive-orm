@@ -1,4 +1,5 @@
 import Field from '../../Field';
+import Column from '../../fields/Column';
 
 declare namespace Enum {
   interface Options<T extends string> extends Field.Options {
@@ -23,12 +24,11 @@ function Enum<T extends string>(options: T[] | Enum.Options<T>){
     values.map(x => typeof x == "string" ? `'${x}'` : x).join(',')
   })`
 
-  return EnumColumn.create({ ...rest, datatype, values });
-}
-
-class EnumColumn extends Field {
-  values = [] as readonly any[];
-  placeholder = "";
+  return Column({
+    ...rest,
+    datatype,
+    placeholder: ""
+  });
 }
 
 export default Enum;

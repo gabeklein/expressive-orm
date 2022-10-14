@@ -1,4 +1,5 @@
 import Field from '../../Field';
+import Column from '../../fields/Column';
 
 declare namespace Flags {
   interface Options<T> extends Field.Options {
@@ -23,12 +24,11 @@ function Flags<T>(options: T[] | Flags.Options<T>){
     values.map(x => typeof x == "string" ? `'${x}'` : x).join(',')
   })`
 
-  return SetColumn.create({ ...rest, datatype, values });
-}
-
-class SetColumn extends Field {
-  values = [] as any[];
-  placeholder = [];
+  return Column({
+    ...rest,
+    datatype,
+    placeholder: []
+  });
 }
 
 export default Flags;

@@ -1,4 +1,5 @@
 import Field from '../../Field';
+import Column from '../../fields/Column';
 
 declare namespace Char {
   interface Options extends Field.Options {
@@ -32,7 +33,12 @@ function Char(
   const datatype =
     `${arg1.variable ? "VAR" : ""}CHAR(${arg1.length || 255})`
 
-  return CharColumn.create({ ...arg1, datatype });
+  return Column({
+    ...arg1,
+    datatype,
+    placeholder: ""
+    // placeholder: `__${this.property}__`
+  });
 }
 
 function VarChar<T extends string>(options: Char.Specific<T> & Char.Optional): T | null | undefined;
@@ -49,11 +55,6 @@ function VarChar(
     arg1 = { ...arg2, length: arg1 };
 
   return Char({ ...arg1, variable: true });
-}
-
-class CharColumn extends Field {
-  variable = false;
-  placeholder = `__${this.property}__`;
 }
 
 export default Char;

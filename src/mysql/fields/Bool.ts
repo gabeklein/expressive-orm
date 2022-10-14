@@ -1,4 +1,5 @@
 import Field from '../../Field';
+import Column from '../../fields/Column';
 
 declare namespace Bool {
   interface Options extends Field.Options {
@@ -14,29 +15,29 @@ function Bool(): boolean;
 function Bool(options: Bool.Optional): boolean | null | undefined;
 function Bool(options: Bool.Options): boolean;
 function Bool(options: Bool.Options = {}){
-  const opts: Partial<BooleanColumn> = options;
-  const bool = options.either;
+  let isTrue: any = 1;
+  let isFalse: any = 0;
+  let datatype = "TINYINT";
 
-  if(bool)
-    opts.datatype = `VARCHAR(${
-      Math.max(bool[0].length, bool[1].length)
+  if(options.either){
+    [isTrue, isFalse] = options.either;
+
+    datatype = `VARCHAR(${
+      Math.max(isTrue.length, isFalse.length)
     })`
-
-  return BooleanColumn.create(opts);
-}
-
-class BooleanColumn extends Field {
-  datatype = "TINYINT";
-  placeholder = true;
-  either: readonly [any, any] = [1, 0];
-
-  get(value: any){
-    return value === this.either[0];
   }
 
-  set(value: boolean){
-    return value ? this.either[0] : this.either[1];
-  }
+  return Column<boolean>({
+    ...options,
+    datatype,
+    placeholder: true,
+    get(value: any){
+      return value === isTrue;
+    },
+    set(value: boolean){
+      return value ? isTrue : isFalse;
+    }
+  });
 }
 
 export default Bool;

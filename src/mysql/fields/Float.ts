@@ -1,4 +1,5 @@
 import Field from '../../Field';
+import Column from '../../fields/Column';
 
 declare namespace Float {
   interface Options extends Field.Options {
@@ -15,8 +16,9 @@ function Float(options?: Float.Options): number;
 function Float(options: Float.Options = {}){
   const { double, ...rest } = options;
 
-  return FloatColumn.create({
+  return Column({
     datatype: double ? "DOUBLE" : "FLOAT",
+    placeholder: Infinity,
     ...rest
   });
 }
@@ -25,11 +27,6 @@ function Double(options: Float.Optional): number | null | undefined;
 function Double(options?: Float.Options): number;
 function Double(options?: Float.Options){
   return Float({ ...options, double: true });
-}
-
-class FloatColumn extends Field {
-  datatype = "FLOAT";
-  placeholder = Infinity;
 }
 
 export default Float;

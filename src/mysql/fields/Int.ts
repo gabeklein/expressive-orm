@@ -1,4 +1,5 @@
 import Field from '../../Field';
+import Column from '../../fields/Column';
 
 declare namespace Int {
   interface Options extends Field.Options {
@@ -16,7 +17,7 @@ function Int(options: Int.Options = {}){
   const { size = "" } = options;
   const datatype = `${size.toUpperCase()}INT`;
 
-  return IntColumn.create({ datatype, ...options });
+  return Column({ datatype, ...options });
 }
 
 function TinyInt(options: Int.Optional): number | null | undefined;
@@ -35,11 +36,6 @@ function BigInt(options: Int.Optional): number | null | undefined;
 function BigInt(options?: Int.Options): number;
 function BigInt(options?: Int.Options){
   return Int({ ...options, size: "big" });
-}
-
-class IntColumn extends Field {
-  datatype = "INT";
-  placeholder = Infinity;
 }
 
 export default Int;

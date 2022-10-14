@@ -1,4 +1,5 @@
 import Field from '../../Field';
+import Column from '../../fields/Column';
 
 declare namespace Text {
   interface Options extends Field.Options {
@@ -17,7 +18,7 @@ function Text(options: Text.Options = {}){
 
   const datatype = `${size.toUpperCase()}TEXT`;
 
-  return TextColumn.create({ datatype, ...options });
+  return Column({ datatype, ...options });
 }
 
 function TinyText(options: Text.Optional): string | null | undefined;
@@ -36,10 +37,6 @@ function LongText(options: Text.Optional): string | null | undefined;
 function LongText(options?: Text.Options): string;
 function LongText(opts: Text.Options = {}){
   return Text({ ...opts, size: "long" });
-}
-
-class TextColumn extends Field {
-  placeholder = `__${this.property}__`;
 }
 
 export default Text;

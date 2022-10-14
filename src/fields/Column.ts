@@ -6,6 +6,7 @@ declare namespace Column {
     column?: string;
     default?: any;
     nullable?: boolean;
+    placeholder?: T;
     unique?: boolean;
 
     get?(value: any): T;
