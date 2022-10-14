@@ -3,10 +3,10 @@ import Bool from './fields/Bool';
 import Char, { VarChar } from './fields/Char';
 import DateTime from './fields/DateTime';
 import Enum from './fields/Enum';
-import Flags from './fields/Flags';
 import Float, { Double } from './fields/Float';
 import Int, { BigInt, SmallInt, TinyInt } from './fields/Int';
 import Json from './fields/Json';
+import Set from './fields/Set';
 import Text, { LongText, MediumText, TinyText } from './fields/Text';
 
 export {
@@ -17,12 +17,12 @@ export {
   DateTime,
   Double,
   Enum,
-  Flags,
   Float,
   Int,
   Json,
   LongText,
   MediumText,
+  Set,
   SmallInt,
   Text,
   TinyInt,

@@ -1,7 +1,7 @@
 import Field from '../../Field';
 import Column from '../../fields/Column';
 
-declare namespace Flags {
+declare namespace Set {
   interface Options<T> extends Field.Options {
     values: T[];
   }
@@ -11,10 +11,10 @@ declare namespace Flags {
   }
 }
 
-function Flags<T>(values: T[]): T[];
-function Flags<T>(options: Flags.Optional<T>): T[] | null | undefined;
-function Flags<T>(options: Flags.Options<T>): T[];
-function Flags<T>(options: T[] | Flags.Options<T>){
+function Set<T>(values: T[]): T[];
+function Set<T>(options: Set.Optional<T>): T[] | null | undefined;
+function Set<T>(options: Set.Options<T>): T[];
+function Set<T>(options: T[] | Set.Options<T>){
   const { values, ...rest } =
     Array.isArray(options)
       ? { values: options }
@@ -31,4 +31,4 @@ function Flags<T>(options: T[] | Flags.Options<T>){
   });
 }
 
-export default Flags;
+export default Set;
