@@ -1,8 +1,29 @@
 import Entity from '..';
 import Field from '../Field';
 import { escapeString, qualify } from '../utility';
+import MySQLConnection from './Connection';
 
-export function drop(tables: Entity.Type[]){
+function bootstrap(connection: MySQLConnection, dryRun: true): string; 
+function bootstrap(connection: MySQLConnection, dryRun?: false): Promise<void>;
+function bootstrap(connection: MySQLConnection, dryRun?: boolean): string | Promise<void>;
+function bootstrap(connection: MySQLConnection, dryRun?: boolean){
+  const tables = Array.from(connection.managed.values());
+  const commands = [] as string[];
+
+  if(connection.options.nuke)
+    commands.push(...drop(tables));
+
+  commands.push(...create(tables));
+  commands.push(...constraints(tables))
+  
+  const sql = commands.join(";");
+
+  return dryRun ? sql : connection.query(sql);
+}
+
+export default bootstrap;
+
+function drop(tables: Entity.Type[]){
   const commands = [];
 
   for(const table of tables)
@@ -11,7 +32,7 @@ export function drop(tables: Entity.Type[]){
   return commands;
 }
 
-export function create(tables: Entity.Type[]){
+function create(tables: Entity.Type[]){
   const commands = [];
 
   for(const table of tables){
@@ -33,7 +54,7 @@ export function create(tables: Entity.Type[]){
   return commands;
 }
 
-export function constraints(tables: Entity.Type[]){
+function constraints(tables: Entity.Type[]){
   const commands = [] as string[];
 
   for(const table of tables){

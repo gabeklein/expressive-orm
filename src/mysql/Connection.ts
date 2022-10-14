@@ -2,7 +2,7 @@ import mysql from 'mysql';
 
 import Connection from '../connection/Connection';
 import Entity from '../Entity';
-import { constraints, create, drop } from './generate';
+import bootstrap from './bootstrap';
 import * as schema from './schema';
 
 declare namespace MySQLConnection {
@@ -65,22 +65,10 @@ class MySQLConnection extends Connection {
       this.connection.end();
   }
 
-  createTables(){
-    const tables = Array.from(this.managed.values());
-    const commands = [] as string[];
-
-    if(this.options.nuke)
-      commands.push(...drop(tables));
-
-    commands.push(...create(tables));
-    commands.push(...constraints(tables))
-    
-    const sql = commands.join(";");
-
-    if(!this.options.dry)
-      this.query(sql);
-    
-    return sql;
+  createTables(dryRun: true): string; 
+  createTables(dryRun?: false): Promise<void>;
+  createTables(dryRun?: boolean){
+    return bootstrap(this, dryRun);
   }
 }
 
