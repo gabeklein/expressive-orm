@@ -1,5 +1,5 @@
-import { Bool, Entity, Int, Many, One } from '../src';
-import MySQLConnection from '../src/mysql/Connection';
+import { Bool, Entity, Int, Many, One } from '../..';
+import MySQLConnection from '../Connection';
 
 it("will create tables", () => {
   class Author extends Entity {
