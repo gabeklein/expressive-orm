@@ -20,12 +20,10 @@ describe("where.get", () => {
     const query = new Query(where => {
       const foo = where(Foo);
   
-      return where.get(() => {
-        return {
-          bar: foo.bar,
-          baz: foo.baz
-        };
-      });
+      return where.get(() => ({
+        bar: foo.bar,
+        baz: foo.baz
+      }));
     })
   
     expect(query).toMatchSnapshot();
@@ -33,9 +31,9 @@ describe("where.get", () => {
   
   it("will select a field directly", () => {
     const query = new Query(where => {
-      const { bar } = where(Foo);
+      const foo = where(Foo);
   
-      return where.get(bar);
+      return where.get(foo.bar);
     })
   
     expect(query).toMatchSnapshot();
