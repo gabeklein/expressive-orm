@@ -1,10 +1,10 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`will alias tables with a schema 1`] = `
+exports[`will alias tables which have a schema 1`] = `
 	SELECT
 	  COUNT(*)
 	FROM
-	  \`foobar\`.\`foo\` AS \`$0\`
+	  \`foobar\`.\`Foo\` AS \`$0\`
 	WHERE
 	  \`$0\`.\`color\` = 'red'
 `;

@@ -30,10 +30,9 @@ it("will join using single query syntax", async () => {
   expect(query).toMatchSnapshot();
 })
 
-it("will alias tables with a schema", () => {
+it("will alias tables which have a schema", () => {
   class Foo extends Entity {
     this = Table({
-      name: "foo",
       schema: "foobar"
     })
 
