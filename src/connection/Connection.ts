@@ -16,7 +16,7 @@ abstract class Connection {
 
   abstract query(queryString: string): Promise<any>;
 
-  close?(): void;
+  abstract close(): void;
 
   apply(from: Connection.Entities){
     const entities = Object.values<typeof Entity>(from);
