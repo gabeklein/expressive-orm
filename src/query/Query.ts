@@ -282,9 +282,7 @@ class Query<T = void> {
 
   assert(op: string, left: Field, right: any){
     const apply: Instruction = (arg) => {
-      const column = left.qualifiedName;
-
-      let entry = `${column} ${op} ${right}`;
+      let entry = `${left} ${op} ${right}`;
 
       if(typeof arg === "function")
         entry = arg(entry);

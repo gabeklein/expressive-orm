@@ -12,7 +12,7 @@ export function generateSelect(
   const keys = [] as string[];
   
   selects.forEach((alias, field) => {
-    let select = field.qualifiedName;
+    let select = String(field);
 
     if(alias)
       select += " AS " + qualify(alias);
@@ -122,7 +122,7 @@ export function whereFunction<T extends Entity>(
 
   const cond = [] as string[];
   const add = (op: string, left: Field, right: any) => {
-    cond.push(`${left.qualifiedName} ${op} ${right.qualifiedName}`);
+    cond.push(`${left} ${op} ${right}`);
   }
 
   query.pending.unshift(() => {

@@ -58,7 +58,7 @@ class Field {
     }
   }
 
-  get qualifiedName(){
+  toString(){
     const { alias, name } = RelevantTable.get(this)!;
     return qualify(alias || name, this.column);
   }
