@@ -3,24 +3,24 @@ import { qualify } from '../utility';
 import { generateSelect, generateTables, generateWhere, serialize } from './generate';
 import Query, { RelevantTable } from './Query';
 
-export function queryVerbs<T>(query: Query<T>): Query.Verbs {
+export function queryVerbs<T>(query: Query<T>): Query.Ops {
   return {
-    get(a1: any, a2?: any){
+    top(a1: any, a2?: any){
       if(!a2)
         a2 = a1, a1 = undefined;
   
       return getQuery(query, a2, a1);
     },
-    getOne(select, orFail){
+    one(select, orFail){
       return fetchQuery(query, select, orFail);
     },
-    getOneOrFail(from){
+    has(from){
       return fetchQuery(query, from, true);
     },
-    delete(...from: Query.Type<any>[]){
+    deletes(...from: Query.Type<any>[]){
       deleteQuery(query, from);
     },
-    update(from: Query.Type<any>, update: Query.Update<any>){
+    updates(from: Query.Type<any>, update: Query.Update<any>){
       updateQuery(query, from, update);
     }
   }

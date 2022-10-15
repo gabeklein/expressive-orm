@@ -16,7 +16,7 @@ it("will generate query", () => {
 
     where(foo.value).is("Hello World!");
 
-    where.delete(foo);
+    where.deletes(foo);
   });
 
   expect(query).toMatchSnapshot();
@@ -29,7 +29,7 @@ it("will include FROM statement where JOIN exists", () => {
 
     where(bar.value).is("Hello World!");
 
-    where.delete(foo);
+    where.deletes(foo);
   });
 
   expect(query).toMatchSnapshot();
@@ -42,7 +42,7 @@ it("will delete from multiple", () => {
 
     where(bar.value).is("Hello World!");
 
-    where.delete(foo, bar);
+    where.deletes(foo, bar);
   });
 
   expect(query).toMatchSnapshot();

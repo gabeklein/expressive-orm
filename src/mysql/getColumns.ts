@@ -20,7 +20,7 @@ async function getColumns(schema: string){
 
     where(column.schema).is(schema);
 
-    return where.get((): Schema.Column => {
+    return where.top((): Schema.Column => {
       const {
         dataType,
         isNullable = false,

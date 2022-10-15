@@ -12,8 +12,8 @@ it("will generate query", () => {
 
     where(foo.color).is("red");
 
-    where.update(foo, {
-      value: "Updated!",
+    where.updates(foo, {
+      value: "new!",
       color: "blue"
     })
   });

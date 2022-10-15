@@ -53,23 +53,23 @@ declare namespace Query {
     [K in Entity.Field<T>]?: Exclude<T[K], undefined>;
   }
 
-  interface Verbs {
-    get<T>(select: () => T): Execute<T[]>;
-    get<T>(select: T): Execute<T[]>;
+  interface Ops {
+    top<T>(select: () => T): Execute<T[]>;
+    top<T>(select: T): Execute<T[]>;
 
-    get<T>(limit: number, select: () => T): Execute<T[]>;
-    get<T>(limit: number, select: T): Execute<T[]>;
+    top<T>(limit: number, select: () => T): Execute<T[]>;
+    top<T>(limit: number, select: T): Execute<T[]>;
 
-    getOne<T>(select: () => T, orFail: true): Execute<T>;
-    getOne<T>(select: T, orFail: true): Execute<T>;
-    getOne<T>(select: () => T, orFail?: boolean): Execute<T | undefined>;
-    getOne<T>(select: T, orFail?: boolean): Execute<T | undefined>;
+    one<T>(select: () => T, orFail: true): Execute<T>;
+    one<T>(select: T, orFail: true): Execute<T>;
+    one<T>(select: () => T, orFail?: boolean): Execute<T | undefined>;
+    one<T>(select: T, orFail?: boolean): Execute<T | undefined>;
 
-    getOneOrFail<T>(select: () => T): Execute<T>;
-    getOneOrFail<T>(select: T): Execute<T>;
+    has<T>(select: () => T): Execute<T>;
+    has<T>(select: T): Execute<T>;
 
-    delete(...entries: Query.Type<any>[]): void;
-    update<T extends Entity>(entry: Query.Type<T>, values: Query.Update<T>): void;
+    deletes(...entries: Query.Type<any>[]): void;
+    updates<T extends Entity>(entry: Query.Type<T>, values: Query.Update<T>): void;
   }
 
   interface Assert {
@@ -80,7 +80,7 @@ declare namespace Query {
     all(...where: Instruction[]): Instruction;
   }
 
-  interface Where extends Verbs, Assert {
+  interface Where extends Ops, Assert {
     <T extends Entity>(entity: Entity.Type<T>): Type<T>;
     <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer", on?: Compare<T> | Query.Join.Function): Partial<Type<T>>;
     <T extends Entity>(entity: Entity.Type<T>, join: Join.Mode, on?: Compare<T> | Query.Join.Function): Type<T>;
