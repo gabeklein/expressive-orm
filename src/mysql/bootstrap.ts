@@ -1,16 +1,15 @@
-import Entity from '..';
+import Entity, { Connection } from '..';
 import Field from '../Field';
 import { escapeString, qualify } from '../utility';
-import MySQLConnection from './Connection';
 
-function bootstrap(connection: MySQLConnection, dryRun: true): string; 
-function bootstrap(connection: MySQLConnection, dryRun?: false): Promise<void>;
-function bootstrap(connection: MySQLConnection, dryRun?: boolean): string | Promise<void>;
-function bootstrap(connection: MySQLConnection, dryRun?: boolean){
+function bootstrap(connection: Connection, dryRun: true): string; 
+function bootstrap(connection: Connection, dryRun?: false): Promise<void>;
+function bootstrap(connection: Connection, dryRun?: boolean): string | Promise<void>;
+function bootstrap(connection: Connection, dryRun?: boolean){
   const tables = Array.from(connection.managed.values());
   const commands = [] as string[];
 
-  if(connection.options.nuke)
+  if(false)
     commands.push(...drop(tables));
 
   commands.push(...create(tables));
@@ -86,8 +85,8 @@ function column(from: Field){
   if(from.default !== undefined)
     statement += ` DEFAULT ${escapeString(from.default)}`;
 
-  if(from.datatype == "INT" && from.increment)
-    statement += " AUTO_INCREMENT";
+  // if(from.datatype == "INT" && from.increment)
+  //   statement += " AUTO_INCREMENT";
 
   if(from.primary)
     statement += " PRIMARY KEY";
