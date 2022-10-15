@@ -44,3 +44,13 @@ exports[`where.get will select via object 1`] = `
 	FROM
 	  \`Foo\`
 `;
+
+exports[`where.one will limit results 1`] = `
+	SELECT
+	  \`Foo\`.\`bar\` AS \`bar\`,
+	  \`Foo\`.\`baz\` AS \`baz\`
+	FROM
+	  \`Foo\`
+	LIMIT
+	  1
+`;

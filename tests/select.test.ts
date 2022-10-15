@@ -40,6 +40,18 @@ describe("where.get", () => {
   })
 })
 
+describe("where.one", () => {
+  it("will limit results", () => {
+    const query = new Query(where => {
+      const { bar, baz } = where(Foo);
+  
+      return where.getOne({ bar, baz })
+    })
+  
+    expect(query).toMatchSnapshot();
+  })
+})
+
 describe("joins", () => {
   class Foo extends Entity {
     name = Column();
