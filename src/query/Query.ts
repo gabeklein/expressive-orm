@@ -2,19 +2,36 @@ import Connection from '../connection/Connection';
 import Entity from '../Entity';
 import Field from '../Field';
 import { qualify } from '../utility';
-import { generateTables, generateWhere, whereObject } from './generate';
+import { generateTables, generateWhere, whereFunction, whereObject } from './generate';
 import { queryVerbs } from './verbs';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
 
 declare namespace Query {
-  type Join = "left" | "right" | "inner" | "full";
+  namespace Join {
+    type Mode = "left" | "right" | "inner" | "full";
+
+    type Where = <T>(field: T) => Assertions<T>;
+
+    type Function = (on: Where) => void;
+
+    type Object<T extends Entity> = {
+      [K in Entity.Field<T>]?: T[K];
+    }
+
+    interface Assertions<T> {
+      is(equalTo: T | undefined): void;
+      not(equalTo: T | undefined): void;
+      greater(than: T | undefined): void;
+      less(than: T | undefined): void;
+    } 
+  }
 
   interface Table {
     entity: Entity.Type;
     name: string;
-    join?: Query.Join;
+    join?: Query.Join.Mode;
     alias?: string;
     on?: string[];
   }
@@ -65,9 +82,9 @@ declare namespace Query {
 
   interface Where extends Verbs, Assert {
     <T extends Entity>(entity: Entity.Type<T>): Type<T>;
-    <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer", on?: Compare<T>): Partial<Type<T>>;
-    <T extends Entity>(entity: Entity.Type<T>, join: Join, on?: Compare<T>): Type<T>;
-    <T extends Entity>(entity: Entity.Type<T>, on: Compare<T>): Type<T>;
+    <T extends Entity>(entity: Entity.Type<T>, join: "left" | "outer", on?: Compare<T> | Query.Join.Function): Partial<Type<T>>;
+    <T extends Entity>(entity: Entity.Type<T>, join: Join.Mode, on?: Compare<T> | Query.Join.Function): Type<T>;
+    <T extends Entity>(entity: Entity.Type<T>, on: Compare<T> | Query.Join.Function): Type<T>;
   }
 
   type Function<R> = (where: Query.Where) => Execute<R> | void;
@@ -106,7 +123,7 @@ class Query<T = void> {
     const where = (
       a1: any, a2?: any, a3?: {}): any => {
 
-      if(typeof a2 == "object")
+      if(typeof a2 !== "string")
         a3 = a2, a2 = "inner";
 
       if(typeof a1 == "function")
@@ -208,9 +225,9 @@ class Query<T = void> {
     return apply
   }
 
-  table<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on?: Query.Compare<T>): Partial<Query.Type<T>>;
-  table<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>): Query.Type<T>;
-  table<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join, on?: string[] | Query.Compare<T>){
+  table<T extends Entity>(entity: Entity.Type<T>, join: "left" | "full", on?: string[] | Query.Compare<T> | Query.Join.Function): Partial<Query.Type<T>>;
+  table<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join.Mode, on?: string[] | Query.Compare<T> | Query.Join.Function): Query.Type<T>;
+  table<T extends Entity>(entity: Entity.Type<T>, join?: Query.Join.Mode, on?: string[] | Query.Compare<T> | Query.Join.Function){
     const { tables } = this;
     let { schema, table } = entity.ensure();
     let alias: string | undefined;
@@ -228,13 +245,16 @@ class Query<T = void> {
       if(!join)
         join = "inner";
 
-      where = Array.isArray(on) ? on :
-        whereObject(table, entity, on);
+      where = 
+        Array.isArray(on) ? on :
+        typeof on == "function"
+          ? whereFunction(this, on)
+          : whereObject(table, entity, on);
     }
     else {
       this.main = entity;
       this.connection = entity.connection;
-    } 
+    }
 
     const proxy = {} as any;
     const metadata = {

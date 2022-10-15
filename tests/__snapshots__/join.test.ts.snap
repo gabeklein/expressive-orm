@@ -9,7 +9,19 @@ exports[`will alias tables which have a schema 1`] = `
 	  \`$0\`.\`color\` = 'red'
 `;
 
-exports[`will join using single query syntax 1`] = `
+exports[`will join using function 1`] = `
+	SELECT
+	  COUNT(*)
+	FROM
+	  \`Foo\`
+	  JOIN \`Bar\` ON \`Bar\`.\`name\` <> \`Foo\`.\`name\`
+	  AND \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	WHERE
+	  \`Foo\`.\`name\` <> 'Danny'
+	  AND \`Bar\`.\`rating\` > 50
+`;
+
+exports[`will join using object 1`] = `
 	SELECT
 	  COUNT(*)
 	FROM

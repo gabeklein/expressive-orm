@@ -115,3 +115,31 @@ export function whereObject<T extends Entity>(
   
   return cond;
 }
+
+export function whereFunction<T extends Entity>(
+  query: Query<any>,
+  on: Query.Join.Function){
+
+  const cond = [] as string[];
+  const add = (op: string, left: Field, right: any) => {
+    cond.push(`${left.qualifiedName} ${op} ${right.qualifiedName}`);
+  }
+
+  query.pending.unshift(() => {
+    const where = (field: any) => {
+      if(field instanceof Field)
+        return {
+          is: add.bind(null, "=", field),
+          not: add.bind(null, "<>", field),
+          greater: add.bind(null, ">", field),
+          less: add.bind(null, "<", field),
+        }
+      else
+        throw new Error("Join assertions can only apply to fields.");
+    }
+
+    on(where);
+  });
+  
+  return cond;
+}
