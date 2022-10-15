@@ -120,36 +120,6 @@ abstract class Entity {
     
     return proxy;
   }
-
-  // static select<T extends Entity, R>(
-  //   this: Entity.Type<T>,
-  //   from: Entity.Where<T, R>
-  // ){
-  //   return new Query(where => {
-  //     return from(where(this), where);
-  //   })
-  // }
-
-  // static insert<T extends Entity, R>(
-  //   this: Entity.Type<T>,
-  //   data: Insert.Values<T>
-  // ){
-  //   return new Insert(this, data).exec();
-  // }
-
-  // static async get<T extends Entity, R>(
-  //   this: Entity.Type<T>,
-  //   from: Entity.Where<T, R>
-  // ){
-  //   return this.select(from).get();
-  // }
-
-  // static async getOne<T extends Entity, R>(
-  //   this: Entity.Type<T>,
-  //   from: Entity.Where<T, R>
-  // ){
-  //   return this.select(from).getOne();
-  // }
 }
 
 export default Entity;
