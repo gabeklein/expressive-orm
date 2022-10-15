@@ -45,9 +45,7 @@ it.only("will join using function", async () => {
 
 it("will alias tables which have a schema", () => {
   class Foo extends Entity {
-    this = Table({
-      schema: "foobar"
-    })
+    this = Table({ schema: "foobar" });
 
     name = Column();
     color = Column();
