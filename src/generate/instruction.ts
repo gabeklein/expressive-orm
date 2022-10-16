@@ -14,8 +14,6 @@ const TYPES: any = {
   "mediumtext": "MediumText",
   "longtext": "LongText",
   "char": "Char",
-  "binary": "Binary",
-  "varbinary": "VarBinary",
   "timestamp": "DateTime",
   "datetime": "DateTime",
   "double": "Double",
