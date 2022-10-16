@@ -175,10 +175,8 @@ export function selectQuery<R = any>(
     }
   }
   else if(select && typeof select == "object"){
-    const desc = Object.getOwnPropertyDescriptors(select);
-    
-    for(const key in desc){
-      const { value } = desc[key];
+    for(const key of Object.getOwnPropertyNames(select)){
+      const value = (select as any)[key];
   
       if(value instanceof Field)
         selects.set(value, key);
@@ -187,8 +185,13 @@ export function selectQuery<R = any>(
     return raw => raw.map(row => {
       const output = Object.create(select as {});
   
-      selects.forEach(column => {
-        output[column] = row[column];
+      selects.forEach((column, field) => {
+        let value = row[column];
+
+        if(field.get)
+          value = field.get(value);
+
+        Object.defineProperty(output, column, { value })
       })
       
       return output as R;

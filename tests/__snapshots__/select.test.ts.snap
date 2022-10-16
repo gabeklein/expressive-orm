@@ -22,29 +22,6 @@ exports[`joins will select joined values 1`] = `
 	  AND \`Bar\`.\`rating\` > 50
 `;
 
-exports[`where.top will select a field directly 1`] = `
-	SELECT
-	  \`Foo\`.\`bar\` AS \`1\`
-	FROM
-	  \`Foo\`
-`;
-
-exports[`where.top will select via map function 1`] = `
-	SELECT
-	  \`Foo\`.\`bar\` AS \`1\`,
-	  \`Foo\`.\`baz\` AS \`2\`
-	FROM
-	  \`Foo\`
-`;
-
-exports[`where.top will select via object 1`] = `
-	SELECT
-	  \`Foo\`.\`bar\` AS \`bar\`,
-	  \`Foo\`.\`baz\` AS \`baz\`
-	FROM
-	  \`Foo\`
-`;
-
 exports[`where.one will limit results 1`] = `
 	SELECT
 	  \`Foo\`.\`bar\` AS \`bar\`,
@@ -53,6 +30,15 @@ exports[`where.one will limit results 1`] = `
 	  \`Foo\`
 	LIMIT
 	  1
+`;
+
+exports[`where.top will select a entire entity 1`] = `
+	SELECT
+	  \`Foo\`.\`id\` AS \`id\`,
+	  \`Foo\`.\`bar\` AS \`bar\`,
+	  \`Foo\`.\`baz\` AS \`baz\`
+	FROM
+	  \`Foo\`
 `;
 
 exports[`where.top will select a field directly 1`] = `

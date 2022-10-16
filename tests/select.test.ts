@@ -38,6 +38,16 @@ describe("where.top", () => {
   
     expect(query).toMatchSnapshot();
   })
+  
+  it("will select a entire entity", () => {
+    const query = new Query(where => {
+      const foo = where(Foo);
+  
+      return where.top(foo);
+    })
+  
+    expect(query).toMatchSnapshot();
+  })
 })
 
 describe("where.one", () => {
