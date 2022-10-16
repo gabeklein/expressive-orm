@@ -47,16 +47,15 @@ class MySQLConnection extends Connection {
   }
 
   query<T extends {} = any>(qs: string){
-    return new Promise<T>((resolve, reject) => {
-      if(!this.connection)
-        reject(new Error("Connection is in dry-mode."));
-      else
-        this.connection.query(qs, (err, result) => {
-          if(err)
-            reject(err);
-          else
-            resolve(result);
-        })
+    const { connection } = this;
+
+    if(!connection)
+      return Promise.reject( new Error("No connection"));
+
+    return new Promise<T[]>((res, rej) => {
+      connection.query(qs, (err, data) => {
+        err ? rej(err) : res(data);
+      })
     })
   }
 
