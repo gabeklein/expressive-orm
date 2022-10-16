@@ -2,35 +2,34 @@ import Entity, { SQLiteConnection } from '../src';
 
 const { format } = require('sql-formatter');
 
-class DebugConnection extends SQLiteConnection {
-  constructor(
-    entities: Entity.Type[],
-    public verbose?: boolean){
+declare namespace TestConnection {
+  interface Options extends SQLiteConnection.Config {
+    logs?: boolean;
+  }
+}
 
-    super(entities);
+export class TestConnection extends SQLiteConnection {
+  logs?: boolean
+  
+  constructor(options: TestConnection.Options | Entity.Type[]){
+    super(options);
+
+    if("logs" in options)
+      this.logs = options.logs;
+
+    beforeAll(() => {
+      return this.createTables();
+    })
+
+    afterAll(() => {
+      this.close();
+    });
   }
 
   query(qs: string){
-    if(this.verbose)
+    if(this.logs)
       console.log(format(qs));
 
     return super.query(qs);
   }
-}
-
-export function bootstrap(
-  entities: Entity.Type[], logs?: boolean){
-
-  let db!: SQLiteConnection;
-
-  beforeAll(async () => {
-    db = new DebugConnection(entities, logs);
-    await db.createTables();
-  });
-
-  afterAll(() => {
-    db.close();
-  });
-
-  return db!;
 }

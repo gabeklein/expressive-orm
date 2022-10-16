@@ -1,5 +1,5 @@
 import Entity, { DateTime, Query, VarChar } from "../src";
-import { bootstrap } from "./database";
+import { TestConnection } from "./database";
 
 const Color = () => VarChar({
   oneOf: ["red", "blue", "green"]
@@ -17,7 +17,7 @@ class Bar extends Entity {
   color = Color();
 }
 
-bootstrap([Foo, Bar]);
+new TestConnection([Foo, Bar]);
 
 it("will insert and retrieve a Date", async () => {
   const seconds = (date: Date) => Math.floor(date.getTime() / 1000);
