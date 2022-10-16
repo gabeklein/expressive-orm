@@ -1,4 +1,3 @@
-import Binary, { VarBinary } from './fields/Binary';
 import Bool from './fields/Bool';
 import Char, { VarChar } from './fields/Char';
 import DateTime from './fields/DateTime';
@@ -10,7 +9,6 @@ import Text, { LongText, MediumText, TinyText } from './fields/Text';
 
 export {
   BigInt,
-  Binary,
   Bool,
   Char,
   DateTime,
@@ -25,6 +23,5 @@ export {
   Text,
   TinyInt,
   TinyText,
-  VarBinary,
   VarChar,
 }
