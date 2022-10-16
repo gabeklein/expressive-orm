@@ -33,17 +33,16 @@ class SQLiteConnection extends Connection {
       this.apply(opts.use);
   }
 
-  query<T>(qs: string){
-    return new Promise<T[]>((resolve, reject) => {
-      if(!this.connection)
-        reject(new Error("Connection is in dry-mode."));
-      else
-        this.connection.all(qs, (err: Error | null, results: any[]) => {
-          if(err)
-            reject(err);
-          else
-            resolve(results);
-        })
+  query<T = any>(qs: string){
+    const { connection } = this;
+
+    if(!connection)
+      return Promise.reject( new Error("No connection"));
+
+    return new Promise<T[]>((res, rej) => {
+      connection.all(qs, (err, data) => {
+        err ? rej(err) : res(data);
+      })
     })
   }
 
