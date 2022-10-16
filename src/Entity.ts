@@ -1,6 +1,7 @@
 import Connection from './connection/Connection';
 import Field from './Field';
 import Primary from './fields/Primary';
+import insert from './query/insert';
 import Query from './query/Query';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
@@ -119,6 +120,12 @@ abstract class Entity {
       })
     
     return proxy;
+  }
+
+  static insert<T extends Entity>(
+    this: Entity.Type<T>, ...data: insert.Data<T>[]){
+
+    return insert(this, data);
   }
 }
 
