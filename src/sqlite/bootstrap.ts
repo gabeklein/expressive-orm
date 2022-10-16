@@ -1,28 +1,8 @@
-import Entity, { Connection } from '..';
+import Entity from '..';
 import Field from '../Field';
 import { escapeString, qualify } from '../utility';
 
-function bootstrap(connection: Connection, dryRun: true): string; 
-function bootstrap(connection: Connection, dryRun?: false): Promise<void>;
-function bootstrap(connection: Connection, dryRun?: boolean): string | Promise<void>;
-function bootstrap(connection: Connection, dryRun?: boolean){
-  const tables = Array.from(connection.managed.values());
-  const commands = [] as string[];
-
-  if(false)
-    commands.push(...drop(tables));
-
-  commands.push(...create(tables));
-  commands.push(...constraints(tables))
-  
-  const sql = commands.join(";");
-
-  return dryRun ? sql : connection.query(sql);
-}
-
-export default bootstrap;
-
-function drop(tables: Entity.Type[]){
+export function drop(tables: Entity.Type[]){
   const commands = [];
 
   for(const table of tables)
@@ -31,65 +11,67 @@ function drop(tables: Entity.Type[]){
   return commands;
 }
 
-function create(tables: Entity.Type[]){
-  const commands = [];
+export function table(table: Entity.Type){
+  const { table: name } = table;
+  const statements = [] as string[];
 
-  for(const table of tables){
-    const { table: name } = table;
-    const statements = [] as string[];
+  table.fields.forEach(field => {
+    const sql = column(field);
 
-    table.fields.forEach(field => {
-      const sql = column(field);
+    if(sql)
+      statements.push(sql);
+  });
 
-      if(sql)
-        statements.push(sql);
-    });
-
-    commands.push(
-      `CREATE TABLE IF NOT EXISTS ${name} (${statements.join(",")})`
-    )
-  }
-
-  return commands;
+  return `CREATE TABLE IF NOT EXISTS ${name} (${statements.join(",")})`;
 }
 
-function constraints(tables: Entity.Type[]){
-  const commands = [] as string[];
+export function constraint(table: Entity.Type){
+  const statement = [] as string[];
 
-  for(const table of tables){
-    const statement = [] as string[];
+  table.fields.forEach(field => {
+    const { constraint } = field;
 
-    table.fields.forEach(field => {
-      const { constraint } = field;
+    if(constraint)
+      statement.push(constraint);
+  })
 
-      if(constraint)
-        statement.push(constraint);
-    })
-
-    if(statement.length)
-      commands.push(`ALTER TABLE ${table.name} ${statement.join(", ")}`);
-  }
-
-  return commands;
+  if(statement.length)
+    return `ALTER TABLE ${table.name} ${statement.join(", ")}`;
 }
 
-function column(from: Field){
-  if(from.datatype === undefined)
+export function column(from: Field){
+  let { datatype } = from;
+  let statement = qualify(from.column);
+
+  if(datatype === undefined)
     return;
 
-  let statement = `${qualify(from.column)} ${from.datatype}`;
+  if(from.primary){
+    if(!datatype.includes("INT"))
+      throw new Error("Primary key may only be INTEGER.")
 
-  if(!from.nullable)
-    statement += " NOT NULL";
+    datatype = "INTEGER";
+    statement += " INTEGER PRIMARY KEY";
 
-  if(from.default !== undefined)
-    statement += ` DEFAULT ${escapeString(from.default)}`;
+    if(from.increment !== false)
+      from.increment = true;
+  }
+  else {
+    statement += ` ${datatype}`;
 
-  if(from.primary)
-    statement += " PRIMARY KEY";
-
-  if(from.datatype == "INTEGER" && from.increment)
-    statement += " AUTOINCREMENT";
+    if(!from.nullable)
+      statement += " NOT NULL";
+  
+    if(from.default !== undefined)
+      statement += ` DEFAULT ${escapeString(from.default)}`;
+  }
+  
+  if(from.increment){
+    if(datatype == "INTEGER")
+      statement += " AUTOINCREMENT";
+    else
+      throw new Error("Can only auto-increment INTEGER values.")
+  }
 
   return statement;
 }
