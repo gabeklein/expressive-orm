@@ -23,7 +23,7 @@ const TYPES: any = {
   "enum": "Enum",
   "varchar": "VarChar",
   "json": "Json",
-  "set": "Flags"
+  "set": "Set"
 }
 
 export function instruction(column: Schema.Column){
