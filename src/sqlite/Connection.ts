@@ -2,7 +2,7 @@ import sqlite3 from 'sqlite3';
 
 import Connection from '../connection/Connection';
 import Entity from '../Entity';
-import bootstrap from '../mysql/bootstrap';
+import bootstrap from './bootstrap';
 
 declare namespace SQLiteConnection {
   interface Config {

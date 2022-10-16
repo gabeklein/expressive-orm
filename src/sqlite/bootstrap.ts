@@ -85,11 +85,11 @@ function column(from: Field){
   if(from.default !== undefined)
     statement += ` DEFAULT ${escapeString(from.default)}`;
 
-  if(from.datatype == "INT" && from.increment)
-    statement += " AUTO_INCREMENT";
-
   if(from.primary)
     statement += " PRIMARY KEY";
+
+  if(from.datatype == "INTEGER" && from.increment)
+    statement += " AUTOINCREMENT";
 
   return statement;
 }
