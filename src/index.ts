@@ -1,5 +1,6 @@
 import Connection from './connection/Connection';
 import Entity from './Entity';
+import Field from './Field';
 import Column from './instruction/Column';
 import Join from './instruction/Join';
 import Many from './instruction/Many';
@@ -18,6 +19,7 @@ export {
   Column,
   Connection,
   Entity,
+  Field,
   Join,
   Many,
   MySQLConnection,
