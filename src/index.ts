@@ -11,6 +11,8 @@ import MySQLConnection from './mysql/Connection';
 import Query from './query/Query';
 import SQLiteConnection from './sqlite/Connection';
 
+export * from './fields';
+
 export default Entity;
 export {
   Column,
