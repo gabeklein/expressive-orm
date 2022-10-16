@@ -18,7 +18,7 @@ function DateTime(options?: DateTime.Options){
     ...options,
     datatype: 'DATETIME',
     get(dt: string){
-      return new Date(dt.replace(/[-]/g, '/'))
+      return new Date(dt.replace(/[-]/g, '/') + "Z");
     },
     set(date: Date){
       return date.toISOString().slice(0, 19).replace("T", " ");
