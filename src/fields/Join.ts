@@ -1,11 +1,11 @@
 import Field from "../Field";
 import Query from "../query/Query";
 
-function Sub<R>(factory: Query.Function<R>): R {
-  return SubQueryField.create({ factory })
+function Join<R>(factory: Query.Function<R>): R {
+  return JoinQueryField.create({ factory });
 }
 
-class SubQueryField extends Field {
+class JoinQueryField extends Field {
   factory!: Query.Function<any>;
 
   proxy(query: Query, proxy: {}){
@@ -18,4 +18,4 @@ class SubQueryField extends Field {
   }
 }
 
-export default Sub;
+export default Join;
