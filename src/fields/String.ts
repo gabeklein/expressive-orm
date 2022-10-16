@@ -1,8 +1,7 @@
-import Field from '../../Field';
-import Column from '../../fields/Column';
+import { Column } from '..';
 
 declare namespace Char {
-  interface Options extends Field.Options {
+  interface Options extends Column.Options {
     length?: number;
     oneOf?: any[];
     variable?: boolean;
@@ -56,7 +55,7 @@ function VarChar(
 }
 
 declare namespace Text {
-  interface Options extends Field.Options {
+  interface Options extends Column.Options {
     size?: "tiny" | "medium" | "long";
   }
 

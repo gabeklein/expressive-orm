@@ -1,8 +1,7 @@
-import Field from '../../Field';
-import Column from '../../fields/Column';
+import { Column } from '..';
 
 declare namespace Enum {
-  interface Options<T extends string> extends Field.Options {
+  interface Options<T extends string> extends Column.Options {
     values: T[];
     multiple?: boolean;
   }
@@ -28,7 +27,7 @@ function Enum<T extends string>(options: T[] | Enum.Options<T>){
 }
 
 declare namespace Set {
-  interface Options<T> extends Field.Options {
+  interface Options<T> extends Column.Options {
     values: T[];
   }
 

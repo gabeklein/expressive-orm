@@ -1,8 +1,7 @@
-import Field from '../../Field';
-import Column from '../../fields/Column';
+import { Column } from '..';
 
 declare namespace Int {
-  interface Options extends Field.Options {
+  interface Options extends Column.Options {
     size?: "tiny" | "small" | "big";
   }
 
@@ -19,7 +18,7 @@ function Int(options: Int.Options = {}){
 }
 
 declare namespace Float {
-  interface Options extends Field.Options {
+  interface Options extends Column.Options {
     double?: boolean;
   }
 

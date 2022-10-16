@@ -1,8 +1,7 @@
-import Field from '../../Field';
-import Column from '../../fields/Column';
+import { Column } from '..';
 
 declare namespace Bool {
-  interface Options extends Field.Options {
+  interface Options extends Column.Options {
     either?: readonly [string, string];
   }
 
