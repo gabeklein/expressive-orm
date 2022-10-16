@@ -9,7 +9,10 @@ declare namespace Text {
 function Text(options: Text.Nullable): string | null | undefined;
 function Text(options?: Text.Options): string;
 function Text(options: Text.Options = {}){
-  return Column({ datatype: "TEXT", ...options });
+  return Column({
+    datatype: "TEXT",
+    ...options
+  });
 }
 
 export { Text }

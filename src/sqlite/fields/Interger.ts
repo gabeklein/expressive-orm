@@ -9,7 +9,10 @@ declare namespace Interger {
 function Interger(options: Interger.Nullable): number | null | undefined;
 function Interger(options?: Interger.Options): number;
 function Interger(options: Interger.Options = {}){
-  return Column({ datatype: "TEXT", ...options });
+  return Column({
+    datatype: "TEXT",
+    ...options
+  });
 }
 
 export { Interger }
