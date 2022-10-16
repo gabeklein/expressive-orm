@@ -1,10 +1,9 @@
 import Entity from '../Entity';
 import Primary from '../fields/Primary';
 import Table from '../fields/Table';
-import Bool from './fields/Bool';
-import { VarChar } from './fields/Char';
-import Int from './fields/Int';
-import Text from './fields/Text';
+import { Bool } from './fields/Boolean';
+import { Int } from './fields/Number';
+import { Text, VarChar } from './fields/String';
 
 export class Column extends Entity {
   this = Table({

@@ -23,4 +23,4 @@ function Json(a1?: Json.Options<any>){
   });
 }
 
-export default Json;
+export { Json };

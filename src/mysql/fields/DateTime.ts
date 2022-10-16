@@ -24,4 +24,4 @@ function DateTime(options?: DateTime.Options){
   });
 }
 
-export default DateTime;
+export { DateTime };

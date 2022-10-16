@@ -18,6 +18,26 @@ function Int(options: Int.Options = {}){
   return Column({ datatype, ...options });
 }
 
+declare namespace Float {
+  interface Options extends Field.Options {
+    double?: boolean;
+  }
+
+  type Nullable = Options & { nullable: true };
+}
+
+function Float(options: Float.Nullable): number | null | undefined;
+function Float(options?: Float.Options): number;
+function Float(options: Float.Options = {}){
+  const { double, ...rest } = options;
+
+  return Column({
+    datatype: double ? "DOUBLE" : "FLOAT",
+    placeholder: Infinity,
+    ...rest
+  });
+}
+
 function TinyInt(options: Int.Nullable): number | null | undefined;
 function TinyInt(options?: Int.Options): number;
 function TinyInt(options?: Int.Options){
@@ -36,5 +56,17 @@ function BigInt(options?: Int.Options){
   return Int({ ...options, size: "big" });
 }
 
-export default Int;
-export { Int, TinyInt, SmallInt, BigInt }
+function Double(options: Float.Nullable): number | null | undefined;
+function Double(options?: Float.Options): number;
+function Double(options?: Float.Options){
+  return Float({ ...options, double: true });
+}
+
+export {
+  BigInt,
+  Double,
+  Float,
+  Int,
+  SmallInt,
+  TinyInt,
+}

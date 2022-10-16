@@ -38,4 +38,4 @@ function Bool(options: Bool.Options = {}){
   });
 }
 
-export default Bool;
+export { Bool };

@@ -45,5 +45,4 @@ function Set<T extends string>(options: T[] | Enum.Options<T>){
   return Enum({ ...options, multiple: true });
 }
 
-export default Enum;
 export { Enum, Set }

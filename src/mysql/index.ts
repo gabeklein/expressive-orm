@@ -1,11 +1,9 @@
-import Bool from './fields/Bool';
-import Char, { VarChar } from './fields/Char';
-import DateTime from './fields/DateTime';
-import Enum from './fields/Enum';
-import Float, { Double } from './fields/Float';
-import Int, { BigInt, SmallInt, TinyInt } from './fields/Int';
-import Json from './fields/Json';
-import Text, { LongText, MediumText, TinyText } from './fields/Text';
+import { Bool } from './fields/Boolean';
+import { DateTime } from './fields/DateTime';
+import { Enum } from './fields/Enum';
+import { Json } from './fields/Json';
+import { BigInt, Double, Float, Int, SmallInt, TinyInt } from './fields/Number';
+import { Char, LongText, MediumText, Text, TinyText, VarChar } from './fields/String';
 
 export {
   BigInt,
