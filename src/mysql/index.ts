@@ -6,7 +6,6 @@ import Enum from './fields/Enum';
 import Float, { Double } from './fields/Float';
 import Int, { BigInt, SmallInt, TinyInt } from './fields/Int';
 import Json from './fields/Json';
-import Set from './fields/Set';
 import Text, { LongText, MediumText, TinyText } from './fields/Text';
 
 export {
@@ -22,7 +21,6 @@ export {
   Json,
   LongText,
   MediumText,
-  Set,
   SmallInt,
   Text,
   TinyInt,
