@@ -6,13 +6,11 @@ declare namespace Set {
     values: T[];
   }
 
-  interface Optional<T> extends Options<T> {
-    nullable?: true;
-  }
+  type Nullable<T> = Options<T> & { nullable: true };
 }
 
 function Set<T>(values: T[]): T[];
-function Set<T>(options: Set.Optional<T>): T[] | null | undefined;
+function Set<T>(options: Set.Nullable<T>): T[] | null | undefined;
 function Set<T>(options: Set.Options<T>): T[];
 function Set<T>(options: T[] | Set.Options<T>){
   const { values, ...rest } =

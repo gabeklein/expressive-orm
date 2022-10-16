@@ -6,12 +6,10 @@ declare namespace DateTime {
     default?: "NOW" | Date;
   }
 
-  interface Optional extends Options {
-    nullable?: true;
-  }
+  type Nullable = Options & { nullable: true };
 }
 
-function DateTime<T>(options: DateTime.Optional): Date | null | undefined;
+function DateTime<T>(options: DateTime.Nullable): Date | null | undefined;
 function DateTime(options?: DateTime.Options): Date;
 function DateTime(options?: DateTime.Options){
   return Column({

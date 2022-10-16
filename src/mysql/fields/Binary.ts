@@ -7,12 +7,10 @@ declare namespace Binary {
     variable?: boolean;
   }
 
-  interface Optional extends Options {
-    nullable: true;
-  }
+  type Nullable = Options & { nullable: true };
 }
 
-function Binary(a1: Binary.Optional): never | null | undefined;
+function Binary(a1: Binary.Nullable): never | null | undefined;
 function Binary(a1?: Binary.Options): never;
 function Binary(a1: Binary.Options = {}){
   const datatype =
@@ -21,7 +19,7 @@ function Binary(a1: Binary.Options = {}){
   return Column({ ...a1, datatype });
 }
 
-function VarBinary(options: Binary.Optional): never | null | undefined;
+function VarBinary(options: Binary.Nullable): never | null | undefined;
 function VarBinary(options?: Binary.Options): never;
 function VarBinary(options?: Binary.Options){
   return Column(options);

@@ -6,15 +6,13 @@ declare namespace Ref {
     type?: Entity.Type<T>;
   }
 
-  interface Optional<T extends Entity> extends Options<T> {
-    nullable?: true;
-  }
+  type Nullable<T extends Entity> = Options<T> & { nullable: true };
 }
 
 function Ref<T extends Entity>(type: Entity.Type<T>): number;
-function Ref<T extends Entity>(type: Entity.Type<T>, options: Ref.Optional<T>): number | null | undefined;
+function Ref<T extends Entity>(type: Entity.Type<T>, options: Ref.Nullable<T>): number | null | undefined;
 function Ref<T extends Entity>(type: Entity.Type<T>, options: Ref.Options<T>): number;
-function Ref<T extends Entity>(options: Ref.Optional<T>): number | null | undefined;
+function Ref<T extends Entity>(options: Ref.Nullable<T>): number | null | undefined;
 function Ref<T extends Entity>(options: Ref.Options<T>): number;
 function Ref<T extends Entity>(arg1: any, arg2?: any): any {
   if(typeof arg1 == "function")

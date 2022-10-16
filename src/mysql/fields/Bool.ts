@@ -6,13 +6,11 @@ declare namespace Bool {
     either?: readonly [string, string];
   }
 
-  interface Optional extends Options {
-    nullable: true;
-  }
+  type Nullable = Options & { nullable: true };
 }
 
 function Bool(): boolean;
-function Bool(options: Bool.Optional): boolean | null | undefined;
+function Bool(options: Bool.Nullable): boolean | null | undefined;
 function Bool(options: Bool.Options): boolean;
 function Bool(options: Bool.Options = {}){
   let isTrue: any = 1;

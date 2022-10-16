@@ -6,12 +6,10 @@ declare namespace Text {
     size?: "tiny" | "medium" | "long";
   }
 
-  interface Optional extends Options {
-    nullable: true;
-  }
+  type Nullable = Options & { nullable: true };
 }
 
-function Text(options: Text.Optional): string | null | undefined;
+function Text(options: Text.Nullable): string | null | undefined;
 function Text(options?: Text.Options): string;
 function Text(options: Text.Options = {}){
   const { size = "" } = options;
@@ -21,19 +19,19 @@ function Text(options: Text.Options = {}){
   return Column({ datatype, ...options });
 }
 
-function TinyText(options: Text.Optional): string | null | undefined;
+function TinyText(options: Text.Nullable): string | null | undefined;
 function TinyText(options?: Text.Options): string;
 function TinyText(opts: Text.Options = {}){
   return Text({ ...opts, size: "tiny" });
 }
 
-function MediumText(options: Text.Optional): string | null | undefined;
+function MediumText(options: Text.Nullable): string | null | undefined;
 function MediumText(options?: Text.Options): string;
 function MediumText(opts: Text.Options = {}){
   return Text({ ...opts, size: "medium" });
 }
 
-function LongText(options: Text.Optional): string | null | undefined;
+function LongText(options: Text.Nullable): string | null | undefined;
 function LongText(options?: Text.Options): string;
 function LongText(opts: Text.Options = {}){
   return Text({ ...opts, size: "long" });

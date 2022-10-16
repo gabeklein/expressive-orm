@@ -10,15 +10,13 @@ declare namespace One {
     type?: Entity.Type<T>;
   }
 
-  interface Optional<T extends Entity> extends Options<T> {
-    nullable?: true;
-  }
+  type Nullable<T extends Entity> = Options<T> & { nullable: true };
 }
 
 function One<T extends Entity>(type: Entity.Type<T>): T;
-function One<T extends Entity>(type: Entity.Type<T>, options: One.Optional<T>): T | null | undefined;
+function One<T extends Entity>(type: Entity.Type<T>, options: One.Nullable<T>): T | null | undefined;
 function One<T extends Entity>(type: Entity.Type<T>, options: One.Options<T>): T;
-function One<T extends Entity>(options: One.Optional<T>): T | null | undefined;
+function One<T extends Entity>(options: One.Nullable<T>): T | null | undefined;
 function One<T extends Entity>(options: One.Options<T>): T;
 function One<T extends Entity>(arg1: any, arg2?: any): any {
   if(typeof arg1 == "function")

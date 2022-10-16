@@ -6,13 +6,11 @@ declare namespace Enum {
     values: T[];
   }
 
-  interface Optional<T extends string> extends Options<T> {
-    nullable?: true;
-  }
+  type Nullable<T extends string> = Options<T> & { nullable: true };
 }
 
 function Enum<T extends string>(values: T[]): T;
-function Enum<T extends string>(options: Enum.Optional<T>): T | null | undefined;
+function Enum<T extends string>(options: Enum.Nullable<T>): T | null | undefined;
 function Enum<T extends string>(options: Enum.Options<T>): T;
 function Enum<T extends string>(options: T[] | Enum.Options<T>){
   const { values, ...rest } =

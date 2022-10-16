@@ -6,12 +6,10 @@ declare namespace Float {
     double?: boolean;
   }
 
-  interface Optional extends Options {
-    nullable: true;
-  }
+  type Nullable = Options & { nullable: true };
 }
 
-function Float(options: Float.Optional): number | null | undefined;
+function Float(options: Float.Nullable): number | null | undefined;
 function Float(options?: Float.Options): number;
 function Float(options: Float.Options = {}){
   const { double, ...rest } = options;
@@ -23,7 +21,7 @@ function Float(options: Float.Options = {}){
   });
 }
 
-function Double(options: Float.Optional): number | null | undefined;
+function Double(options: Float.Nullable): number | null | undefined;
 function Double(options?: Float.Options): number;
 function Double(options?: Float.Options){
   return Float({ ...options, double: true });

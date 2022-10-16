@@ -12,16 +12,14 @@ declare namespace Char {
     oneOf: T[];
   }
 
-  interface Optional extends Options {
-    nullable: true;
-  }
+  type Nullable = Options & { nullable: true };
 }
 
-function Char<T extends string>(options: Char.Specific<T> & Char.Optional): T | null | undefined;
+function Char<T extends string>(options: Char.Specific<T> & Char.Nullable): T | null | undefined;
 function Char<T extends string>(options?: Char.Specific<T>): T;
-function Char(length: number, options: Char.Optional): string | null | undefined;
+function Char(length: number, options: Char.Nullable): string | null | undefined;
 function Char(length: number, options?: Char.Options): string;
-function Char(options: Char.Optional): string | null | undefined;
+function Char(options: Char.Nullable): string | null | undefined;
 function Char(options?: Char.Options): string;
 function Char(
   arg1: number | Char.Options = {},
@@ -41,11 +39,11 @@ function Char(
   });
 }
 
-function VarChar<T extends string>(options: Char.Specific<T> & Char.Optional): T | null | undefined;
+function VarChar<T extends string>(options: Char.Specific<T> & Char.Nullable): T | null | undefined;
 function VarChar<T extends string>(options: Char.Specific<T>): T;
-function VarChar(length: number, options?: Char.Optional): string | null | undefined;
+function VarChar(length: number, options?: Char.Nullable): string | null | undefined;
 function VarChar(length: number, options?: Char.Options): string;
-function VarChar(options: Char.Optional): string | null | undefined;
+function VarChar(options: Char.Nullable): string | null | undefined;
 function VarChar(options?: Char.Options): string;
 function VarChar(
   arg1?: number | Char.Options,
