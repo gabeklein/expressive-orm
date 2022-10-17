@@ -146,7 +146,11 @@ export function selectQuery<R = any>(
   if(select instanceof Field){
     selects.set(select, 1);
 
-    return raw => raw.map(row => row[1]);
+    return raw => raw.map(row => {
+      const value = row[1];
+
+      return select.get ? select.get(value) : value;
+    });
   }
   else if(typeof select == "function"){
     let focus: any;

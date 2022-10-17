@@ -29,13 +29,13 @@ it("will insert and retrieve a Date", async () => {
     color: "red"
   })
 
-  const item = await Query.run(where => {
+  const date = await Query.run(where => {
     const foo = where(Foo);
 
     where(foo.id).is(1);
 
-    return where.has(foo);
+    return where.has(foo.date);
   });
 
-  expect(seconds(now)).toBe(seconds(item.date));
+  expect(seconds(now)).toBe(seconds(date));
 })
