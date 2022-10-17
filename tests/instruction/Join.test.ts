@@ -1,9 +1,9 @@
-import Entity, { Column, Query, Sub } from '../src';
+import Entity, { Column, Query, Join } from '../../src';
 
 class Foo extends Entity {
   color = Column();
 
-  bazValue = Sub(where => {
+  bazValue = Join(where => {
     const bar = where(Bar, { color: this.color });
     const baz = where(Baz, { rating: bar.rating });
 

@@ -1,14 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`will alias tables which have a schema 1`] = `
-	SELECT
-	  COUNT(*)
-	FROM
-	  \`foobar\`.\`Foo\` AS \`$0\`
-	WHERE
-	  \`$0\`.\`color\` = 'red'
-`;
-
 exports[`will join using function 1`] = `
 	SELECT
 	  COUNT(*)
@@ -19,17 +10,4 @@ exports[`will join using function 1`] = `
 	WHERE
 	  \`Foo\`.\`name\` <> 'Danny'
 	  AND \`Bar\`.\`rating\` > 50
-`;
-
-exports[`will join using object 1`] = `
-	SELECT
-	  COUNT(*)
-	FROM
-	  \`Foo\`
-	  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-	  JOIN \`Baz\` ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
-	WHERE
-	  \`Foo\`.\`name\` <> 'Danny'
-	  AND \`Bar\`.\`rating\` > 50
-	  AND \`Baz\`.\`color\` = 'blue'
 `;
