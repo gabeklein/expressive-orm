@@ -7,7 +7,7 @@ class Foo extends Entity {
     const bar = where(Bar, { color: this.color });
     const baz = where(Baz, { rating: bar.rating });
 
-    return where.one(baz.value);
+    return baz.value;
   })
 }
 
@@ -22,11 +22,14 @@ class Baz extends Entity {
   rating = Column();
 }
 
-it.skip("will integrate query on select", () => {
+it("will integrate query on select", () => {
   const query = new Query(where => {
-    const { bazValue } = where(Foo);
+    const foo = where(Foo);
 
-    return where.top(bazValue);
+    return where.top({
+      baz: foo.bazValue,
+      color: foo.color
+    });
   });
 
   expect(query).toMatchSnapshot();
