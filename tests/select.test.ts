@@ -5,12 +5,12 @@ class Foo extends Entity {
   baz = Column();
 }
 
-describe("where.top", () => {
+describe("where.get", () => {
   it("will select via object", () => {
     const query = new Query(where => {
       const { bar, baz } = where(Foo);
   
-      return where.top({ bar, baz })
+      return where.get({ bar, baz })
     })
   
     expect(query).toMatchSnapshot();
@@ -20,7 +20,7 @@ describe("where.top", () => {
     const query = new Query(where => {
       const foo = where(Foo);
   
-      return where.top(() => ({
+      return where.get(() => ({
         bar: foo.bar,
         baz: foo.baz
       }));
@@ -33,7 +33,7 @@ describe("where.top", () => {
     const query = new Query(where => {
       const foo = where(Foo);
   
-      return where.top(foo.bar);
+      return where.get(foo.bar);
     })
   
     expect(query).toMatchSnapshot();
@@ -43,7 +43,7 @@ describe("where.top", () => {
     const query = new Query(where => {
       const foo = where(Foo);
   
-      return where.top(foo);
+      return where.get(foo);
     })
   
     expect(query).toMatchSnapshot();
@@ -87,7 +87,7 @@ describe("joins", () => {
       where(foo.name).not("Danny");
       where(bar.rating).greater(50);
   
-      return where.top({
+      return where.get({
         fooValue: foo.name,
         barValue: bar.name,
         bazRating: baz.rating
@@ -106,7 +106,7 @@ describe("joins", () => {
     const query = new Query(where => {
       const bar = where(Bar);
   
-      return where.top(bar.foo.name)
+      return where.get(bar.foo.name)
     });
   
     expect(query).toMatchSnapshot();

@@ -54,11 +54,11 @@ declare namespace Query {
   }
 
   interface Ops {
-    top<T>(select: () => T): Execute<T[]>;
-    top<T>(select: T): Execute<T[]>;
+    get<T>(select: () => T): Execute<T[]>;
+    get<T>(select: T): Execute<T[]>;
 
-    top<T>(limit: number, select: () => T): Execute<T[]>;
-    top<T>(limit: number, select: T): Execute<T[]>;
+    get<T>(limit: number, select: () => T): Execute<T[]>;
+    get<T>(limit: number, select: T): Execute<T[]>;
 
     one<T>(select: () => T, orFail: true): Execute<T>;
     one<T>(select: T, orFail: true): Execute<T>;
@@ -305,7 +305,7 @@ class Query<T = void> {
   }
 
   static get<R>(where: Query.Select<R>){
-    return this.run(i => i.top(where(i) as R));
+    return this.run(i => i.get(where(i) as R));
   }
 
   static one<R>(where: Query.Select<R>){

@@ -5,7 +5,7 @@ import Query, { RelevantTable } from './Query';
 
 export function queryVerbs<T>(query: Query<T>): Query.Ops {
   return {
-    top(a1: any, a2?: any){
+    get(a1: any, a2?: any){
       if(!a2)
         a2 = a1, a1 = undefined;
   

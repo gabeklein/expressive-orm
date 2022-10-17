@@ -26,7 +26,7 @@ it("will integrate query on select", () => {
   const query = new Query(where => {
     const foo = where(Foo);
 
-    return where.top({
+    return where.get({
       baz: foo.bazValue,
       color: foo.color
     });
