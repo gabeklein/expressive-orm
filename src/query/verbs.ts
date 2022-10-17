@@ -146,11 +146,7 @@ export function selectQuery<R = any>(
   if(select instanceof Field){
     selects.set(select, 1);
 
-    return raw => raw.map(row => {
-      const value = row[1];
-
-      return select.get ? select.get(value) : value;
-    });
+    return raw => raw.map(row => select.get(row[1]));
   }
   else if(typeof select == "function"){
     let focus: any;
@@ -190,12 +186,9 @@ export function selectQuery<R = any>(
       const output = Object.create(select as {});
   
       selects.forEach((column, field) => {
-        let value = row[column];
-
-        if(field.get)
-          value = field.get(value);
-
-        Object.defineProperty(output, column, { value })
+        Object.defineProperty(output, column, {
+          value: field.get(row[column])
+        })
       })
       
       return output as R;

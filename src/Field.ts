@@ -32,8 +32,11 @@ class Field {
 
   datatype: string | undefined;
 
-  get?(value: any): any;
   set?(value: any): any;
+
+  get(value: any){
+    return value;
+  }
 
   constructor(
     public table: Entity.Type,
