@@ -89,7 +89,9 @@ declare namespace Query {
 
   type Function<R> = (where: Query.Where) => Execute<R> | void;
 
-  type SelectFunction<R> = (where: Query.Where) => R | (() => R);
+  type Select<R> =
+    | ((where: Query.Where) => () => R)
+    | ((where: Query.Where) => R)
 
   type Output<T> = T extends void ? number : T;
 }
@@ -300,6 +302,18 @@ class Query<T = void> {
 
   static run<R>(where: Query.Function<R>){
     return new Query(where).run();
+  }
+
+  static get<R>(where: Query.Select<R>){
+    return this.run(i => i.top(where(i) as R));
+  }
+
+  static one<R>(where: Query.Select<R>){
+    return this.run(i => i.one(where(i) as R));
+  }
+
+  static has<R>(where: Query.Select<R>){
+    return this.run(i => i.has(where(i) as R));
   }
 }
 

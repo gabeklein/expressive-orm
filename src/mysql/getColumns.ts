@@ -3,7 +3,7 @@ import Query from '../query/Query';
 import { Column, KeyColumnUsage, ReferentialConstraints } from './schema';
 
 async function getColumns(schema: string){
-  return Query.run(where => {
+  return Query.get(where => {
     const column = where(Column);
 
     const usage = where(KeyColumnUsage, "left", {
@@ -20,7 +20,7 @@ async function getColumns(schema: string){
 
     where(column.schema).is(schema);
 
-    return where.top((): Schema.Column => {
+    return () => {
       const {
         dataType,
         isNullable = false,
@@ -53,7 +53,7 @@ async function getColumns(schema: string){
           updateRule
         };
 
-      return {
+      return <Schema.Column> {
         dataType,
         isNullable,
         isPrimary,
@@ -63,8 +63,8 @@ async function getColumns(schema: string){
         tableName,
         type,
       }
-    })
-  });
+    }
+  })
 }
 
 export default getColumns;
