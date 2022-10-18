@@ -1,76 +1,37 @@
-import Entity, { Connection } from '..';
+import Entity from '..';
 import Field from '../Field';
 import { escapeString, qualify } from '../utility';
 
-function bootstrap(connection: Connection, dryRun: true): string; 
-function bootstrap(connection: Connection, dryRun?: false): Promise<void>;
-function bootstrap(connection: Connection, dryRun?: boolean): string | Promise<void>;
-function bootstrap(connection: Connection, dryRun?: boolean){
-  const tables = Array.from(connection.managed.values());
-  const commands = [] as string[];
-
-  if(false)
-    commands.push(...drop(tables));
-
-  commands.push(...create(tables));
-  commands.push(...constraints(tables))
-  
-  const sql = commands.join(";");
-
-  return dryRun ? sql : connection.query(sql);
+export function drop(table: Entity.Type){
+  return `DROP TABLE IF EXISTS ${table.name}`
 }
 
-export default bootstrap;
+export function create(table: Entity.Type){
+  const { table: name } = table;
+  const statements = [] as string[];
 
-function drop(tables: Entity.Type[]){
-  const commands = [];
+  table.fields.forEach(field => {
+    const sql = column(field);
 
-  for(const table of tables)
-    commands.push(`DROP TABLE IF EXISTS ${table.name}`);
+    if(sql)
+      statements.push(sql);
+  });
 
-  return commands;
+  return `CREATE TABLE IF NOT EXISTS ${name} (${statements.join(",")})`
 }
 
-function create(tables: Entity.Type[]){
-  const commands = [];
+export function constraints(table: Entity.Type){
+  const statement = [] as string[];
 
-  for(const table of tables){
-    const { table: name } = table;
-    const statements = [] as string[];
+  table.fields.forEach(field => {
+    const { constraint } = field;
 
-    table.fields.forEach(field => {
-      const sql = column(field);
+    if(constraint)
+      statement.push(constraint);
+  })
 
-      if(sql)
-        statements.push(sql);
-    });
-
-    commands.push(
-      `CREATE TABLE IF NOT EXISTS ${name} (${statements.join(",")})`
-    )
-  }
-
-  return commands;
-}
-
-function constraints(tables: Entity.Type[]){
-  const commands = [] as string[];
-
-  for(const table of tables){
-    const statement = [] as string[];
-
-    table.fields.forEach(field => {
-      const { constraint } = field;
-
-      if(constraint)
-        statement.push(constraint);
-    })
-
-    if(statement.length)
-      commands.push(`ALTER TABLE ${table.name} ${statement.join(", ")}`);
-  }
-
-  return commands;
+  if(statement.length)
+    return `ALTER TABLE ${table.name} ${statement.join(", ")}`
 }
 
 function column(from: Field){
