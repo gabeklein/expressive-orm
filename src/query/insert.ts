@@ -9,20 +9,6 @@ export declare namespace insert {
   }
 }
 
-export function insert<T extends Entity>(
-  type: Entity.Type<T>,
-  data: insert.Data<T>[]){
-
-  if(!type.connection)
-    throw new Error("weird");
-
-  const sql = insertQuery(type, data);
-  
-  return type.connection.query(sql);
-}
-
-export default insert;
-
 export function insertQuery<T extends Entity>(
   type: Entity.Type<T>,
   data: insert.Data<T>[]){

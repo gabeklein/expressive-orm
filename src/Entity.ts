@@ -1,7 +1,7 @@
 import Connection from './connection/Connection';
 import Field from './Field';
 import Primary from './instruction/Primary';
-import insert from './query/insert';
+import { insertQuery } from './query/insert';
 import Query from './query/Query';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
@@ -36,6 +36,14 @@ declare namespace Entity {
     (source: Query.Type<T>, query: Query.Where) => () => R;
 
   type Instruction = (parent: Entity.Type, key: string) => void;
+
+  namespace Insert {
+    type Property<T> = T extends Entity ? T | number : T;
+  }
+
+  type Insert<T extends Entity> = {
+    [K in Entity.Field<T>]?: Insert.Property<T[K]>;
+  }
 }
 
 abstract class Entity {
@@ -122,10 +130,32 @@ abstract class Entity {
     return proxy;
   }
 
+  static insert<T extends Entity>(this: Entity.Type<T>, data: Entity.Insert<T>): Promise<void>;
+  static insert<T extends Entity>(this: Entity.Type<T>, number: number, mapper: (index: number) => Entity.Insert<T>): Promise<void>;
+  static insert<T extends Entity, I>(this: Entity.Type<T>, input: I[], mapper: (item: I) => Entity.Insert<T>): Promise<void>;
+  static insert<T extends Entity>(this: Entity.Type<T>, data: Entity.Insert<T>[]): Promise<void>;
   static insert<T extends Entity>(
-    this: Entity.Type<T>, ...data: insert.Data<T>[]){
+    this: Entity.Type<T>,
+    data: any,
+    mapper?: (i: any) => Entity.Insert<T>){
+  
+    if(!this.connection)
+      throw new Error("weird");
+  
+    if(mapper)
+      data = typeof data == "number"
+        ? Array.from({ length: data }, (_, i) => mapper(i))
+        : data.map(mapper);
+  
+    else if(typeof data == "number")
+      throw new Error("Cannot insert a number without a map function!");
 
-    return insert(this, data);
+    else if(!Array.isArray(data))
+      data = [data];
+  
+    const sql = insertQuery(this, data);
+    
+    return this.connection.query(sql) as Promise<void>;
   }
 }
 
