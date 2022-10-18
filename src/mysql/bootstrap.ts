@@ -2,6 +2,25 @@ import Entity from '..';
 import Field from '../Field';
 import { escapeString, qualify } from '../utility';
 
+export function bootstrap(entities: Iterable<Entity.Type>){
+  const commands = [] as string[];
+  
+  for(const entity of entities)
+    entity.ensure();
+
+  for(const entity of entities)
+    commands.push(create(entity));
+
+  for(const entity of entities){
+    const statement = constraints(entity);
+
+    if(statement)
+      commands.push(statement);
+  }
+  
+  return commands.join(";");
+}
+
 export function drop(table: Entity.Type){
   return `DROP TABLE IF EXISTS ${table.name}`
 }

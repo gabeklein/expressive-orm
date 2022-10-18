@@ -1,5 +1,5 @@
 import { Bool, Entity, Int, Many, One } from '../..';
-import MySQLConnection from '../Connection';
+import { bootstrap } from '../bootstrap';
 
 it("will create tables", () => {
   class Author extends Entity {
@@ -21,17 +21,11 @@ it("will create tables", () => {
     rating = Int();
   }
 
-  const connection =
-    new MySQLConnection({
-      dry: true,
-      use: [
-        Author,
-        Book,
-        Publisher
-      ]
-    });
-
-  const sql = connection.createTables(true);
+  const sql = bootstrap([
+    Author,
+    Book,
+    Publisher
+  ])
 
   expect(sql).toMatchSnapshot();
 })

@@ -1,8 +1,9 @@
-import type sqlite3 from 'sqlite3';
-
 import Connection from '../connection/Connection';
 import Entity from '../Entity';
-import { constraint, table } from './bootstrap';
+import { asPromise } from '../utility';
+import { bootstrap } from './bootstrap';
+
+import type sqlite3 from 'sqlite3';
 
 declare namespace SQLiteConnection {
   interface Config {
@@ -53,19 +54,7 @@ class SQLiteConnection extends Connection {
   }
 
   createTables(){
-    const commands = [] as string[];
-
-    for(const entity of this.managed)
-      commands.push(table(entity));
-
-    for(const entity of this.managed){
-      const statement = constraint(entity);
-
-      if(statement)
-        commands.push(statement);
-    }
-    
-    return this.query(commands.join(";"));
+    return this.query(bootstrap(this.managed));
   }
 }
 

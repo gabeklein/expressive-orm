@@ -1,11 +1,10 @@
 import Connection from '../connection/Connection';
 import Entity from '../Entity';
 import { asPromise } from '../utility';
-import { constraints, create } from './bootstrap';
+import { bootstrap } from './bootstrap';
 import * as schema from './schema';
 
 import type mysql from 'mysql';
-
 declare namespace MySQLConnection {
   interface Config extends mysql.ConnectionConfig {
     dry?: boolean;
@@ -68,19 +67,7 @@ class MySQLConnection extends Connection {
   }
 
   createTables(){
-    const commands = [] as string[];
-
-    for(const entity of this.managed)
-      commands.push(create(entity));
-
-    for(const entity of this.managed){
-      const statement = constraints(entity);
-
-      if(statement)
-        commands.push(statement);
-    }
-    
-    return this.query(commands.join(";"));
+    return this.query(bootstrap(this.managed));
   }
 }
 

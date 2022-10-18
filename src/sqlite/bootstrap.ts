@@ -2,6 +2,25 @@ import Entity from '..';
 import Field from '../Field';
 import { escapeString, qualify } from '../utility';
 
+export function bootstrap(entities: Iterable<Entity.Type>){
+  const commands = [] as string[];
+  
+  for(const entity of entities)
+    entity.ensure();
+
+  for(const entity of entities)
+    commands.push(table(entity));
+
+  for(const entity of entities){
+    const statement = constraint(entity);
+
+    if(statement)
+      commands.push(statement);
+  }
+  
+  return commands.join(";");
+}
+
 export function drop(tables: Entity.Type[]){
   const commands = [];
 
