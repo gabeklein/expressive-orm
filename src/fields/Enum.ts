@@ -18,7 +18,11 @@ function Enum<T extends string>(options: T[] | Enum.Options<T>){
 
   const { values, multiple, ...rest } = options;
   const type = multiple ? "SET" : "ENUM";
-  const signature = values.map(x => typeof x == "string" ? `'${x}'` : x).join(',');
+  const signature = values
+    .map(value => (
+      typeof value == "string" ? `'${value}'` : value
+    ))
+    .join(',');
 
   return Column({
     ...rest,

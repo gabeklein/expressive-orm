@@ -53,12 +53,7 @@ class SQLiteConnection extends Connection {
       return Promise.reject(new Error("No connection"));
 
     return new Promise<void>((res, rej) => {
-      connection.close(error => {
-        if(error)
-          rej(error)
-        else
-          res();
-      });
+      connection.close(err => err ? rej(err) : res());
     })
   }
 

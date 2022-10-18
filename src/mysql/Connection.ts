@@ -66,12 +66,7 @@ class MySQLConnection extends Connection {
       return Promise.reject(new Error("No connection"));
 
     return new Promise<void>((res, rej) => {
-      connection.end(error => {
-        if(error)
-          rej(error)
-        else
-          res();
-      });
+      connection.end(err => err ? rej(err) : res());
     })
   }
 
