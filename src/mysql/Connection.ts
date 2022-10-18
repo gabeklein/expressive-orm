@@ -1,5 +1,6 @@
 import Connection from '../connection/Connection';
 import Entity from '../Entity';
+import { asPromise } from '../utility';
 import { constraints, create } from './bootstrap';
 import * as schema from './schema';
 
@@ -54,11 +55,7 @@ class MySQLConnection extends Connection {
     if(!connection)
       return Promise.reject( new Error("No connection"));
 
-    return new Promise<T[]>((res, rej) => {
-      connection.query(qs, (err, data) => {
-        err ? rej(err) : res(data);
-      })
-    })
+    return asPromise<T[]>(cb => connection.query(qs, cb));
   }
 
   close(){
@@ -67,9 +64,7 @@ class MySQLConnection extends Connection {
     if(!connection)
       return Promise.reject(new Error("No connection"));
 
-    return new Promise<void>((res, rej) => {
-      connection.end(err => err ? rej(err) : res());
-    })
+    return asPromise(cb => connection.end(cb));
   }
 
   createTables(){

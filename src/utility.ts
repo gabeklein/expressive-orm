@@ -30,3 +30,37 @@ export function sql(
 
   return result.trim();
 }
+
+declare namespace asPromise {
+  type Action<T> = (
+    callback: (err: Error | null | undefined, value?: T) => void
+  ) => void;
+}
+
+function asPromise<T = void>(action: asPromise.Action<T>){
+  return new Promise<T>((res, rej) => {
+    action((err, returns) => {
+      if(err)
+        rej(err);
+      else
+        res(returns as T);
+    })
+  })
+}
+
+export { asPromise };
+
+// export function promisify(fn){
+//   return (...args) => {
+//     return new Promise((resolve, reject) => {
+//       function customCallback(err, ...results) {
+//         if (err) {
+//           return reject(err)
+//         }
+//         return resolve(results.length === 1 ? results[0] : results) 
+//        }
+//        args.push(customCallback)
+//        fn.call(this, ...args)
+//      })
+//   }
+// }

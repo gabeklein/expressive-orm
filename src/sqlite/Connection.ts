@@ -40,11 +40,7 @@ class SQLiteConnection extends Connection {
     if(!connection)
       return Promise.reject( new Error("No connection"));
 
-    return new Promise<T[]>((res, rej) => {
-      connection.all(qs, (err, data) => {
-        err ? rej(err) : res(data);
-      })
-    })
+    return asPromise<T[]>(cb => connection.all(qs, cb));
   }
 
   close(){
@@ -53,9 +49,7 @@ class SQLiteConnection extends Connection {
     if(!connection)
       return Promise.reject(new Error("No connection"));
 
-    return new Promise<void>((res, rej) => {
-      connection.close(err => err ? rej(err) : res());
-    })
+    return asPromise(cb => connection.close(cb));
   }
 
   createTables(){
