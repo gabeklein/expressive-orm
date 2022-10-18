@@ -1,4 +1,4 @@
-import sqlite3 from 'sqlite3';
+import type sqlite3 from 'sqlite3';
 
 import Connection from '../connection/Connection';
 import Entity from '../Entity';
@@ -13,7 +13,7 @@ declare namespace SQLiteConnection {
 
 class SQLiteConnection extends Connection {
   options: SQLiteConnection.Config;
-  connection?: sqlite3.Database;
+  connection: sqlite3.Database;
   database?: string;
 
   constructor(opts: SQLiteConnection.Config | Entity.Type[] = {}){
@@ -22,6 +22,7 @@ class SQLiteConnection extends Connection {
     if(Array.isArray(opts))
       opts = { use: opts };
 
+    const sqlite3 = require("sqlite3");
     const database = opts.file || ':memory:';
     const connection = new sqlite3.Database(database);
 

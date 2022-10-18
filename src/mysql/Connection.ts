@@ -1,9 +1,9 @@
-import mysql from 'mysql';
-
 import Connection from '../connection/Connection';
 import Entity from '../Entity';
 import { constraints, create } from './bootstrap';
 import * as schema from './schema';
+
+import type mysql from 'mysql';
 
 declare namespace MySQLConnection {
   interface Config extends mysql.ConnectionConfig {
@@ -22,6 +22,8 @@ class MySQLConnection extends Connection {
 
   constructor(opts: MySQLConnection.Config | Entity.Type[] = {}){
     super();
+
+    const mysql = require("mysql");
 
     if(Array.isArray(opts))
       opts = { use: opts };
