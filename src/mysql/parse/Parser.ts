@@ -36,7 +36,7 @@ class Parser {
       const { type } = token;
   
       switch(type){
-        case "keyword":
+        case "word":
           this.statement(token.value);
           return;
 
@@ -60,7 +60,7 @@ class Parser {
         return;
   
       case "CREATE": {
-        const { value } = scan.expect("keyword");
+        const { value } = scan.expect("word");
   
         if(value === "TABLE")
           this.table();
@@ -105,7 +105,7 @@ class Parser {
 
       scan.nextIs("comma", true);
     
-      if(scan.nextIs("keyword")){
+      if(scan.nextIs("word")){
         this.constraint(table);
       }
       else {
@@ -125,12 +125,12 @@ class Parser {
   constraint(table: Parser.Table){
     const { scan } = this;
 
-    if(scan.expect("keyword").value !== "CONSTRAINT")
+    if(scan.expect("word").value !== "CONSTRAINT")
       throw new Error(`Unexpected thing.`)
 
     scan.expect("escaped");
-    scan.expect("keyword");
-    scan.expect("keyword");
+    scan.expect("word");
+    scan.expect("word");
     scan.expect("lparen");
 
     const name = scan.expect("escaped").value;
@@ -144,7 +144,7 @@ class Parser {
     const { scan } = this;
 
     const name = scan.expect(["escaped", "word"]).value;
-    const datatype = scan.expect(["keyword", "word"]).value;
+    const datatype = scan.expect("word").value;
 
     const info = { name, datatype } as Parser.Column;
 
@@ -155,7 +155,7 @@ class Parser {
       if(scan.nextIs("comma", true) || scan.nextIs("rparen"))
         break;
 
-      const next = scan.expect(["word", "keyword"]);
+      const next = scan.expect("word");
 
       switch(next.value){
         case "NOT NULL":
