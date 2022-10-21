@@ -75,31 +75,4 @@ function Text(options: Text.Options = {}){
   });
 }
 
-function TinyText(options: Text.Nullable): string | null | undefined;
-function TinyText(options?: Text.Options): string;
-function TinyText(opts: Text.Options = {}){
-  return Text({
-    ...opts,
-    size: "tiny"
-  });
-}
-
-function MediumText(options: Text.Nullable): string | null | undefined;
-function MediumText(options?: Text.Options): string;
-function MediumText(opts: Text.Options = {}){
-  return Text({
-    ...opts,
-    size: "medium"
-  });
-}
-
-function LongText(options: Text.Nullable): string | null | undefined;
-function LongText(options?: Text.Options): string;
-function LongText(opts: Text.Options = {}){
-  return Text({
-    ...opts,
-    size: "long"
-  });
-}
-
-export { Char, VarChar, Text, TinyText, MediumText, LongText }
+export { Char, VarChar, Text }

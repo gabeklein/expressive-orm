@@ -37,35 +37,7 @@ function Float(options: Float.Options = {}){
   });
 }
 
-function TinyInt(options: Int.Nullable): number | null | undefined;
-function TinyInt(options?: Int.Options): number;
-function TinyInt(options?: Int.Options){
-  return Int({ ...options, size: "tiny" });
-}
-
-function SmallInt(options: Int.Nullable): number | null | undefined;
-function SmallInt(options?: Int.Options): number;
-function SmallInt(options?: Int.Options){
-  return Int({ ...options, size: "small" });
-}
-
-function BigInt(options: Int.Nullable): number | null | undefined;
-function BigInt(options?: Int.Options): number;
-function BigInt(options?: Int.Options){
-  return Int({ ...options, size: "big" });
-}
-
-function Double(options: Float.Nullable): number | null | undefined;
-function Double(options?: Float.Options): number;
-function Double(options?: Float.Options){
-  return Float({ ...options, double: true });
-}
-
 export {
-  BigInt,
-  Double,
   Float,
-  Int,
-  SmallInt,
-  TinyInt,
+  Int
 }
