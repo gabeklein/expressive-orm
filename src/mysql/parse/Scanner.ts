@@ -111,7 +111,7 @@ class Scanner {
     let buffer;
 
     if(typeof types !== "object")
-      types = ["comment", "linecomment", "newline", "space"];
+      types = ["comment", "newline", "space"];
 
     do { buffer = this.next() }
     while(types.includes(buffer.type));

@@ -1,7 +1,6 @@
 export type Symbols = 
   | "space"
   | "comment"
-  | "linecomment"
   | "number"
   | "string"
   | "quote"
@@ -16,8 +15,7 @@ export type Symbols =
 
 export const matchers: moo.Rules = {
   space: /[ \t]+/,
-  linecomment: { match: /--[^\r\n]*\r?\n/, lineBreaks: true },
-  comment: { match: /\/\*[\W\w]+?\*\//, lineBreaks: true },
+  comment: { match: /--[^\r\n]*\r?\n|\/\*[\W\w]+?\*\//, lineBreaks: true },
   number:  { match: /0|[1-9][0-9]*/, value: x => Number(x) as any },
   string: { match: /"(?:\\"|[^\r\n])*?"/, value: x => x.slice(1, -1) },
   quote: { match: /'(?:\\'|[^\r\n])*?'/, value: x => x.slice(1, -1) },
