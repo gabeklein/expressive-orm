@@ -1,41 +1,35 @@
 import Entity, { DateTime, Query, VarChar } from '../src';
 import { TestConnection } from './database';
 
-const Color = () => VarChar({
-  oneOf: ["red", "blue", "green"]
-});
+const seconds = (date: Date) => {
+  return Math.floor(date.getTime() / 1000);
+}
 
 class Foo extends Entity {
   name = VarChar();
   date = DateTime();
-  color = Color();
 }
 
-class Bar extends Entity {
-  name = VarChar();
-  date = DateTime();
-  color = Color();
-}
-
-TestConnection.create([Foo, Bar]);
+TestConnection.create([
+  Foo
+]);
 
 it("will insert and retrieve a Date", async () => {
-  const seconds = (date: Date) => Math.floor(date.getTime() / 1000);
   const now = new Date();
 
   await Foo.insert({
     name: "foobar",
-    date: now,
-    color: "red"
+    date: now
   })
 
-  const date = await Query.run(where => {
+  const date = await Query.one(where => {
     const foo = where(Foo);
 
     where(foo.id).is(1);
 
-    return where.has(foo.date);
+    return foo.date;
   });
 
-  expect(seconds(now)).toBe(seconds(date));
+  expect(date).toBeInstanceOf(Date);
+  expect(seconds(now)).toBe(seconds(date!));
 })
