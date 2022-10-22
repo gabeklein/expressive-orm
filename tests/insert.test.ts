@@ -1,9 +1,9 @@
-import { Entity, Int, Query, VarChar } from '../src';
+import { Entity, Int, Query, String } from '../src';
 import { TestConnection } from './database';
 
 class User extends Entity  {
-  name = VarChar();
-  email = VarChar();
+  name = String();
+  email = String();
   age = Int();
 }
 

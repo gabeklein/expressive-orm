@@ -1,5 +1,5 @@
 import Entity from '../Entity';
-import { Bool, Int, Primary, Table, Text, VarChar } from '..';
+import { Bool, Int, Primary, Table, String } from '..';
 
 export class Column extends Entity {
   this = Table({
@@ -9,27 +9,31 @@ export class Column extends Entity {
 
   id = Primary(false);
 
-  catalog = VarChar({
-    column: "TABLE_CATALOG"
+  catalog = String({
+    column: "TABLE_CATALOG",
+    datatype: "varchar"
   });
 
-  characterSet = VarChar({ 
-		column: "CHARACTER_SET_NAME",
+  characterSet = String({ 
+    column: "CHARACTER_SET_NAME",
+    datatype: "varchar",
     nullable: true
   });
 
-  collation = VarChar({ 
-		column: "COLLATION_NAME",
+  collation = String({ 
+    column: "COLLATION_NAME",
+    datatype: "varchar",
     nullable: true
   });
 
-  comment = Text({ 
-		column: "COLUMN_COMMENT"
+  comment = String({
+    column: "COLUMN_COMMENT",
+    datatype: "text"
   });
 
-  dataType = Text({ 
+  dataType = String({
 		column: "DATA_TYPE",
-    size: "long"
+    datatype: "longtext"
   });
 
   datePrecision = Int({
@@ -37,19 +41,21 @@ export class Column extends Entity {
     nullable: true
   });
 
-  default = Text({ 
-		column: "COLUMN_DEFAULT",
+  default = String({
+    column: "COLUMN_DEFAULT",
+    datatype: "text",
     nullable: true
   });
 
-  extra = VarChar({
+  extra = String({
     column: "EXTRA",
+    datatype: "varchar",
     nullable: true
   });
 
-  generator = Text({ 
+  generator = String({
 		column: "COLUMN_TYPE",
-    size: "long"
+    datatype: "longtext"
   });
 
   isNullable = Bool({
@@ -57,8 +63,9 @@ export class Column extends Entity {
     either: ["YES", "NO"]
   });
 
-  name = VarChar({ 
-		column: "COLUMN_NAME",
+  name = String({ 
+    column: "COLUMN_NAME",
+    datatype: "varchar",
     nullable: true
   });
 
@@ -84,13 +91,15 @@ export class Column extends Entity {
     column: "ORDINAL_POSITION"
   });
 
-  privileges = VarChar({ 
-		column: "PRIVILEGES",
+  privileges = String({ 
+    column: "PRIVILEGES",
+    datatype: "varchar",
     nullable: true
   });
 
-  schema = VarChar({
-    column: "TABLE_SCHEMA"
+  schema = String({
+    column: "TABLE_SCHEMA",
+    datatype: "varchar",
   });
 
   maxLength = Int({
@@ -104,18 +113,20 @@ export class Column extends Entity {
     nullable: true
   });
 
-  tableName = VarChar({
-    column: "TABLE_NAME"
+  tableName = String({
+    column: "TABLE_NAME",
+    datatype: "varchar"
   });
 
-  type = Text({ 
+  type = String({
 		column: "COLUMN_TYPE",
-    size: "medium"
+    datatype: "mediumtext"
   });
 
   // actually an ENUM
-  key = VarChar({
+  key = String({
     column: "COLUMN_KEY",
+    datatype: "varchar",
     length: 3,
     nullable: true,
     oneOf: [
@@ -134,39 +145,46 @@ export class Constraint extends Entity {
 
   id = Primary(false);
 
-  catalog = VarChar({
+  catalog = String({
     column: 'CONSTRAINT_CATALOG',
+    datatype: "varchar",
     length: 64
   })
 
-  enforced = VarChar({
+  enforced = String({
     column: 'ENFORCED',
+    datatype: "varchar",
     length: 3
   })
 
-  name = VarChar({
+  name = String({
     column: 'CONSTRAINT_NAME',
+    datatype: "varchar",
     nullable: true,
     length: 64
   })
 
-  schema = VarChar({
+  schema = String({
     column: 'CONSTRAINT_SCHEMA',
+    datatype: "varchar",
     length: 64
   })
 
-  tableName = VarChar({
+  tableName = String({
     column: 'TABLE_NAME',
+    datatype: "varchar",
     length: 64
   })
 
-  tableSchema = VarChar({
+  tableSchema = String({
     column: 'TABLE_SCHEMA',
+    datatype: "varchar",
     length: 64
   })
 
-  type = VarChar({
+  type = String({
     column: 'CONSTRAINT_TYPE',
+    datatype: "varchar",
     length: 11
   })
 }
@@ -176,50 +194,72 @@ export class KeyColumnUsage extends Entity {
     name: "KEY_COLUMN_USAGE",
     schema: "information_schema"
   })
-  constraintCatalog = VarChar({
+
+  constraintCatalog = String({
     column: "CONSTRAINT_CATALOG",
+    datatype: "varchar",
     length: 64
   })
-  constraintSchema = VarChar({
+
+  constraintSchema = String({
     column: "CONSTRAINT_SCHEMA",
+    datatype: "varchar",
     length: 64
   })
-  constraintName = VarChar({
+
+  constraintName = String({
     column: "CONSTRAINT_NAME",
+    datatype: "varchar",
     length: 64
   })
-  tableCatalog = VarChar({
+
+  tableCatalog = String({
     column: "TABLE_CATALOG",
+    datatype: "varchar",
     length: 64
   })
-  tableSchema = VarChar({
+
+  tableSchema = String({
     column: "TABLE_SCHEMA",
+    datatype: "varchar",
     length: 64
   })
-  tableName = VarChar({
+
+  tableName = String({
     column: "TABLE_NAME",
+    datatype: "varchar",
     length: 64
   })
-  columnName = VarChar({
+
+  columnName = String({
     column: "COLUMN_NAME",
+    datatype: "varchar",
     length: 64
   })
+
   ordinalPosition = Int({
     column: "ORDINAL_POSITION"
   })
+
   positionInUniqueConstraint = Int({
     column: "POSITION_IN_UNIQUE_CONSTRAINT"
   })
-  referencedTableSchema = VarChar({
+
+  referencedTableSchema = String({
     column: "REFERENCED_TABLE_SCHEMA",
+    datatype: "varchar",
     length: 64
   })
-  referencedTableName = VarChar({
+
+  referencedTableName = String({
     column: "REFERENCED_TABLE_NAME",
+    datatype: "varchar",
     length: 64
   })
-  referencedColumnName = VarChar({
+
+  referencedColumnName = String({
     column: "REFERENCED_COLUMN_NAME",
+    datatype: "varchar",
     length: 64
   })
 }
@@ -229,45 +269,67 @@ export class ReferentialConstraints extends Entity {
     name: "REFERENTIAL_CONSTRAINTS",
     schema: "information_schema"
   })
-  constraintCatalog = VarChar({
+
+  constraintCatalog = String({
     column: "CONSTRAINT_CATALOG",
+    datatype: "varchar",
     length: 64
   })
-  constraintName = VarChar({
+
+  constraintName = String({
     column: "CONSTRAINT_NAME",
+    datatype: "varchar",
     length: 64
   })
-  constraintSchema = VarChar({
+
+  constraintSchema = String({
     column: "CONSTRAINT_SCHEMA",
+    datatype: "varchar",
     length: 64
   })
-  referencedTableName = VarChar({
+
+  referencedTableName = String({
     column: "REFERENCED_TABLE_NAME",
+    datatype: "varchar",
     length: 64
   })
-  tableName = VarChar({
+
+  tableName = String({
     column: "TABLE_NAME",
+    datatype: "varchar",
     length: 64
   })
-  uniqueConstraintCatalog = VarChar({
+
+  uniqueConstraintCatalog = String({
     column: "UNIQUE_CONSTRAINT_CATALOG",
+    datatype: "varchar",
     length: 64
   })
-  uniqueConstraintName = VarChar({
+
+  uniqueConstraintName = String({
     column: "UNIQUE_CONSTRAINT_NAME",
+    datatype: "varchar",
     length: 64
   })
-  uniqueConstraintSchema = VarChar({
+
+  uniqueConstraintSchema = String({
     column: "UNIQUE_CONSTRAINT_SCHEMA",
+    datatype: "varchar",
     length: 64
   })
-  deleteRule = VarChar({
-    column: "DELETE_RULE"
+
+  deleteRule = String({
+    column: "DELETE_RULE",
+    datatype: "varchar"
   })
-  matchOption = VarChar({
-    column: "MATCH_OPTION"
+
+  matchOption = String({
+    column: "MATCH_OPTION",
+    datatype: "varchar"
   })
-  updateRule = VarChar({
-    column: "UPDATE_RULE"
+
+  updateRule = String({
+    column: "UPDATE_RULE",
+    datatype: "varchar"
   })
 }

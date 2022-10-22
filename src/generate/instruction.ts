@@ -4,6 +4,7 @@ import Schema from '../connection/Schema';
 import { InstructionsUsed } from './entities';
 import { idealCase, parseType } from './util';
 
+// TODO: deprecated types
 const TYPES: any = {
   "int": "Int",
   "tinyint": "TinyInt",

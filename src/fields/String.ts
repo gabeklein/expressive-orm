@@ -1,7 +1,18 @@
 import { Column } from '..';
 
-declare namespace Char {
+declare namespace String {
+  type DataType =
+    | "char"
+    | "varchar"
+    | "nchar"
+    | "nvarchar"
+    | "text"
+    | "tinytext"
+    | "mediumtext"
+    | "longtext";
+
   interface Options extends Column.Options {
+    datatype?: DataType;
     length?: number;
     oneOf?: any[];
     variable?: boolean;
@@ -14,65 +25,32 @@ declare namespace Char {
   type Nullable = Options & { nullable: true };
 }
 
-function Char<T extends string>(options: Char.Specific<T> & Char.Nullable): T | null | undefined;
-function Char<T extends string>(options?: Char.Specific<T>): T;
-function Char(length: number, options: Char.Nullable): string | null | undefined;
-function Char(length: number, options?: Char.Options): string;
-function Char(options: Char.Nullable): string | null | undefined;
-function Char(options?: Char.Options): string;
-function Char(
-  arg1: number | Char.Options = {},
-  arg2?: Char.Options): any {
+function String<T extends string>(options: String.Specific<T> & String.Nullable): T | null | undefined;
+function String<T extends string>(options?: String.Specific<T>): T;
+function String(length: number, options: String.Nullable): string | null | undefined;
+function String(length: number, options?: String.Options): string;
+function String(options: String.Nullable): string | null | undefined;
+function String(options?: String.Options): string;
+function String(
+  opts: number | String.Options = {},
+  arg2?: String.Options): any {
 
-  if(typeof arg1 == "number")
-    arg1 = { ...arg2, length: arg1 };
+  if(typeof opts == "number")
+    opts = { ...arg2, length: opts };
 
-  const datatype =
-    `${arg1.variable ? "VAR" : ""}CHAR(${arg1.length || 255})`
+  // const datatype =
+  //   `${opts.variable ? "VAR" : ""}CHAR(${opts.length || 255})`;
+
+  let datatype: string = opts.datatype || "varchar";
+
+  if(datatype && datatype.includes("char"))
+    datatype = `${datatype}(${opts.length || 255})`
 
   return Column({
-    ...arg1,
-    datatype,
+    ...opts,
+    datatype: datatype.toUpperCase(),
     placeholder: ""
-    // placeholder: `__${this.property}__`
   });
 }
 
-function VarChar<T extends string>(options: Char.Specific<T> & Char.Nullable): T | null | undefined;
-function VarChar<T extends string>(options: Char.Specific<T>): T;
-function VarChar(length: number, options?: Char.Nullable): string | null | undefined;
-function VarChar(length: number, options?: Char.Options): string;
-function VarChar(options: Char.Nullable): string | null | undefined;
-function VarChar(options?: Char.Options): string;
-function VarChar(
-  arg1?: number | Char.Options,
-  arg2?: Char.Options): any {
-
-  if(typeof arg1 == "number")
-    arg1 = { ...arg2, length: arg1 };
-
-  return Char({ ...arg1, variable: true });
-}
-
-declare namespace Text {
-  interface Options extends Column.Options {
-    size?: "tiny" | "medium" | "long";
-  }
-
-  type Nullable = Options & { nullable: true };
-}
-
-function Text(options: Text.Nullable): string | null | undefined;
-function Text(options?: Text.Options): string;
-function Text(options: Text.Options = {}){
-  const { size = "" } = options;
-
-  const datatype = `${size.toUpperCase()}TEXT`;
-
-  return Column({
-    datatype,
-    ...options
-  });
-}
-
-export { Char, VarChar, Text }
+export { String };
