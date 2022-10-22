@@ -5,7 +5,7 @@
   "main": "lib",
   "scripts": {
     "watch": "jest --watchAll",
-    "test": "jest --collectCoverage",
+    "test": "jest",
     "build": "tsc"
   },
   "bin": "lib/cli.js",
