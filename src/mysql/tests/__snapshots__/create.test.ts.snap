@@ -4,7 +4,9 @@ exports[`will create tables 1`] = `
 	CREATE TABLE
 	  IF NOT EXISTS Author (
 	    \`id\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	    \`name\` VARCHAR(255) NOT NULL,
 	    \`age\` INT NOT NULL,
+	    \`nickname\` VARCHAR(255),
 	    \`active\` TINYINT NOT NULL,
 	    \`publisherId\` INT NOT NULL
 	  );
@@ -12,12 +14,16 @@ exports[`will create tables 1`] = `
 	CREATE TABLE
 	  IF NOT EXISTS Book (
 	    \`id\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	    \`title\` VARCHAR(255) NOT NULL,
 	    \`authorId\` INT NOT NULL,
 	    \`rating\` INT NOT NULL
 	  );
 	
 	CREATE TABLE
-	  IF NOT EXISTS Publisher (\`id\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+	  IF NOT EXISTS Publisher (
+	    \`id\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	    \`name\` VARCHAR(255) NOT NULL
+	  );
 	
 	ALTER TABLE
 	  Author ADD CONSTRAINT \`FK_PublisherAuthor\` FOREIGN KEY (publisherId) REFERENCES Publisher (id);

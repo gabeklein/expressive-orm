@@ -1,22 +1,22 @@
-import { Bool, Entity, Int, Many, One } from '../..';
+import { Bool, Entity, Int, Many, One, VarChar } from '../..';
 import { bootstrap } from '../bootstrap';
 
 it("will create tables", () => {
   class Author extends Entity {
-    name = String();
+    name = VarChar();
     age = Int();
-    nickname = String({ nullable: true });
+    nickname = VarChar({ nullable: true });
     active = Bool();
     books = Many(Book);
     publisher = One(Publisher);
   }
   
   class Publisher extends Entity {
-    name = String();
+    name = VarChar();
   }
   
   class Book extends Entity {
-    title = String();
+    title = VarChar();
     author = One(Author);
     rating = Int();
   }
