@@ -1,4 +1,4 @@
-import { Column } from '..';
+import Column from './Column';
 
 declare namespace Int {
   interface Options extends Column.Options {

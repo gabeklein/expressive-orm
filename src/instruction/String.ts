@@ -1,4 +1,4 @@
-import { Column } from '..';
+import Column from './Column';
 
 declare namespace String {
   type DataType =

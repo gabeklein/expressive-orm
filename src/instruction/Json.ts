@@ -1,4 +1,4 @@
-import { Column } from '..';
+import Column from './Column';
 
 declare namespace Json {
   interface Options<T> extends Column.Options {}

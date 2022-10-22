@@ -1,4 +1,4 @@
-import { Column } from '..';
+import Column from './Column';
 
 declare namespace Enum {
   interface Options<T extends string> extends Column.Options {
