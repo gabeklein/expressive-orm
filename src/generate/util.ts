@@ -22,6 +22,10 @@ export function idealCase(
     : joined;
 }
 
+export function capitalize(string: string){
+  return string[0].toUpperCase() + string.slice(1);
+}
+
 export function isEmpty(object: {}){
   return Object.keys(object).length === 0;
 }

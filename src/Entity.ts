@@ -1,6 +1,7 @@
 import Connection from './connection/Connection';
 import Field from './Field';
 import Primary from './field/Primary';
+import { capitalize } from './generate/util';
 import { insertQuery } from './query/insert';
 import Query from './query/Query';
 
@@ -77,7 +78,7 @@ abstract class Entity {
         const instruction = INSTRUCTION.get(value);    
   
         if(!instruction)
-          continue;
+          throw new Error(`Entities do not support normal values, only fields. Did you forget to import \`${capitalize(typeof value)}\`?`);
   
         INSTRUCTION.delete(value);
         instruction(this, key);
