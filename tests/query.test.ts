@@ -1,4 +1,4 @@
-import Entity, { DateTime, Query, String } from '../src';
+import Entity, { Date, Query, String } from '../src';
 import { TestConnection } from './database';
 
 const seconds = (date: Date) => {
@@ -7,7 +7,7 @@ const seconds = (date: Date) => {
 
 class Foo extends Entity {
   name = String();
-  date = DateTime();
+  date = Date();
 }
 
 TestConnection.create([
@@ -15,7 +15,7 @@ TestConnection.create([
 ]);
 
 it("will insert and retrieve a Date", async () => {
-  const now = new Date();
+  const now = new global.Date();
 
   await Foo.insert({
     name: "foobar",
@@ -30,6 +30,6 @@ it("will insert and retrieve a Date", async () => {
     return foo.date;
   });
 
-  expect(date).toBeInstanceOf(Date);
+  expect(date).toBeInstanceOf(global.Date);
   expect(seconds(now)).toBe(seconds(date!));
 })

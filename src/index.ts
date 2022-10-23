@@ -3,7 +3,7 @@ import Entity from './Entity';
 import Field from './Field';
 import { Boolean } from './field/Boolean';
 import Column from './field/Column';
-import { DateTime } from './field/DateTime';
+import { Date } from './field/Date';
 import { Enum } from './field/Enum';
 import Join from './field/Join';
 import { Json } from './field/Json';
@@ -21,7 +21,7 @@ import SQLiteConnection from './sqlite/Connection';
 export default Entity;
 export {
   Boolean,
-  DateTime,
+  Date,
   Enum,
   Float,
   Int,

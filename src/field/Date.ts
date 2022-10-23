@@ -1,6 +1,6 @@
 import Column from './Column';
 
-declare namespace DateTime {
+declare namespace Date {
   interface Options extends Column.Options {
     default?: "NOW" | Date;
   }
@@ -8,14 +8,14 @@ declare namespace DateTime {
   type Nullable = Options & { nullable: true };
 }
 
-function DateTime<T>(options: DateTime.Nullable): Date | null | undefined;
-function DateTime(options?: DateTime.Options): Date;
-function DateTime(options?: DateTime.Options){
+function Date<T>(options: Date.Nullable): Date | null | undefined;
+function Date(options?: Date.Options): Date;
+function Date(options?: Date.Options){
   return Column({
     ...options,
     datatype: 'DATETIME',
     get(dt: string){
-      return new Date(dt.replace(/[-]/g, '/') + "Z");
+      return new global.Date(dt.replace(/[-]/g, '/') + "Z");
     },
     set(date: Date){
       return date.toISOString().slice(0, 19).replace("T", " ");
@@ -23,4 +23,4 @@ function DateTime(options?: DateTime.Options){
   });
 }
 
-export { DateTime };
+export { Date };
