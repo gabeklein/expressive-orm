@@ -143,57 +143,62 @@ export function selectQuery<R = any>(
     return statements.join(" ");
   })
 
-  if(select instanceof Field){
-    selects.set(select, 1);
-
-    return raw => raw.map(row => select.get(row[1]));
-  }
-  else if(typeof select == "function"){
-    let focus: any;
-
-    query.access = field => {
-      selects.set(field, selects.size + 1);
-      return field.placeholder;
-    };
-
-    (select as () => R)();
-
-    query.access = field => {
-      const value = focus[selects.get(field)!];
-      return value === null ? undefined : value;
-    }
-
-    return raw => {
-      const results = [] as R[];
-
-      for(const row of raw){
-        focus = row;
-        results.push((select as () => R)());
+  switch(typeof select){
+    case "object":
+      if(select instanceof Field){
+        selects.set(select, 1);
+    
+        return raw => raw.map(row => select.get(row[1]));
+      }
+      else if(select){
+        for(const key of Object.getOwnPropertyNames(select)){
+          const value = (select as any)[key];
+      
+          if(value instanceof Field)
+            selects.set(value, key);
+        }
+    
+        return raw => raw.map(row => {
+          const output = Object.create(select as {});
+      
+          selects.forEach((column, field) => {
+            Object.defineProperty(output, column, {
+              value: field.get(row[column])
+            })
+          })
+          
+          return output as R;
+        })
       }
 
-      return results;
-    }
-  }
-  else if(select && typeof select == "object"){
-    for(const key of Object.getOwnPropertyNames(select)){
-      const value = (select as any)[key];
+    case "function": {
+      let focus: any;
   
-      if(value instanceof Field)
-        selects.set(value, key);
+      query.access = field => {
+        selects.set(field, selects.size + 1);
+        return field.placeholder;
+      };
+  
+      (select as () => R)();
+  
+      query.access = field => {
+        const value = focus[selects.get(field)!];
+        return value === null ? undefined : value;
+      }
+  
+      return raw => {
+        const results = [] as R[];
+  
+        for(const row of raw){
+          focus = row;
+          results.push((select as () => R)());
+        }
+  
+        return results;
+      }
     }
 
-    return raw => raw.map(row => {
-      const output = Object.create(select as {});
-  
-      selects.forEach((column, field) => {
-        Object.defineProperty(output, column, {
-          value: field.get(row[column])
-        })
-      })
-      
-      return output as R;
-    })
+    default:
+      throw new Error("Bad argument");
   }
-  else
-    throw new Error("Bad argument");
 }
