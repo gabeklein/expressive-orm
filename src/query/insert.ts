@@ -34,23 +34,13 @@ export function insertQuery<T extends Entity>(
     return values;
   });
 
-  return generate(table, keys, entries);
-}
-
-export function generate(
-  table: string,
-  include: Set<string>,
-  entries: { [key: string]: any }[]
-){
-  const keys = Array.from(include);
   const tableName = qualify(table);
-
-  const insertKeys = keys
+  const insertKeys = Array.from(keys)
     .map(k => qualify(k))
     .join(",");
 
   const insertValues = entries.map(entry => {
-    const values = keys
+    const values = Array.from(keys)
       .map(key => serialize(entry[key]))
       .join(",");
 
