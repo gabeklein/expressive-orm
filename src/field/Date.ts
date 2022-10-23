@@ -23,4 +23,4 @@ function Date(options?: Date.Options){
   });
 }
 
-export { Date };
+export default Date;

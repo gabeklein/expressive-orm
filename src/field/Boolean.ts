@@ -37,4 +37,4 @@ function Boolean(options: Boolean.Options = {}){
   });
 }
 
-export { Boolean };
+export default Boolean;

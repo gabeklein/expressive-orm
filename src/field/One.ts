@@ -62,4 +62,3 @@ class OneToManyRelation extends Field {
 }
 
 export default One;
-export { OneToManyRelation };

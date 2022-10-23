@@ -53,4 +53,4 @@ function String(
   });
 }
 
-export { String };
+export default String;

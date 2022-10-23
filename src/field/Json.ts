@@ -22,4 +22,4 @@ function Json(a1?: Json.Options<any>){
   });
 }
 
-export { Json };
+export default Json;

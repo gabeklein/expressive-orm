@@ -28,4 +28,4 @@ function Number(options: Number.Options = {}){
   });
 }
 
-export { Number }
+export default Number;
