@@ -92,8 +92,8 @@ abstract class Entity {
     return this;
   }
 
-  static field(instruction: Entity.Instruction){
-    const placeholder = Symbol(`ORM instruction`);
+  static add(instruction: Entity.Instruction){
+    const placeholder = Symbol(`field`);
     INSTRUCTION.set(placeholder, instruction);
     return placeholder as any;
   }

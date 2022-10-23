@@ -85,7 +85,7 @@ class Field {
   static create<T extends Field>(
     this: Field.Type<T>, options?: Partial<T>){
 
-    return Entity.field((parent, key) => {
+    return Entity.add((parent, key) => {
       const instance = new this(parent, key);
       instance.init(options);
       return instance;
