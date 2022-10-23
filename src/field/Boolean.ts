@@ -24,7 +24,7 @@ function Boolean(options: Boolean.Options = {}){
     })`
   }
 
-  return Column<boolean>({
+  return Column({
     ...options,
     datatype,
     placeholder: true,
