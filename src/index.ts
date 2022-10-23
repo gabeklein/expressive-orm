@@ -8,7 +8,7 @@ import { Enum } from './field/Enum';
 import Join from './field/Join';
 import { Json } from './field/Json';
 import Many from './field/Many';
-import { Float, Int } from './field/Number';
+import { Number } from './field/Number';
 import One from './field/One';
 import Primary from './field/Primary';
 import Ref from './field/Ref';
@@ -23,8 +23,6 @@ export {
   Boolean,
   Date,
   Enum,
-  Float,
-  Int,
   Json,
   String,
   Column,
@@ -34,6 +32,7 @@ export {
   Join,
   Many,
   MySQLConnection,
+  Number,
   One,
   Primary,
   Query,

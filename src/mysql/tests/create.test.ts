@@ -1,10 +1,10 @@
-import { Boolean, Entity, Int, Many, One, String } from '../..';
+import { Boolean, Entity, Many, Number, One, String } from '../..';
 import { bootstrap } from '../bootstrap';
 
 it("will create tables", () => {
   class Author extends Entity {
     name = String();
-    age = Int();
+    age = Number();
     nickname = String({ nullable: true });
     active = Boolean();
     books = Many(Book);
@@ -18,7 +18,7 @@ it("will create tables", () => {
   class Book extends Entity {
     title = String();
     author = One(Author);
-    rating = Int();
+    rating = Number();
   }
 
   const sql = bootstrap([

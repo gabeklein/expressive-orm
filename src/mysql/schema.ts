@@ -1,5 +1,5 @@
+import { Boolean, Number, Primary, String, Table } from '..';
 import Entity from '../Entity';
-import { Boolean, Int, Primary, Table, String } from '..';
 
 export class Column extends Entity {
   this = Table({
@@ -36,8 +36,9 @@ export class Column extends Entity {
     datatype: "longtext"
   });
 
-  datePrecision = Int({
+  datePrecision = Number({
     column: "DATETIME_PRECISION",
+    datatype: "int",
     nullable: true
   });
 
@@ -69,26 +70,27 @@ export class Column extends Entity {
     nullable: true
   });
 
-  numericPrecision = Int({
+  numericPrecision = Number({
     column: "NUMERIC_PRECISION",
+    datatype: "bigint",
     nullable: true
-    /* type: "bigint" */
   });
 
-  numericScale = Int({
+  numericScale = Number({
     column: "NUMERIC_SCALE",
+    datatype: "bigint",
     nullable: true
-    /* type: "bigint" */
   });
 
-  octetLength = Int({
+  octetLength = Number({
     column: "CHARACTER_OCTET_LENGTH",
-    nullable: true,
-    /* type: "bigint" */
+    datatype: "bigint",
+    nullable: true
   });
 
-  position = Int({
-    column: "ORDINAL_POSITION"
+  position = Number({
+    column: "ORDINAL_POSITION",
+    datatype: "bigint"
   });
 
   privileges = String({ 
@@ -102,14 +104,15 @@ export class Column extends Entity {
     datatype: "varchar",
   });
 
-  maxLength = Int({
+  maxLength = Number({
     column: "CHARACTER_MAXIMUM_LENGTH",
+    datatype: "bigint",
     nullable: true
-    /* type: "bigint" */
   });
 
-  srsId = Int({
+  srsId = Number({
     column: "SRS_ID",
+    datatype: "int",
     nullable: true
   });
 
@@ -237,12 +240,14 @@ export class KeyColumnUsage extends Entity {
     length: 64
   })
 
-  ordinalPosition = Int({
-    column: "ORDINAL_POSITION"
+  ordinalPosition = Number({
+    column: "ORDINAL_POSITION",
+    datatype: "int"
   })
 
-  positionInUniqueConstraint = Int({
-    column: "POSITION_IN_UNIQUE_CONSTRAINT"
+  positionInUniqueConstraint = Number({
+    column: "POSITION_IN_UNIQUE_CONSTRAINT",
+    datatype: "int"
   })
 
   referencedTableSchema = String({

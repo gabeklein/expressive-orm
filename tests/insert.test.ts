@@ -1,10 +1,10 @@
-import { Entity, Int, Query, String } from '../src';
+import { Entity, Number, Query, String } from '../src';
 import { TestConnection } from './database';
 
 class User extends Entity  {
   name = String();
   email = String();
-  age = Int();
+  age = Number();
 }
 
 function random(min: number, max: number) {

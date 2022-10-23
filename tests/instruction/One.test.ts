@@ -1,4 +1,4 @@
-import Entity, { Column, Int, One, Query } from '../../src';
+import Entity, { Column, Number, One, Query } from '../../src';
 
 class A extends Entity {
   b = One(B);
@@ -10,7 +10,7 @@ class B extends Entity {
 }
 
 class C extends Entity {
-  value = Int();
+  value = Number();
   label = Column();
 }
 

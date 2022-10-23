@@ -1,43 +1,31 @@
 import Column from './Column';
 
-declare namespace Int {
+declare namespace Number {
+  type DataType =
+    | "int"
+    | "tinyint"
+    | "smallint"
+    | "bigint"
+    | "float"
+    | "double";
+
   interface Options extends Column.Options {
-    size?: "tiny" | "small" | "big";
+    datatype?: DataType;
   }
 
   type Nullable = Options & { nullable: true };
 }
 
-function Int(options: Int.Nullable): number | null | undefined;
-function Int(options?: Int.Options): number;
-function Int(options: Int.Options = {}){
-  const { size = "" } = options;
-  const datatype = `${size.toUpperCase()}INT`;
-
-  return Column({ datatype, ...options });
-}
-
-declare namespace Float {
-  interface Options extends Column.Options {
-    double?: boolean;
-  }
-
-  type Nullable = Options & { nullable: true };
-}
-
-function Float(options: Float.Nullable): number | null | undefined;
-function Float(options?: Float.Options): number;
-function Float(options: Float.Options = {}){
-  const { double, ...rest } = options;
+function Number(options: Number.Nullable): number | null | undefined;
+function Number(options?: Number.Options): number;
+function Number(options: Number.Options = {}){
+  const type = options.datatype || "int";
 
   return Column({
-    datatype: double ? "DOUBLE" : "FLOAT",
+    datatype: type.toUpperCase(),
     placeholder: Infinity,
-    ...rest
+    ...options
   });
 }
 
-export {
-  Float,
-  Int
-}
+export { Number }
