@@ -12,10 +12,10 @@ export function queryVerbs<T>(query: Query<T>): Query.Ops {
       return getQuery(query, a2, a1);
     },
     one(select, orFail){
-      return fetchQuery(query, select, orFail);
+      return findQuery(query, select, orFail);
     },
     has(from){
-      return fetchQuery(query, from, true);
+      return findQuery(query, from, true);
     },
     deletes(...from: Query.Type<any>[]){
       deleteQuery(query, from);
@@ -36,7 +36,7 @@ export function getQuery<T>(
   return () => query.send().then(parse);
 }
 
-export function fetchQuery<T>(
+export function findQuery<T>(
   query: Query<any>,
   select: T | (() => T),
   orFail?: boolean){
