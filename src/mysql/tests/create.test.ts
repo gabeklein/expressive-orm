@@ -1,4 +1,4 @@
-import { Bool, Entity, Int, Many, One, String } from '../..';
+import { Boolean, Entity, Int, Many, One, String } from '../..';
 import { bootstrap } from '../bootstrap';
 
 it("will create tables", () => {
@@ -6,7 +6,7 @@ it("will create tables", () => {
     name = String();
     age = Int();
     nickname = String({ nullable: true });
-    active = Bool();
+    active = Boolean();
     books = Many(Book);
     publisher = One(Publisher);
   }

@@ -1,5 +1,5 @@
 import Entity from '../Entity';
-import { Bool, Int, Primary, Table, String } from '..';
+import { Boolean, Int, Primary, Table, String } from '..';
 
 export class Column extends Entity {
   this = Table({
@@ -58,7 +58,7 @@ export class Column extends Entity {
     datatype: "longtext"
   });
 
-  isNullable = Bool({
+  isNullable = Boolean({
     column: "IS_NULLABLE",
     either: ["YES", "NO"]
   });

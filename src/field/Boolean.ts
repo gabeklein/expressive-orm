@@ -1,6 +1,6 @@
 import Column from './Column';
 
-declare namespace Bool {
+declare namespace Boolean {
   interface Options extends Column.Options {
     either?: readonly [string, string];
   }
@@ -8,10 +8,10 @@ declare namespace Bool {
   type Nullable = Options & { nullable: true };
 }
 
-function Bool(): boolean;
-function Bool(options: Bool.Nullable): boolean | null | undefined;
-function Bool(options: Bool.Options): boolean;
-function Bool(options: Bool.Options = {}){
+function Boolean(): boolean;
+function Boolean(options: Boolean.Nullable): boolean | null | undefined;
+function Boolean(options: Boolean.Options): boolean;
+function Boolean(options: Boolean.Options = {}){
   let isTrue: any = 1;
   let isFalse: any = 0;
   let datatype = "TINYINT";
@@ -37,4 +37,4 @@ function Bool(options: Bool.Options = {}){
   });
 }
 
-export { Bool };
+export { Boolean };

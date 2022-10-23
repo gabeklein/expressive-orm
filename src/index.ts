@@ -1,7 +1,7 @@
 import Connection from './connection/Connection';
 import Entity from './Entity';
 import Field from './Field';
-import { Bool } from './field/Boolean';
+import { Boolean } from './field/Boolean';
 import Column from './field/Column';
 import { DateTime } from './field/DateTime';
 import { Enum } from './field/Enum';
@@ -20,7 +20,7 @@ import SQLiteConnection from './sqlite/Connection';
 
 export default Entity;
 export {
-  Bool,
+  Boolean,
   DateTime,
   Enum,
   Float,
