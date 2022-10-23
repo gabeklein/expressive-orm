@@ -17,9 +17,17 @@ declare namespace One {
 function One<T extends Entity>(type: Entity.Type<T>): T;
 function One<T extends Entity>(type: Entity.Type<T>, options: One.Nullable<T>): T | null | undefined;
 function One<T extends Entity>(type: Entity.Type<T>, options: One.Options<T>): T;
+function One<T extends Entity>(type: Entity.Type<T>, column: string, nullable: true): string | null | undefined;
+function One<T extends Entity>(type: Entity.Type<T>, column: string, nullable?: boolean): string;
 function One<T extends Entity>(options: One.Nullable<T>): T | null | undefined;
 function One<T extends Entity>(options: One.Options<T>): T;
-function One<T extends Entity>(arg1: any, arg2?: any): any {
+function One<T extends Entity>(arg1: any, arg2?: any, arg3?: any): any {
+  if(typeof arg2 == "string")
+    arg2 = { column: arg2 };
+
+  if(arg2 && typeof arg3 == "boolean")
+    arg2.nullable = arg3;
+
   if(typeof arg1 == "function")
     arg1 = { ...arg2, type: arg1 };
 

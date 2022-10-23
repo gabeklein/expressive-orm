@@ -25,21 +25,37 @@ declare namespace String {
   type Nullable = Options & { nullable: true };
 }
 
-function String<T extends string>(options: String.Specific<T> & String.Nullable): T | null | undefined;
-function String<T extends string>(options?: String.Specific<T>): T;
+function String<T extends string>(oneOf: String.Specific<T> & String.Nullable): T | null | undefined;
+function String<T extends string>(oneOf?: String.Specific<T>): T;
+function String(column: string, nullable: true): string | null | undefined;
+function String(column: string, nullable?: boolean): string;
 function String(length: number, options: String.Nullable): string | null | undefined;
 function String(length: number, options?: String.Options): string;
 function String(options: String.Nullable): string | null | undefined;
 function String(options?: String.Options): string;
 function String(
   opts: number | String.Options = {},
-  arg2?: String.Options): any {
+  arg2?: String.Options | boolean): any {
 
-  if(typeof opts == "number")
-    opts = { ...arg2, length: opts };
+  switch(typeof opts){
+    case "number":
+      opts = { length: opts };
+    break;
 
-  // const datatype =
-  //   `${opts.variable ? "VAR" : ""}CHAR(${opts.length || 255})`;
+    case "string":
+      opts = { column: opts };
+    break;
+  }
+
+  switch(typeof arg2){
+    case "object":
+      Object.assign(opts, arg2);
+    break;
+
+    case "boolean":
+      opts.nullable = arg2;
+    break;
+  }
 
   let datatype: string = opts.datatype || "varchar";
 
