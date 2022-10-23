@@ -116,7 +116,7 @@ export function whereObject<T extends Entity>(
   return cond;
 }
 
-export function whereFunction<T extends Entity>(
+export function whereFunction(
   query: Query<any>,
   on: Query.Join.Function){
 
