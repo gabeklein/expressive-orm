@@ -4,7 +4,7 @@ import Field from './Field';
 import Boolean from './field/Boolean';
 import Column from './field/Column';
 import Date from './field/Date';
-import { Enum } from './field/Enum';
+import Enum from './field/Enum';
 import Join from './field/Join';
 import Json from './field/Json';
 import Many from './field/Many';
