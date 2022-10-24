@@ -5,11 +5,12 @@ import Query from "./Query";
 
 export function generateCombined(query: Query<any>){
   const {
-    tables,
+    deletes,
     limit,
     selects,
-    deletes,
-    updates
+    tables,
+    updates,
+    wheres
   } = query;
 
   let sql = "";
@@ -55,9 +56,10 @@ export function generateCombined(query: Query<any>){
   }
 
   if(selects || tables.length > 1 || tables[0].alias)
-    sql += " " + generateTables(query);
+    sql += " " + generateTables(tables);
 
-  sql += " " + generateWhere(query);
+  if(wheres.length)
+    sql += " WHERE" + wheres.join(" AND ");
 
   if(typeof limit == "number")
     sql += " " + `LIMIT ${limit}`;
@@ -65,17 +67,8 @@ export function generateCombined(query: Query<any>){
   return sql;
 }
 
-function generateWhere(query: Query<any>){
-  if(!query.wheres.length)
-    return "";
-  
-  const where = query.wheres.join(" AND ");
-
-  return "WHERE " + where;
-}
-
-function generateTables(query: Query<any>){
-  const [ from, ...joins ] = query.tables;
+function generateTables(tables: Query.Table[]){
+  const [ from, ...joins ] = tables;
   const lines = [] as string[];
 
   let fromStatement = `FROM ${qualify(from.name)}`;
