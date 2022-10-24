@@ -2,7 +2,7 @@
 
 exports[`joins will select implicit joined values 1`] = `
 	SELECT
-	  \`Foo\`.\`name\` AS \`1\`
+	  \`Foo\`.\`name\` AS \`name\`
 	FROM
 	  \`Bar\`
 	  LEFT JOIN \`Foo\` ON \`Foo\`.\`id\` = \`Bar\`.\`fooId\`
@@ -22,16 +22,6 @@ exports[`joins will select joined values 1`] = `
 	  AND \`Bar\`.\`rating\` > 50
 `;
 
-exports[`where.one will limit results 1`] = `
-	SELECT
-	  \`Foo\`.\`bar\` AS \`bar\`,
-	  \`Foo\`.\`baz\` AS \`baz\`
-	FROM
-	  \`Foo\`
-	LIMIT
-	  1
-`;
-
 exports[`where.get will select a entire entity 1`] = `
 	SELECT
 	  \`Foo\`.\`bar\` AS \`bar\`,
@@ -42,7 +32,7 @@ exports[`where.get will select a entire entity 1`] = `
 
 exports[`where.get will select a field directly 1`] = `
 	SELECT
-	  \`Foo\`.\`bar\` AS \`1\`
+	  \`Foo\`.\`bar\` AS \`bar\`
 	FROM
 	  \`Foo\`
 `;
@@ -61,4 +51,14 @@ exports[`where.get will select via object 1`] = `
 	  \`Foo\`.\`baz\` AS \`baz\`
 	FROM
 	  \`Foo\`
+`;
+
+exports[`where.one will limit results 1`] = `
+	SELECT
+	  \`Foo\`.\`bar\` AS \`bar\`,
+	  \`Foo\`.\`baz\` AS \`baz\`
+	FROM
+	  \`Foo\`
+	LIMIT
+	  1
 `;

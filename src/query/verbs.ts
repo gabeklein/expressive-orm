@@ -146,17 +146,19 @@ export function selectQuery<R = any>(
   switch(typeof select){
     case "object":
       if(select instanceof Field){
-        selects.set(select, 1);
+        selects.set(select, select.column);
     
-        return raw => raw.map(row => select.get(row[1]));
+        return raw => raw.map(row => {
+          return select.get(row[select.column]);
+        });
       }
       else if(select){
-        for(const key of Object.getOwnPropertyNames(select)){
+        Object.getOwnPropertyNames(select).forEach(key => {
           const value = (select as any)[key];
       
           if(value instanceof Field)
             selects.set(value, key);
-        }
+        })
     
         return raw => raw.map(row => {
           const output = Object.create(select as {});

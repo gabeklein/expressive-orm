@@ -2,7 +2,7 @@
 
 exports[`will query nested relationships 1`] = `
 	SELECT
-	  \`C\`.\`label\` AS \`1\`
+	  \`C\`.\`label\` AS \`label\`
 	FROM
 	  \`A\`
 	  LEFT JOIN \`B\` ON \`B\`.\`id\` = \`A\`.\`bId\`
