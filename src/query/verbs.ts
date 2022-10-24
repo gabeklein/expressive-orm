@@ -81,24 +81,22 @@ export function updateQuery(
     throw new Error(`Argument ${from} is not a query entity.`);
 
   const values = new Map<Field, string>();
+  const { name: table , entity } = meta;
 
   Object.entries(update).forEach((entry) => {
     const [key, value] = entry;
-    const field = meta.entity.fields.get(key);
+    const field = entity.fields.get(key);
 
     if(!field)
       throw new Error(
-        `Property ${key} has no corresponding field in entity ${meta.entity.constructor.name}`
+        `Property ${key} has no corresponding field in entity ${entity.constructor.name}`
       );
 
     values.set(field, value);
   });
 
-  query.commit("update")
-  query.updates = {
-    table: meta.name,
-    values
-  }
+  query.commit("update");
+  query.updates = { table, values };
 }
 
 export function selectQuery<R = any>(
