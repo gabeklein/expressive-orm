@@ -4,10 +4,9 @@ import Entity from '../Entity';
 import Field from '../Field';
 import Query from '../query/Query';
 import { decapitalize, qualify, sql } from '../utility';
-import Column from './Column';
 
 declare namespace One {
-  interface Options<T extends Entity> extends Column.Options {
+  interface Options<T extends Entity> extends Field.Options {
     type?: Entity.Type<T>;
   }
 

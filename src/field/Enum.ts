@@ -1,7 +1,7 @@
-import Column from './Column';
+import Field from '../Field';
 
 declare namespace Enum {
-  interface Options<T extends string> extends Column.Options {
+  interface Options<T extends string> extends Field.Options {
     values: T[];
   }
 
@@ -22,7 +22,7 @@ function Enum<T extends string>(options: T[] | Enum.Options<T>){
     ))
     .join(',');
 
-  return Column({
+  return Field.create({
     ...rest,
     datatype: `ENUM(${signature})`
   });

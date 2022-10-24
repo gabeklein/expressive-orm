@@ -1,7 +1,7 @@
-import Column from './Column';
+import Field from '../Field';
 
 declare namespace Date {
-  interface Options extends Column.Options {
+  interface Options extends Field.Options {
     default?: "NOW" | Date;
   }
 
@@ -16,7 +16,7 @@ function Date(options?: Date.Options | string, nullable?: boolean){
   if(typeof options == "string")
     options = { column: options };
 
-  return Column({
+  return Field.create({
     ...options,
     datatype: 'DATETIME',
     nullable,

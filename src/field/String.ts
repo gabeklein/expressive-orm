@@ -1,4 +1,4 @@
-import Column from './Column';
+import Field from '../Field';
 
 declare namespace String {
   type DataType =
@@ -11,7 +11,7 @@ declare namespace String {
     | "mediumtext"
     | "longtext";
 
-  interface Options extends Column.Options {
+  interface Options extends Field.Options {
     datatype?: DataType;
     length?: number;
     oneOf?: any[];
@@ -62,7 +62,7 @@ function String(
   if(datatype && datatype.includes("char"))
     datatype = `${datatype}(${opts.length || 255})`
 
-  return Column({
+  return Field.create({
     ...opts,
     datatype: datatype.toUpperCase(),
     placeholder: ""

@@ -1,8 +1,8 @@
-import Entity, { Column, Number, One, Query } from '../../src';
+import Entity, { String, Number, One, Query } from '../../src';
 
 class A extends Entity {
   b = One(B);
-  value = Column();
+  value = String();
 }
 
 class B extends Entity {
@@ -11,7 +11,7 @@ class B extends Entity {
 
 class C extends Entity {
   value = Number();
-  label = Column();
+  label = String();
 }
 
 it("will query via select function", () => {

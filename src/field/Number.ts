@@ -1,4 +1,4 @@
-import Column from './Column';
+import Field from '../Field';
 
 declare namespace Number {
   type DataType =
@@ -9,7 +9,7 @@ declare namespace Number {
     | "float"
     | "double";
 
-  interface Options extends Column.Options {
+  interface Options extends Field.Options {
     datatype?: DataType;
   }
 
@@ -26,7 +26,7 @@ function Number(options: Number.Options | string = {}, nullable?: boolean){
 
   const type = options.datatype || "int";
 
-  return Column({
+  return Field.create({
     datatype: type.toUpperCase(),
     placeholder: Infinity,
     nullable,

@@ -7,6 +7,18 @@ declare namespace Field {
 
   type Callback<T extends Field> = (field: T, key: string) => void;
 
+  interface Options<T = any> {
+    datatype?: string;
+    column?: string;
+    default?: any;
+    nullable?: boolean;
+    placeholder?: T;
+    unique?: boolean;
+
+    get?(value: any): T;
+    set?(value: T): any;
+  }
+
   interface Instruction {
     (skip?: true): void;
     (modify: (where: string) => string): void;

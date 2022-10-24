@@ -1,7 +1,7 @@
-import Column from './Column';
+import Field from '../Field';
 
 declare namespace Boolean {
-  interface Options extends Column.Options {
+  interface Options extends Field.Options {
     either?: readonly [string, string];
   }
 
@@ -29,7 +29,7 @@ function Boolean(options: Boolean.Options | string = {}, nullable?: boolean){
     })`
   }
 
-  return Column({
+  return Field.create({
     nullable,
     ...options,
     datatype,
