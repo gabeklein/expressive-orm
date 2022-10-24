@@ -2,8 +2,9 @@ import Connection from '../connection/Connection';
 import Entity from '../Entity';
 import Field from '../Field';
 import { qualify } from '../utility';
-import { generateCombined, whereFunction, whereObject } from './generate';
+import { generate } from './generate';
 import { queryVerbs } from './verbs';
+import { whereFunction, whereObject } from './where';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
@@ -163,7 +164,7 @@ class Query<T = void> {
       this.selects = new Map([["COUNT(*)", ""]]);
     }
 
-    return generateCombined(this);
+    return generate(this);
   }
 
   async run(): Promise<T> {

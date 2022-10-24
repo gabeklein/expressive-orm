@@ -1,9 +1,7 @@
-import Entity from "..";
-import Field from "../Field";
-import { escapeString, qualify } from "../utility";
-import Query from "./Query";
+import { qualify } from '../utility';
+import Query from './Query';
 
-export function generateCombined(query: Query<any>){
+export function generate(query: Query<any>){
   const {
     deletes,
     limit,
@@ -97,7 +95,7 @@ function generateTables(tables: Query.Table[]){
   return lines.join(" ");
 }
 
-export function serialize(value: any){
+function serialize(value: any){
   switch(typeof value){
     case "undefined":
       return "default";
@@ -117,56 +115,4 @@ export function serialize(value: any){
     default:
       return "???";
   }
-}
-
-export function whereObject<T extends Entity>(
-  table: string,
-  entity: Entity.Type<T>,
-  on?: Query.Compare<T>){
-
-  const cond = [] as string[];
-  const { fields } = entity;
-
-  for(const key in on){
-    const field = fields.get(key);
-
-    if(!field)
-      throw new Error(`${key} is not a valid field in ${entity}`);
-
-    const value = (on as any)[key];
-    const right = typeof value == "string" ? escapeString(value) : value;
-    const left = qualify(table) + "." + qualify(field.column);
-
-    cond.push(`${left} = ${right}`);
-  }
-  
-  return cond;
-}
-
-export function whereFunction(
-  query: Query<any>,
-  on: Query.Join.Function){
-
-  const cond = [] as string[];
-  const add = (op: string, left: Field, right: any) => {
-    cond.push(`${left} ${op} ${right}`);
-  }
-
-  query.pending.unshift(() => {
-    const where = (field: any) => {
-      if(field instanceof Field)
-        return {
-          is: add.bind(null, "=", field),
-          not: add.bind(null, "<>", field),
-          greater: add.bind(null, ">", field),
-          less: add.bind(null, "<", field),
-        }
-      else
-        throw new Error("Join assertions can only apply to fields.");
-    }
-
-    on(where);
-  });
-  
-  return cond;
 }
