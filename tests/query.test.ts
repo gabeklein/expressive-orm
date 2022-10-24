@@ -1,4 +1,4 @@
-import Entity, { Date, Query, String } from '../src';
+import Entity, { Date, Number, Query, String } from '../src';
 import { TestConnection } from './database';
 
 const seconds = (date: Date) => {
@@ -6,6 +6,7 @@ const seconds = (date: Date) => {
 }
 
 class Foo extends Entity {
+  id = Number();
   name = String();
   date = Date();
 }

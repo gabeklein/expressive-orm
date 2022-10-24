@@ -1,6 +1,5 @@
 import Connection from './connection/Connection';
 import Field from './Field';
-import Primary from './field/Primary';
 import { capitalize } from './generate/util';
 import { insertQuery } from './query/insert';
 import Query from './query/Query';
@@ -49,7 +48,7 @@ declare namespace Entity {
 
 abstract class Entity {
   this!: Entity.Type;
-  id = Primary();
+  id?: number | string;
 
   static table: string;
   static schema: string;

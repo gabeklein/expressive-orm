@@ -3,6 +3,7 @@ import { bootstrap } from '../bootstrap';
 
 it("will create tables", () => {
   class Author extends Entity {
+    id = Number();
     name = String();
     age = Number();
     nickname = String({ nullable: true });
@@ -12,10 +13,12 @@ it("will create tables", () => {
   }
   
   class Publisher extends Entity {
+    id = Number();
     name = String();
   }
   
   class Book extends Entity {
+    id = Number();
     title = String();
     author = One(Author);
     rating = Number();

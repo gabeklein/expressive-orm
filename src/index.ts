@@ -10,7 +10,6 @@ import Json from './field/Json';
 import Many from './field/Many';
 import Number from './field/Number';
 import One from './field/One';
-import Primary from './field/Primary';
 import Ref from './field/Ref';
 import String from './field/String';
 import Table from './field/Table';
@@ -34,7 +33,6 @@ export {
   MySQLConnection,
   Number,
   One,
-  Primary,
   Query,
   Ref,
   SQLiteConnection,

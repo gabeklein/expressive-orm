@@ -1,4 +1,4 @@
-import { Boolean, Number, Primary, String, Table } from '..';
+import { Boolean, Number, String, Table } from '..';
 import Entity from '../Entity';
 
 export class Column extends Entity {
@@ -6,8 +6,6 @@ export class Column extends Entity {
     name: "COLUMNS",
     schema: "information_schema"
   });
-
-  id = Primary(false);
 
   catalog = String({
     column: "TABLE_CATALOG",
@@ -145,8 +143,6 @@ export class Constraint extends Entity {
     name: "TABLE_CONSTRAINTS",
     schema: "information_schema"
   });
-
-  id = Primary(false);
 
   catalog = String({
     column: 'CONSTRAINT_CATALOG',

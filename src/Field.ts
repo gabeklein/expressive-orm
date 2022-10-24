@@ -89,6 +89,14 @@ class Field {
 
       parent.fields.set(key, instance);
       instance.init(options);
+
+      if(key == "id"){
+        instance.primary = true;
+
+        if(instance.datatype!.includes("INT"))
+          instance.increment = true;
+      }
+
       return instance;
     })
   }
