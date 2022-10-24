@@ -1,7 +1,7 @@
 import Entity from "..";
 import Field from "../Field";
 import { escapeString, qualify } from "../utility";
-import Query, { RelevantTable } from "./Query";
+import Query from "./Query";
 
 export function generateSelect(
   selects: Map<Field, number | string>
@@ -94,21 +94,13 @@ export function whereObject<T extends Entity>(
 
   for(const key in on){
     const field = fields.get(key);
-    const value = (on as any)[key];
 
     if(!field)
       throw new Error(`${key} is not a valid field in ${entity}`);
 
+    const value = (on as any)[key];
+    const right = typeof value == "string" ? escapeString(value) : value;
     const left = qualify(table) + "." + qualify(field.column);
-    let right: string;
-
-    if(value instanceof Field){
-      const table = RelevantTable.get(value)!;
-
-      right = qualify(table.name) + "." + qualify(value.column);
-    }
-    else
-      right = typeof value == "string" ? escapeString(value) : value;
 
     cond.push(`${left} = ${right}`);
   }
