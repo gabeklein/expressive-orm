@@ -94,6 +94,8 @@ declare namespace Query {
     | ((where: Query.Where) => R)
 
   type Output<T> = T extends void ? number : T;
+
+  type Mode = "select" | "update" | "delete";
 }
 
 interface Instruction {
@@ -117,7 +119,7 @@ class Query<T = void> {
     values: Map<Field, any>;
   };
 
-  mode?: "select" | "update" | "delete";
+  mode?: Query.Mode;
   limit?: number;
 
   constructor(from?: Query.Function<T>){
@@ -156,10 +158,12 @@ class Query<T = void> {
   }
 
   toString(): string {
-    this.selects = new Map([["COUNT(*)", ""]]);
-    this.commit(() => generateCombined(this));
+    if(!this.mode){
+      this.commit("select");
+      this.selects = new Map([["COUNT(*)", ""]]);
+    }
 
-    return String(this);
+    return generateCombined(this);
   }
 
   async run(): Promise<T> {
@@ -179,11 +183,11 @@ class Query<T = void> {
     return field;
   }
 
-  commit(toString: () => string){
-    if(this.hasOwnProperty("toString"))
+  commit(mode: Query.Mode){
+    if(this.mode)
       throw new Error("Query has already been committed.");
 
-    this.toString = toString;
+    this.mode = mode;
 
     if(this.main)
       this.main.focus = undefined;

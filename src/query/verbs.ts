@@ -1,5 +1,4 @@
 import Field from '../Field';
-import { generateCombined } from './generate';
 import Query, { RelevantTable } from './Query';
 
 export function queryVerbs<T>(query: Query<T>): Query.Ops {
@@ -67,9 +66,8 @@ export function deleteQuery(
     throw new Error(`Argument ${entity} is not a query entity.`);
   });
 
-  query.mode = "delete";
+  query.commit("delete");
   query.deletes = targets;
-  query.commit(() => generateCombined(query));
 }
 
 export function updateQuery(
@@ -96,13 +94,11 @@ export function updateQuery(
     values.set(field, value);
   });
 
+  query.commit("update")
   query.updates = {
     table: meta.name,
     values
   }
-
-  query.mode = "update";
-  query.commit(() => generateCombined(query))
 }
 
 export function selectQuery<R = any>(
@@ -110,11 +106,11 @@ export function selectQuery<R = any>(
   select: R | (() => R),
   limit?: number
 ): (raw: any[]) => R[] {
-  const selects = query.selects =
-    new Map<string | Field, string | number>();
+  const selects = new Map<string | Field, string | number>();
 
+  query.commit("select");
   query.limit = limit;
-  query.commit(() => generateCombined(query))
+  query.selects = selects;
 
   switch(typeof select){
     case "object":
