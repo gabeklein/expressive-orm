@@ -74,7 +74,6 @@ class Field {
   }
 
   init(options?: Partial<this>){
-    this.table.fields.set(this.property, this);
     Object.assign(this, options);
   }
 
@@ -87,6 +86,8 @@ class Field {
 
     return Entity.add((parent, key) => {
       const instance = new this(parent, key);
+
+      parent.fields.set(key, instance);
       instance.init(options);
       return instance;
     })
