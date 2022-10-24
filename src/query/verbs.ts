@@ -7,7 +7,9 @@ export function queryVerbs<T>(query: Query<T>): Query.Ops {
       if(!a2)
         a2 = a1, a1 = undefined;
   
-      return getQuery(query, a2, a1);
+      const parse = selectQuery(query, a2, a1);
+
+      return () => query.send().then(parse);
     },
     one(select, orFail){
       return findQuery(query, select, orFail);
@@ -24,17 +26,7 @@ export function queryVerbs<T>(query: Query<T>): Query.Ops {
   }
 }
 
-export function getQuery<T>(
-  query: Query<any>,
-  select: T | (() => T),
-  limit: number){
-
-  const parse = selectQuery(query, select, limit);
-
-  return () => query.send().then(parse);
-}
-
-export function findQuery<T>(
+function findQuery<T>(
   query: Query<any>,
   select: T | (() => T),
   orFail?: boolean){
@@ -51,7 +43,7 @@ export function findQuery<T>(
   }
 }
 
-export function deleteQuery(
+function deleteQuery(
   query: Query<any>,
   from: Query.Type<any>[]){
 
@@ -70,7 +62,7 @@ export function deleteQuery(
   query.deletes = targets;
 }
 
-export function updateQuery(
+function updateQuery(
   query: Query<any>,
   from: Query.Type<any>,
   update: Query.Update<any>
@@ -99,7 +91,7 @@ export function updateQuery(
   query.updates = { table, values };
 }
 
-export function selectQuery<R = any>(
+function selectQuery<R = any>(
   query: Query<any>,
   output: R | (() => R),
   limit?: number
@@ -107,8 +99,8 @@ export function selectQuery<R = any>(
   const selects = new Map<string | Field, string | number>();
 
   query.commit("select");
-  query.limit = limit;
   query.selects = selects;
+  query.limit = limit;
 
   switch(typeof output){
     case "object":
