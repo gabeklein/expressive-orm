@@ -3,6 +3,22 @@ import Field from "../Field";
 import { escapeString, qualify } from "../utility";
 import Query from "./Query";
 
+export function generateCombined(query: Query<any>){
+  const { tables, mode, limit } = query;
+
+  let sql = "";
+
+  if(mode == "select" || tables.length > 1 || tables[0].alias)
+      sql += " " + generateTables(query);
+
+  sql += " " + generateWhere(query);
+
+  if(typeof limit == "number")
+    sql += " " + `LIMIT ${limit}`;
+
+  return sql;
+}
+
 export function generateSelect(
   selects: Map<Field, number | string>
 ){
@@ -23,7 +39,7 @@ export function generateSelect(
   return "SELECT" + keys.join(",");
 }
 
-export function generateWhere(query: Query<any>){
+function generateWhere(query: Query<any>){
   if(!query.wheres.length)
     return "";
   
@@ -32,7 +48,7 @@ export function generateWhere(query: Query<any>){
   return "WHERE " + where;
 }
 
-export function generateTables(query: Query<any>){
+function generateTables(query: Query<any>){
   const [ from, ...joins ] = query.tables;
   const lines = [] as string[];
 

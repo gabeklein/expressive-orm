@@ -2,7 +2,7 @@ import Connection from '../connection/Connection';
 import Entity from '../Entity';
 import Field from '../Field';
 import { qualify } from '../utility';
-import { generateTables, generateWhere, whereFunction, whereObject } from './generate';
+import { generateCombined, whereFunction, whereObject } from './generate';
 import { queryVerbs } from './verbs';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
@@ -110,6 +110,9 @@ class Query<T = void> {
   connection?: Connection;
   main?: Entity.Type;
 
+  mode?: "select" | "update" | "delete";
+  limit?: number;
+
   constructor(from?: Query.Function<T>){
     this.where = this.prepare();
     
@@ -146,11 +149,11 @@ class Query<T = void> {
   }
 
   toString(): string {
-    this.commit(() => [
-      "SELECT COUNT(*)",
-      generateTables(this),
-      generateWhere(this)
-    ].join(" "));
+    this.mode = "select";
+
+    this.commit(() => (
+      "SELECT COUNT(*)" + generateCombined(this)
+    ));
 
     return String(this);
   }

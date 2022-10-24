@@ -1,6 +1,6 @@
 import Field from '../Field';
 import { qualify } from '../utility';
-import { generateSelect, generateTables, generateWhere, serialize } from './generate';
+import { generateCombined, generateSelect, serialize } from './generate';
 import Query, { RelevantTable } from './Query';
 
 export function queryVerbs<T>(query: Query<T>): Query.Ops {
@@ -65,18 +65,15 @@ export function deleteQuery(
 
     throw new Error(`Argument ${entity} is not a query entity.`);
   });
+
+  query.mode = "delete";
   
   query.commit(() => {
-    let sql = `DELETE ${
+    const sql = `DELETE ${
       targets.map(x => x.alias || x.name).join(", ")
     }`;
 
-    if(query.tables.length > 1 || targets[0].alias)
-      sql += " " + generateTables(query);
-
-    sql += " " + generateWhere(query);
-
-    return sql;
+    return sql + generateCombined(query);
   });
 }
 
@@ -103,6 +100,8 @@ export function updateQuery(
 
     values[field.column] = field.set ? field.set(value) : value;
   });
+
+  query.mode = "update";
   
   query.commit(() => {
     const tableName = qualify(meta.entity.table);
@@ -112,14 +111,9 @@ export function updateQuery(
       updates.push(`${qualify(column)} = ${serialize(value)}`);
     })
 
-    let sql = `UPDATE ${tableName} SET ${updates.join(", ")}`;
+    const sql = `UPDATE ${tableName} SET ${updates.join(", ")}`;
 
-    if(query.tables.length > 1 || query.tables[0].alias)
-      sql += " " + generateTables(query);
-
-    sql += " " + generateWhere(query);
-
-    return sql;
+    return sql + generateCombined(query);
   })
 }
 
@@ -129,18 +123,12 @@ export function selectQuery<R = any>(
   limit?: number
 ): (raw: any[]) => R[] {
   const selects = new Map<Field, number | string>();
+
+  query.mode = "select";
+  query.limit = limit;
   
   query.commit(() => {
-    const statements = [
-      generateSelect(selects),
-      generateTables(query),
-      generateWhere(query)
-    ];
-
-    if(typeof limit == "number")
-      statements.push(`LIMIT ${limit}`);
-
-    return statements.join(" ");
+    return generateSelect(selects) + generateCombined(query);
   })
 
   switch(typeof select){
