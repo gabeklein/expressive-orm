@@ -4,12 +4,58 @@ import { escapeString, qualify } from "../utility";
 import Query from "./Query";
 
 export function generateCombined(query: Query<any>){
-  const { tables, mode, limit } = query;
+  const {
+    tables,
+    limit,
+    selects,
+    deletes,
+    updates
+  } = query;
 
   let sql = "";
 
-  if(mode == "select" || tables.length > 1 || tables[0].alias)
-      sql += " " + generateTables(query);
+  if(selects){
+    if(!selects.size)
+      throw new Error("Nothing is selected by this query.");
+
+    const keys = [] as string[];
+    
+    selects.forEach((alias, field) => {
+      let select = String(field);
+
+      if(alias)
+        select += " AS " + qualify(alias);
+
+      keys.push(select);
+    })
+
+    sql += "SELECT " + keys.join(",");
+  }
+  else if(updates){
+    const tableName = qualify(updates.table);
+    const updated = [] as string[];
+
+    updates.values.forEach((value, field) => {
+      const key = qualify(field.column);
+      const output = serialize(field.set ? field.set(value) : value);
+
+      updated.push(`${key} = ${output}`);
+    })
+
+    sql += `UPDATE ${tableName} SET ${updated.join(", ")}`;
+  }
+  else if(deletes){
+    const targets = [] as string[];
+
+    deletes.forEach(table => {
+      targets.push(table.alias || table.name)
+    })
+
+    sql += `DELETE ${targets.join(", ")}`;
+  }
+
+  if(selects || tables.length > 1 || tables[0].alias)
+    sql += " " + generateTables(query);
 
   sql += " " + generateWhere(query);
 
@@ -17,26 +63,6 @@ export function generateCombined(query: Query<any>){
     sql += " " + `LIMIT ${limit}`;
 
   return sql;
-}
-
-export function generateSelect(
-  selects: Map<Field, number | string>
-){
-  if(!selects.size)
-    throw new Error("Nothing is selected by this query.");
-
-  const keys = [] as string[];
-  
-  selects.forEach((alias, field) => {
-    let select = String(field);
-
-    if(alias)
-      select += " AS " + qualify(alias);
-
-    keys.push(select);
-  })
-
-  return "SELECT" + keys.join(",");
 }
 
 function generateWhere(query: Query<any>){

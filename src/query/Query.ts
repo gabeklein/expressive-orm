@@ -110,6 +110,13 @@ class Query<T = void> {
   connection?: Connection;
   main?: Entity.Type;
 
+  selects?: Map<string | Field, string | number>;
+  deletes?: Set<Query.Table>;
+  updates?: {
+    table: string;
+    values: Map<Field, any>;
+  };
+
   mode?: "select" | "update" | "delete";
   limit?: number;
 
@@ -149,11 +156,8 @@ class Query<T = void> {
   }
 
   toString(): string {
-    this.mode = "select";
-
-    this.commit(() => (
-      "SELECT COUNT(*)" + generateCombined(this)
-    ));
+    this.selects = new Map([["COUNT(*)", ""]]);
+    this.commit(() => generateCombined(this));
 
     return String(this);
   }

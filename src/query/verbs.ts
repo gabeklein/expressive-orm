@@ -1,6 +1,5 @@
 import Field from '../Field';
-import { qualify } from '../utility';
-import { generateCombined, generateSelect, serialize } from './generate';
+import { generateCombined } from './generate';
 import Query, { RelevantTable } from './Query';
 
 export function queryVerbs<T>(query: Query<T>): Query.Ops {
@@ -57,24 +56,20 @@ export function deleteQuery(
   query: Query<any>,
   from: Query.Type<any>[]){
 
-  const targets = from.map(entity => {
+  const targets = new Set<Query.Table>();
+
+  from.forEach(entity => {
     const table = RelevantTable.get(entity);
 
     if(table)
-      return table;
+      return targets.add(table);
 
     throw new Error(`Argument ${entity} is not a query entity.`);
   });
 
   query.mode = "delete";
-  
-  query.commit(() => {
-    const sql = `DELETE ${
-      targets.map(x => x.alias || x.name).join(", ")
-    }`;
-
-    return sql + generateCombined(query);
-  });
+  query.deletes = targets;
+  query.commit(() => generateCombined(query));
 }
 
 export function updateQuery(
@@ -87,7 +82,7 @@ export function updateQuery(
   if(!meta)
     throw new Error(`Argument ${from} is not a query entity.`);
 
-  const values = {} as any;
+  const values = new Map<Field, string>();
 
   Object.entries(update).forEach((entry) => {
     const [key, value] = entry;
@@ -98,23 +93,16 @@ export function updateQuery(
         `Property ${key} has no corresponding field in entity ${meta.entity.constructor.name}`
       );
 
-    values[field.column] = field.set ? field.set(value) : value;
+    values.set(field, value);
   });
 
+  query.updates = {
+    table: meta.name,
+    values
+  }
+
   query.mode = "update";
-  
-  query.commit(() => {
-    const tableName = qualify(meta.entity.table);
-    const updates = [] as string[];
-
-    Object.entries(values).forEach(([column, value]) => {
-      updates.push(`${qualify(column)} = ${serialize(value)}`);
-    })
-
-    const sql = `UPDATE ${tableName} SET ${updates.join(", ")}`;
-
-    return sql + generateCombined(query);
-  })
+  query.commit(() => generateCombined(query))
 }
 
 export function selectQuery<R = any>(
@@ -122,14 +110,11 @@ export function selectQuery<R = any>(
   select: R | (() => R),
   limit?: number
 ): (raw: any[]) => R[] {
-  const selects = new Map<Field, number | string>();
+  const selects = query.selects =
+    new Map<string | Field, string | number>();
 
-  query.mode = "select";
   query.limit = limit;
-  
-  query.commit(() => {
-    return generateSelect(selects) + generateCombined(query);
-  })
+  query.commit(() => generateCombined(query))
 
   switch(typeof select){
     case "object":
@@ -152,9 +137,10 @@ export function selectQuery<R = any>(
           const output = Object.create(select as {});
       
           selects.forEach((column, field) => {
-            Object.defineProperty(output, column, {
-              value: field.get(row[column])
-            })
+            const value = field instanceof Field
+              ? field.get(row[column]) : field;
+
+            Object.defineProperty(output, column, { value });
           })
           
           return output as R;
