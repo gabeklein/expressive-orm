@@ -1,12 +1,16 @@
 import Field from "../Field";
 import Query from "../query/Query";
 
-function Join<R>(factory: Query.Function<R>): R {
+declare namespace Join {
+  type Function<R> = (where: Query.Where) => R | (() => R);
+}
+
+function Join<R>(factory: Join.Function<R>): R {
   return JoinQueryField.create({ factory });
 }
 
 class JoinQueryField extends Field {
-  factory!: Query.Function<any>;
+  factory!: Join.Function<any>;
 
   proxy(query: Query, proxy: {}){
     query.main!.focus = proxy;
