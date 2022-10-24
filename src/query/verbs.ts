@@ -103,7 +103,7 @@ export function updateQuery(
 
 export function selectQuery<R = any>(
   query: Query<any>,
-  select: R | (() => R),
+  output: R | (() => R),
   limit?: number
 ): (raw: any[]) => R[] {
   const selects = new Map<string | Field, string | number>();
@@ -112,34 +112,34 @@ export function selectQuery<R = any>(
   query.limit = limit;
   query.selects = selects;
 
-  switch(typeof select){
+  switch(typeof output){
     case "object":
-      if(select instanceof Field){
-        selects.set(select, select.column);
+      if(output instanceof Field){
+        selects.set(output, output.column);
     
         return raw => raw.map(row => {
-          return select.get(row[select.column]);
+          return output.get(row[output.column]);
         });
       }
-      else if(select){
-        Object.getOwnPropertyNames(select).forEach(key => {
-          const value = (select as any)[key];
+      else if(output){
+        Object.getOwnPropertyNames(output).forEach(key => {
+          const value = (output as any)[key];
       
           if(value instanceof Field)
             selects.set(value, key);
         })
     
         return raw => raw.map(row => {
-          const output = Object.create(select as {});
+          const values = Object.create(output as {});
       
           selects.forEach((column, field) => {
             const value = field instanceof Field
               ? field.get(row[column]) : field;
 
-            Object.defineProperty(output, column, { value });
+            Object.defineProperty(values, column, { value });
           })
           
-          return output as R;
+          return values as R;
         })
       }
 
@@ -151,7 +151,7 @@ export function selectQuery<R = any>(
         return field.placeholder;
       };
   
-      (select as () => R)();
+      (output as () => R)();
   
       query.access = field => {
         const value = focus[selects.get(field)!];
@@ -163,7 +163,7 @@ export function selectQuery<R = any>(
   
         for(const row of raw){
           focus = row;
-          results.push((select as () => R)());
+          results.push((output as () => R)());
         }
   
         return results;
