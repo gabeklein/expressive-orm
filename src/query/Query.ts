@@ -245,21 +245,28 @@ class Query<T = void> {
     const { tables } = this;
     let { schema, table } = entity.ensure();
     let alias: string | undefined;
-    let where: string[] | undefined;
 
     if(schema){
       table = qualify(schema, table);
       alias = `$${tables.length}`;
     }
 
+    const proxy = {} as any;
+    const metadata: Query.Table = {
+      alias,
+      entity,
+      join,
+      name: table
+    };
+
     if(tables.length){
       if(this.connection !== entity.connection)
         throw new Error(`Joined entity ${entity} does not share an SQL connection with ${this.main}`);
     
       if(!join)
-        join = "inner";
+        metadata.join = "inner";
 
-      where = 
+      metadata.on = 
         Array.isArray(on) ? on :
         typeof on == "function"
           ? whereFunction(this, on)
@@ -269,15 +276,6 @@ class Query<T = void> {
       this.main = entity;
       this.connection = entity.connection;
     }
-
-    const proxy = {} as any;
-    const metadata = {
-      alias,
-      entity,
-      join,
-      name: table,
-      on: where
-    };
 
     RelevantTable.set(proxy, metadata);
     tables.push(metadata);
