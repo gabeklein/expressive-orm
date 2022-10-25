@@ -136,18 +136,18 @@ class Query<T = void> {
 
   private prepare(): Query.Where {
     const where = (
-      a1: any, a2?: any, a3?: {}): any => {
-
+      target: any, a2?: any, a3?: {}): any => {
+  
       if(typeof a2 !== "string")
         a3 = a2, a2 = "inner";
 
-      if(typeof a1 == "function")
-        return this.table(a1, a2, a3);
-
-      if(a1 instanceof Field)
-        return a1.where(this);
-  
-      return this.compare(a1);
+      return (
+        typeof target == "function" ?
+          this.table(target, a2, a3) :
+        target instanceof Field ?
+          target.where(this) :
+          this.compare(target)
+      )
     }
 
     const verbs = queryVerbs(this);

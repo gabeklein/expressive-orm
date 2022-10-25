@@ -73,7 +73,7 @@ function updateQuery(
     throw new Error(`Argument ${from} is not a query entity.`);
 
   const values = new Map<Field, string>();
-  const { name: table , entity } = meta;
+  const { name: table, entity } = meta;
 
   Object.entries(update).forEach((entry) => {
     const [key, value] = entry;
