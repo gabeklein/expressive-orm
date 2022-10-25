@@ -112,3 +112,63 @@ describe("joins", () => {
     expect(query).toMatchSnapshot();
   })
 })
+
+describe("sort", () => {
+  class Test extends Entity {
+    id = Number();
+    rating = Number();
+    name = String();
+  }
+
+  it("will add order clause", async () => {
+    const query = new Query(where => {
+      const test = where(Test);
+  
+      where.sort(test.id, "asc");
+  
+      return where.get({
+        name: test.name
+      })
+    });
+  
+    expect(query).toMatchSnapshot();
+  })
+
+  it("will add multiple clauses", async () => {
+    const query = new Query(where => {
+      const test = where(Test);
+  
+      where.sort(test.rating, "asc");
+      where.sort(test.name, "asc");
+  
+      return where.get({
+        name: test.name
+      })
+    });
+  
+    expect(query).toMatchSnapshot();
+  })
+
+  it("will sort by joined table", async () => {
+    class Other extends Entity {
+      name = String();
+      rank = Number();
+    }
+
+    const query = new Query(where => {
+      const test = where(Test);
+      const other = where(Other, {
+        name: test.name
+      })
+  
+      where.sort(other.rank, "asc");
+  
+      return where.get({
+        name: test.name
+      })
+    });
+  
+    expect(query).toMatchSnapshot();
+  })
+
+})

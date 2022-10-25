@@ -22,6 +22,35 @@ exports[`joins will select joined values 1`] = `
 	  AND \`Bar\`.\`rating\` > 50
 `;
 
+exports[`sort will add multiple clauses 1`] = `
+	SELECT
+	  \`Test\`.\`name\` AS \`name\`
+	FROM
+	  \`Test\`
+	ORDER BY
+	  \`Test\`.\`rating\` ASC,
+	  \`Test\`.\`name\` ASC
+`;
+
+exports[`sort will add order clause 1`] = `
+	SELECT
+	  \`Test\`.\`name\` AS \`name\`
+	FROM
+	  \`Test\`
+	ORDER BY
+	  \`Test\`.\`id\` ASC
+`;
+
+exports[`sort will sort by joined table 1`] = `
+	SELECT
+	  \`Test\`.\`name\` AS \`name\`
+	FROM
+	  \`Test\`
+	  JOIN \`Other\` ON \`Other\`.\`name\` = \`Test\`.\`name\`
+	ORDER BY
+	  \`Other\`.\`rank\` ASC
+`;
+
 exports[`where.get will select a entire entity 1`] = `
 	SELECT
 	  \`Foo\`.\`bar\` AS \`bar\`,

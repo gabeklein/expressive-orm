@@ -79,6 +79,7 @@ declare namespace Query {
 
     any(...where: Instruction[]): Instruction;
     all(...where: Instruction[]): Instruction;
+    sort(value: any, as: "asc" | "desc"): void;
   }
 
   interface Where extends Ops, Assert {
@@ -108,6 +109,7 @@ class Query<T = void> {
   pending = [] as Instruction[];
   tables = [] as Query.Table[];
   wheres = [] as string[];
+  order = [] as [Field, "asc" | "desc"][];
 
   where = this.prepare();
   connection?: Connection;
@@ -155,6 +157,7 @@ class Query<T = void> {
     return Object.assign(where, verbs, {
       any: this.group.bind(this, "OR"),
       all: this.group.bind(this, "AND"),
+      sort: (a: Field, b: "asc" | "desc") => this.order.push([a, b])
     })
   }
 

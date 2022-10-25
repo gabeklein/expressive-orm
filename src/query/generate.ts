@@ -5,6 +5,7 @@ export function generate(query: Query<any>){
   const {
     deletes,
     limit,
+    order,
     selects,
     tables,
     updates,
@@ -58,6 +59,11 @@ export function generate(query: Query<any>){
 
   if(wheres.length)
     sql += " WHERE" + wheres.join(" AND ");
+
+  if(order.length)
+    sql += " ORDER BY" + order
+      .map(([field, dir]) => `${field} ${dir.toUpperCase()}`)
+      .join(", ");
 
   if(typeof limit == "number")
     sql += " " + `LIMIT ${limit}`;
