@@ -29,7 +29,7 @@ export function whereObject<T extends Entity>(
 
 export function whereFunction(
   query: Query<any>,
-  on: Query.Join.Function){
+  where: Query.Join.Function){
 
   const cond = [] as string[];
   const add = (op: string, left: Field, right: any) => {
@@ -37,7 +37,7 @@ export function whereFunction(
   }
 
   query.pending.unshift(() => {
-    const where = (field: any) => {
+    where(field => {
       if(field instanceof Field)
         return {
           is: add.bind(null, "=", field),
@@ -47,9 +47,7 @@ export function whereFunction(
         }
       else
         throw new Error("Join assertions can only apply to fields.");
-    }
-
-    on(where);
+    });
   });
   
   return cond;
