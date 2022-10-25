@@ -164,14 +164,14 @@ class Query<T = void> {
   toString(): string {
     if(!this.mode){
       this.commit("select");
-      this.selects = new Map([["COUNT(*)", ""]]);
+      this.selects = new Map([["COUNT(*)", "count"]]);
     }
 
     return generate(this);
   }
 
   async run(): Promise<T> {
-    return this.send().then(res => res[0]["COUNT(*)"]);
+    return this.send().then(res => res[0].count);
   }
 
   async send(){
