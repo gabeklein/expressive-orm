@@ -6,7 +6,7 @@ declare namespace Scanner {
 
   type Token<T extends Type = Type> = moo.Token & { type: T };
 
-  type Next = Token | { type: "end" };
+  type Node = Token | { type: "end", value: undefined };
 
   type Matcher<R = any> = {
     [P in Type]?: (token: Token) => R;
@@ -15,7 +15,8 @@ declare namespace Scanner {
 
 class Scanner {
   lexer: moo.Lexer;
-  buffer?: Scanner.Next;
+  lookAhead?: Scanner.Node;
+  buffer?: Scanner.Node[];
 
   constructor(public code: string){
     this.lexer = moo.compile(matchers).reset(code);
@@ -25,24 +26,27 @@ class Scanner {
     if(ignore)
       this.skip(ignore);
 
-    if(this.buffer)
-      return this.buffer;
+    if(this.lookAhead)
+      return this.lookAhead;
 
-    return this.buffer = this.next();
+    return this.lookAhead = this.next();
   }
 
-  next(): Scanner.Next;
-  next<T>(check: (next: Scanner.Next) => T | undefined): T;
-  next<T>(checkMultiple: (next: Scanner.Next) => (next: Scanner.Next) => T): T;
-  next(check?: Function){
-    const next = this.buffer || this.lexer.next() || { type: "EOF" };
+  next(){
+    const next =
+      this.lookAhead ||
+      this.lexer.next() ||
+      { type: "end", value: undefined };
 
-    this.buffer = undefined;
+    this.lookAhead = undefined;
   
-    if(!check)
-      return next;
+    return next as Scanner.Node;
+  }
 
-    let result = check(next);
+  get<T>(check: (next: Scanner.Node) => T | undefined): T;
+  get<T>(checkMultiple: (next: Scanner.Node) => (next: Scanner.Node) => T): T;
+  get(check: Function){
+    let result = check(this.next());
 
     if(typeof result == "function"){
       check = result as Function;
@@ -85,7 +89,7 @@ class Scanner {
     if(ignore !== false)
       this.skip(ignore);
 
-    return this.next((token: Scanner.Next) => {
+    return this.get((token: Scanner.Node) => {
       const type = token.type as Scanner.Type;
 
       if(Array.isArray(filter)){
@@ -103,7 +107,7 @@ class Scanner {
 
       const where = "line" in token ? ` at line ${token.line}` : "";
   
-      throw new Error(`Unexpected ` + type + where);
+      throw new Error(`Unexpected ${type}` + where);
     })
   }
 
@@ -116,7 +120,7 @@ class Scanner {
     do { buffer = this.next() }
     while(types.includes(buffer.type));
 
-    this.buffer = buffer;
+    this.lookAhead = buffer;
   }
 
   endStatement(){

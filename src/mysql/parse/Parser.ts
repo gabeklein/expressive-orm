@@ -29,10 +29,7 @@ class Parser {
 
   constructor(code: string){
     this.scan = new Scanner(code);
-  }
-
-  parse(){
-    this.scan.next((token) => {
+    this.scan.get((token) => {
       const { type } = token;
   
       switch(type){
