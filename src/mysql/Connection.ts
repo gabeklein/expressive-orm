@@ -42,7 +42,10 @@ class MySQLConnection extends Connection {
 
     Object
       .values<Entity.Type>(schema)
-      .forEach(entity => entity.ensure(this))
+      .forEach(entity => {
+        entity.connection = this;
+        entity.ensure()
+      })
 
     if(opts.use)
       this.apply(opts.use);

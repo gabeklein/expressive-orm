@@ -57,16 +57,12 @@ abstract class Entity {
   static connection?: Connection;
   static focus?: { [key: string]: any };
 
-  static ensure<T extends Entity>(
-    this: Entity.Type<T>,
-    connection?: Connection){
-
+  static ensure<T extends Entity>(this: Entity.Type<T>){
     if(!REGISTER.has(this)){
       REGISTER.add(this);
 
       this.table = this.name;
       this.schema = "";
-      this.connection = connection;
       this.fields = new Map();
       this.deps = new Set();
       

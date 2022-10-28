@@ -21,8 +21,10 @@ abstract class Connection {
   apply(from: Connection.Entities){
     const entities = Object.values<typeof Entity>(from);
 
-    for(const type of entities)
-      this.managed.add(type.ensure(this));
+    for(const type of entities){
+      type.connection = this;
+      this.managed.add(type.ensure());
+    }
 
     return this;
   }
