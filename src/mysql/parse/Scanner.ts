@@ -96,7 +96,7 @@ class Scanner {
         const handle = filter[type]
 
         if(handle)
-          handle(token as any);
+          return handle(token as any);
       }
       else if(type == filter)
         return token;
