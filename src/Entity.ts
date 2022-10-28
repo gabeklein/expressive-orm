@@ -64,7 +64,7 @@ abstract class Entity {
     if(!REGISTER.has(this)){
       REGISTER.add(this);
 
-      this.table = /class (\w+?) /.exec(this.toString())![1];
+      this.table = this.name;
       this.schema = "";
       this.connection = connection;
       this.fields = new Map();
@@ -156,6 +156,10 @@ abstract class Entity {
     const sql = insertQuery(this, data);
     
     return this.connection.query(sql) as Promise<void>;
+  }
+
+  static toString(){
+    return this.name;
   }
 }
 
