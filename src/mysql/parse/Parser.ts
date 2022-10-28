@@ -162,6 +162,10 @@ class Parser {
           info.nullable = false;
         break;
 
+        case "NULL":
+          info.nullable = true;
+        break;
+
         case "UNIQUE":
           info.unique = true;
         break;
