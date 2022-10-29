@@ -57,7 +57,7 @@ class Parser {
         return;
   
       case "CREATE": {
-        const { value } = scan.expect("word");
+        const value = scan.expect("word");
   
         if(value === "TABLE")
           this.table();
@@ -74,7 +74,7 @@ class Parser {
         const name = scan.expect("escaped");
   
         if(!this.database)
-          this.database = name.value;
+          this.database = name;
 
         scan.endStatement();
         break;
@@ -88,7 +88,7 @@ class Parser {
 
   table(){
     const { scan } = this;
-    const name = scan.expect("escaped").value;
+    const name = scan.expect("escaped");
     const table: Parser.Table = {
       name,
       columns: {}
@@ -122,7 +122,7 @@ class Parser {
   constraint(table: Parser.Table){
     const { scan } = this;
 
-    if(scan.expect("word").value !== "CONSTRAINT")
+    if(scan.expect("word") !== "CONSTRAINT")
       throw new Error(`Unexpected thing.`)
 
     scan.expect("escaped");
@@ -130,7 +130,7 @@ class Parser {
     scan.expect("word");
     scan.expect("lparen");
 
-    const name = scan.expect("escaped").value;
+    const name = scan.expect("escaped");
 
     scan.expect("rparen");
 
@@ -140,8 +140,8 @@ class Parser {
   column(){
     const { scan } = this;
 
-    const name = scan.expect(["escaped", "word"]).value;
-    const datatype = scan.expect("word").value;
+    const name = scan.expect(["escaped", "word"]);
+    const datatype = scan.expect("word");
 
     const info = { name, datatype } as Parser.Column;
 
@@ -154,7 +154,7 @@ class Parser {
 
       const next = scan.expect("word");
 
-      switch(next.value){
+      switch(next){
         case "NOT NULL":
           info.nullable = false;
         break;
@@ -176,7 +176,7 @@ class Parser {
         break;
 
         case "COMMENT":
-          info.comment = scan.expect(["string", "quote"]).value;
+          info.comment = scan.expect(["string", "quote"]);
         break;
 
         case "DEFAULT": {
@@ -200,7 +200,7 @@ class Parser {
         }
 
         default:
-          throw new Error(`Unexpected keyword ${next.value}`)
+          throw new Error(`Unexpected keyword ${next}`)
       }
     }
     

@@ -79,8 +79,8 @@ class Scanner {
     }
   }
 
-  expect<T extends Scanner.Type>(expect: T | T[], ignoreWhitespace: boolean): Scanner.Token<T>;
-  expect<T extends Scanner.Type>(expect: T | T[], ignore?: Scanner.Type[]): Scanner.Token<T>;
+  expect<T extends Scanner.Type>(expect: T | T[], ignoreWhitespace: boolean): Scanner.Token<T>["value"];
+  expect<T extends Scanner.Type>(expect: T | T[], ignore?: Scanner.Type[]): Scanner.Token<T>["value"];
   expect<R>(match: Scanner.Matcher<R>): R;
   expect(
     filter?: Scanner.Type | Scanner.Type[] | Scanner.Matcher,
@@ -94,7 +94,7 @@ class Scanner {
 
       if(Array.isArray(filter)){
         if(filter.includes(type))
-          return token;
+          return token.value;
       }
       else if(typeof filter == "object"){
         const handle = filter[type]
@@ -103,7 +103,7 @@ class Scanner {
           return handle(token as any);
       }
       else if(type == filter)
-        return token;
+        return token.value;
 
       const where = "line" in token ? ` at line ${token.line}` : "";
   
