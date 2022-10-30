@@ -1,4 +1,5 @@
-import Scanner from "./Scanner";
+import { matchers } from './grammar';
+import Scanner from './Scanner';
 
 type BunchOf<T = any> = { [key: string]: T }
 
@@ -29,7 +30,7 @@ class Parser {
   tables = {} as BunchOf<{}>;
 
   constructor(code: string){
-    const scan = this.scan = new Scanner(code);
+    const scan = this.scan = new Scanner(matchers, code);
 
     while(true){
       scan.skip();
