@@ -61,11 +61,19 @@ class Parser {
     return this.scan.expect(type);
   }
 
+  error(){
+    const token = this.scan.look();
+    const where = "line" in token ? ` at line ${token.line}` : "";
+  
+    throw new Error(`Unexpected ${token.type}` + where);
+  }
+
   parens(required: true): string[];
+  parens<T>(matchers: (() => T)[]): T[];
   parens(required?: boolean): string[] | undefined;
-  parens(required?: boolean){
+  parens<T = string>(argument?: boolean | Function[]){
     const { scan } = this;
-    const collection = [] as string[];
+    const collection = [] as T[];
 
     const scanner = () => {
       this.expect("lparen");
@@ -74,15 +82,29 @@ class Parser {
         if(scan.maybe("rparen", true))
           break;
   
-        const value =
-          scan.expect(["number", "string", "escaped"]);
+        let value: T;
+
+        if(typeof argument == "object"){
+          const matchers = argument.map(fn => () => value = fn())
+          const match = this.scan.try(...matchers);
+
+          if(!match)
+            this.error();
+        }
+        else
+          value = scan.expect([
+            "number",
+            "string",
+            "escaped"
+          ]) as T;
   
-        collection.push(value);
+        collection.push(value!);
+
         scan.maybe("comma", true);
       }
     }
 
-    if(required)
+    if(argument)
       scanner();
     else
       scan.try(scanner);
