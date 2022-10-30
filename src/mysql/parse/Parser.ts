@@ -232,29 +232,6 @@ class Parser {
     
     focus.columns[name] = info;
   }
-
-  typeAttributes(){
-    const { scan } = this;
-    const list = [] as any[];
-
-    this.expect("lparen");
-
-    scan: while(true){
-      const next = scan.next();
-
-      switch(next.type){
-        case "rparen":
-          break scan;
-        case "comma":
-          continue scan;
-        case "number":
-        case "string":
-          list.push(next.value);
-      }
-    }
-
-    return list.length == 1 ? list[0] : list;
-  }
 }
 
 export default Parser;
