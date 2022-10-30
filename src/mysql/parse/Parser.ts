@@ -126,14 +126,10 @@ class Parser {
   }
 
   createTable = () => {
-    const { scan } = this;
-
     this.word("CREATE");
     this.word("TABLE");
   
     const name = this.expect("escaped");
-
-    this.expect("lparen");
 
     const table: Parser.Table = {
       name,
@@ -143,13 +139,10 @@ class Parser {
     this.focus = table;
     this.tables[name] = table;
 
-    while(true){
-      if(scan.maybe("rparen", true))
-        break;
-
-      scan.maybe("comma", true);
-      scan.try(this.setColumn, this.setPrimaryKey);
-    }
+    this.parens([
+      this.setColumn, 
+      this.setPrimaryKey
+    ]);
 
     this.expect("semi");
   }
