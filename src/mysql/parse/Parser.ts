@@ -63,27 +63,28 @@ class Parser {
   parens(required: true): string[];
   parens(required?: boolean): string[] | undefined;
   parens(required?: boolean){
+    const { scan } = this;
     const collection = [] as string[];
 
-    const scan = () => {
+    const scanner = () => {
       this.expect("lparen");
   
       while(true){
-        if(this.scan.maybe("rparen", true))
+        if(scan.maybe("rparen", true))
           break;
   
         const value =
-          this.scan.expect(["number", "string", "escaped"]);
+          scan.expect(["number", "string", "escaped"]);
   
         collection.push(value);
-        this.scan.maybe("comma", true);
+        scan.maybe("comma", true);
       }
     }
 
     if(required)
-      scan();
+      scanner();
     else
-      this.scan.try(scan);
+      scan.try(scanner);
 
     return collection;
   }
