@@ -16,31 +16,81 @@ declare namespace Scanner {
 class Scanner {
   lexer: moo.Lexer;
   lookAhead?: Scanner.Node;
-  buffer?: Scanner.Node[];
+  buffer = [] as Scanner.Node[];
+  cache?: Scanner.Node[];
 
   constructor(public code: string){
     this.lexer = moo.compile(matchers).reset(code);
+  }
+
+  try<T>(...scan: (() => void)[]){
+    for(const scanner of scan){
+      const last = this.cache;
+      const cache = [] as Scanner.Node[];
+  
+      try {
+        this.cache = cache;
+        scanner();
+        return true;
+      }
+      catch(err){
+        this.buffer = cache.concat(this.buffer);
+      }
+      finally {
+        this.cache = last;
+      }
+    }
   }
 
   look(ignore?: Scanner.Type[] | boolean){
     if(ignore)
       this.skip(ignore);
 
-    if(this.lookAhead)
-      return this.lookAhead;
+    let next = this.buffer[0];
 
-    return this.lookAhead = this.next();
+    if(!next){
+      next = this.next(true);
+      this.buffer.push(next);
+    }
+
+    return next;
   }
 
-  next(){
-    const next =
-      this.lookAhead ||
+  next(passive?: boolean){
+    const next: any =
+      this.buffer.shift() ||
       this.lexer.next() ||
       { type: "end", value: undefined };
-
-    this.lookAhead = undefined;
+    
+    if(this.cache && !passive)
+      this.cache.push(next);
   
     return next as Scanner.Node;
+  }
+
+  maybe(type: Scanner.Type, flush?: boolean){
+    this.skip();
+
+    const next = this.look();
+
+    if(next.type == type){
+      if(flush)
+        this.next();
+
+      return next.value;
+    }
+  }
+
+  assert(type: Scanner.Type | Scanner.Type[], value?: string | string[]){
+    const got = this.expect(type, true);
+
+    if(!value || value === got)
+      return got;
+
+    if(Array.isArray(value) && value.includes(got))
+      return got;
+
+    throw new Error(`Token ${type} has value \`${got}\`, expected \`${value}\``);
   }
 
   get<T>(check: (next: Scanner.Node) => T | undefined): T;
@@ -54,7 +104,7 @@ class Scanner {
     }
 
     while(!result){
-      const next = this.lexer.next();
+      const next = this.next();
       result = check(next || { type: "end" });
 
       if(!result && !next)
@@ -62,21 +112,6 @@ class Scanner {
     }
 
     return result;
-  }
-
-  nextIs<T extends Scanner.Type>(
-    type: T, flush?: boolean
-  ){
-    this.skip();
-
-    const next = this.look();
-
-    if(next.type == type){
-      if(flush)
-        this.next();
-
-      return next as Scanner.Token<T>;
-    }
   }
 
   expect<T extends Scanner.Type>(expect: T | T[], ignoreWhitespace: boolean): Scanner.Token<T>["value"];
@@ -117,10 +152,10 @@ class Scanner {
     if(typeof types !== "object")
       types = ["comment", "newline", "space"];
 
-    do { buffer = this.next() }
+    do { buffer = this.next(true) }
     while(types.includes(buffer.type));
 
-    this.lookAhead = buffer;
+    this.buffer.unshift(buffer);
   }
 
   endStatement(){

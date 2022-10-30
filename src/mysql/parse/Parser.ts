@@ -25,131 +25,140 @@ class Parser {
   scan: Scanner;
 
   database?: string;
+  focus!: Parser.Table;
   tables = {} as BunchOf<{}>;
 
   constructor(code: string){
-    this.scan = new Scanner(code);
-    this.scan.get((token) => {
-      const { type } = token;
-  
-      switch(type){
-        case "word":
-          this.statement(token.value);
-          return;
+    const scan = this.scan = new Scanner(code);
 
-        case "comment":
-        case "space":
-        case "newline":
-        case "end":
-          return;
-  
-        default:
-          throw new Error(`Unexpected ${type}`)
-      }
-    })
-  }
+    while(true){
+      scan.skip();
+      
+      const match = scan.try(
+        this.createTable,
+        this.statement
+      );
 
-  statement(command: string){
-    const { scan } = this;
-
-    switch(command){
-      case "INSERT":
-        return;
-  
-      case "CREATE": {
-        const value = scan.expect("word");
-  
-        if(value === "TABLE")
-          this.table();
-  
-        scan.endStatement();
-        return;
-      }
-  
-      case "ALTER":
-        scan.endStatement();
-      break;
-  
-      case "USE": {
-        const name = scan.expect("escaped");
-  
-        if(!this.database)
-          this.database = name;
-
-        scan.endStatement();
+      if(!match)
         break;
-      }
-  
-      case "DROP":
-        scan.endStatement();
-      break;
     }
   }
 
-  table(){
+  reset(){
+    this.scan.endStatement();
+  }
+
+  word(mustBe?: string){
+    return this.scan.assert("word", mustBe);
+  }
+
+  name(mustBe?: string){
+    return this.scan.assert(["word", "escaped"], mustBe);
+  }
+
+  expect(type: Scanner.Type){
+    return this.scan.expect(type);
+  }
+
+  parens(required: true): string[];
+  parens(required?: boolean): string[] | undefined;
+  parens(required?: boolean){
+    const collection = [] as string[];
+
+    const scan = () => {
+      this.expect("lparen");
+  
+      while(true){
+        if(this.scan.maybe("rparen", true))
+          break;
+  
+        const value =
+          this.scan.expect(["number", "string", "escaped"]);
+  
+        collection.push(value);
+        this.scan.maybe("comma", true);
+      }
+    }
+
+    if(required)
+      scan();
+    else
+      this.scan.try(scan);
+
+    return collection;
+  }
+
+  statement = () => {
+    const command = this.word();
+
+    switch(command){
+      case "USE": {
+        this.database = this.expect("escaped");
+        break;
+      }
+    }
+    
+    this.reset();
+  }
+
+  createTable = () => {
     const { scan } = this;
-    const name = scan.expect("escaped");
+
+    this.word("CREATE");
+    this.word("TABLE");
+  
+    const name = this.expect("escaped");
+
+    this.expect("lparen");
+
     const table: Parser.Table = {
       name,
       columns: {}
     };
 
-    scan.expect("lparen");
+    this.focus = table;
+    this.tables[name] = table;
 
     while(true){
-      if(scan.nextIs("rparen", true))
+      if(scan.maybe("rparen", true))
         break;
 
-      scan.nextIs("comma", true);
-    
-      if(scan.nextIs("word")){
-        this.constraint(table);
-      }
-      else {
-        const column = this.column();
-  
-        table.columns[column.name] = column;
-      }
+      scan.maybe("comma", true);
+      scan.try(this.setColumn, this.setPrimaryKey);
     }
-    
-    scan.expect("semi");
 
-    this.tables[name] = table;
-  
-    return {};
+    this.expect("semi");
   }
 
-  constraint(table: Parser.Table){
-    const { scan } = this;
+  setPrimaryKey = () => {
+    const { focus } = this;
 
-    if(scan.expect("word") !== "CONSTRAINT")
-      throw new Error(`Unexpected thing.`)
+    this.word("CONSTRAINT");
 
-    scan.expect("escaped");
-    scan.expect("word");
-    scan.expect("word");
-    scan.expect("lparen");
+    const name = this.name();
 
-    const name = scan.expect("escaped");
+    this.word("PRIMARY");
+    this.word("KEY");
 
-    scan.expect("rparen");
+    const columns = this.parens(true);
 
-    table.columns[name].primary = true;
+    for(const name of columns)
+      focus.columns[name].primary = true;
+
+    void columns, name;
   }
 
-  column(){
-    const { scan } = this;
-
+  setColumn = () => {
+    const { scan, focus } = this;
     const name = scan.expect(["escaped", "word"]);
     const datatype = scan.expect("word");
 
     const info = { name, datatype } as Parser.Column;
 
-    if(scan.nextIs("lparen"))
-      info.argument = this.typeAttributes();
+    info.argument = this.parens();
 
     while(true){
-      if(scan.nextIs("comma", true) || scan.nextIs("rparen"))
+      if(scan.maybe("comma", true) || scan.maybe("rparen"))
         break;
 
       const next = scan.expect("word");
@@ -204,14 +213,14 @@ class Parser {
       }
     }
     
-    return info;
+    focus.columns[name] = info;
   }
 
   typeAttributes(){
     const { scan } = this;
     const list = [] as any[];
 
-    scan.expect("lparen");
+    this.expect("lparen");
 
     scan: while(true){
       const next = scan.next();
