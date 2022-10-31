@@ -22,20 +22,18 @@ declare namespace Parser {
   }
 }
 
-class Parser {
-  scan: Scanner;
-
+class Parser extends Scanner {
   database?: string;
   focus!: Parser.Table;
   tables = {} as BunchOf<{}>;
 
   constructor(code: string){
-    const scan = this.scan = new Scanner(matchers, code);
+    super(matchers, code);
 
     while(true){
-      scan.skip();
+      this.skip();
       
-      const match = scan.try(
+      const match = this.try(
         this.createTable,
         this.statement
       );
@@ -46,23 +44,19 @@ class Parser {
   }
 
   reset(){
-    this.scan.endStatement();
+    this.endStatement();
   }
 
   word(mustBe?: string){
-    return this.scan.assert("word", mustBe);
+    return this.assert("word", mustBe);
   }
 
   name(mustBe?: string){
-    return this.scan.assert(["word", "escaped"], mustBe);
-  }
-
-  expect(type: Scanner.Type){
-    return this.scan.expect(type);
+    return this.assert(["word", "escaped"], mustBe);
   }
 
   error(){
-    const token = this.scan.look();
+    const token = this.look();
     const where = "line" in token ? ` at line ${token.line}` : "";
   
     throw new Error(`Unexpected ${token.type}` + where);
@@ -72,27 +66,26 @@ class Parser {
   parens<T>(matchers: (() => T)[]): T[];
   parens(required?: boolean): string[] | undefined;
   parens<T = string>(argument?: boolean | Function[]){
-    const { scan } = this;
     const collection = [] as T[];
 
     const scanner = () => {
       this.expect("lparen");
   
       while(true){
-        if(scan.maybe("rparen", true))
+        if(this.maybe("rparen", true))
           break;
   
         let value: T;
 
         if(typeof argument == "object"){
           const matchers = argument.map(fn => () => value = fn())
-          const match = this.scan.try(...matchers);
+          const match = this.try(...matchers);
 
           if(!match)
             this.error();
         }
         else
-          value = scan.expect([
+          value = this.expect([
             "number",
             "string",
             "escaped"
@@ -100,14 +93,14 @@ class Parser {
   
         collection.push(value!);
 
-        scan.maybe("comma", true);
+        this.maybe("comma", true);
       }
     }
 
     if(argument)
       scanner();
     else
-      scan.try(scanner);
+      this.try(scanner);
 
     return collection;
   }
@@ -166,19 +159,19 @@ class Parser {
   }
 
   setColumn = () => {
-    const { scan, focus } = this;
-    const name = scan.expect(["escaped", "word"]);
-    const datatype = scan.expect("word");
+    const { focus } = this;
+    const name = this.expect(["escaped", "word"]);
+    const datatype = this.expect("word");
 
     const info = { name, datatype } as Parser.Column;
 
     info.argument = this.parens();
 
     while(true){
-      if(scan.maybe("comma", true) || scan.maybe("rparen"))
+      if(this.maybe("comma", true) || this.maybe("rparen"))
         break;
 
-      const next = scan.expect("word");
+      const next = this.expect("word");
 
       switch(next){
         case "NOT NULL":
@@ -202,11 +195,11 @@ class Parser {
         break;
 
         case "COMMENT":
-          info.comment = scan.expect(["string", "quote"]);
+          info.comment = this.expect(["string", "quote"]);
         break;
 
         case "DEFAULT": {
-          const next = scan.next();
+          const next = this.next();
 
           switch(next.type){
             case "string":
