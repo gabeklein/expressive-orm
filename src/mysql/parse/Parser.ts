@@ -43,10 +43,6 @@ class Parser extends Scanner {
     }
   }
 
-  reset(){
-    this.endStatement();
-  }
-
   word(mustBe?: string){
     return this.assert("word", mustBe);
   }
@@ -115,7 +111,7 @@ class Parser extends Scanner {
       }
     }
     
-    this.reset();
+    this.endStatement();
   }
 
   createTable = () => {
