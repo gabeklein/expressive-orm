@@ -179,7 +179,7 @@ class Scanner {
   inParenthesis<T = string>(argument?: boolean | Function[]){
     const collection = [] as T[];
 
-    const scanner = () => {
+    const scan = () => {
       this.expect("lparen");
   
       while(true){
@@ -209,9 +209,9 @@ class Scanner {
     }
 
     if(argument)
-      scanner();
+      scan();
     else
-      this.try(scanner);
+      this.try(scan);
 
     return collection;
   }
