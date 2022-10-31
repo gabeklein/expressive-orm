@@ -165,6 +165,56 @@ class Scanner {
     while(this.next().type !== "semi")
       continue;
   }
+
+  unexpected(){
+    const token = this.look();
+    const where = "line" in token ? ` at line ${token.line}` : "";
+  
+    return new Error(`Unexpected ${token.type}` + where);
+  }
+
+  inParenthesis(required: true): string[];
+  inParenthesis<T>(matchers: (() => T)[]): T[];
+  inParenthesis(required?: boolean): string[] | undefined;
+  inParenthesis<T = string>(argument?: boolean | Function[]){
+    const collection = [] as T[];
+
+    const scanner = () => {
+      this.expect("lparen");
+  
+      while(true){
+        if(this.maybe("rparen", true))
+          break;
+  
+        let value: T;
+
+        if(typeof argument == "object"){
+          const matchers = argument.map(fn => () => value = fn())
+          const match = this.try(...matchers);
+
+          if(!match)
+            throw this.unexpected();
+        }
+        else
+          value = this.expect([
+            "number",
+            "string",
+            "escaped"
+          ]) as T;
+  
+        collection.push(value!);
+
+        this.maybe("comma", true);
+      }
+    }
+
+    if(argument)
+      scanner();
+    else
+      this.try(scanner);
+
+    return collection;
+  }
 }
 
 export default Scanner;

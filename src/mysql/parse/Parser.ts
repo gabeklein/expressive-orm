@@ -51,56 +51,6 @@ class Parser extends Scanner {
     return this.assert(["word", "escaped"], mustBe);
   }
 
-  error(){
-    const token = this.look();
-    const where = "line" in token ? ` at line ${token.line}` : "";
-  
-    throw new Error(`Unexpected ${token.type}` + where);
-  }
-
-  getParenthesis(required: true): string[];
-  getParenthesis<T>(matchers: (() => T)[]): T[];
-  getParenthesis(required?: boolean): string[] | undefined;
-  getParenthesis<T = string>(argument?: boolean | Function[]){
-    const collection = [] as T[];
-
-    const scanner = () => {
-      this.expect("lparen");
-  
-      while(true){
-        if(this.maybe("rparen", true))
-          break;
-  
-        let value: T;
-
-        if(typeof argument == "object"){
-          const matchers = argument.map(fn => () => value = fn())
-          const match = this.try(...matchers);
-
-          if(!match)
-            this.error();
-        }
-        else
-          value = this.expect([
-            "number",
-            "string",
-            "escaped"
-          ]) as T;
-  
-        collection.push(value!);
-
-        this.maybe("comma", true);
-      }
-    }
-
-    if(argument)
-      scanner();
-    else
-      this.try(scanner);
-
-    return collection;
-  }
-
   statement = () => {
     const command = this.word();
 
@@ -128,7 +78,7 @@ class Parser extends Scanner {
     this.focus = table;
     this.tables[name] = table;
 
-    this.getParenthesis([
+    this.inParenthesis([
       this.setColumn, 
       this.setPrimaryKey
     ]);
@@ -146,7 +96,7 @@ class Parser extends Scanner {
     this.word("PRIMARY");
     this.word("KEY");
 
-    const columns = this.getParenthesis(true);
+    const columns = this.inParenthesis(true);
 
     for(const name of columns)
       focus.columns[name].primary = true;
@@ -161,7 +111,7 @@ class Parser extends Scanner {
 
     const info = { name, datatype } as Parser.Column;
 
-    info.argument = this.getParenthesis();
+    info.argument = this.inParenthesis();
 
     loop: while(true){
       const next = this.maybe("word");
