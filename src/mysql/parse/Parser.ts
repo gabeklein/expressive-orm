@@ -83,7 +83,9 @@ class Parser extends Scanner {
     this.word("PRIMARY");
     this.word("KEY");
 
-    this.focus.primary = this.inParenthesis(true);
+    this.focus.primary = this.inParenthesis([
+      () => this.expect("escaped")
+    ]);
   }
 
   setColumn(){
