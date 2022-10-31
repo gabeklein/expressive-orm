@@ -106,8 +106,8 @@ class Parser extends Scanner {
 
   setColumn = () => {
     const { focus } = this;
-    const name = this.expect(["escaped", "word"]);
-    const datatype = this.expect("word");
+    const name = this.name();
+    const datatype = this.word();
 
     const info = { name, datatype } as Parser.Column;
 

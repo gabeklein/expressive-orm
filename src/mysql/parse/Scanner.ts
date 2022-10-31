@@ -175,11 +175,7 @@ class Scanner {
             throw this.unexpected();
         }
         else
-          value = this.expect([
-            "number",
-            "string",
-            "escaped"
-          ]) as T;
+          value = this.expect([ "number", "string" ]) as T;
   
         collection.push(value!);
 
