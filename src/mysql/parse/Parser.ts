@@ -114,7 +114,7 @@ class Parser extends Scanner {
     info.argument = this.inParenthesis();
 
     loop: while(true){
-      const next = this.maybe("word");
+      const next = this.maybe("word", true);
 
       switch(next){
         case undefined:
