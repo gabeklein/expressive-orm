@@ -62,10 +62,10 @@ class Parser extends Scanner {
     throw new Error(`Unexpected ${token.type}` + where);
   }
 
-  parens(required: true): string[];
-  parens<T>(matchers: (() => T)[]): T[];
-  parens(required?: boolean): string[] | undefined;
-  parens<T = string>(argument?: boolean | Function[]){
+  getParenthesis(required: true): string[];
+  getParenthesis<T>(matchers: (() => T)[]): T[];
+  getParenthesis(required?: boolean): string[] | undefined;
+  getParenthesis<T = string>(argument?: boolean | Function[]){
     const collection = [] as T[];
 
     const scanner = () => {
@@ -132,7 +132,7 @@ class Parser extends Scanner {
     this.focus = table;
     this.tables[name] = table;
 
-    this.parens([
+    this.getParenthesis([
       this.setColumn, 
       this.setPrimaryKey
     ]);
@@ -150,7 +150,7 @@ class Parser extends Scanner {
     this.word("PRIMARY");
     this.word("KEY");
 
-    const columns = this.parens(true);
+    const columns = this.getParenthesis(true);
 
     for(const name of columns)
       focus.columns[name].primary = true;
@@ -165,7 +165,7 @@ class Parser extends Scanner {
 
     const info = { name, datatype } as Parser.Column;
 
-    info.argument = this.parens();
+    info.argument = this.getParenthesis();
 
     loop: while(true){
       const next = this.maybe("word");
