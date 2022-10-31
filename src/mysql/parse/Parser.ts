@@ -167,13 +167,13 @@ class Parser extends Scanner {
 
     info.argument = this.parens();
 
-    while(true){
-      if(this.maybe("comma", true) || this.maybe("rparen"))
-        break;
-
-      const next = this.expect("word");
+    loop: while(true){
+      const next = this.maybe("word");
 
       switch(next){
+        case undefined:
+          break loop;
+        
         case "NOT NULL":
           info.nullable = false;
         break;
@@ -198,25 +198,9 @@ class Parser extends Scanner {
           info.comment = this.expect(["string", "quote"]);
         break;
 
-        case "DEFAULT": {
-          const next = this.next();
-
-          switch(next.type){
-            case "string":
-            case "number":
-            case "word":
-              info.default = next.value;
-            break;
-
-            case "lparen":
-              throw new Error("DEFAULT expression not yet supported.");
-
-            default:
-              throw new Error(`Unexpected ${next.type}`);
-          }
-
+        case "DEFAULT":
+          info.default = this.expect(["string", "number", "word"])
           break;
-        }
 
         default:
           throw new Error(`Unexpected keyword ${next}`)
