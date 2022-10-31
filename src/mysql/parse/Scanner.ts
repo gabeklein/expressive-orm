@@ -129,15 +129,20 @@ class Scanner {
   }
 
   skip(types?: Scanner.Type[] | true){
-    let buffer;
+    let lookAhead;
 
     if(typeof types !== "object")
       types = ["comment", "newline", "space"];
 
-    do { buffer = this.next(true) }
-    while(types.includes(buffer.type));
+    do {
+      lookAhead = this.next(true);
+    }
+    while(types.includes(lookAhead.type));
 
-    this.buffer.unshift(buffer);
+    if(lookAhead.type == "end")
+      return true;
+
+    this.buffer.unshift(lookAhead);
   }
 
   endStatement(){
