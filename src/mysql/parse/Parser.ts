@@ -31,15 +31,10 @@ class Parser extends Scanner {
     super(matchers, code);
 
     while(true){
-      this.skip();
-      
-      const match = this.try(
-        this.createTable,
-        this.statement
-      );
-
-      if(!match)
+      if(this.skip())
         break;
+
+      this.statement();
     }
   }
 
@@ -51,12 +46,17 @@ class Parser extends Scanner {
     return this.assert(["word", "escaped"], mustBe);
   }
 
-  statement = () => {
+  statement(){
     const command = this.word();
 
     switch(command){
       case "USE": {
         this.database = this.expect("escaped");
+        break;
+      }
+
+      case "CREATE": {
+        this.try(this.createTable);
         break;
       }
     }
@@ -65,7 +65,6 @@ class Parser extends Scanner {
   }
 
   createTable = () => {
-    this.word("CREATE");
     this.word("TABLE");
   
     const name = this.expect("escaped");
