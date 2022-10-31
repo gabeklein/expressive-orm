@@ -160,7 +160,7 @@ class Scanner {
   inParenthesis(required: true): string[];
   inParenthesis<T>(matchers: (() => T)[]): T[];
   inParenthesis(required?: boolean): string[] | undefined;
-  inParenthesis<T = string>(argument?: boolean | Function[]){
+  inParenthesis<T = string>(argument?: boolean | (() => T)[]){
     const collection = [] as T[];
 
     const scan = () => {
