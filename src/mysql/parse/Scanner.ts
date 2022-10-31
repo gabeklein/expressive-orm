@@ -38,8 +38,8 @@ class Scanner {
   
       try {
         this.cache = cache;
-        match.call(this);
-        return true;
+        const result = match.call(this);
+        return result === undefined ? true : result;
       }
       catch(err){
         this.buffer = cache.concat(this.buffer);
@@ -178,11 +178,12 @@ class Scanner {
         let value: T;
 
         if(typeof argument == "object"){
-          const matchers = argument.map(fn => () => value = fn())
-          const match = this.try(...matchers);
+          const match = this.try(...argument);
 
-          if(!match)
+          if(match === undefined)
             throw this.unexpected();
+          else
+            value = match as T;
         }
         else
           value = this.expect([ "number", "string" ]) as T;
