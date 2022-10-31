@@ -7,6 +7,7 @@ declare namespace Parser {
   interface Table {
     name: string;
     columns: BunchOf<Column>;
+    primary?: string[];
   }
 
   interface Column {
@@ -64,7 +65,7 @@ class Parser extends Scanner {
     this.endStatement();
   }
 
-  createTable = () => {
+  createTable(){
     this.word("TABLE");
   
     const name = this.expect("escaped");
@@ -85,30 +86,20 @@ class Parser extends Scanner {
     this.expect("semi");
   }
 
-  setPrimaryKey = () => {
-    const { focus } = this;
-
+  setPrimaryKey(){
     this.word("CONSTRAINT");
-
-    const name = this.name();
-
+    this.name();
     this.word("PRIMARY");
     this.word("KEY");
 
-    const columns = this.inParenthesis(true);
-
-    for(const name of columns)
-      focus.columns[name].primary = true;
-
-    void columns, name;
+    this.focus.primary = this.inParenthesis(true);
   }
 
-  setColumn = () => {
-    const { focus } = this;
+  setColumn(){
     const name = this.name();
     const datatype = this.word();
 
-    const info = { name, datatype } as Parser.Column;
+    const info: Parser.Column = { name, datatype };
 
     info.argument = this.inParenthesis();
 
@@ -152,7 +143,7 @@ class Parser extends Scanner {
       }
     }
     
-    focus.columns[name] = info;
+    this.focus.columns[name] = info;
   }
 }
 

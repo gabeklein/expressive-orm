@@ -26,14 +26,14 @@ class Scanner {
     this.lexer = moo.compile(match).reset(code);
   }
 
-  try(...matchers: (() => void)[]){
+  try(...matchers: ((this: this) => void)[]){
     for(const match of matchers){
       const last = this.cache;
       const cache = [] as Scanner.Node[];
   
       try {
         this.cache = cache;
-        match();
+        match.call(this);
         return true;
       }
       catch(err){
