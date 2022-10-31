@@ -71,17 +71,18 @@ class Scanner {
     return next as Scanner.Node;
   }
 
-  maybe(type: Scanner.Type, flush?: boolean){
+  maybe(type: Scanner.Type, advance?: boolean){
     this.skip();
 
     const next = this.look();
 
-    if(next.type == type){
-      if(flush)
-        this.next();
+    if(next.type != type)
+      return;
+    
+    if(advance)
+      this.next();
 
-      return next.value;
-    }
+    return next.value;
   }
 
   assert(type: Scanner.Type | Scanner.Type[], value?: string | string[]){
@@ -96,27 +97,6 @@ class Scanner {
     throw new Error(`Token ${type} has value \`${got}\`, expected \`${value}\``);
   }
 
-  get<T>(check: (next: Scanner.Node) => T | undefined): T;
-  get<T>(checkMultiple: (next: Scanner.Node) => (next: Scanner.Node) => T): T;
-  get(check: Function){
-    let result = check(this.next());
-
-    if(typeof result == "function"){
-      check = result as Function;
-      result = undefined;
-    }
-
-    while(!result){
-      const next = this.next();
-      result = check(next || { type: "end" });
-
-      if(!result && !next)
-        return;
-    }
-
-    return result;
-  }
-
   expect<T extends Scanner.Type>(expect: T | T[], ignoreWhitespace: boolean): Scanner.Token<T>["value"];
   expect<T extends Scanner.Type>(expect: T | T[], ignore?: Scanner.Type[]): Scanner.Token<T>["value"];
   expect<R>(match: Scanner.Matcher<R>): R;
@@ -127,26 +107,25 @@ class Scanner {
     if(ignore !== false)
       this.skip(ignore);
 
-    return this.get((token: Scanner.Node) => {
-      const type = token.type as Scanner.Type;
+    const token = this.next();
+    const type = token.type as Scanner.Type;
 
-      if(Array.isArray(filter)){
-        if(filter.includes(type))
-          return token.value;
-      }
-      else if(typeof filter == "object"){
-        const handle = filter[type]
-
-        if(handle)
-          return handle(token as any);
-      }
-      else if(type == filter)
+    if(Array.isArray(filter)){
+      if(filter.includes(type))
         return token.value;
+    }
+    else if(typeof filter == "object"){
+      const handle = filter[type];
 
-      const where = "line" in token ? ` at line ${token.line}` : "";
-  
-      throw new Error(`Unexpected ${type}` + where);
-    })
+      if(handle)
+        return handle(token as any);
+    }
+    else if(type == filter)
+      return token.value;
+
+    const where = "line" in token ? ` at line ${token.line}` : "";
+
+    throw new Error(`Unexpected ${type}` + where);
   }
 
   skip(types?: Scanner.Type[] | true){
