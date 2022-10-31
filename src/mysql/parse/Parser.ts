@@ -1,4 +1,3 @@
-import { matchers } from './grammar';
 import Scanner from './Scanner';
 
 type BunchOf<T = any> = { [key: string]: T }
@@ -29,7 +28,7 @@ class Parser extends Scanner {
   tables = {} as BunchOf<{}>;
 
   constructor(code: string){
-    super(matchers, code);
+    super(code);
 
     while(true){
       if(this.skip())
@@ -37,14 +36,6 @@ class Parser extends Scanner {
 
       this.statement();
     }
-  }
-
-  word(mustBe?: string){
-    return this.assert("word", mustBe);
-  }
-
-  name(mustBe?: string){
-    return this.assert(["word", "escaped"], mustBe);
   }
 
   statement(){

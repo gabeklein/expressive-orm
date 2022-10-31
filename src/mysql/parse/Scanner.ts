@@ -1,5 +1,5 @@
-import moo, { Rules } from "moo";
-import { Symbols } from "./grammar";
+import moo from "moo";
+import { Symbols, matchers } from "./grammar";
 
 declare namespace Scanner {
   type Type = Symbols;
@@ -19,11 +19,16 @@ class Scanner {
   buffer = [] as Scanner.Node[];
   cache?: Scanner.Node[];
 
-  constructor(
-    public match: Rules,
-    public code: string){
+  constructor(code: string){
+    this.lexer = moo.compile(matchers).reset(code);
+  }
 
-    this.lexer = moo.compile(match).reset(code);
+  word(mustBe?: string){
+    return this.assert("word", mustBe);
+  }
+
+  name(mustBe?: string){
+    return this.assert(["word", "escaped"], mustBe);
   }
 
   try(...matchers: ((this: this) => void)[]){
