@@ -31,7 +31,7 @@ declare namespace Parser {
     /** Table of foreign key */
     table: string;
     /** Column in foreign table */
-    key: string;
+    foreignKey: string;
   }
 }
 
@@ -137,7 +137,7 @@ class Parser extends Scanner {
       table.columns[column].constraint = {
         name,
         column,
-        key: foreignKey,
+        foreignKey,
         table: foreignTable
       };
     }
