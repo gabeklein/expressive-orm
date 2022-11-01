@@ -128,9 +128,7 @@ class Scanner {
     else if(type == filter)
       return token.value;
 
-    const where = "line" in token ? ` at line ${token.line}` : "";
-
-    throw new Error(`Unexpected ${type}` + where);
+    throw this.unexpected(token);
   }
 
   skip(types?: Scanner.Type[] | true){
@@ -155,10 +153,12 @@ class Scanner {
       continue;
   }
 
-  unexpected(){
-    const token = this.look();
+  unexpected(token?: Scanner.Node){
+    if(!token)
+      token = this.look();
+
     const where = "line" in token ? ` at line ${token.line}` : "";
-  
+
     return new Error(`Unexpected ${token.type}` + where);
   }
 
