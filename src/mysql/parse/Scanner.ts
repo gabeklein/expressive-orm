@@ -213,7 +213,11 @@ class Scanner {
             value = match as T;
         }
         else
-          value = this.expect([ "number", "string", "escaped" ]) as T;
+          value = this.expect([
+            "number",
+            "string",
+            "escaped"
+          ]) as T;
   
         collection.push(value!);
 
