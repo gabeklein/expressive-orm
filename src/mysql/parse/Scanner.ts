@@ -25,12 +25,22 @@ class Scanner {
     this.lexer = moo.compile(matchers).reset(code);
   }
 
-  word(mustBe?: string, required?: boolean){
-    return this.assert("word", mustBe, required);
+  word(required: false): string | undefined;
+  word(value?: string, strict?: boolean): string;
+  word(arg1?: string | false, arg2?: boolean){
+    if(arg1 === false)
+      return this.maybe("word", true);
+
+    return this.assert("word", arg1, arg2);
   }
 
-  name(mustBe?: string, required?: boolean){
-    return this.assert(["word", "escaped"], mustBe, required);
+  name(required: false): string | undefined;
+  name(value?: string, strict?: boolean): string;
+  name(arg1?: string | false, arg2?: boolean){
+    if(arg1 === false)
+      return this.maybe("word", true);
+
+    return this.assert(["word", "escaped"], arg1, arg2);
   }
 
   try<T>(match: (this: this) => T): T;
@@ -110,7 +120,7 @@ class Scanner {
     value?: string | string[],
     strict?: boolean){
 
-    const got = this.expect(type, true);
+    const got = this.expect(type);
 
     if(!value || value === got)
       return got;

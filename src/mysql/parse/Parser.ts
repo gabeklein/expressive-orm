@@ -112,13 +112,13 @@ class Parser extends Scanner {
     const table = this.focus!;
     const name = this.try(() => {
       this.word("CONSTRAINT");
-      return this.maybe("escaped", true);
+      return this.name(false);
     });
 
     const primaryKeys = () => {
       this.word("PRIMARY");
       this.word("KEY");
-      this.maybe("word", true);
+      this.word(false);
 
       table.primary = this.parens(true);
     }
@@ -166,7 +166,7 @@ class Parser extends Scanner {
     info.argument = this.parens();
 
     loop: while(true){
-      const next = this.maybe("word", true);
+      const next = this.word(false);
 
       switch(next){
         case undefined:
