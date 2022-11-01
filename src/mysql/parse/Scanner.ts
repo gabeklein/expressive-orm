@@ -190,7 +190,7 @@ class Scanner {
   }
 
   inParenthesis(required: true): string[];
-  inParenthesis<T>(matchers: (() => T)[]): T[];
+  inParenthesis<T>(map: (() => T)[]): T[];
   inParenthesis(required?: boolean): string[] | undefined;
   inParenthesis<T = string>(argument?: boolean | (() => T)[]){
     const collection = [] as T[];
@@ -213,7 +213,7 @@ class Scanner {
             value = match as T;
         }
         else
-          value = this.expect([ "number", "string" ]) as T;
+          value = this.expect([ "number", "string", "escaped" ]) as T;
   
         collection.push(value!);
 
