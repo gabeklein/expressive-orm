@@ -102,7 +102,7 @@ class Parser extends Scanner {
     this.focus = table;
     this.tables[name] = table;
 
-    this.inParenthesis([
+    this.parens([
       this.setColumn, 
       this.setConstraint
     ]);
@@ -120,19 +120,19 @@ class Parser extends Scanner {
       this.word("KEY");
       this.maybe("word", true);
 
-      table.primary = this.inParenthesis(true);
+      table.primary = this.parens(true);
     }
 
     const foreignKey = () => {
       this.word("FOREIGN");
       this.word("KEY");
 
-      const [ column ] = this.inParenthesis(true);
+      const [ column ] = this.parens(true);
 
       this.word("REFERENCES");
 
       const foreignTable = this.name();
-      const [ foreignKey ] = this.inParenthesis(true);
+      const [ foreignKey ] = this.parens(true);
 
       table.columns[column].constraint = {
         name,
@@ -145,7 +145,7 @@ class Parser extends Scanner {
     const uniqueKey = () => {
       this.word("UNIQUE");
 
-      const keys = this.inParenthesis();
+      const keys = this.parens();
 
       for(const key in keys)
         table.columns[key].unique = true;
@@ -163,7 +163,7 @@ class Parser extends Scanner {
     const datatype = this.word();
     const info: Parser.Column = { name, datatype };
 
-    info.argument = this.inParenthesis();
+    info.argument = this.parens();
 
     loop: while(true){
       const next = this.maybe("word", true);

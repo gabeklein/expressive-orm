@@ -189,10 +189,10 @@ class Scanner {
     return this.error(`Unexpected ${token.type}` + where);
   }
 
-  inParenthesis(required: true): string[];
-  inParenthesis<T>(map: (() => T)[]): T[];
-  inParenthesis(required?: boolean): string[] | undefined;
-  inParenthesis<T = string>(argument?: boolean | (() => T)[]){
+  parens(required: true): string[];
+  parens<T>(map: (() => T)[]): T[];
+  parens(required?: boolean): string[] | undefined;
+  parens<T = string>(argument?: boolean | (() => T)[]){
     const collection = [] as T[];
 
     const scan = () => {
