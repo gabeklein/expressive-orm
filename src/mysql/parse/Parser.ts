@@ -16,16 +16,29 @@ declare namespace Parser {
     argument?: string | number | string[];
     nullable?: boolean;
     default?: string | number;
+    onUpdate?: string;
     unique?: boolean;
     comment?: string;
     increment?: boolean;
+    constraint?: FKConstraint;
+  }
+
+  interface FKConstraint {
+    /** Name of constraint */
+    name?: string;
+    /** Column in referring table */
+    column: string;
+    /** Table of foreign key */
+    table: string;
+    /** Column in foreign table */
+    key: string;
   }
 }
 
 class Parser extends Scanner {
   database?: string;
-  focus!: Parser.Table;
-  tables = {} as BunchOf<{}>;
+  focus?: Parser.Table;
+  tables = {} as BunchOf<Parser.Table>;
 
   constructor(code: string){
     super(code);
@@ -43,7 +56,12 @@ class Parser extends Scanner {
 
     switch(command){
       case "USE": {
-        this.database = this.expect("escaped");
+        this.database = this.name();
+        break;
+      }
+
+      case "ALTER": {
+        this.try(this.alterTable);
         break;
       }
 
@@ -56,10 +74,25 @@ class Parser extends Scanner {
     this.endStatement();
   }
 
+  alterTable(){
+    this.word("TABLE");
+
+    const name = this.name();
+
+    this.word("ADD");
+    this.focus = this.tables[name]
+    this.setConstraint();
+    this.focus = undefined;
+  }
+
   createTable(){
     this.word("TABLE");
+    this.try(() => {
+      this.word("IF");
+      this.word("NOT EXISTS");
+    })
   
-    const name = this.expect("escaped");
+    const name = this.name();
 
     const table: Parser.Table = {
       name,
@@ -71,27 +104,63 @@ class Parser extends Scanner {
 
     this.inParenthesis([
       this.setColumn, 
-      this.setPrimaryKey
+      this.setConstraint
     ]);
-
-    this.expect("semi");
   }
 
-  setPrimaryKey(){
-    this.word("CONSTRAINT");
-    this.name();
-    this.word("PRIMARY");
-    this.word("KEY");
+  setConstraint(){
+    const table = this.focus!;
+    const name = this.try(() => {
+      this.word("CONSTRAINT");
+      return this.maybe("escaped", true);
+    });
 
-    this.focus.primary = this.inParenthesis([
-      () => this.expect("escaped")
-    ]);
+    const primaryKeys = () => {
+      this.word("PRIMARY");
+      this.word("KEY");
+      this.maybe("word", true);
+
+      table.primary = this.inParenthesis(true);
+    }
+
+    const foreignKey = () => {
+      this.word("FOREIGN");
+      this.word("KEY");
+
+      const [ column ] = this.inParenthesis(true);
+
+      this.word("REFERENCES");
+
+      const foreignTable = this.name();
+      const [ foreignKey ] = this.inParenthesis(true);
+
+      table.columns[column].constraint = {
+        name,
+        column,
+        key: foreignKey,
+        table: foreignTable
+      };
+    }
+
+    const uniqueKey = () => {
+      this.word("UNIQUE");
+
+      const keys = this.inParenthesis();
+
+      for(const key in keys)
+        table.columns[key].unique = true;
+    }
+
+    this.one(
+      primaryKeys,
+      foreignKey,
+      uniqueKey
+    );
   }
 
   setColumn(){
-    const name = this.name();
+    const name = this.expect("escaped");
     const datatype = this.word();
-
     const info: Parser.Column = { name, datatype };
 
     info.argument = this.inParenthesis();
@@ -131,12 +200,18 @@ class Parser extends Scanner {
           info.default = this.expect(["string", "number", "word"])
           break;
 
+        case "ON": {
+          this.word("UPDATE");
+          info.onUpdate = this.expect(["string", "number", "word"])
+          break;
+        }
+
         default:
           throw this.error(`Unexpected keyword ${next}`, true);
       }
     }
     
-    this.focus.columns[name] = info;
+    this.focus!.columns[name] = info;
   }
 }
 
