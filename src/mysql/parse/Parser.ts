@@ -1,4 +1,4 @@
-import Scanner from './Scanner';
+import Scanner from '../../parse/Scanner';
 
 type BunchOf<T = any> = { [key: string]: T }
 
