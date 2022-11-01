@@ -28,6 +28,7 @@ export const matchers: moo.Rules = {
   lparen: '(',
   rparen: ')',
   comma: ',',
+  equal: "=",
   word: /(?:NOT )?\w+/,
   newline: { match: /\n+/, lineBreaks: true },
 };
