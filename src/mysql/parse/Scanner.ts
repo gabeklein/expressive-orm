@@ -13,6 +13,8 @@ declare namespace Scanner {
   }
 }
 
+const SyntaxError = new Map<Error, boolean>();
+
 class Scanner {
   lexer: moo.Lexer;
   lookAhead?: Scanner.Node;
@@ -23,12 +25,12 @@ class Scanner {
     this.lexer = moo.compile(matchers).reset(code);
   }
 
-  word(mustBe?: string){
-    return this.assert("word", mustBe);
+  word(mustBe?: string, required?: boolean){
+    return this.assert("word", mustBe, required);
   }
 
-  name(mustBe?: string){
-    return this.assert(["word", "escaped"], mustBe);
+  name(mustBe?: string, required?: boolean){
+    return this.assert(["word", "escaped"], mustBe, required);
   }
 
   try(...matchers: ((this: this) => void)[]){
@@ -41,7 +43,10 @@ class Scanner {
         const result = match.call(this);
         return result === undefined ? true : result;
       }
-      catch(err){
+      catch(err: any){
+        if(SyntaxError.get(err) !== false)
+          throw err;
+
         this.buffer = cache.concat(this.buffer);
       }
       finally {
@@ -90,7 +95,11 @@ class Scanner {
     return next.value;
   }
 
-  assert(type: Scanner.Type | Scanner.Type[], value?: string | string[]){
+  assert(
+    type: Scanner.Type | Scanner.Type[],
+    value?: string | string[],
+    strict?: boolean){
+
     const got = this.expect(type, true);
 
     if(!value || value === got)
@@ -99,7 +108,7 @@ class Scanner {
     if(Array.isArray(value) && value.includes(got))
       return got;
 
-    throw new Error(`Token ${type} has value \`${got}\`, expected \`${value}\``);
+    throw this.error(`Token ${type} has value \`${got}\`, expected \`${value}\``, strict);
   }
 
   expect<T extends Scanner.Type>(expect: T | T[], ignoreWhitespace: boolean): Scanner.Token<T>["value"];
@@ -153,13 +162,21 @@ class Scanner {
       continue;
   }
 
+  error(message?: string, fatal?: boolean){
+    const error = new Error(message);
+
+    SyntaxError.set(error, fatal || false);
+
+    return error;
+  }
+
   unexpected(token?: Scanner.Node){
     if(!token)
       token = this.look();
 
     const where = "line" in token ? ` at line ${token.line}` : "";
 
-    return new Error(`Unexpected ${token.type}` + where);
+    return this.error(`Unexpected ${token.type}` + where);
   }
 
   inParenthesis(required: true): string[];

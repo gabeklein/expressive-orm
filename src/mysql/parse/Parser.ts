@@ -132,7 +132,7 @@ class Parser extends Scanner {
           break;
 
         default:
-          throw new Error(`Unexpected keyword ${next}`)
+          throw this.error(`Unexpected keyword ${next}`, true);
       }
     }
     
