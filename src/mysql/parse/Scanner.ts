@@ -33,15 +33,18 @@ class Scanner {
     return this.assert(["word", "escaped"], mustBe, required);
   }
 
-  try(...matchers: ((this: this) => void)[]){
+  try<T>(match: (this: this) => T): T;
+  try(...matchers: ((this: this) => void)[]): boolean;
+  try(...matchers: ((this: this) => any)[]){
     for(const match of matchers){
       const last = this.cache;
       const cache = [] as Scanner.Node[];
   
       try {
         this.cache = cache;
-        const result = match.call(this);
-        return result === undefined ? true : result;
+        const result = match.call(this) as any;
+
+        return matchers.length > 1 ? true : result;
       }
       catch(err: any){
         if(SyntaxError.get(err) !== false)
@@ -53,6 +56,13 @@ class Scanner {
         this.cache = last;
       }
     }
+
+    return false;
+  }
+
+  one(...matchers: ((this: this) => void)[]): void {
+    if(!this.try(...matchers))
+      throw this.unexpected();
   }
 
   look(ignore?: Scanner.Type[] | boolean){
@@ -197,7 +207,7 @@ class Scanner {
         if(typeof argument == "object"){
           const match = this.try(...argument);
 
-          if(match === undefined)
+          if(match === false)
             throw this.unexpected();
           else
             value = match as T;
