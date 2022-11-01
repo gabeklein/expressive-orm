@@ -93,7 +93,6 @@ class Parser extends Scanner {
     })
   
     const name = this.name();
-
     const table: Parser.Table = {
       name,
       columns: {}
@@ -161,9 +160,12 @@ class Parser extends Scanner {
   setColumn(){
     const name = this.expect("escaped");
     const datatype = this.word();
+    const argument = this.parens();
+
     const info: Parser.Column = { name, datatype };
 
-    info.argument = this.parens();
+    if(argument?.length)
+      info.argument = argument;
 
     loop: while(true){
       const next = this.word(false);
