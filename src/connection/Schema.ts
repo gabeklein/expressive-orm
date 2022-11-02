@@ -1,69 +1,44 @@
-import { Connection } from "..";
-import { generateEntities } from "../generate/entities";
-
 declare namespace Schema {
   interface Column {
     name: string;
-    schema: string;
-    tableName: string;
     dataType: string;
-    type: string;
-    isNullable: boolean;
-    isPrimary: boolean;
-    reference?: Reference;
+    // type: string;
+    argument?: (string | number)[];
+    comment?: string;
+    default?: string | number;
+    increment?: boolean;
+    onUpdate?: string;
+    nullable?: boolean;
+    primary?: boolean;
+    unique?: boolean;
+    reference?: FKConstraint;
   }
 
   interface Table {
     name: string;
     schema: string;
     columns: { [name: string]: Column };
+    primaryKeys?: string[];
   }
 
-  interface Reference {
-    table: string;
-    column: string;
+  interface FKConstraint {
+    /** Name of constraint */
     name?: string;
-    deleteRule?: string;
-    updateRule?: string;
+    /** Column in referenced table */
+    column: string;
+    /** Referenced table */
+    table: string;
+    /** Action on delete of referenced row */
+    onDelete?: string;
+    /** Action on update of referenced row */
+    onUpdate?: string;
   }
 }
 
-class Schema {
-  constructor(
-    public connection: Connection,
-    public name: string,
-    columns: Schema.Column[]){
-
-    this.load(columns);
-  }
-
-  tables = {} as { [name: string]: Schema.Table };
-
-  load(columns: Schema.Column[]){
-    type Register = (column: Schema.Column) => void;
-
-    const { tables } = this;
-    const paths = new Map<string, Schema.Column | Register>();
-
-    columns.forEach(column => {
-      const { name, schema, tableName } = column;
-      let info = tables[tableName];
-
-      if(!info)
-        info = tables[tableName] = {
-          columns: {},
-          name: tableName,
-          schema
-        };
-
-      info.columns[name] = column;
-      paths.set(`${tableName}.${name}`, column);
-    })
-  }
-
-  generate(){
-    return generateEntities(this);
-  }
+interface Schema {
+  name: string;
+  columns: Map<string, Schema.Column>;
+  tables: { [name: string]: Schema.Table };
 }
 
 export default Schema;

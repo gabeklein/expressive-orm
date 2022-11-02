@@ -2,14 +2,16 @@ import * as t from '@expressive/estree';
 import { generate } from 'astring';
 
 import Schema from '../connection/Schema';
-import { field, instruction } from './instruction';
+// import { instruction } from './instruction';
+import { field } from './syntax';
 import { idealCase } from './util';
 
 export const InstructionsUsed = new Set<string>();
 
-export function generateEntities(schema: Schema){
-  const { connection, name, tables } = schema;
-  const specifySchema = connection.database !== name;
+export function generateEntities(
+  schema: Schema, specifySchema: boolean){
+
+  const { tables } = schema;
 
   const body: t.Statement[] = [];
   const imports: t.Import.Item[] = [
@@ -39,33 +41,33 @@ export function generateEntities(schema: Schema){
 
   const code = generate(ast);
 
-  return code.replace(/\export/g, "\n\export");
+  return code.replace(/export/g, "\nexport");
 }
 
 function entityClass(
   table: Schema.Table,
-  explicitSchema?: boolean){
+  specifySchema?: boolean){
 
   const { name } = table;
   const properties: t.Class.Property[] = [];
   const identifier = idealCase(name);
   const explicit = name !== identifier ? name : undefined;
-  const schema = explicitSchema ? table.schema : undefined;
+  const schema = specifySchema ? table.schema : undefined;
 
   if(explicit || schema){
-    const argumnet = schema
+    const argument = schema
       ? { schema, name: explicit }
       : explicit
 
-    const instruction = field("table", "Table", argumnet);
+    const instruction = field("table", "Table", argument);
       
     InstructionsUsed.add("Table");
     properties.push(instruction);
   }
 
-  Object.values(table.columns).forEach(column => {
-    properties.push(instruction(column));
-  })
+  // Object.values(table.columns).forEach(column => {
+  //   properties.push(instruction(column));
+  // })
 
   return t.classDeclaration(identifier, "Entity", properties);
 }

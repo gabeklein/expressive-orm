@@ -1,5 +1,5 @@
 import Entity from '../Entity';
-import getColumns from '../mysql/getColumns';
+import getSchema from '../mysql/getSchema';
 import Schema from './Schema';
 
 namespace Connection {
@@ -38,11 +38,8 @@ abstract class Connection {
 
     let schema = this.schema[name];
 
-    if(!schema){
-      const columns = await getColumns(name);
-
-      schema = new Schema(this, name, columns);
-    }
+    if(!schema)
+      schema = await getSchema(name);
 
     return this.schema[name] = schema;
   }

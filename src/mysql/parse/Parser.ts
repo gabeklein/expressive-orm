@@ -1,44 +1,12 @@
+import Schema from '../../connection/Schema';
 import Scanner from '../../parse/Scanner';
 
 type BunchOf<T = any> = { [key: string]: T }
 
-declare namespace Parser {
-  interface Table {
-    name: string;
-    columns: BunchOf<Column>;
-    primary?: string[];
-  }
-
-  interface Column {
-    name: string;
-    datatype: string;
-    primary?: boolean;
-    argument?: string | number | string[];
-    nullable?: boolean;
-    default?: string | number;
-    onUpdate?: string;
-    unique?: boolean;
-    comment?: string;
-    increment?: boolean;
-    constraint?: FKConstraint;
-  }
-
-  interface FKConstraint {
-    /** Name of constraint */
-    name?: string;
-    /** Column in referring table */
-    column: string;
-    /** Table of foreign key */
-    table: string;
-    /** Column in foreign table */
-    foreignKey: string;
-  }
-}
-
 class Parser extends Scanner {
   database?: string;
-  focus?: Parser.Table;
-  tables = {} as BunchOf<Parser.Table>;
+  focus?: Schema.Table;
+  tables = {} as BunchOf<Schema.Table>;
 
   constructor(code: string){
     super(code);
@@ -91,10 +59,16 @@ class Parser extends Scanner {
       this.word("IF");
       this.word("NOT EXISTS");
     })
+
+    const { database } = this;
+
+    if(!database)
+      throw new Error("Parser expects a databse. Did you forget USE command?")
   
     const name = this.name();
-    const table: Parser.Table = {
+    const table: Schema.Table = {
       name,
+      schema: database,
       columns: {}
     };
 
@@ -119,7 +93,7 @@ class Parser extends Scanner {
       this.word("KEY");
       this.word(false);
 
-      table.primary = this.parens(true);
+      table.primaryKeys = this.parens(true);
     }
 
     const foreignKey = () => {
@@ -133,10 +107,9 @@ class Parser extends Scanner {
       const foreignTable = this.name();
       const [ foreignKey ] = this.parens(true);
 
-      table.columns[column].constraint = {
+      table.columns[column].reference = {
         name,
-        column,
-        foreignKey,
+        column: foreignKey,
         table: foreignTable
       };
     }
@@ -159,10 +132,10 @@ class Parser extends Scanner {
 
   setColumn(){
     const name = this.expect("escaped");
-    const datatype = this.word();
+    const dataType = this.word();
     const argument = this.parens();
 
-    const info: Parser.Column = { name, datatype };
+    const info: Schema.Column = { name, dataType };
 
     if(argument?.length)
       info.argument = argument;

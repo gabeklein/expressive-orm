@@ -2,7 +2,38 @@ import Schema from '../connection/Schema';
 import Query from '../query/Query';
 import { Column, KeyColumnUsage, ReferentialConstraints } from './infoSchema';
 
-async function getColumns(schema: string){
+async function getSchema(name: string): Promise<Schema> {
+  const tables = {} as { [name: string]: Schema.Table };
+  const results = await getColumns(name);
+  const columns = new Map<string, Schema.Column>();
+
+  for(const result of results){
+    const { tableName, ...field } = result;
+    
+    let table = tables[tableName];
+
+    if(!table)
+      table = tables[tableName] = {
+        columns: {},
+        name: tableName,
+        schema: name
+      };
+
+    if(field.primary)
+      table.primaryKeys = [field.name];
+
+    table.columns[field.name] = field;
+    columns.set(`${tableName}.${name}`, field);
+  }
+
+  return {
+    name,
+    tables,
+    columns
+  };
+}
+
+function getColumns(schema: string){
   return Query.get(where => {
     const column = where(Column);
 
@@ -25,7 +56,6 @@ async function getColumns(schema: string){
         dataType,
         isNullable = false,
         name = "",
-        schema,
         tableName,
         type
       } = column;
@@ -42,29 +72,28 @@ async function getColumns(schema: string){
       } = ref;
 
       const isPrimary = constraintName == "PRIMARY";
-      let reference: Schema.Reference | undefined;
+      let reference: Schema.FKConstraint | undefined;
 
       if(referencedTableName)
         reference = {
           table: referencedTableName,
           column: referencedColumnName!,
           name: constraintName,
-          deleteRule,
-          updateRule
+          onDelete: deleteRule,
+          onUpdate: updateRule
         };
 
-      return <Schema.Column> {
+      return {
         dataType,
-        isNullable,
-        isPrimary,
+        nullable: isNullable,
+        primary: isPrimary,
         name,
         reference,
-        schema,
-        tableName,
         type,
+        tableName
       }
     }
   })
 }
 
-export default getColumns;
+export default getSchema;
