@@ -98,12 +98,15 @@ class Scanner {
     return next as Scanner.Node;
   }
 
-  maybe(type: Scanner.Type, advance?: boolean){
+  maybe(type: Scanner.Type | Scanner.Type[], advance?: boolean){
     this.skip();
 
     const next = this.look();
+    const match = typeof type == "string"
+      ? type === next.type
+      : type.includes(next.type)
 
-    if(next.type != type)
+    if(!match)
       return;
     
     if(advance)
