@@ -175,8 +175,9 @@ class Scanner {
   }
 
   endStatement(){
-    while(this.next().type !== "semi")
-      continue;
+    while(true)
+      if(["semi", "end"].includes(this.next().type))
+        break;
   }
 
   error(message?: string, fatal?: boolean){
