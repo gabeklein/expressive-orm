@@ -88,46 +88,44 @@ class Parser extends Scanner {
       return this.name(false);
     });
 
-    const primaryKeys = () => {
-      this.word("PRIMARY");
-      this.word("KEY");
-      this.word(false);
+    switch(this.word()){
+      case "PRIMARY": {
+        this.word("KEY");
+        this.word(false);
+  
+        table.primaryKeys = this.parens(true);
 
-      table.primaryKeys = this.parens(true);
+        break;
+      }
+
+      case "FOREIGN": {
+        this.word("KEY");
+  
+        const [ column ] = this.parens(true);
+  
+        this.word("REFERENCES");
+  
+        const foreignTable = this.name();
+        const [ foreignKey ] = this.parens(true);
+  
+        table.columns[column].reference = {
+          name,
+          column: foreignKey,
+          table: foreignTable
+        };
+
+        break;
+      }
+
+      case "UNIQUE": {
+        const keys = this.parens();
+  
+        for(const key in keys)
+          table.columns[key].unique = true;
+  
+        break;
+      }
     }
-
-    const foreignKey = () => {
-      this.word("FOREIGN");
-      this.word("KEY");
-
-      const [ column ] = this.parens(true);
-
-      this.word("REFERENCES");
-
-      const foreignTable = this.name();
-      const [ foreignKey ] = this.parens(true);
-
-      table.columns[column].reference = {
-        name,
-        column: foreignKey,
-        table: foreignTable
-      };
-    }
-
-    const uniqueKey = () => {
-      this.word("UNIQUE");
-
-      const keys = this.parens();
-
-      for(const key in keys)
-        table.columns[key].unique = true;
-    }
-
-    this.one(
-      primaryKeys,
-      foreignKey,
-      uniqueKey
-    );
   }
 
   setColumn(){
