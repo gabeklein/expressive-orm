@@ -38,7 +38,7 @@ class Scanner {
   name(value?: string, strict?: boolean): string;
   name(arg1?: string | false, arg2?: boolean){
     if(arg1 === false)
-      return this.maybe("word", true);
+      return this.maybe(["word", "escaped"], true);
 
     return this.assert(["word", "escaped"], arg1, arg2);
   }
