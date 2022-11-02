@@ -138,13 +138,10 @@ class Parser extends Scanner {
     if(argument?.length)
       info.argument = argument;
 
-    loop: while(true){
-      const next = this.word(false);
+    let next;
 
+    while(next = this.word(false)){
       switch(next){
-        case undefined:
-          break loop;
-        
         case "NOT NULL":
           info.nullable = false;
         break;
