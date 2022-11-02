@@ -115,17 +115,14 @@ class Scanner {
   assert(
     type: Scanner.Type | Scanner.Type[],
     value?: string | string[],
-    strict?: boolean){
+    fatal?: boolean){
 
     const got = this.expect(type);
 
-    if(!value || value === got)
+    if(!value || value === got || Array.isArray(value) && value.includes(got))
       return got;
 
-    if(Array.isArray(value) && value.includes(got))
-      return got;
-
-    throw this.error(`Token ${type} has value \`${got}\`, expected \`${value}\``, strict);
+    throw this.error(`Token ${type} has value \`${got}\`, expected \`${value}\``, fatal);
   }
 
   expect<T extends Scanner.Type>(expect: T | T[], ignoreWhitespace: boolean): Scanner.Token<T>["value"];
