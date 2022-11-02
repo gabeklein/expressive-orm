@@ -2,7 +2,7 @@ import Connection from '../connection/Connection';
 import Entity from '../Entity';
 import { asPromise } from '../utility';
 import { bootstrap } from './bootstrap';
-import * as schema from './schema';
+import * as schema from './infoSchema';
 
 import type mysql from 'mysql';
 declare namespace MySQLConnection {
