@@ -39,9 +39,7 @@ export function generateEntities(
     ...body
   ]);
 
-  const code = generate(ast);
-
-  return code.replace(/export/g, "\nexport");
+  return generate(ast).replace(/export/g, "\nexport");
 }
 
 function entityClass(
