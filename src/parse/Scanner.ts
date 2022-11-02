@@ -75,10 +75,7 @@ class Scanner {
       throw this.unexpected();
   }
 
-  look(ignore?: Scanner.Type[] | boolean){
-    if(ignore)
-      this.skip(ignore);
-
+  look(){
     let next = this.buffer[0];
 
     if(!next){
