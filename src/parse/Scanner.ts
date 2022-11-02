@@ -26,8 +26,8 @@ class Scanner {
   }
 
   word(required: false): string | undefined;
-  word(value?: string, strict?: boolean): string;
-  word(arg1?: string | false, arg2?: boolean){
+  word(value?: string | string[], strict?: boolean): string;
+  word(arg1?: string | string[] | false, arg2?: boolean){
     if(arg1 === false)
       return this.maybe("word", true);
 
@@ -35,8 +35,8 @@ class Scanner {
   }
 
   name(required: false): string | undefined;
-  name(value?: string, strict?: boolean): string;
-  name(arg1?: string | false, arg2?: boolean){
+  name(value?: string | string[], strict?: boolean): string;
+  name(arg1?: string | string[] | false, arg2?: boolean){
     if(arg1 === false)
       return this.maybe(["word", "escaped"], true);
 
@@ -102,11 +102,8 @@ class Scanner {
     this.skip();
 
     const next = this.look();
-    const match = typeof type == "string"
-      ? type === next.type
-      : type.includes(next.type)
 
-    if(!match)
+    if(!match(type, next.type))
       return;
     
     if(advance)
@@ -122,36 +119,21 @@ class Scanner {
 
     const got = this.expect(type);
 
-    if(!value || value === got || Array.isArray(value) && value.includes(got))
+    if(!value || match(value, got))
       return got;
 
     throw this.error(`Token ${type} has value \`${got}\`, expected \`${value}\``, fatal);
   }
 
-  expect<T extends Scanner.Type>(expect: T | T[], ignoreWhitespace: boolean): Scanner.Token<T>["value"];
-  expect<T extends Scanner.Type>(expect: T | T[], ignore?: Scanner.Type[]): Scanner.Token<T>["value"];
-  expect<R>(match: Scanner.Matcher<R>): R;
-  expect(
-    filter?: Scanner.Type | Scanner.Type[] | Scanner.Matcher,
-    ignore?: Scanner.Type[] | boolean){
+  expect<T extends Scanner.Type>(expect: T | T[]): Scanner.Token<T>["value"];
+  expect<T extends Scanner.Type>(expect: T | T[]): Scanner.Token<T>["value"];
+  expect(filter: Scanner.Type | Scanner.Type[]){
 
-    if(ignore !== false)
-      this.skip(ignore);
+    this.skip();
 
     const token = this.next();
-    const type = token.type as Scanner.Type;
 
-    if(Array.isArray(filter)){
-      if(filter.includes(type))
-        return token.value;
-    }
-    else if(typeof filter == "object"){
-      const handle = filter[type];
-
-      if(handle)
-        return handle(token as any);
-    }
-    else if(type == filter)
+    if(match(filter, token.type))
       return token.value;
 
     throw this.unexpected(token);
@@ -240,6 +222,12 @@ class Scanner {
 
     return collection;
   }
+}
+
+function match(a: string | string[], b: string){
+  return Array.isArray(a)
+    ? a.includes(b)
+    : a === b;
 }
 
 export default Scanner;
