@@ -28,8 +28,8 @@ class Scanner {
   word(required: false): string | undefined;
   word(value?: string | string[], strict?: boolean): string;
   word(arg1?: string | string[] | false, arg2?: boolean){
-    if(arg1 === false)
-      return this.maybe("word", true);
+    if(typeof arg1 == "boolean")
+      arg2 = arg1, arg1 = undefined;
 
     return this.assert("word", arg1, arg2);
   }
@@ -37,8 +37,8 @@ class Scanner {
   name(required: false): string | undefined;
   name(value?: string | string[], strict?: boolean): string;
   name(arg1?: string | string[] | false, arg2?: boolean){
-    if(arg1 === false)
-      return this.maybe(["word", "escaped"], true);
+    if(typeof arg1 == "boolean")
+      arg2 = arg1, arg1 = undefined;
 
     return this.assert(["word", "escaped"], arg1, arg2);
   }
@@ -117,7 +117,10 @@ class Scanner {
     value?: string | string[],
     fatal?: boolean){
 
-    const got = this.expect(type);
+    const got = this.expect(type, fatal);
+
+    if(!got)
+      return;
 
     if(!value || match(value, got))
       return got;
@@ -125,17 +128,18 @@ class Scanner {
     throw this.error(`Token ${type} has value \`${got}\`, expected \`${value}\``, fatal);
   }
 
-  expect<T extends Scanner.Type>(expect: T | T[]): Scanner.Token<T>["value"];
-  expect<T extends Scanner.Type>(expect: T | T[]): Scanner.Token<T>["value"];
-  expect(filter: Scanner.Type | Scanner.Type[]){
+  expect<T extends Scanner.Type>(expect: T | T[], fatal?: true): string;
+  expect<T extends Scanner.Type>(expect: T | T[], required?: boolean): string | undefined;
+  expect(filter: Scanner.Type | Scanner.Type[], required?: boolean){
     this.skip();
 
     const token = this.look();
 
-    if(token && match(filter, token.type))
+    if(match(filter, token.type))
       return this.next().value;
 
-    throw this.unexpected();
+    if(required !== false)
+      throw this.unexpected(required);
   }
 
   skip(types?: Scanner.Type[] | true){
