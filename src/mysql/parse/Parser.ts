@@ -57,7 +57,8 @@ class Parser extends Scanner {
     this.word("TABLE");
     this.try(() => {
       this.word("IF");
-      this.word("NOT EXISTS");
+      this.word("NOT", false);
+      this.word("EXISTS");
     })
 
     const { database } = this;
@@ -138,18 +139,16 @@ class Parser extends Scanner {
     if(argument?.length)
       info.argument = argument;
 
+    this.try(() => {
+      const isNot = this.word("NOT", false);
+      this.word("NULL");
+      info.nullable = !isNot;
+    })
+
     let next;
 
     while(next = this.word(false)){
       switch(next){
-        case "NOT NULL":
-          info.nullable = false;
-        break;
-
-        case "NULL":
-          info.nullable = true;
-        break;
-
         case "UNIQUE":
           info.unique = true;
         break;

@@ -29,7 +29,7 @@ export const matchers: moo.Rules = {
   rparen: ')',
   comma: ',',
   equal: "=",
-  word: /(?:NOT )?\w+/,
+  word: /\w+/,
   variable: /@*\w+/,
   newline: { match: /\n+/, lineBreaks: true },
 };
