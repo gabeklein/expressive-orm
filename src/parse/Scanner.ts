@@ -197,7 +197,7 @@ class Scanner {
         if(this.maybe("rparen", true))
           break;
   
-        let value: T;
+        let value: any;
 
         if(typeof argument == "object"){
           const match = this.try(...argument);
@@ -205,16 +205,16 @@ class Scanner {
           if(match === false)
             throw this.unexpected();
           else
-            value = match as T;
+            value = match;
         }
         else
           value = this.expect([
             "number",
             "string",
             "escaped"
-          ]) as T;
+          ]);
   
-        collection.push(value!);
+        collection.push(value);
 
         this.maybe("comma", true);
       }
