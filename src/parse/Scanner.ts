@@ -128,15 +128,14 @@ class Scanner {
   expect<T extends Scanner.Type>(expect: T | T[]): Scanner.Token<T>["value"];
   expect<T extends Scanner.Type>(expect: T | T[]): Scanner.Token<T>["value"];
   expect(filter: Scanner.Type | Scanner.Type[]){
-
     this.skip();
 
-    const token = this.next();
+    const token = this.look();
 
-    if(match(filter, token.type))
-      return token.value;
+    if(token && match(filter, token.type))
+      return this.next().value;
 
-    throw this.unexpected(token);
+    throw this.unexpected();
   }
 
   skip(types?: Scanner.Type[] | true){
@@ -170,13 +169,11 @@ class Scanner {
     return error;
   }
 
-  unexpected(token?: Scanner.Node){
-    if(!token)
-      token = this.look();
-
+  unexpected(fatal?: boolean){
+    const token = this.look();
     const where = "line" in token ? ` at line ${token.line}` : "";
 
-    return this.error(`Unexpected ${token.type}` + where);
+    return this.error(`Unexpected ${token.type}` + where, fatal);
   }
 
   parens(required: true): string[];
