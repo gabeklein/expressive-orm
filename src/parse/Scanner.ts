@@ -25,18 +25,22 @@ class Scanner {
     this.lexer = moo.compile(matchers).reset(code);
   }
 
-  word(required: false): string | undefined;
-  word(value?: string | string[], strict?: boolean): string;
-  word(arg1?: string | string[] | false, arg2?: boolean){
+  word(fatal?: true): string;
+  word(required?: false): string | undefined;
+  word(value: string | string[], fatal?: true): string;
+  word(value?: string | string[], required?: boolean): string | undefined;
+  word(arg1?: string | string[] | boolean, arg2?: boolean){
     if(typeof arg1 == "boolean")
       arg2 = arg1, arg1 = undefined;
 
     return this.assert("word", arg1, arg2);
   }
 
-  name(required: false): string | undefined;
-  name(value?: string | string[], strict?: boolean): string;
-  name(arg1?: string | string[] | false, arg2?: boolean){
+  name(fatal?: true): string;
+  name(required?: false): string | undefined;
+  name(value: string | string[], fatal?: true): string;
+  name(value?: string | string[], required?: boolean): string | undefined;
+  name(arg1?: string | string[] | boolean, arg2?: boolean){
     if(typeof arg1 == "boolean")
       arg2 = arg1, arg1 = undefined;
 
