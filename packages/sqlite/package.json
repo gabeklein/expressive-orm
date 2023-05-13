@@ -1,0 +1,20 @@
+{
+  "name": "@expressive/sqlite",
+  "version": "0.0.1",
+  "description": "SQLite Adapter for Expressive ORM",
+  "license": "ISC",
+  "main": "lib",
+  "bin": "lib/cli.js",
+  "scripts": {
+    "watch": "jest --watchAll",
+    "test": "jest",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@expressive/estree": "^0.1.2",
+    "@expressive/orm": "^0.0.1"
+  },
+  "devDependencies": {
+    "sqlite3": "^5.1.2"
+  }
+}

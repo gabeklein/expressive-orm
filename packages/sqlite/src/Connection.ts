@@ -1,6 +1,5 @@
-import Connection from '../connection/Connection';
-import Entity from '../Entity';
-import { asPromise } from '../utility';
+import { Connection, Entity, Util } from '@expressive/orm';
+
 import { bootstrap } from './bootstrap';
 
 import type sqlite3 from 'sqlite3';
@@ -41,7 +40,7 @@ class SQLiteConnection extends Connection {
     if(!connection)
       return Promise.reject( new Error("No connection"));
 
-    return asPromise<T[]>(cb => connection.all(qs, cb));
+    return Util.asPromise<T[]>(cb => connection.all(qs, cb));
   }
 
   close(){
@@ -50,7 +49,7 @@ class SQLiteConnection extends Connection {
     if(!connection)
       return Promise.reject(new Error("No connection"));
 
-    return asPromise(cb => connection.close(cb));
+    return Util.asPromise(cb => connection.close(cb));
   }
 
   createTables(){

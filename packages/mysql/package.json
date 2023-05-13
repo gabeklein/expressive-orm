@@ -1,0 +1,21 @@
+{
+  "name": "@expressive/mysql",
+  "version": "0.0.1",
+  "description": "MySQL Adapter for Expressive ORM",
+  "license": "ISC",
+  "main": "lib",
+  "bin": "lib/cli.js",
+  "scripts": {
+    "watch": "jest --watchAll",
+    "test": "jest",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@expressive/estree": "^0.1.2",
+    "@expressive/orm": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/mysql": "^2.15.21",
+    "mysql": "^2.18.1"
+  }
+}

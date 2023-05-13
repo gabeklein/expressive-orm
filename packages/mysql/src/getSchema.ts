@@ -1,5 +1,5 @@
-import Schema from '../connection/Schema';
-import Query from '../query/Query';
+import { Schema, Query } from '@expressive/orm';
+
 import { Column, KeyColumnUsage, ReferentialConstraints } from './infoSchema';
 
 async function getSchema(name: string): Promise<Schema> {

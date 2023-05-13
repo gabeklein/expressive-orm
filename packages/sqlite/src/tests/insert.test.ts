@@ -1,4 +1,4 @@
-import { Entity, Number, Query, String } from '../src';
+import { Entity, Number, Query, String } from '@expressive/orm';
 import { TestConnection } from './database';
 
 class User extends Entity  {

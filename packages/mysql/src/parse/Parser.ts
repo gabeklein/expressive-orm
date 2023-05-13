@@ -1,5 +1,4 @@
-import Schema from '../../connection/Schema';
-import Scanner from '../../parse/Scanner';
+import { Schema, Scanner } from "@expressive/orm";
 
 type BunchOf<T = any> = { [key: string]: T }
 

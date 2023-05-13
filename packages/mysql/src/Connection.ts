@@ -1,10 +1,10 @@
-import Connection from '../connection/Connection';
-import Entity from '../Entity';
-import { asPromise } from '../utility';
+import { Util, Connection, Entity } from '@expressive/orm';
+
 import { bootstrap } from './bootstrap';
 import * as schema from './infoSchema';
 
 import type mysql from 'mysql';
+
 declare namespace MySQLConnection {
   interface Config extends mysql.ConnectionConfig {
     dry?: boolean;
@@ -57,7 +57,7 @@ class MySQLConnection extends Connection {
     if(!connection)
       return Promise.reject( new Error("No connection"));
 
-    return asPromise<T[]>(cb => connection.query(qs, cb));
+    return Util.asPromise<T[]>(cb => connection.query(qs, cb));
   }
 
   close(){
@@ -66,7 +66,7 @@ class MySQLConnection extends Connection {
     if(!connection)
       return Promise.reject(new Error("No connection"));
 
-    return asPromise(cb => connection.end(cb));
+    return Util.asPromise(cb => connection.end(cb));
   }
 
   createTables(){

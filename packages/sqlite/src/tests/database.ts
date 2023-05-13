@@ -1,4 +1,5 @@
-import Entity, { SQLiteConnection } from '../src';
+import { Entity } from '@expressive/orm';
+import SQLiteConnection from '../Connection';
 
 const { format } = require('sql-formatter');
 

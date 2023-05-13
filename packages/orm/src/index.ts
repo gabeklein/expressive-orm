@@ -1,4 +1,5 @@
 import Connection from './connection/Connection';
+import Schema from './connection/Schema';
 import Entity from './Entity';
 import Field from './Field';
 import Boolean from './field/Boolean';
@@ -12,9 +13,9 @@ import One from './field/One';
 import Ref from './field/Ref';
 import String from './field/String';
 import Table from './field/Table';
-import MySQLConnection from './mysql/Connection';
+import Scanner from './parse/Scanner';
 import Query from './query/Query';
-import SQLiteConnection from './sqlite/Connection';
+import Util from './utility';
 
 export default Entity;
 export {
@@ -28,11 +29,12 @@ export {
   Field,
   Join,
   Many,
-  MySQLConnection,
   Number,
   One,
   Query,
   Ref,
-  SQLiteConnection,
-  Table
+  Table,
+  Scanner,
+  Schema,
+  Util
 }

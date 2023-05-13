@@ -1,4 +1,4 @@
-import Entity, { Date, Number, Query, String } from '../src';
+import Entity, { Date, Number, Query, String } from '@expressive/orm';
 import { TestConnection } from './database';
 
 const seconds = (date: Date) => {

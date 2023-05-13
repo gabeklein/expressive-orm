@@ -31,13 +31,13 @@ export function sql(
   return result.trim();
 }
 
-declare namespace asPromise {
+export declare namespace asPromise {
   type Action<T> = (
     callback: (err: Error | null | undefined, value?: T) => void
   ) => void;
 }
 
-function asPromise<T = void>(action: asPromise.Action<T>){
+export function asPromise<T = void>(action: asPromise.Action<T>){
   return new Promise<T>((res, rej) => {
     action((err, returns) => {
       if(err)
@@ -48,4 +48,10 @@ function asPromise<T = void>(action: asPromise.Action<T>){
   })
 }
 
-export { asPromise };
+export default {
+  asPromise,
+  decapitalize,
+  escapeString,
+  qualify,
+  sql
+}

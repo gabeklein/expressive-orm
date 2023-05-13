@@ -1,4 +1,4 @@
-import { Boolean, Entity, Many, Number, One, String } from '../..';
+import { Boolean, Entity, Many, Number, One, String } from '@expressive/orm';
 import { bootstrap } from '../bootstrap';
 
 it("will create tables", () => {

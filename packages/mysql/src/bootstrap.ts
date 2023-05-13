@@ -1,6 +1,4 @@
-import Entity from '..';
-import Field from '../Field';
-import { escapeString, qualify } from '../utility';
+import { Field, Entity, Util } from '@expressive/orm';
 
 export function bootstrap(entities: Iterable<Entity.Type>){
   const commands = [] as string[];
@@ -57,13 +55,13 @@ function column(from: Field){
   if(from.datatype === undefined)
     return;
 
-  let statement = `${qualify(from.column)} ${from.datatype}`;
+  let statement = `${Util.qualify(from.column)} ${from.datatype}`;
 
   if(!from.nullable)
     statement += " NOT NULL";
 
   if(from.default !== undefined)
-    statement += ` DEFAULT ${escapeString(from.default)}`;
+    statement += ` DEFAULT ${Util.escapeString(from.default)}`;
 
   if(from.datatype == "INT" && from.increment)
     statement += " AUTO_INCREMENT";

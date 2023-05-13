@@ -1,5 +1,4 @@
-import { Boolean, Number, String, Table } from '..';
-import Entity from '../Entity';
+import { Boolean, Entity, Number, String, Table } from '@expressive/orm';
 
 export class Column extends Entity {
   this = Table({
