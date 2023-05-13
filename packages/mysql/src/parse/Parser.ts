@@ -1,4 +1,4 @@
-import { Schema, Scanner } from "@expressive/orm";
+import { Schema, Scanner } from "@expressive/sql";
 
 type BunchOf<T = any> = { [key: string]: T }
 

@@ -1,4 +1,4 @@
-import { Util, Connection, Entity } from '@expressive/orm';
+import { Util, Connection, Entity } from '@expressive/sql';
 
 import { bootstrap } from './bootstrap';
 import * as schema from './infoSchema';

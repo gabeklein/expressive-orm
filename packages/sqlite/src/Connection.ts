@@ -1,4 +1,4 @@
-import { Connection, Entity, Util } from '@expressive/orm';
+import { Connection, Entity, Util } from '@expressive/sql';
 
 import { bootstrap } from './bootstrap';
 

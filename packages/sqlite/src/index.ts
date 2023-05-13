@@ -1,3 +1,3 @@
 export { default as Connection } from './Connection';
 
-export * from "@expressive/orm";
+export * from "@expressive/sql";

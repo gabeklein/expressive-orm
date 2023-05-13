@@ -1,4 +1,4 @@
-import { Schema, Query } from '@expressive/orm';
+import { Schema, Query } from '@expressive/sql';
 
 import { Column, KeyColumnUsage, ReferentialConstraints } from './infoSchema';
 

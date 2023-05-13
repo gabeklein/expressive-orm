@@ -1,4 +1,4 @@
-import { Entity, Field, Util } from '@expressive/orm';
+import { Entity, Field, Util } from '@expressive/sql';
 
 export function bootstrap(entities: Iterable<Entity.Type>){
   const commands = [] as string[];

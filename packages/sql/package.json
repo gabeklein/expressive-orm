@@ -1,5 +1,5 @@
 {
-  "name": "@expressive/orm",
+  "name": "@expressive/sql",
   "version": "0.0.1",
   "description": "Query builder and ORM",
   "main": "lib",
