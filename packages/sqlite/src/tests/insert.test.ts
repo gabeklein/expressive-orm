@@ -11,9 +11,13 @@ function random(min: number, max: number) {
   const u = Math.max(min, max);
   const l = Math.min(min, max);
   const diff = u - l;
-  const r = Math.floor(Math.random() * (diff + 1)); //'+1' because Math.random() returns 0..0.99, it does not include 'diff' value, so we do +1, so 'diff + 1' won't be included, but just 'diff' value will be.
+  const r = Math.floor(Math.random() * (diff + 1));
+
+  //'+1' because Math.random() returns 0..0.99, it does not include 'diff' value,
+  // so we do +1, so 'diff + 1' won't be included, but just 'diff' value will be.
   
-  return l + r; //add the random number that was selected within distance between low and up to the lower limit.  
+  //add the random number that was selected within distance between low and up to the lower limit.
+  return l + r; 
 }
 
 TestConnection.create([ User ]);
