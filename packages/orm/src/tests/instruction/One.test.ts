@@ -1,4 +1,4 @@
-import Entity, { String, Number, One, Query } from '../../src';
+import { Entity, String, Number, One, Query } from '../..';
 
 class A extends Entity {
   b = One(B);

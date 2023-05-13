@@ -1,4 +1,4 @@
-import Entity, { Field } from '..';
+import { Entity, Field } from '..';
 
 declare namespace Ref {
   interface Options<T extends Entity> extends Field.Options {

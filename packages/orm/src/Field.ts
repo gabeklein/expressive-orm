@@ -1,4 +1,4 @@
-import Entity from '.';
+import Entity from './Entity';
 import Query, { RelevantTable } from './query/Query';
 import { escapeString, qualify } from './utility';
 

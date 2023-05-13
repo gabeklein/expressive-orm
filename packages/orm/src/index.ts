@@ -17,7 +17,6 @@ import Scanner from './parse/Scanner';
 import Query from './query/Query';
 import Util from './utility';
 
-export default Entity;
 export {
   Boolean,
   Date,
