@@ -7,9 +7,15 @@
         "noUnusedLocals": true,
         "strict": true,
         "esModuleInterop": true,
-        "lib": ["ES2018"]
+        "lib": ["ES2018"],
+        "baseUrl": ".",
+        "rootDir": ".",
+        "jsx": "react",
+        "sourceMap": true,
     },
-    "include": [
-        "src"
-    ]
+    "paths": {
+        "@expressive/*": [
+          "packages/*/src"
+        ]
+    }
 }

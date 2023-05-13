@@ -1,6 +1,7 @@
-/node_modules
-/coverage
-/lib
-/src/develop
+node_modules/
+coverage/
+lib/
+develop/
+
 .DS_Store
 docker-compose.yml
