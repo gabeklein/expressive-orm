@@ -20,7 +20,7 @@ function random(min: number, max: number) {
   return l + r; 
 }
 
-TestConnection.create([ User ]);
+TestConnection.prepare([ User ]);
 
 it.skip("will insert procedurally generated rows", async () => {
   const names = [

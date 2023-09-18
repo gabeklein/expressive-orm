@@ -31,18 +31,18 @@ class TestConnection extends SQLiteConnection {
     return super.query(qs);
   }
 
-  static create(
-    argument: TestConnection.Options | Entity.Type[],
+  static prepare(
+    argument: Entity.Type[],
     effect?: TestConnection.Effect){
     
-    const conn = new this(argument);
+    const connect = new this(argument);
     let callback: (() => void) | undefined;
 
     beforeAll(async () => {
-      await conn.createTables();
+      await connect.createTables();
 
       if(effect)
-        Promise.resolve(effect(conn)).then(cb => {
+        Promise.resolve(effect(connect)).then(cb => {
           if(cb)
             callback = cb;
         });
@@ -52,10 +52,10 @@ class TestConnection extends SQLiteConnection {
       if(callback)
         callback();
 
-      conn.close();
+      connect.close();
     });
 
-    return conn;
+    return connect;
   }
 }
 

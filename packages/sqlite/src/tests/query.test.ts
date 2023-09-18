@@ -1,4 +1,4 @@
-import { Entity, Date, Number, Query, String } from '@expressive/sql';
+import { Entity, Date as Time, Number, Query, String } from '@expressive/sql';
 import { TestConnection } from './database';
 
 const seconds = (date: Date) => {
@@ -8,15 +8,13 @@ const seconds = (date: Date) => {
 class Foo extends Entity {
   id = Number();
   name = String();
-  date = Date();
+  date = Time();
 }
 
-TestConnection.create([
-  Foo
-]);
+TestConnection.prepare([ Foo ]);
 
 it("will insert and retrieve a Date", async () => {
-  const now = new global.Date();
+  const now = new Date();
 
   await Foo.insert({
     name: "foobar",
@@ -31,6 +29,6 @@ it("will insert and retrieve a Date", async () => {
     return foo.date;
   });
 
-  expect(date).toBeInstanceOf(global.Date);
+  expect(date).toBeInstanceOf(Date);
   expect(seconds(now)).toBe(seconds(date!));
 })

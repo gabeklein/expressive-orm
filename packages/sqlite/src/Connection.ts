@@ -38,7 +38,7 @@ class SQLiteConnection extends Connection {
     const { connection } = this;
 
     if(!connection)
-      return Promise.reject( new Error("No connection"));
+      return Promise.reject(new Error("No connection"));
 
     return Util.asPromise<T[]>(cb => connection.all(qs, cb));
   }
