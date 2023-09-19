@@ -1,4 +1,4 @@
-import Entity from "..";
+import Entity from "../Entity";
 import { qualify } from "../utility";
 
 export declare namespace insert { 
