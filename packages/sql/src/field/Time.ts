@@ -1,6 +1,6 @@
 import Field from '../Field';
 
-declare namespace Date {
+declare namespace Time {
   interface Options extends Field.Options {
     default?: "NOW" | Date;
   }
@@ -8,11 +8,11 @@ declare namespace Date {
   type Nullable = Options & { nullable: true };
 }
 
-function Date(column: string, nullable: true): string | null | undefined;
-function Date(column: string, nullable?: boolean): string;
-function Date<T>(options: Date.Nullable): Date | null | undefined;
-function Date(options?: Date.Options): Date;
-function Date(options?: Date.Options | string, nullable?: boolean){
+function Time(column: string, nullable: true): string | null | undefined;
+function Time(column: string, nullable?: boolean): string;
+function Time<T>(options: Time.Nullable): Date | null | undefined;
+function Time(options?: Time.Options): Date;
+function Time(options?: Time.Options | string, nullable?: boolean){
   if(typeof options == "string")
     options = { column: options };
 
@@ -29,4 +29,4 @@ function Date(options?: Date.Options | string, nullable?: boolean){
   });
 }
 
-export default Date;
+export default Time;

@@ -3,7 +3,7 @@ import Schema from './connection/Schema';
 import Entity from './Entity';
 import Field from './Field';
 import Boolean from './field/Boolean';
-import Date from './field/Date';
+import Time from './field/Time';
 import Enum from './field/Enum';
 import Join from './field/Join';
 import Json from './field/Json';
@@ -19,7 +19,7 @@ import Util from './utility';
 
 export {
   Boolean,
-  Date,
+  Time,
   Enum,
   Json,
   String,
