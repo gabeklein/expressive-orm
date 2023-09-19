@@ -65,8 +65,8 @@ function deleteQuery(
 function updateQuery(
   query: Query<any>,
   from: Query.Type<any>,
-  update: Query.Update<any>
-){
+  update: Query.Update<any>){
+
   const meta = RelevantTable.get(from);
 
   if(!meta)

@@ -12,11 +12,6 @@ function random(min: number, max: number) {
   const l = Math.min(min, max);
   const diff = u - l;
   const r = Math.floor(Math.random() * (diff + 1));
-
-  //'+1' because Math.random() returns 0..0.99, it does not include 'diff' value,
-  // so we do +1, so 'diff + 1' won't be included, but just 'diff' value will be.
-  
-  //add the random number that was selected within distance between low and up to the lower limit.
   return l + r; 
 }
 
@@ -31,13 +26,11 @@ it.skip("will insert procedurally generated rows", async () => {
     "Josiah"
   ];
 
-  await User.insert(names, (name) => {
-    return {
-      name,
-      age: random(20, 35),
-      email: `${name.toLowerCase()}@fennec-engineering.com`
-    }
-  });
+  await User.insert(names, (name) => ({
+    name,
+    age: random(20, 35),
+    email: `${name.toLowerCase()}@email.org`
+  }));
 
   const results = await Query.get(where => where(User))
 

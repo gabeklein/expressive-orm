@@ -1,4 +1,4 @@
-import Entity from '..';
+import Entity from '../Entity';
 import Field from '../Field';
 import { escapeString, qualify } from '../utility';
 import Query from './Query';

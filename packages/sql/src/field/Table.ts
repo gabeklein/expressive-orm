@@ -1,4 +1,4 @@
-import Entity from '..';
+import Entity from '../Entity';
 
 namespace Table {
   export interface Options {
