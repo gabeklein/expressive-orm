@@ -25,10 +25,10 @@ declare namespace Field {
   }
 
   interface Assertions<T> {
-    is(equalTo: T | undefined): Instruction;
-    not(equalTo: T | undefined): Instruction;
-    greater(than: T | undefined): Instruction;
-    less(than: T | undefined): Instruction;
+    is(equalTo: T): Instruction;
+    not(equalTo: T): Instruction;
+    greater(than: T): Instruction;
+    less(than: T): Instruction;
   } 
 }
 
