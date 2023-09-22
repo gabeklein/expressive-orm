@@ -1,14 +1,16 @@
-import { Entity, Number, Query, String, Table } from '../';
+import { Entity, Number, Query, String, Table } from '../src';
 
 class Foo extends Entity {
   name = String();
   color = String();
 }
+
 class Bar extends Entity {
   name = String();
   color = String();
   rating = Number();
 }
+
 class Baz extends Entity {
   color = String();
   rating = Number();
@@ -28,7 +30,7 @@ it("will join using object", async () => {
   expect(query).toMatchSnapshot();
 })
 
-it.only("will join using function", async () => {
+it("will join using function", async () => {
   const query = new Query(where => {
     const foo = where(Foo);
     const bar = where(Bar, on => {

@@ -1,4 +1,4 @@
-import { Entity, Join, Number, Query, String } from '../../';
+import { Entity, Join, Number, Query, String } from '../../src';
 
 class Foo extends Entity {
   color = String();
