@@ -1,5 +1,4 @@
 import Entity from '../Entity';
-import getSchema from '../mysql/getSchema';
 import Schema from './Schema';
 
 namespace Connection {
@@ -27,21 +26,6 @@ abstract class Connection {
     }
 
     return this;
-  }
-
-  async getSchema(name?: string){
-    if(!name)
-      name = this.database;
-
-    if(!name)
-      throw new Error("No database specified, and no default one exists!");
-
-    let schema = this.schema[name];
-
-    if(!schema)
-      schema = await getSchema(name);
-
-    return this.schema[name] = schema;
   }
 }
 

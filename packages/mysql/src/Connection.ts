@@ -2,6 +2,7 @@ import { Util, Connection, Entity } from '@expressive/sql';
 
 import { bootstrap } from './bootstrap';
 import * as schema from './infoSchema';
+import getSchema from './getSchema';
 
 import type mysql from 'mysql';
 
@@ -49,6 +50,21 @@ class MySQLConnection extends Connection {
 
     if(opts.use)
       this.apply(opts.use);
+  }
+
+  async getSchema(name?: string){
+    if(!name)
+      name = this.database;
+
+    if(!name)
+      throw new Error("No database specified, and no default one exists!");
+
+    let schema = this.schema[name];
+
+    if(!schema)
+      schema = await getSchema(name);
+
+    return this.schema[name] = schema;
   }
 
   query<T extends {} = any>(qs: string){
