@@ -1,4 +1,4 @@
-import { Connection, Entity, Util } from '@expressive/sql';
+import { Connection, Type, Util } from '@expressive/sql';
 
 import { bootstrap } from './bootstrap';
 
@@ -16,7 +16,7 @@ class SQLiteConnection extends Connection {
   connection: sqlite3.Database;
   database?: string;
 
-  constructor(opts: SQLiteConnection.Config | Entity.EntityType[] = {}){
+  constructor(opts: SQLiteConnection.Config | Type.EntityType[] = {}){
     super();
 
     if(Array.isArray(opts))

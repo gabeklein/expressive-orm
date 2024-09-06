@@ -1,4 +1,4 @@
-import Entity from '../Entity';
+import Type from '../Type';
 
 namespace Table {
   export interface Options {
@@ -7,10 +7,10 @@ namespace Table {
   }
 }
 
-function Table(name: string, opts?: Table.Options): Entity.EntityType;
-function Table(opts: Table.Options): Entity.EntityType;
+function Table(name: string, opts?: Table.Options): Type.EntityType;
+function Table(opts: Table.Options): Type.EntityType;
 function Table(arg1: string | Table.Options, arg2?: Table.Options){
-  return Entity.add(parent => {
+  return Type.add(parent => {
     if(typeof arg1 == "string"){
       const [name, schema] = arg1.split(".").reverse();
 

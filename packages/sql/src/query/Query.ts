@@ -1,5 +1,5 @@
 import Connection from '../connection/Connection';
-import Entity from '../Entity';
+import Type from '../Type';
 import Field from '../Field';
 import { qualify } from '../utility';
 import { generate } from './generate';
@@ -17,8 +17,8 @@ declare namespace Query {
 
     type Function = (on: Where) => void;
 
-    type Object<T extends Entity> = {
-      [K in Entity.Field<T>]?: T[K];
+    type Object<T extends Type> = {
+      [K in Type.Field<T>]?: T[K];
     }
 
     interface Assertions<T> {
@@ -30,7 +30,7 @@ declare namespace Query {
   }
 
   interface Table {
-    entity: Entity.EntityType;
+    entity: Type.EntityType;
     name: string;
     join?: Query.Join.Mode;
     alias?: string;
@@ -39,19 +39,19 @@ declare namespace Query {
 
   type Execute<T> = () => Promise<T>;
 
-  type EntityOfType<T extends Entity> = {
-    [K in Entity.Field<T>]: Exclude<T[K], null>;
+  type EntityOfType<T extends Type> = {
+    [K in Type.Field<T>]: Exclude<T[K], null>;
   } & {
     [ENTITY]?: T
   }
 
-  type Compare<T extends Entity> = {
-    [K in Entity.Field<T>]?: T[K];
+  type Compare<T extends Type> = {
+    [K in Type.Field<T>]?: T[K];
   }
 
   // TODO: make this default/nullable aware.
-  type Update<T extends Entity> = {
-    [K in Entity.Field<T>]?: Exclude<T[K], undefined>;
+  type Update<T extends Type> = {
+    [K in Type.Field<T>]?: Exclude<T[K], undefined>;
   }
 
   interface Ops {
@@ -70,11 +70,11 @@ declare namespace Query {
     has<T>(select: T): Execute<T>;
 
     deletes(...entries: Query.EntityOfType<any>[]): void;
-    updates<T extends Entity>(entry: Query.EntityOfType<T>, values: Query.Update<T>): void;
+    updates<T extends Type>(entry: Query.EntityOfType<T>, values: Query.Update<T>): void;
   }
 
   interface Assert {
-    <T extends Entity>(entity: EntityOfType<T>): { has(values: Compare<T>): void };
+    <T extends Type>(entity: EntityOfType<T>): { has(values: Compare<T>): void };
     <T>(field: T): Field.Assertions<T>;
 
     any(...where: Instruction[]): Instruction;
@@ -83,10 +83,10 @@ declare namespace Query {
   }
 
   interface Where extends Ops, Assert {
-    <T extends Entity>(entity: Entity.EntityType<T>): EntityOfType<T>;
-    <T extends Entity>(entity: Entity.EntityType<T>, join: "left" | "outer", on?: Compare<T> | Query.Join.Function): Partial<EntityOfType<T>>;
-    <T extends Entity>(entity: Entity.EntityType<T>, join: Join.Mode, on?: Compare<T> | Query.Join.Function): EntityOfType<T>;
-    <T extends Entity>(entity: Entity.EntityType<T>, on: Compare<T> | Query.Join.Function): EntityOfType<T>;
+    <T extends Type>(entity: Type.EntityType<T>): EntityOfType<T>;
+    <T extends Type>(entity: Type.EntityType<T>, join: "left" | "outer", on?: Compare<T> | Query.Join.Function): Partial<EntityOfType<T>>;
+    <T extends Type>(entity: Type.EntityType<T>, join: Join.Mode, on?: Compare<T> | Query.Join.Function): EntityOfType<T>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T> | Query.Join.Function): EntityOfType<T>;
   }
 
   type Function<R> = (where: Query.Where) => Execute<R> | void;
@@ -113,7 +113,7 @@ class Query<T = void> {
 
   where = this.prepare();
   connection?: Connection;
-  main?: Entity.EntityType;
+  main?: Type.EntityType;
 
   selects?: Map<string | Field, string | number>;
   deletes?: Set<Query.Table>;
@@ -242,9 +242,9 @@ class Query<T = void> {
     return apply
   }
 
-  table<T extends Entity>(entity: Entity.EntityType<T>, join: "left" | "full", on?: string[] | Query.Compare<T> | Query.Join.Function): Partial<Query.EntityOfType<T>>;
-  table<T extends Entity>(entity: Entity.EntityType<T>, join?: Query.Join.Mode, on?: string[] | Query.Compare<T> | Query.Join.Function): Query.EntityOfType<T>;
-  table<T extends Entity>(entity: Entity.EntityType<T>, join?: Query.Join.Mode, on?: string[] | Query.Compare<T> | Query.Join.Function){
+  table<T extends Type>(entity: Type.EntityType<T>, join: "left" | "full", on?: string[] | Query.Compare<T> | Query.Join.Function): Partial<Query.EntityOfType<T>>;
+  table<T extends Type>(entity: Type.EntityType<T>, join?: Query.Join.Mode, on?: string[] | Query.Compare<T> | Query.Join.Function): Query.EntityOfType<T>;
+  table<T extends Type>(entity: Type.EntityType<T>, join?: Query.Join.Mode, on?: string[] | Query.Compare<T> | Query.Join.Function){
     const { tables } = this;
     let { schema, table } = entity.ensure();
     let alias: string | undefined;

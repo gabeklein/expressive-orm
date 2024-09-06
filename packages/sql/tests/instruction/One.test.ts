@@ -1,15 +1,15 @@
-import { Entity, Str, Num, One, Query } from '../../src';
+import { Type, Str, Num, One, Query } from '../../src';
 
-class A extends Entity {
+class A extends Type {
   b = One(B);
   value = Str();
 }
 
-class B extends Entity {
+class B extends Type {
   c = One(C);
 }
 
-class C extends Entity {
+class C extends Type {
   value = Num();
   label = Str();
 }

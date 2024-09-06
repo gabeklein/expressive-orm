@@ -1,6 +1,6 @@
-import { Entity, Num, One, Query, Str } from '../src';
+import { Type, Num, One, Query, Str } from '../src';
 
-class Foo extends Entity {
+class Foo extends Type {
   bar = Str();
   baz = Str();
 }
@@ -63,19 +63,19 @@ describe("where.one", () => {
 })
 
 describe("joins", () => {
-  class Foo extends Entity {
+  class Foo extends Type {
     name = Str();
     color = Str();
   }
 
   it("will select joined values", async () => {
-    class Bar extends Entity {
+    class Bar extends Type {
       name = Str();
       color = Str();
       rating = Num();
     }
     
-    class Baz extends Entity {
+    class Baz extends Type {
       rating = Num();
     }
   
@@ -98,7 +98,7 @@ describe("joins", () => {
   })
 
   it("will select implicit joined values", async () => {
-    class Bar extends Entity {
+    class Bar extends Type {
       name = Str();
       foo = One(Foo);
     }
@@ -114,7 +114,7 @@ describe("joins", () => {
 })
 
 describe("sort", () => {
-  class Test extends Entity {
+  class Test extends Type {
     id = Num();
     rating = Num();
     name = Str();
@@ -150,7 +150,7 @@ describe("sort", () => {
   })
 
   it("will sort by joined table", async () => {
-    class Other extends Entity {
+    class Other extends Type {
       name = Str();
       rank = Num();
     }

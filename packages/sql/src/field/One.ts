@@ -1,26 +1,26 @@
 import { escapeId } from 'mysql';
 
-import Entity from '../Entity';
+import Type from '../Type';
 import Field from '../Field';
 import Query from '../query/Query';
 import { decapitalize, qualify, sql } from '../utility';
 
 declare namespace One {
-  interface Options<T extends Entity> extends Field.Options {
-    type?: Entity.EntityType<T>;
+  interface Options<T extends Type> extends Field.Options {
+    type?: Type.EntityType<T>;
   }
 
-  type Nullable<T extends Entity> = Options<T> & { nullable: true };
+  type Nullable<T extends Type> = Options<T> & { nullable: true };
 }
 
-function One<T extends Entity>(type: Entity.EntityType<T>): T;
-function One<T extends Entity>(type: Entity.EntityType<T>, options: One.Nullable<T>): T | null | undefined;
-function One<T extends Entity>(type: Entity.EntityType<T>, options: One.Options<T>): T;
-function One<T extends Entity>(type: Entity.EntityType<T>, column: string, nullable: true): string | null | undefined;
-function One<T extends Entity>(type: Entity.EntityType<T>, column: string, nullable?: boolean): string;
-function One<T extends Entity>(options: One.Nullable<T>): T | null | undefined;
-function One<T extends Entity>(options: One.Options<T>): T;
-function One<T extends Entity>(arg1: any, arg2?: any, arg3?: any): any {
+function One<T extends Type>(type: Type.EntityType<T>): T;
+function One<T extends Type>(type: Type.EntityType<T>, options: One.Nullable<T>): T | null | undefined;
+function One<T extends Type>(type: Type.EntityType<T>, options: One.Options<T>): T;
+function One<T extends Type>(type: Type.EntityType<T>, column: string, nullable: true): string | null | undefined;
+function One<T extends Type>(type: Type.EntityType<T>, column: string, nullable?: boolean): string;
+function One<T extends Type>(options: One.Nullable<T>): T | null | undefined;
+function One<T extends Type>(options: One.Options<T>): T;
+function One<T extends Type>(arg1: any, arg2?: any, arg3?: any): any {
   if(typeof arg2 == "string")
     arg2 = { column: arg2 };
 
@@ -34,7 +34,7 @@ function One<T extends Entity>(arg1: any, arg2?: any, arg3?: any): any {
 }
 
 class OneToManyRelation extends Field {
-  type!: Entity.EntityType;
+  type!: Type.EntityType;
   datatype = "INT";
 
   init(options: Partial<this>){

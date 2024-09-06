@@ -1,6 +1,6 @@
-import { Entity, Field, Util } from '@expressive/sql';
+import { Type, Field, Util } from '@expressive/sql';
 
-export function bootstrap(entities: Iterable<Entity.EntityType>){
+export function bootstrap(entities: Iterable<Type.EntityType>){
   const commands = [] as string[];
   
   for(const entity of entities)
@@ -19,7 +19,7 @@ export function bootstrap(entities: Iterable<Entity.EntityType>){
   return commands.join(";");
 }
 
-export function drop(tables: Entity.EntityType[]){
+export function drop(tables: Type.EntityType[]){
   const commands = [];
 
   for(const table of tables)
@@ -28,7 +28,7 @@ export function drop(tables: Entity.EntityType[]){
   return commands;
 }
 
-export function table(table: Entity.EntityType){
+export function table(table: Type.EntityType){
   const { table: name } = table;
   const statements = [] as string[];
 
@@ -42,7 +42,7 @@ export function table(table: Entity.EntityType){
   return `CREATE TABLE IF NOT EXISTS ${name} (${statements.join(",")})`;
 }
 
-export function constraint(table: Entity.EntityType){
+export function constraint(table: Type.EntityType){
   const statement = [] as string[];
 
   table.fields.forEach(field => {

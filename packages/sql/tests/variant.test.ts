@@ -1,1 +1,1 @@
-it.todo("will assign Entity subtype on fetch");
+it.todo("will assign subtype on fetch");

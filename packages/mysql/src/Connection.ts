@@ -1,4 +1,4 @@
-import { Util, Connection, Entity } from '@expressive/sql';
+import { Util, Connection, Type } from '@expressive/sql';
 
 import { bootstrap } from './bootstrap';
 import * as schema from './infoSchema';
@@ -21,7 +21,7 @@ class MySQLConnection extends Connection {
   connection?: mysql.Connection | mysql.Pool;
   database?: string;
 
-  constructor(opts: MySQLConnection.Config | Entity.EntityType[] = {}){
+  constructor(opts: MySQLConnection.Config | Type.EntityType[] = {}){
     super();
 
     const mysql = require("mysql");
@@ -42,7 +42,7 @@ class MySQLConnection extends Connection {
         : mysql.createConnection(opts);
 
     Object
-      .values<Entity.EntityType>(schema)
+      .values<Type.EntityType>(schema)
       .forEach(entity => {
         entity.connection = this;
         entity.ensure()

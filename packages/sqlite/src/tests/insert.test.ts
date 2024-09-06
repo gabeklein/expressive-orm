@@ -1,7 +1,7 @@
-import { Entity, Num, Query, Str } from '@expressive/sql';
+import { Type, Num, Query, Str } from '@expressive/sql';
 import { TestConnection } from './database';
 
-class User extends Entity  {
+class User extends Type  {
   name = Str();
   email = Str();
   age = Num();

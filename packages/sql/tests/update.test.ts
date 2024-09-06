@@ -1,7 +1,7 @@
-import { Entity, Str } from '../src';
+import { Type, Str } from '../src';
 import Query from '../src/query/Query';
 
-class Foo extends Entity {
+class Foo extends Type {
   value = Str();
   color = Str();
 }

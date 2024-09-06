@@ -1,6 +1,6 @@
-import { Entity, Join, Num, Query, Str } from '../../src';
+import { Type, Join, Num, Query, Str } from '../../src';
 
-class Foo extends Entity {
+class Foo extends Type {
   color = Str();
 
   bazValue = Join(where => {
@@ -11,13 +11,13 @@ class Foo extends Entity {
   })
 }
 
-class Bar extends Entity {
+class Bar extends Type {
   value = Str();
   color = Str();
   rating = Num();
 }
 
-class Baz extends Entity {
+class Baz extends Type {
   value = Str();
   rating = Num();
 }

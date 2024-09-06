@@ -1,8 +1,8 @@
-import { Bool, Entity, Many, Num, One, Str } from '@expressive/sql';
+import { Bool, Type, Many, Num, One, Str } from '@expressive/sql';
 import { bootstrap } from '../bootstrap';
 
 it("will create tables", () => {
-  class Author extends Entity {
+  class Author extends Type {
     id = Num();
     name = Str();
     age = Num();
@@ -12,12 +12,12 @@ it("will create tables", () => {
     publisher = One(Publisher);
   }
   
-  class Publisher extends Entity {
+  class Publisher extends Type {
     id = Num();
     name = Str();
   }
   
-  class Book extends Entity {
+  class Book extends Type {
     id = Num();
     title = Str();
     author = One(Author);

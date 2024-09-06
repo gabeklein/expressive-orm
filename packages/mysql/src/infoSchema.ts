@@ -1,6 +1,6 @@
-import { Bool, Entity, Num, Str, Table } from '@expressive/sql';
+import { Bool, Type, Num, Str, Table } from '@expressive/sql';
 
-export class Column extends Entity {
+export class Column extends Type {
   this = Table({
     name: "COLUMNS",
     schema: "information_schema"
@@ -137,7 +137,7 @@ export class Column extends Entity {
   });
 }
 
-export class Constraint extends Entity {
+export class Constraint extends Type {
   this = Table({
     name: "TABLE_CONSTRAINTS",
     schema: "information_schema"
@@ -187,7 +187,7 @@ export class Constraint extends Entity {
   })
 }
 
-export class KeyColumnUsage extends Entity {
+export class KeyColumnUsage extends Type {
   this = Table({
     name: "KEY_COLUMN_USAGE",
     schema: "information_schema"
@@ -264,7 +264,7 @@ export class KeyColumnUsage extends Entity {
   })
 }
 
-export class ReferentialConstraints extends Entity {
+export class ReferentialConstraints extends Type {
   this = Table({
     name: "REFERENTIAL_CONSTRAINTS",
     schema: "information_schema"

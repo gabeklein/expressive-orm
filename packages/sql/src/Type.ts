@@ -6,58 +6,58 @@ import Query from './query/Query';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
-const REGISTER = new Set<Entity.EntityType>();
-const INSTRUCTION = new Map<symbol, Entity.Instruction>();
+const REGISTER = new Set<Type.EntityType>();
+const INSTRUCTION = new Map<symbol, Type.Instruction>();
 
 const describe = Object.getOwnPropertyDescriptor;
 const define = Object.defineProperty;
 
-declare namespace Entity {
-  type EntityType<T extends Entity = Entity> =
+declare namespace Type {
+  type EntityType<T extends Type = Type> =
     & (abstract new () => T)
-    & typeof Entity;
+    & typeof Type;
 
-  type List<T extends Entity> = T[];
+  type List<T extends Type> = T[];
 
   type DataRecusive<T> =
     T extends string ? string :
     T extends number ? number :
     T extends boolean ? boolean :
     T extends List<infer U> ? Pure<U>[] :
-    T extends Entity ? Pure<T> : T;
+    T extends Type ? Pure<T> : T;
 
-  type Pure<T extends Entity> = {
+  type Pure<T extends Type> = {
     [K in Field<T>]-?: DataRecusive<T[K]>;
   }
 
-  type Field<T extends Entity> = Exclude<keyof T, "table">;
+  type Field<T extends Type> = Exclude<keyof T, "table">;
 
-  type Where<T extends Entity, R> =
+  type Where<T extends Type, R> =
     (source: Query.EntityOfType<T>, query: Query.Where) => () => R;
 
-  type Instruction = (parent: Entity.EntityType, key: string) => void;
+  type Instruction = (parent: Type.EntityType, key: string) => void;
 
   namespace Insert {
-    type Property<T> = T extends Entity ? T | number : T;
+    type Property<T> = T extends Type ? T | number : T;
   }
 
-  type Insert<T extends Entity> = {
-    [K in Entity.Field<T>]?: Insert.Property<T[K]>;
+  type Insert<T extends Type> = {
+    [K in Type.Field<T>]?: Insert.Property<T[K]>;
   }
 }
 
-abstract class Entity {
-  this!: Entity.EntityType;
+abstract class Type {
+  this!: Type.EntityType;
   id?: number | string;
 
   static table: string;
   static schema: string;
   static fields: Map<string, Field>;
-  static deps: Set<Entity.EntityType>;
+  static deps: Set<Type.EntityType>;
   static connection?: Connection;
   static focus?: { [key: string]: any };
 
-  static ensure<T extends Entity>(this: Entity.EntityType<T>){
+  static ensure<T extends Type>(this: Type.EntityType<T>){
     if(!REGISTER.has(this)){
       REGISTER.add(this);
 
@@ -87,7 +87,7 @@ abstract class Entity {
     return this;
   }
 
-  static add(instruction: Entity.Instruction){
+  static add(instruction: Type.Instruction){
     const placeholder = Symbol(`field`);
     INSTRUCTION.set(placeholder, instruction);
     return placeholder as any;
@@ -96,9 +96,9 @@ abstract class Entity {
   /**
    * Create an arbitary map of managed fields.
    */
-  static map<T extends Entity>(
-    this: Entity.EntityType<T>,
-    getValue: (type: Field, key: Entity.Field<T>, proxy: {}) => any,
+  static map<T extends Type>(
+    this: Type.EntityType<T>,
+    getValue: (type: Field, key: Type.Field<T>, proxy: {}) => any,
     cache?: boolean
   ){
     const proxy = {} as any;
@@ -112,7 +112,7 @@ abstract class Entity {
           const value = getValue.call(
             proxy,
             type,
-            key as Entity.Field<T>,
+            key as Type.Field<T>,
             proxy
           );
 
@@ -126,14 +126,14 @@ abstract class Entity {
     return proxy;
   }
 
-  static insert<T extends Entity>(this: Entity.EntityType<T>, data: Entity.Insert<T>): Promise<void>;
-  static insert<T extends Entity>(this: Entity.EntityType<T>, number: number, mapper: (index: number) => Entity.Insert<T>): Promise<void>;
-  static insert<T extends Entity, I>(this: Entity.EntityType<T>, input: I[], mapper: (item: I) => Entity.Insert<T>): Promise<void>;
-  static insert<T extends Entity>(this: Entity.EntityType<T>, data: Entity.Insert<T>[]): Promise<void>;
-  static insert<T extends Entity>(
-    this: Entity.EntityType<T>,
+  static insert<T extends Type>(this: Type.EntityType<T>, data: Type.Insert<T>): Promise<void>;
+  static insert<T extends Type>(this: Type.EntityType<T>, number: number, mapper: (index: number) => Type.Insert<T>): Promise<void>;
+  static insert<T extends Type, I>(this: Type.EntityType<T>, input: I[], mapper: (item: I) => Type.Insert<T>): Promise<void>;
+  static insert<T extends Type>(this: Type.EntityType<T>, data: Type.Insert<T>[]): Promise<void>;
+  static insert<T extends Type>(
+    this: Type.EntityType<T>,
     data: any,
-    mapper?: (i: any) => Entity.Insert<T>){
+    mapper?: (i: any) => Type.Insert<T>){
   
     if(!this.connection)
       throw new Error("weird");
@@ -159,4 +159,4 @@ abstract class Entity {
   }
 }
 
-export default Entity;
+export default Type;

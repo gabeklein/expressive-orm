@@ -1,6 +1,6 @@
 import Connection from './connection/Connection';
 import Schema from './connection/Schema';
-import Entity from './Entity';
+import Type from './Type';
 import Field from './Field';
 import Bool from './field/Bool';
 import Time from './field/Time';
@@ -24,7 +24,7 @@ export {
   Json,
   Str,
   Connection,
-  Entity,
+  Type as Type,
   Field,
   Join,
   Many,

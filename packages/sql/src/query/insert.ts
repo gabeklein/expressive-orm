@@ -1,16 +1,16 @@
-import Entity from "../Entity";
+import Type from "../Type";
 import { qualify } from "../utility";
 
 export declare namespace insert { 
-  type Property<T> = T extends Entity ? T | number : T;
+  type Property<T> = T extends Type ? T | number : T;
 
-  type Data<T extends Entity> = {
-    [K in Entity.Field<T>]?: Property<T[K]>;
+  type Data<T extends Type> = {
+    [K in Type.Field<T>]?: Property<T[K]>;
   }
 }
 
-export function insertQuery<T extends Entity>(
-  type: Entity.EntityType<T>,
+export function insertQuery<T extends Type>(
+  type: Type.EntityType<T>,
   data: insert.Data<T>[]){
 
   const { fields, table } = type;
@@ -23,7 +23,7 @@ export function insertQuery<T extends Entity>(
       const { column } = field;
 
       if(key in insert){
-        const given = insert[key as Entity.Field<T>];
+        const given = insert[key as Type.Field<T>];
         const value = field.set ? field.set(given) : given;
 
         keys.add(column); 

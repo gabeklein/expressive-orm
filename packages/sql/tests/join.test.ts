@@ -1,17 +1,17 @@
-import { Entity, Num, Query, Str, Table } from '../src';
+import { Type, Num, Query, Str, Table } from '../src';
 
-class Foo extends Entity {
+class Foo extends Type {
   name = Str();
   color = Str();
 }
 
-class Bar extends Entity {
+class Bar extends Type {
   name = Str();
   color = Str();
   rating = Num();
 }
 
-class Baz extends Entity {
+class Baz extends Type {
   color = Str();
   rating = Num();
 }
@@ -46,7 +46,7 @@ it("will join using function", async () => {
 })
 
 it("will alias tables which have a schema", () => {
-  class Foo extends Entity {
+  class Foo extends Type {
     this = Table({ schema: "foobar" });
 
     name = Str();

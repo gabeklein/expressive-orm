@@ -15,7 +15,7 @@ export function generateEntities(
 
   const body: t.Statement[] = [];
   const imports: t.Import.Item[] = [
-    t.importDefaultSpecifier("Entity")
+    t.importDefaultSpecifier("Type")
   ]
 
   Object.values(tables).forEach(table => {
@@ -67,5 +67,5 @@ function entityClass(
   //   properties.push(instruction(column));
   // })
 
-  return t.classDeclaration(identifier, "Entity", properties);
+  return t.classDeclaration(identifier, "Type", properties);
 }

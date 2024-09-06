@@ -1,4 +1,4 @@
-import { Entity } from '@expressive/sql';
+import { Type } from '@expressive/sql';
 import SQLiteConnection from '../Connection';
 
 const { format } = require('sql-formatter');
@@ -17,7 +17,7 @@ namespace TestConnection {
 class TestConnection extends SQLiteConnection {
   logs?: boolean
   
-  constructor(options: TestConnection.Options | Entity.EntityType[]){
+  constructor(options: TestConnection.Options | Type.EntityType[]){
     super(options);
 
     if("logs" in options)
@@ -32,7 +32,7 @@ class TestConnection extends SQLiteConnection {
   }
 
   static prepare(
-    argument: Entity.EntityType[],
+    argument: Type.EntityType[],
     effect?: TestConnection.Effect){
     
     const connect = new this(argument);

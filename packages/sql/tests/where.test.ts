@@ -1,17 +1,17 @@
-import { Entity, Num, One, Query, Str } from '../src';
+import { Type, Num, One, Query, Str } from '../src';
 
-class Foo extends Entity {
+class Foo extends Type {
   name = Str();
   color = Str();
 }
 
-class Bar extends Entity {
+class Bar extends Type {
   value = Num();
   color = Str();
 }
 
 it("will emit where clauses", () => {
-  class Test extends Entity {
+  class Test extends Type {
     a = Num();
     b = Num();
     c = Num();
@@ -42,7 +42,7 @@ it("will assert a joined property's value", () => {
 })
 
 it.skip("will assert an implictly joined value", () => {
-  class Bar extends Entity {
+  class Bar extends Type {
     foo = One(Foo);
     greeting = "Hello World";
   }

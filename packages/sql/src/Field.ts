@@ -1,4 +1,4 @@
-import Entity from './Entity';
+import Type from './Type';
 import Query, { RelevantTable } from './query/Query';
 import { escapeString, qualify } from './utility';
 
@@ -51,7 +51,7 @@ class Field {
   }
 
   constructor(
-    public table: Entity.EntityType,
+    public table: Type.EntityType,
     public property: string
   ){
     this.column = property;
@@ -96,7 +96,7 @@ class Field {
   static create<T extends Field>(
     this: Field.FieldType<T>, options?: Partial<T>){
 
-    return Entity.add((parent, key) => {
+    return Type.add((parent, key) => {
       const instance = new this(parent, key);
 
       parent.fields.set(key, instance);

@@ -1,19 +1,19 @@
-import { Entity, Field } from '..';
+import { Type, Field } from '..';
 
 declare namespace Ref {
-  interface Options<T extends Entity> extends Field.Options {
-    type?: Entity.EntityType<T>;
+  interface Options<T extends Type> extends Field.Options {
+    type?: Type.EntityType<T>;
   }
 
-  type Nullable<T extends Entity> = Options<T> & { nullable: true };
+  type Nullable<T extends Type> = Options<T> & { nullable: true };
 }
 
-function Ref<T extends Entity>(type: Entity.EntityType<T>): number;
-function Ref<T extends Entity>(type: Entity.EntityType<T>, options: Ref.Nullable<T>): number | null | undefined;
-function Ref<T extends Entity>(type: Entity.EntityType<T>, options: Ref.Options<T>): number;
-function Ref<T extends Entity>(options: Ref.Nullable<T>): number | null | undefined;
-function Ref<T extends Entity>(options: Ref.Options<T>): number;
-function Ref<T extends Entity>(arg1: any, arg2?: any): any {
+function Ref<T extends Type>(type: Type.EntityType<T>): number;
+function Ref<T extends Type>(type: Type.EntityType<T>, options: Ref.Nullable<T>): number | null | undefined;
+function Ref<T extends Type>(type: Type.EntityType<T>, options: Ref.Options<T>): number;
+function Ref<T extends Type>(options: Ref.Nullable<T>): number | null | undefined;
+function Ref<T extends Type>(options: Ref.Options<T>): number;
+function Ref<T extends Type>(arg1: any, arg2?: any): any {
   if(typeof arg1 == "function")
     arg1 = { ...arg2, type: arg1 };
 
@@ -25,7 +25,7 @@ class ForeignKeyColumn extends Field {
   datatype = "INT";
   placeholder = 1;
 
-  type!: Entity.EntityType;
+  type!: Type.EntityType;
 
   init(options: Partial<this>){
     this.table.deps.add(this.type);

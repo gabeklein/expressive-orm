@@ -1,9 +1,9 @@
-import Entity from '../Entity';
+import Type from '../Type';
 import Field from '../Field';
 import Query from '../query/Query';
 
 declare namespace Many {
-  // interface Select<T extends Entity> {
+  // interface Select<T extends Type> {
   //   map<R>(select: (from: Select.Function<T>) => R): R;
   // }
 
@@ -12,15 +12,15 @@ declare namespace Many {
   }
 }
 
-function Many<T extends Entity>(type: Entity.EntityType<T>): T[];
-function Many(type: Entity.EntityType, options?: Many.Options){
+function Many<T extends Type>(type: Type.EntityType<T>): T[];
+function Many(type: Type.EntityType, options?: Many.Options){
   return ManyToOneRelation.create({ type, ...options });
 }
 
 class ManyToOneRelation extends Field {
   sub = new WeakMap<Query, Query>();
   datatype = undefined;
-  type!: Entity.EntityType;
+  type!: Type.EntityType;
 
   // subquery(parent: Query){
   //   let query = this.sub.get(parent);

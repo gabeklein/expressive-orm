@@ -1,11 +1,11 @@
-import { Entity, Query, Str } from '../src';
+import { Type, Query, Str } from '../src';
 
-class Foo extends Entity {
+class Foo extends Type {
   value = Str();
   color = Str();
 }
 
-class Bar extends Entity {
+class Bar extends Type {
   value = Str();
   color = Str();
 }
