@@ -1,5 +1,5 @@
-import Field from "../Field";
-import Query from "../query/Query";
+import { Field } from "../Field";
+import { Query } from "../query/Query";
 
 declare namespace Join {
   type Function<R> = (where: Query.Where) => R | (() => R);
@@ -22,4 +22,4 @@ class JoinQueryField extends Field {
   }
 }
 
-export default Join;
+export { Join }

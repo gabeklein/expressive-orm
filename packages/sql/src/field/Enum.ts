@@ -1,4 +1,4 @@
-import Field from '../Field';
+import { Field } from '../Field';
 
 declare namespace Enum {
   interface Options<T extends string> extends Field.Options {
@@ -28,4 +28,4 @@ function Enum<T extends string>(options: T[] | Enum.Options<T>){
   });
 }
 
-export default Enum;
+export { Enum }

@@ -1,4 +1,4 @@
-import Field from '../Field';
+import { Field } from '../Field';
 
 declare namespace Json {
   interface Options<T> extends Field.Options {}
@@ -22,4 +22,4 @@ function Json(a1?: Json.Options<any>){
   });
 }
 
-export default Json;
+export { Json }

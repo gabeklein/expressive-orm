@@ -96,4 +96,4 @@ function getColumns(schema: string){
   })
 }
 
-export default getSchema;
+export { getSchema }

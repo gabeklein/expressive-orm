@@ -1,6 +1,6 @@
 export {
-  default as Connection,
-  default as MySQLConnection
+  MySQLConnection,
+  MySQLConnection as Connection
 } from './Connection';
 
 export * from "@expressive/sql";

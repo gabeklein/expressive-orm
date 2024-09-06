@@ -1,5 +1,5 @@
 import { qualify } from '../utility';
-import Query from './Query';
+import { Query } from './Query';
 
 export function generate(query: Query<any>){
   const {

@@ -57,4 +57,4 @@ class SQLiteConnection extends Connection {
   }
 }
 
-export default SQLiteConnection;
+export { SQLiteConnection }

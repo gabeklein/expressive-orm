@@ -1,6 +1,6 @@
 // import * as t from '@expressive/estree';
 
-// import Schema from '../../connection/Schema';
+// import { Schema } from '../../connection/Schema';
 // import { InstructionsUsed } from '../../generate/entities';
 // import { field } from '../../generate/syntax';
 // import { idealCase, parseType } from '../../generate/util';

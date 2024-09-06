@@ -41,4 +41,4 @@ interface Schema {
   tables: { [name: string]: Schema.Table };
 }
 
-export default Schema;
+export { Schema }

@@ -1,6 +1,6 @@
-import Type from '../Type';
-import Field from '../Field';
-import Query from '../query/Query';
+import { Type } from '../Type';
+import { Field } from '../Field';
+import { Query } from '../query/Query';
 
 declare namespace Many {
   // interface Select<T extends Type> {
@@ -53,4 +53,4 @@ class ManyToOneRelation extends Field {
   // }
 }
 
-export default Many;
+export { Many }

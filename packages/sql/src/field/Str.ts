@@ -1,4 +1,4 @@
-import Field from '../Field';
+import { Field } from '../Field';
 
 declare namespace Str {
   type DataType =
@@ -69,4 +69,4 @@ function Str(
   });
 }
 
-export default Str;
+export { Str }

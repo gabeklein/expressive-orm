@@ -1,5 +1,5 @@
-import Type from '../Type';
-import Schema from './Schema';
+import { Type } from '../Type';
+import { Schema } from './Schema';
 
 namespace Connection {
   export type Entities =
@@ -29,4 +29,4 @@ abstract class Connection {
   }
 }
 
-export default Connection;
+export { Connection }

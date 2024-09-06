@@ -1,39 +1,18 @@
-import Connection from './connection/Connection';
-import Schema from './connection/Schema';
-import Type from './Type';
-import Field from './Field';
-import Bool from './field/Bool';
-import Time from './field/Time';
-import Enum from './field/Enum';
-import Join from './field/Join';
-import Json from './field/Json';
-import Many from './field/Many';
-import Num from './field/Num';
-import One from './field/One';
-import Ref from './field/Ref';
-import Str from './field/Str';
-import Table from './field/Table';
-import Scanner from './parse/Scanner';
-import Query from './query/Query';
-import Util from './utility';
-
-export {
-  Bool,
-  Time,
-  Enum,
-  Json,
-  Str,
-  Connection,
-  Type as Type,
-  Field,
-  Join,
-  Many,
-  Num,
-  One,
-  Query,
-  Ref,
-  Table,
-  Scanner,
-  Schema,
-  Util
-}
+export { Bool } from './field/Bool';
+export { Connection } from './connection/Connection';
+export { default as Util } from './utility';
+export { Enum } from './field/Enum';
+export { Field } from './Field';
+export { Join } from './field/Join';
+export { Json } from './field/Json';
+export { Many } from './field/Many';
+export { Num } from './field/Num';
+export { One } from './field/One';
+export { Query } from './query/Query';
+export { Ref } from './field/Ref';
+export { Scanner } from './parse/Scanner';
+export { Schema } from './connection/Schema';
+export { Str } from './field/Str';
+export { Table } from './field/Table';
+export { Time } from './field/Time';
+export { Type } from './Type';

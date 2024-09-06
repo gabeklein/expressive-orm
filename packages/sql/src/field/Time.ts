@@ -1,4 +1,4 @@
-import Field from '../Field';
+import { Field } from '../Field';
 
 declare namespace Time {
   interface Options extends Field.Options {
@@ -29,4 +29,4 @@ function Time(options?: Time.Options | string, nullable?: boolean){
   });
 }
 
-export default Time;
+export { Time }

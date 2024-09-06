@@ -1,7 +1,7 @@
-import Type from '../Type';
-import Field from '../Field';
+import { Type } from '../Type';
+import { Field } from '../Field';
 import { escapeString, qualify } from '../utility';
-import Query from './Query';
+import { Query } from './Query';
 
 export function whereObject<T extends Type>(
   table: string,

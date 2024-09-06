@@ -1,4 +1,4 @@
-import Type from '../Type';
+import { Type } from '../Type';
 
 namespace Table {
   export interface Options {
@@ -26,4 +26,4 @@ function Table(arg1: string | Table.Options, arg2?: Table.Options){
   })
 }
 
-export default Table;
+export { Table }

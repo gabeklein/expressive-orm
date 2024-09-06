@@ -1,4 +1,4 @@
-import Field from '../Field';
+import { Field } from '../Field';
 
 declare namespace Bool {
   interface Options extends Field.Options {
@@ -43,4 +43,4 @@ function Bool(options: Bool.Options | string = {}, nullable?: boolean){
   });
 }
 
-export default Bool;
+export { Bool }

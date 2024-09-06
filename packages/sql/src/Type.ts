@@ -1,8 +1,8 @@
-import Connection from './connection/Connection';
-import Field from './Field';
+import { Connection } from './connection/Connection';
+import { Field } from './Field';
 import { capitalize } from './generate/util';
 import { insertQuery } from './query/insert';
-import Query from './query/Query';
+import { Query } from './query/Query';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
@@ -159,4 +159,4 @@ abstract class Type {
   }
 }
 
-export default Type;
+export { Type }

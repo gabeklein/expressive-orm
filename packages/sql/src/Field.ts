@@ -1,5 +1,5 @@
-import Type from './Type';
-import Query, { RelevantTable } from './query/Query';
+import { Type } from './Type';
+import { Query, RelevantTable } from './query/Query';
 import { escapeString, qualify } from './utility';
 
 declare namespace Field {
@@ -114,4 +114,4 @@ class Field {
   }
 }
 
-export default Field;
+export { Field }

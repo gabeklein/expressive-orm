@@ -1,4 +1,4 @@
-import Field from '../Field';
+import { Field } from '../Field';
 
 declare namespace Num {
   type DataType =
@@ -34,4 +34,4 @@ function Num(options: Num.Options | string = {}, nullable?: boolean){
   });
 }
 
-export default Num;
+export { Num }

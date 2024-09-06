@@ -1,4 +1,4 @@
-import moo from "moo";
+import { moo } from "moo";
 import { Symbols, matchers } from "./grammar";
 
 declare namespace Scanner {
@@ -235,4 +235,4 @@ function match(a: string | string[], b: string){
     : a === b;
 }
 
-export default Scanner;
+export { Scanner }

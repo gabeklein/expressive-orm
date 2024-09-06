@@ -39,4 +39,4 @@ class ForeignKeyColumn extends Field {
   }
 }
 
-export default Ref;
+export { Ref }

@@ -1,6 +1,6 @@
-import Connection from '../connection/Connection';
-import Type from '../Type';
-import Field from '../Field';
+import { Connection } from '../connection/Connection';
+import { Type } from '../Type';
+import { Field } from '../Field';
 import { qualify } from '../utility';
 import { generate } from './generate';
 import { queryVerbs } from './verbs';
@@ -330,4 +330,4 @@ class Query<T = void> {
   }
 }
 
-export default Query;
+export { Query }

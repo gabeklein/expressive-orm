@@ -2,7 +2,7 @@ import { Util, Connection, Type } from '@expressive/sql';
 
 import { bootstrap } from './bootstrap';
 import * as schema from './infoSchema';
-import getSchema from './getSchema';
+import { getSchema } from './getSchema';
 
 import type mysql from 'mysql';
 
@@ -90,4 +90,4 @@ class MySQLConnection extends Connection {
   }
 }
 
-export default MySQLConnection;
+export { MySQLConnection }

@@ -1,5 +1,5 @@
 import { Type } from '@expressive/sql';
-import SQLiteConnection from '../Connection';
+import { SQLiteConnection } from '../Connection';
 
 const { format } = require('sql-formatter');
 

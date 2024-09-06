@@ -1,8 +1,8 @@
 import { escapeId } from 'mysql';
 
-import Type from '../Type';
-import Field from '../Field';
-import Query from '../query/Query';
+import { Type } from '../Type';
+import { Field } from '../Field';
+import { Query } from '../query/Query';
 import { decapitalize, qualify, sql } from '../utility';
 
 declare namespace One {
@@ -68,4 +68,4 @@ class OneToManyRelation extends Field {
   }
 }
 
-export default One;
+export { One }

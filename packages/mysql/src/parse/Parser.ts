@@ -183,4 +183,4 @@ class Parser extends Scanner {
   }
 }
 
-export default Parser;
+export { Parser }
