@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "@expressive/estree": "^0.1.2",
+    "astring": "^1.9.0",
     "sqlstring": "^2.3.3"
   },
   "devDependencies": {

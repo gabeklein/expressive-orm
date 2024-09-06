@@ -51,6 +51,9 @@ importers:
       '@expressive/estree':
         specifier: ^0.1.2
         version: 0.1.2
+      astring:
+        specifier: ^1.9.0
+        version: 1.9.0
       sqlstring:
         specifier: ^2.3.3
         version: 2.3.3
@@ -64,15 +67,9 @@ importers:
       '@types/sqlstring':
         specifier: ^2.3.2
         version: 2.3.2
-      mysql:
-        specifier: ^2.18.1
-        version: 2.18.1
       sql-formatter:
         specifier: ^10.7.2
         version: 10.7.2
-      sqlite3:
-        specifier: ^5.1.2
-        version: 5.1.7
       ts-jest:
         specifier: ^27.0.3
         version: 27.1.5(@babel/core@7.25.2)(@types/jest@27.5.2)(jest@27.5.1)(typescript@4.9.5)
@@ -1001,6 +998,11 @@ packages:
   /argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
     dev: true
+
+  /astring@1.9.0:
+    resolution: {integrity: sha512-LElXdjswlqjWrPpJFg1Fx4wpkOCxj1TDHlSV4PlaRxHGWko024xICaa97ZkMfs6DRKlCguiAI+rbXv5GWwXIkg==}
+    hasBin: true
+    dev: false
 
   /asynckit@0.4.0:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
