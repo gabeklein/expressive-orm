@@ -1,13 +1,13 @@
-import { Entity, Query, String } from '../src';
+import { Entity, Query, Str } from '../src';
 
 class Foo extends Entity {
-  value = String();
-  color = String();
+  value = Str();
+  color = Str();
 }
 
 class Bar extends Entity {
-  value = String();
-  color = String();
+  value = Str();
+  color = Str();
 }
 
 it("will generate query", () => {

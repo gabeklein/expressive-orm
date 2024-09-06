@@ -1,9 +1,9 @@
-import { Entity, String } from '../src';
+import { Entity, Str } from '../src';
 import Query from '../src/query/Query';
 
 class Foo extends Entity {
-  value = String();
-  color = String();
+  value = Str();
+  color = Str();
 }
 
 it("will generate query", () => {

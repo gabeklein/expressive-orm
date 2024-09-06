@@ -1,4 +1,4 @@
-import { Entity, Time, Number, Query, String } from '@expressive/sql';
+import { Entity, Time, Num, Query, Str } from '@expressive/sql';
 import { TestConnection } from './database';
 
 const seconds = (date: Date) => {
@@ -6,8 +6,8 @@ const seconds = (date: Date) => {
 }
 
 class Foo extends Entity {
-  id = Number();
-  name = String();
+  id = Num();
+  name = Str();
   date = Time();
 }
 

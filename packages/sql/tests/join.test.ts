@@ -1,19 +1,19 @@
-import { Entity, Number, Query, String, Table } from '../src';
+import { Entity, Num, Query, Str, Table } from '../src';
 
 class Foo extends Entity {
-  name = String();
-  color = String();
+  name = Str();
+  color = Str();
 }
 
 class Bar extends Entity {
-  name = String();
-  color = String();
-  rating = Number();
+  name = Str();
+  color = Str();
+  rating = Num();
 }
 
 class Baz extends Entity {
-  color = String();
-  rating = Number();
+  color = Str();
+  rating = Num();
 }
 
 it("will join using object", async () => {
@@ -49,8 +49,8 @@ it("will alias tables which have a schema", () => {
   class Foo extends Entity {
     this = Table({ schema: "foobar" });
 
-    name = String();
-    color = String();
+    name = Str();
+    color = Str();
   }
 
   const query = new Query(where => {

@@ -1,6 +1,6 @@
 import Field from '../Field';
 
-declare namespace String {
+declare namespace Str {
   type DataType =
     | "char"
     | "varchar"
@@ -25,17 +25,17 @@ declare namespace String {
   type Nullable = Options & { nullable: true };
 }
 
-function String<T extends string>(oneOf: String.Specific<T> & String.Nullable): T | null | undefined;
-function String<T extends string>(oneOf?: String.Specific<T>): T;
-function String(column: string, nullable: true): string | null | undefined;
-function String(column: string, nullable?: boolean): string;
-function String(length: number, options: String.Nullable): string | null | undefined;
-function String(length: number, options?: String.Options): string;
-function String(options: String.Nullable): string | null | undefined;
-function String(options?: String.Options): string;
-function String(
-  opts: number | String.Options = {},
-  arg2?: String.Options | boolean): any {
+function Str<T extends string>(oneOf: Str.Specific<T> & Str.Nullable): T | null | undefined;
+function Str<T extends string>(oneOf?: Str.Specific<T>): T;
+function Str(column: string, nullable: true): string | null | undefined;
+function Str(column: string, nullable?: boolean): string;
+function Str(length: number, options: Str.Nullable): string | null | undefined;
+function Str(length: number, options?: Str.Options): string;
+function Str(options: Str.Nullable): string | null | undefined;
+function Str(options?: Str.Options): string;
+function Str(
+  opts: number | Str.Options = {},
+  arg2?: Str.Options | boolean): any {
 
   switch(typeof opts){
     case "number":
@@ -69,4 +69,4 @@ function String(
   });
 }
 
-export default String;
+export default Str;

@@ -1,6 +1,6 @@
 import Field from '../Field';
 
-declare namespace Boolean {
+declare namespace Bool {
   interface Options extends Field.Options {
     either?: readonly [string, string];
   }
@@ -8,12 +8,12 @@ declare namespace Boolean {
   type Nullable = Options & { nullable: true };
 }
 
-function Boolean(): boolean;
-function Boolean(column: string, nullable: true): string | null | undefined;
-function Boolean(column: string, nullable?: boolean): string;
-function Boolean(options: Boolean.Nullable): boolean | null | undefined;
-function Boolean(options: Boolean.Options): boolean;
-function Boolean(options: Boolean.Options | string = {}, nullable?: boolean){
+function Bool(): boolean;
+function Bool(column: string, nullable: true): string | null | undefined;
+function Bool(column: string, nullable?: boolean): string;
+function Bool(options: Bool.Nullable): boolean | null | undefined;
+function Bool(options: Bool.Options): boolean;
+function Bool(options: Bool.Options | string = {}, nullable?: boolean){
   let isTrue: any = 1;
   let isFalse: any = 0;
   let datatype = "TINYINT";
@@ -43,4 +43,4 @@ function Boolean(options: Boolean.Options | string = {}, nullable?: boolean){
   });
 }
 
-export default Boolean;
+export default Bool;

@@ -1,6 +1,6 @@
 import Field from '../Field';
 
-declare namespace Number {
+declare namespace Num {
   type DataType =
     | "int"
     | "tinyint"
@@ -16,11 +16,11 @@ declare namespace Number {
   type Nullable = Options & { nullable: true };
 }
 
-function Number(column: string, nullable: true): string | null | undefined;
-function Number(column: string, nullable?: boolean): string;
-function Number(options: Number.Nullable): number | null | undefined;
-function Number(options?: Number.Options): number;
-function Number(options: Number.Options | string = {}, nullable?: boolean){
+function Num(column: string, nullable: true): string | null | undefined;
+function Num(column: string, nullable?: boolean): string;
+function Num(options: Num.Nullable): number | null | undefined;
+function Num(options?: Num.Options): number;
+function Num(options: Num.Options | string = {}, nullable?: boolean){
   if(typeof options == "string")
     options = { column: options };
 
@@ -34,4 +34,4 @@ function Number(options: Number.Options | string = {}, nullable?: boolean){
   });
 }
 
-export default Number;
+export default Num;

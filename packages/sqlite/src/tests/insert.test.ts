@@ -1,10 +1,10 @@
-import { Entity, Number, Query, String } from '@expressive/sql';
+import { Entity, Num, Query, Str } from '@expressive/sql';
 import { TestConnection } from './database';
 
 class User extends Entity  {
-  name = String();
-  email = String();
-  age = Number();
+  name = Str();
+  email = Str();
+  age = Num();
 }
 
 function random(min: number, max: number) {

@@ -1,4 +1,4 @@
-import { Boolean, Entity, Number, String, Table } from '@expressive/sql';
+import { Bool, Entity, Num, Str, Table } from '@expressive/sql';
 
 export class Column extends Entity {
   this = Table({
@@ -6,125 +6,125 @@ export class Column extends Entity {
     schema: "information_schema"
   });
 
-  catalog = String({
+  catalog = Str({
     column: "TABLE_CATALOG",
     datatype: "varchar"
   });
 
-  characterSet = String({ 
+  characterSet = Str({ 
     column: "CHARACTER_SET_NAME",
     datatype: "varchar",
     nullable: true
   });
 
-  collation = String({ 
+  collation = Str({ 
     column: "COLLATION_NAME",
     datatype: "varchar",
     nullable: true
   });
 
-  comment = String({
+  comment = Str({
     column: "COLUMN_COMMENT",
     datatype: "text"
   });
 
-  dataType = String({
+  dataType = Str({
 		column: "DATA_TYPE",
     datatype: "longtext"
   });
 
-  datePrecision = Number({
+  datePrecision = Num({
     column: "DATETIME_PRECISION",
     datatype: "int",
     nullable: true
   });
 
-  default = String({
+  default = Str({
     column: "COLUMN_DEFAULT",
     datatype: "text",
     nullable: true
   });
 
-  extra = String({
+  extra = Str({
     column: "EXTRA",
     datatype: "varchar",
     nullable: true
   });
 
-  generator = String({
+  generator = Str({
 		column: "COLUMN_TYPE",
     datatype: "longtext"
   });
 
-  isNullable = Boolean({
+  isNullable = Bool({
     column: "IS_NULLABLE",
     either: ["YES", "NO"]
   });
 
-  name = String({ 
+  name = Str({ 
     column: "COLUMN_NAME",
     datatype: "varchar",
     nullable: true
   });
 
-  numericPrecision = Number({
+  numericPrecision = Num({
     column: "NUMERIC_PRECISION",
     datatype: "bigint",
     nullable: true
   });
 
-  numericScale = Number({
+  numericScale = Num({
     column: "NUMERIC_SCALE",
     datatype: "bigint",
     nullable: true
   });
 
-  octetLength = Number({
+  octetLength = Num({
     column: "CHARACTER_OCTET_LENGTH",
     datatype: "bigint",
     nullable: true
   });
 
-  position = Number({
+  position = Num({
     column: "ORDINAL_POSITION",
     datatype: "bigint"
   });
 
-  privileges = String({ 
+  privileges = Str({ 
     column: "PRIVILEGES",
     datatype: "varchar",
     nullable: true
   });
 
-  schema = String({
+  schema = Str({
     column: "TABLE_SCHEMA",
     datatype: "varchar",
   });
 
-  maxLength = Number({
+  maxLength = Num({
     column: "CHARACTER_MAXIMUM_LENGTH",
     datatype: "bigint",
     nullable: true
   });
 
-  srsId = Number({
+  srsId = Num({
     column: "SRS_ID",
     datatype: "int",
     nullable: true
   });
 
-  tableName = String({
+  tableName = Str({
     column: "TABLE_NAME",
     datatype: "varchar"
   });
 
-  type = String({
+  type = Str({
 		column: "COLUMN_TYPE",
     datatype: "mediumtext"
   });
 
   // actually an ENUM
-  key = String({
+  key = Str({
     column: "COLUMN_KEY",
     datatype: "varchar",
     length: 3,
@@ -143,44 +143,44 @@ export class Constraint extends Entity {
     schema: "information_schema"
   });
 
-  catalog = String({
+  catalog = Str({
     column: 'CONSTRAINT_CATALOG',
     datatype: "varchar",
     length: 64
   })
 
-  enforced = String({
+  enforced = Str({
     column: 'ENFORCED',
     datatype: "varchar",
     length: 3
   })
 
-  name = String({
+  name = Str({
     column: 'CONSTRAINT_NAME',
     datatype: "varchar",
     nullable: true,
     length: 64
   })
 
-  schema = String({
+  schema = Str({
     column: 'CONSTRAINT_SCHEMA',
     datatype: "varchar",
     length: 64
   })
 
-  tableName = String({
+  tableName = Str({
     column: 'TABLE_NAME',
     datatype: "varchar",
     length: 64
   })
 
-  tableSchema = String({
+  tableSchema = Str({
     column: 'TABLE_SCHEMA',
     datatype: "varchar",
     length: 64
   })
 
-  type = String({
+  type = Str({
     column: 'CONSTRAINT_TYPE',
     datatype: "varchar",
     length: 11
@@ -193,71 +193,71 @@ export class KeyColumnUsage extends Entity {
     schema: "information_schema"
   })
 
-  constraintCatalog = String({
+  constraintCatalog = Str({
     column: "CONSTRAINT_CATALOG",
     datatype: "varchar",
     length: 64
   })
 
-  constraintSchema = String({
+  constraintSchema = Str({
     column: "CONSTRAINT_SCHEMA",
     datatype: "varchar",
     length: 64
   })
 
-  constraintName = String({
+  constraintName = Str({
     column: "CONSTRAINT_NAME",
     datatype: "varchar",
     length: 64
   })
 
-  tableCatalog = String({
+  tableCatalog = Str({
     column: "TABLE_CATALOG",
     datatype: "varchar",
     length: 64
   })
 
-  tableSchema = String({
+  tableSchema = Str({
     column: "TABLE_SCHEMA",
     datatype: "varchar",
     length: 64
   })
 
-  tableName = String({
+  tableName = Str({
     column: "TABLE_NAME",
     datatype: "varchar",
     length: 64
   })
 
-  columnName = String({
+  columnName = Str({
     column: "COLUMN_NAME",
     datatype: "varchar",
     length: 64
   })
 
-  ordinalPosition = Number({
+  ordinalPosition = Num({
     column: "ORDINAL_POSITION",
     datatype: "int"
   })
 
-  positionInUniqueConstraint = Number({
+  positionInUniqueConstraint = Num({
     column: "POSITION_IN_UNIQUE_CONSTRAINT",
     datatype: "int"
   })
 
-  referencedTableSchema = String({
+  referencedTableSchema = Str({
     column: "REFERENCED_TABLE_SCHEMA",
     datatype: "varchar",
     length: 64
   })
 
-  referencedTableName = String({
+  referencedTableName = Str({
     column: "REFERENCED_TABLE_NAME",
     datatype: "varchar",
     length: 64
   })
 
-  referencedColumnName = String({
+  referencedColumnName = Str({
     column: "REFERENCED_COLUMN_NAME",
     datatype: "varchar",
     length: 64
@@ -270,65 +270,65 @@ export class ReferentialConstraints extends Entity {
     schema: "information_schema"
   })
 
-  constraintCatalog = String({
+  constraintCatalog = Str({
     column: "CONSTRAINT_CATALOG",
     datatype: "varchar",
     length: 64
   })
 
-  constraintName = String({
+  constraintName = Str({
     column: "CONSTRAINT_NAME",
     datatype: "varchar",
     length: 64
   })
 
-  constraintSchema = String({
+  constraintSchema = Str({
     column: "CONSTRAINT_SCHEMA",
     datatype: "varchar",
     length: 64
   })
 
-  referencedTableName = String({
+  referencedTableName = Str({
     column: "REFERENCED_TABLE_NAME",
     datatype: "varchar",
     length: 64
   })
 
-  tableName = String({
+  tableName = Str({
     column: "TABLE_NAME",
     datatype: "varchar",
     length: 64
   })
 
-  uniqueConstraintCatalog = String({
+  uniqueConstraintCatalog = Str({
     column: "UNIQUE_CONSTRAINT_CATALOG",
     datatype: "varchar",
     length: 64
   })
 
-  uniqueConstraintName = String({
+  uniqueConstraintName = Str({
     column: "UNIQUE_CONSTRAINT_NAME",
     datatype: "varchar",
     length: 64
   })
 
-  uniqueConstraintSchema = String({
+  uniqueConstraintSchema = Str({
     column: "UNIQUE_CONSTRAINT_SCHEMA",
     datatype: "varchar",
     length: 64
   })
 
-  deleteRule = String({
+  deleteRule = Str({
     column: "DELETE_RULE",
     datatype: "varchar"
   })
 
-  matchOption = String({
+  matchOption = Str({
     column: "MATCH_OPTION",
     datatype: "varchar"
   })
 
-  updateRule = String({
+  updateRule = Str({
     column: "UPDATE_RULE",
     datatype: "varchar"
   })

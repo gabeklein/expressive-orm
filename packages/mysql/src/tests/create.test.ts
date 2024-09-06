@@ -1,27 +1,27 @@
-import { Boolean, Entity, Many, Number, One, String } from '@expressive/sql';
+import { Bool, Entity, Many, Num, One, Str } from '@expressive/sql';
 import { bootstrap } from '../bootstrap';
 
 it("will create tables", () => {
   class Author extends Entity {
-    id = Number();
-    name = String();
-    age = Number();
-    nickname = String({ nullable: true });
-    active = Boolean();
+    id = Num();
+    name = Str();
+    age = Num();
+    nickname = Str({ nullable: true });
+    active = Bool();
     books = Many(Book);
     publisher = One(Publisher);
   }
   
   class Publisher extends Entity {
-    id = Number();
-    name = String();
+    id = Num();
+    name = Str();
   }
   
   class Book extends Entity {
-    id = Number();
-    title = String();
+    id = Num();
+    title = Str();
     author = One(Author);
-    rating = Number();
+    rating = Num();
   }
 
   const sql = bootstrap([

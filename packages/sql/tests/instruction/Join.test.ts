@@ -1,7 +1,7 @@
-import { Entity, Join, Number, Query, String } from '../../src';
+import { Entity, Join, Num, Query, Str } from '../../src';
 
 class Foo extends Entity {
-  color = String();
+  color = Str();
 
   bazValue = Join(where => {
     const bar = where(Bar, { color: this.color });
@@ -12,14 +12,14 @@ class Foo extends Entity {
 }
 
 class Bar extends Entity {
-  value = String();
-  color = String();
-  rating = Number();
+  value = Str();
+  color = Str();
+  rating = Num();
 }
 
 class Baz extends Entity {
-  value = String();
-  rating = Number();
+  value = Str();
+  rating = Num();
 }
 
 it("will integrate query on select", () => {

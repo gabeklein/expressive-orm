@@ -1,8 +1,8 @@
-import { Entity, Number, One, Query, String } from '../src';
+import { Entity, Num, One, Query, Str } from '../src';
 
 class Foo extends Entity {
-  bar = String();
-  baz = String();
+  bar = Str();
+  baz = Str();
 }
 
 describe("where.get", () => {
@@ -64,19 +64,19 @@ describe("where.one", () => {
 
 describe("joins", () => {
   class Foo extends Entity {
-    name = String();
-    color = String();
+    name = Str();
+    color = Str();
   }
 
   it("will select joined values", async () => {
     class Bar extends Entity {
-      name = String();
-      color = String();
-      rating = Number();
+      name = Str();
+      color = Str();
+      rating = Num();
     }
     
     class Baz extends Entity {
-      rating = Number();
+      rating = Num();
     }
   
     const query = new Query(where => {
@@ -99,7 +99,7 @@ describe("joins", () => {
 
   it("will select implicit joined values", async () => {
     class Bar extends Entity {
-      name = String();
+      name = Str();
       foo = One(Foo);
     }
   
@@ -115,9 +115,9 @@ describe("joins", () => {
 
 describe("sort", () => {
   class Test extends Entity {
-    id = Number();
-    rating = Number();
-    name = String();
+    id = Num();
+    rating = Num();
+    name = Str();
   }
 
   it("will add order clause", async () => {
@@ -151,8 +151,8 @@ describe("sort", () => {
 
   it("will sort by joined table", async () => {
     class Other extends Entity {
-      name = String();
-      rank = Number();
+      name = Str();
+      rank = Num();
     }
 
     const query = new Query(where => {
