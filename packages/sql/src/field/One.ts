@@ -1,6 +1,6 @@
 import { escapeId } from 'sqlstring';
 
-import { Field } from '../Field';
+import { Field } from './Field';
 import { Query } from '../query/Query';
 import { Type } from '../Type';
 import { decapitalize, qualify, sql } from '../utility';

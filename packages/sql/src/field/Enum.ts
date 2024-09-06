@@ -1,4 +1,4 @@
-import { Field } from '../Field';
+import { Field } from './Field';
 
 declare namespace Enum {
   interface Options<T extends string> extends Field.Options {

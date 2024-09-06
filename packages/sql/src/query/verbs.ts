@@ -1,4 +1,4 @@
-import { Field } from '../Field';
+import { Field } from '../field/Field';
 import Query, { RelevantTable } from './Query';
 
 export function queryVerbs<T>(query: Query<T>): Query.Ops {

@@ -1,6 +1,6 @@
 import { Connection } from '../connection/Connection';
 import { Type } from '../Type';
-import { Field } from '../Field';
+import { Field } from '../field/Field';
 import { qualify } from '../utility';
 import { generate } from './generate';
 import { queryVerbs } from './verbs';

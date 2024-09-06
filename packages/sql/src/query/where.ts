@@ -1,5 +1,5 @@
 import { Type } from '../Type';
-import { Field } from '../Field';
+import { Field } from '../field/Field';
 import { escapeString, qualify } from '../utility';
 import { Query } from './Query';
 

@@ -1,6 +1,6 @@
-import { Type } from './Type';
-import { Query, RelevantTable } from './query/Query';
-import { escapeString, qualify } from './utility';
+import { Type } from '../Type';
+import { Query, RelevantTable } from '../query/Query';
+import { escapeString, qualify } from '../utility';
 
 declare namespace Field {
   type FieldType<T extends Field = Field> = typeof Field & (new (...args: any[]) => T);

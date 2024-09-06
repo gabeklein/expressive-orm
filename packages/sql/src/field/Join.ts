@@ -1,4 +1,4 @@
-import { Field } from "../Field";
+import { Field } from "./Field";
 import { Query } from "../query/Query";
 
 declare namespace Join {

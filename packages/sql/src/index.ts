@@ -2,7 +2,7 @@ export { Bool } from './field/Bool';
 export { Connection } from './connection/Connection';
 export { default as Util } from './utility';
 export { Enum } from './field/Enum';
-export { Field } from './Field';
+export { Field } from './field/Field';
 export { Join } from './field/Join';
 export { Json } from './field/Json';
 export { Many } from './field/Many';
