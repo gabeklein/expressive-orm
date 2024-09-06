@@ -8,7 +8,6 @@
     "test": "jest",
     "build": "tsc"
   },
-  "bin": "lib/cli.js",
   "author": "",
   "license": "ISC",
   "dependencies": {
