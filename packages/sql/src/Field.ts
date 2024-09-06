@@ -3,7 +3,7 @@ import Query, { RelevantTable } from './query/Query';
 import { escapeString, qualify } from './utility';
 
 declare namespace Field {
-  type Type<T extends Field = Field> = typeof Field & (new (...args: any[]) => T);
+  type FieldType<T extends Field = Field> = typeof Field & (new (...args: any[]) => T);
 
   type Callback<T extends Field> = (field: T, key: string) => void;
 
@@ -51,7 +51,7 @@ class Field {
   }
 
   constructor(
-    public table: Entity.Type,
+    public table: Entity.EntityType,
     public property: string
   ){
     this.column = property;
@@ -94,7 +94,7 @@ class Field {
   }
 
   static create<T extends Field>(
-    this: Field.Type<T>, options?: Partial<T>){
+    this: Field.FieldType<T>, options?: Partial<T>){
 
     return Entity.add((parent, key) => {
       const instance = new this(parent, key);

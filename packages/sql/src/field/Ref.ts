@@ -2,15 +2,15 @@ import { Entity, Field } from '..';
 
 declare namespace Ref {
   interface Options<T extends Entity> extends Field.Options {
-    type?: Entity.Type<T>;
+    type?: Entity.EntityType<T>;
   }
 
   type Nullable<T extends Entity> = Options<T> & { nullable: true };
 }
 
-function Ref<T extends Entity>(type: Entity.Type<T>): number;
-function Ref<T extends Entity>(type: Entity.Type<T>, options: Ref.Nullable<T>): number | null | undefined;
-function Ref<T extends Entity>(type: Entity.Type<T>, options: Ref.Options<T>): number;
+function Ref<T extends Entity>(type: Entity.EntityType<T>): number;
+function Ref<T extends Entity>(type: Entity.EntityType<T>, options: Ref.Nullable<T>): number | null | undefined;
+function Ref<T extends Entity>(type: Entity.EntityType<T>, options: Ref.Options<T>): number;
 function Ref<T extends Entity>(options: Ref.Nullable<T>): number | null | undefined;
 function Ref<T extends Entity>(options: Ref.Options<T>): number;
 function Ref<T extends Entity>(arg1: any, arg2?: any): any {
@@ -25,7 +25,7 @@ class ForeignKeyColumn extends Field {
   datatype = "INT";
   placeholder = 1;
 
-  type!: Entity.Type;
+  type!: Entity.EntityType;
 
   init(options: Partial<this>){
     this.table.deps.add(this.type);

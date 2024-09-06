@@ -16,7 +16,7 @@ class SQLiteConnection extends Connection {
   connection: sqlite3.Database;
   database?: string;
 
-  constructor(opts: SQLiteConnection.Config | Entity.Type[] = {}){
+  constructor(opts: SQLiteConnection.Config | Entity.EntityType[] = {}){
     super();
 
     if(Array.isArray(opts))

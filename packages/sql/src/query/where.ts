@@ -5,7 +5,7 @@ import Query from './Query';
 
 export function whereObject<T extends Entity>(
   table: string,
-  entity: Entity.Type<T>,
+  entity: Entity.EntityType<T>,
   on?: Query.Compare<T>){
 
   const cond = [] as string[];

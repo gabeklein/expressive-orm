@@ -10,7 +10,7 @@ export declare namespace insert {
 }
 
 export function insertQuery<T extends Entity>(
-  type: Entity.Type<T>,
+  type: Entity.EntityType<T>,
   data: insert.Data<T>[]){
 
   const { fields, table } = type;

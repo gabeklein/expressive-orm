@@ -17,7 +17,7 @@ namespace TestConnection {
 class TestConnection extends SQLiteConnection {
   logs?: boolean
   
-  constructor(options: TestConnection.Options | Entity.Type[]){
+  constructor(options: TestConnection.Options | Entity.EntityType[]){
     super(options);
 
     if("logs" in options)
@@ -32,7 +32,7 @@ class TestConnection extends SQLiteConnection {
   }
 
   static prepare(
-    argument: Entity.Type[],
+    argument: Entity.EntityType[],
     effect?: TestConnection.Effect){
     
     const connect = new this(argument);

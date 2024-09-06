@@ -21,7 +21,7 @@ class MySQLConnection extends Connection {
   connection?: mysql.Connection | mysql.Pool;
   database?: string;
 
-  constructor(opts: MySQLConnection.Config | Entity.Type[] = {}){
+  constructor(opts: MySQLConnection.Config | Entity.EntityType[] = {}){
     super();
 
     const mysql = require("mysql");
@@ -42,7 +42,7 @@ class MySQLConnection extends Connection {
         : mysql.createConnection(opts);
 
     Object
-      .values<Entity.Type>(schema)
+      .values<Entity.EntityType>(schema)
       .forEach(entity => {
         entity.connection = this;
         entity.ensure()

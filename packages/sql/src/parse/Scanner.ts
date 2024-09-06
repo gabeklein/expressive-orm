@@ -2,14 +2,14 @@ import moo from "moo";
 import { Symbols, matchers } from "./grammar";
 
 declare namespace Scanner {
-  type Type = Symbols;
+  type DataType = Symbols;
 
-  type Token<T extends Type = Type> = moo.Token & { type: T };
+  type Token<T extends DataType = DataType> = moo.Token & { type: T };
 
   type Node = Token | { type: "end", value: undefined };
 
   type Matcher<R = any> = {
-    [P in Type]?: (token: Token) => R;
+    [P in DataType]?: (token: Token) => R;
   }
 }
 
@@ -102,7 +102,7 @@ class Scanner {
     return next as Scanner.Node;
   }
 
-  maybe(type: Scanner.Type | Scanner.Type[], advance?: boolean){
+  maybe(type: Scanner.DataType | Scanner.DataType[], advance?: boolean){
     this.skip();
 
     const next = this.look();
@@ -117,7 +117,7 @@ class Scanner {
   }
 
   assert(
-    type: Scanner.Type | Scanner.Type[],
+    type: Scanner.DataType | Scanner.DataType[],
     value?: string | string[],
     fatal?: boolean){
 
@@ -132,9 +132,9 @@ class Scanner {
     throw this.error(`Token ${type} has value \`${got}\`, expected \`${value}\``, fatal);
   }
 
-  expect<T extends Scanner.Type>(expect: T | T[], fatal?: true): string;
-  expect<T extends Scanner.Type>(expect: T | T[], required?: boolean): string | undefined;
-  expect(filter: Scanner.Type | Scanner.Type[], required?: boolean){
+  expect<T extends Scanner.DataType>(expect: T | T[], fatal?: true): string;
+  expect<T extends Scanner.DataType>(expect: T | T[], required?: boolean): string | undefined;
+  expect(filter: Scanner.DataType | Scanner.DataType[], required?: boolean){
     this.skip();
 
     const token = this.look();
@@ -146,7 +146,7 @@ class Scanner {
       throw this.unexpected(required);
   }
 
-  skip(types?: Scanner.Type[] | true){
+  skip(types?: Scanner.DataType[] | true){
     let lookAhead;
 
     if(typeof types !== "object")

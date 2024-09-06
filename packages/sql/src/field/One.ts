@@ -7,17 +7,17 @@ import { decapitalize, qualify, sql } from '../utility';
 
 declare namespace One {
   interface Options<T extends Entity> extends Field.Options {
-    type?: Entity.Type<T>;
+    type?: Entity.EntityType<T>;
   }
 
   type Nullable<T extends Entity> = Options<T> & { nullable: true };
 }
 
-function One<T extends Entity>(type: Entity.Type<T>): T;
-function One<T extends Entity>(type: Entity.Type<T>, options: One.Nullable<T>): T | null | undefined;
-function One<T extends Entity>(type: Entity.Type<T>, options: One.Options<T>): T;
-function One<T extends Entity>(type: Entity.Type<T>, column: string, nullable: true): string | null | undefined;
-function One<T extends Entity>(type: Entity.Type<T>, column: string, nullable?: boolean): string;
+function One<T extends Entity>(type: Entity.EntityType<T>): T;
+function One<T extends Entity>(type: Entity.EntityType<T>, options: One.Nullable<T>): T | null | undefined;
+function One<T extends Entity>(type: Entity.EntityType<T>, options: One.Options<T>): T;
+function One<T extends Entity>(type: Entity.EntityType<T>, column: string, nullable: true): string | null | undefined;
+function One<T extends Entity>(type: Entity.EntityType<T>, column: string, nullable?: boolean): string;
 function One<T extends Entity>(options: One.Nullable<T>): T | null | undefined;
 function One<T extends Entity>(options: One.Options<T>): T;
 function One<T extends Entity>(arg1: any, arg2?: any, arg3?: any): any {
@@ -34,7 +34,7 @@ function One<T extends Entity>(arg1: any, arg2?: any, arg3?: any): any {
 }
 
 class OneToManyRelation extends Field {
-  type!: Entity.Type;
+  type!: Entity.EntityType;
   datatype = "INT";
 
   init(options: Partial<this>){

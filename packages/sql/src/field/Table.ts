@@ -7,8 +7,8 @@ namespace Table {
   }
 }
 
-function Table(name: string, opts?: Table.Options): Entity.Type;
-function Table(opts: Table.Options): Entity.Type;
+function Table(name: string, opts?: Table.Options): Entity.EntityType;
+function Table(opts: Table.Options): Entity.EntityType;
 function Table(arg1: string | Table.Options, arg2?: Table.Options){
   return Entity.add(parent => {
     if(typeof arg1 == "string"){

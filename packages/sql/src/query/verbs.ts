@@ -17,10 +17,10 @@ export function queryVerbs<T>(query: Query<T>): Query.Ops {
     has(from){
       return findQuery(query, from, true);
     },
-    deletes(...from: Query.Type<any>[]){
+    deletes(...from: Query.EntityOfType<any>[]){
       deleteQuery(query, from);
     },
-    updates(from: Query.Type<any>, update: Query.Update<any>){
+    updates(from: Query.EntityOfType<any>, update: Query.Update<any>){
       updateQuery(query, from, update);
     }
   }
@@ -45,7 +45,7 @@ function findQuery<T>(
 
 function deleteQuery(
   query: Query<any>,
-  from: Query.Type<any>[]){
+  from: Query.EntityOfType<any>[]){
 
   const targets = new Set<Query.Table>();
 
@@ -64,7 +64,7 @@ function deleteQuery(
 
 function updateQuery(
   query: Query<any>,
-  from: Query.Type<any>,
+  from: Query.EntityOfType<any>,
   update: Query.Update<any>){
 
   const meta = RelevantTable.get(from);
