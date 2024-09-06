@@ -1,8 +1,8 @@
-import { escapeId } from 'mysql';
+import { escapeId } from 'sqlstring';
 
-import { Type } from '../Type';
 import { Field } from '../Field';
 import { Query } from '../query/Query';
+import { Type } from '../Type';
 import { decapitalize, qualify, sql } from '../utility';
 
 declare namespace One {
