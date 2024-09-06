@@ -2,18 +2,10 @@
 	"name": "expressive-mvc",
 	"license": "MIT",
 	"private": true,
-	"workspaces": [
-		"packages/*"
-	],
-	"scripts": {
-		"test": "lerna run test",
-		"clean": "find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +"
-	},
 	"devDependencies": {
 		"@types/jest": "^27.4.1",
 		"@types/node": "^15.12.4",
 		"jest": "^27.5.1",
-		"lerna": "^6.5.1",
 		"ts-jest": "^27.0.3",
 		"tslib": "^2.3.0",
 		"typescript": "^4.9.5"
