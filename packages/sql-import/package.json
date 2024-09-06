@@ -1,0 +1,13 @@
+{
+  "name": "@expressive/sql-import",
+  "version": "0.0.1",
+  "description": "Import tool for Expressive SQL",
+  "private": true,
+  "module": "src",
+  "dependencies": {
+    "moo": "^0.5.2"
+  },
+  "devDependencies": {
+    "@types/moo": "^0.5.5"
+  }
+}

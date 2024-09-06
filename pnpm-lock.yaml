@@ -35,6 +35,9 @@ importers:
       '@expressive/sql':
         specifier: ^0.0.1
         version: link:../sql
+      '@expressive/sql-import':
+        specifier: ^0.0.1
+        version: link:../sql-import
     devDependencies:
       '@types/mysql':
         specifier: ^2.15.21
@@ -48,19 +51,10 @@ importers:
       '@expressive/estree':
         specifier: ^0.1.2
         version: 0.1.2
-      astring:
-        specifier: ^1.8.3
-        version: 1.9.0
-      moo:
-        specifier: ^0.5.2
-        version: 0.5.2
     devDependencies:
       '@types/jest':
         specifier: ^27.5.2
         version: 27.5.2
-      '@types/moo':
-        specifier: ^0.5.5
-        version: 0.5.9
       '@types/node':
         specifier: ^18.6.4
         version: 18.19.50
@@ -82,6 +76,16 @@ importers:
       typescript:
         specifier: ^4.7.4
         version: 4.9.5
+
+  packages/sql-import:
+    dependencies:
+      moo:
+        specifier: ^0.5.2
+        version: 0.5.2
+    devDependencies:
+      '@types/moo':
+        specifier: ^0.5.5
+        version: 0.5.9
 
   packages/sqlite:
     dependencies:
@@ -987,11 +991,6 @@ packages:
   /argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
     dev: true
-
-  /astring@1.9.0:
-    resolution: {integrity: sha512-LElXdjswlqjWrPpJFg1Fx4wpkOCxj1TDHlSV4PlaRxHGWko024xICaa97ZkMfs6DRKlCguiAI+rbXv5GWwXIkg==}
-    hasBin: true
-    dev: false
 
   /asynckit@0.4.0:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}

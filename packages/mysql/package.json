@@ -4,7 +4,6 @@
   "description": "MySQL Adapter for Expressive SQL",
   "license": "ISC",
   "main": "lib",
-  "bin": "lib/cli.js",
   "scripts": {
     "watch": "jest --watchAll",
     "test": "jest",
@@ -12,7 +11,8 @@
   },
   "dependencies": {
     "@expressive/estree": "^0.1.2",
-    "@expressive/sql": "^0.0.1"
+    "@expressive/sql": "^0.0.1",
+    "@expressive/sql-import": "^0.0.1"
   },
   "devDependencies": {
     "@types/mysql": "^2.15.21",

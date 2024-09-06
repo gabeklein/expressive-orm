@@ -1,3 +1,5 @@
+import * as moo from "moo";
+
 export type Symbols = 
   | "space"
   | "comment"

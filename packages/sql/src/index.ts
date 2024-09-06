@@ -10,7 +10,6 @@ export { Num } from './field/Num';
 export { One } from './field/One';
 export { Query } from './query/Query';
 export { Ref } from './field/Ref';
-export { Scanner } from './parse/Scanner';
 export { Schema } from './connection/Schema';
 export { Str } from './field/Str';
 export { Table } from './field/Table';
