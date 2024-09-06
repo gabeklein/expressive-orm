@@ -9,6 +9,11 @@ import { whereFunction, whereObject } from './where';
 export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
 
+interface Instruction {
+  (skip?: true): void;
+  (modify: (where: string) => string): void;
+}
+
 declare namespace Query {
   namespace Join {
     type Mode = "left" | "right" | "inner" | "full";
@@ -98,11 +103,8 @@ declare namespace Query {
   type Output<T> = T extends void ? number : T;
 
   type Mode = "select" | "update" | "delete";
-}
 
-interface Instruction {
-  (skip?: true): void;
-  (modify: (where: string) => string): void;
+  type OnTable<T extends Type> = string[] | Query.Compare<T> | Query.Join.Function
 }
 
 class Query<T = void> {
@@ -233,18 +235,14 @@ class Query<T = void> {
       });
     }
 
-    root.splice(
-      root.indexOf(cond),
-      where.length,
-      apply
-    );
+    root.splice(root.indexOf(cond), where.length, apply);
 
     return apply
   }
 
-  table<T extends Type>(entity: Type.EntityType<T>, join: "left" | "full", on?: string[] | Query.Compare<T> | Query.Join.Function): Partial<Query.EntityOfType<T>>;
-  table<T extends Type>(entity: Type.EntityType<T>, join?: Query.Join.Mode, on?: string[] | Query.Compare<T> | Query.Join.Function): Query.EntityOfType<T>;
-  table<T extends Type>(entity: Type.EntityType<T>, join?: Query.Join.Mode, on?: string[] | Query.Compare<T> | Query.Join.Function){
+  table<T extends Type>(entity: Type.EntityType<T>, join: "left" | "full", on?: Query.OnTable<T>): Partial<Query.EntityOfType<T>>;
+  table<T extends Type>(entity: Type.EntityType<T>, join?: Query.Join.Mode, on?: Query.OnTable<T>): Query.EntityOfType<T>;
+  table<T extends Type>(entity: Type.EntityType<T>, join?: Query.Join.Mode, on?: Query.OnTable<T>){
     const { tables } = this;
     let { schema, table } = entity.ensure();
     let alias: string | undefined;
@@ -256,10 +254,10 @@ class Query<T = void> {
 
     const proxy = {} as any;
     const metadata: Query.Table = {
+      name: table,
       alias,
       entity,
-      join,
-      name: table
+      join
     };
 
     if(tables.length){
@@ -269,11 +267,12 @@ class Query<T = void> {
       if(!join)
         metadata.join = "inner";
 
-      metadata.on = 
-        Array.isArray(on) ? on :
-        typeof on == "function"
-          ? whereFunction(this, on)
-          : whereObject(table, entity, on);
+      if(typeof on == "function")
+        on = whereFunction(this, on);
+      else if(!Array.isArray(on))
+        on = whereObject(table, entity, on);
+
+      metadata.on = on;
     }
     else {
       this.main = entity;

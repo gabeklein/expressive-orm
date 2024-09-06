@@ -49,7 +49,7 @@ function entityClass(
   const { name } = table;
   const properties: t.Class.Property[] = [];
   const identifier = idealCase(name);
-  const explicit = name !== identifier ? name : undefined;
+  const explicit = name === identifier ? undefined : name;
   const schema = specifySchema ? table.schema : undefined;
 
   if(explicit || schema){

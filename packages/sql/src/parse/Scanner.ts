@@ -230,9 +230,7 @@ class Scanner {
 }
 
 function match(a: string | string[], b: string){
-  return Array.isArray(a)
-    ? a.includes(b)
-    : a === b;
+  return Array.isArray(a) ? a.includes(b) : a === b;
 }
 
 export { Scanner }
