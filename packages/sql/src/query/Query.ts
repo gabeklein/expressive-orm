@@ -1,7 +1,7 @@
 import { Connection } from '../connection/Connection';
-import { Type } from '../Type';
 import { Field } from '../field/Field';
-import { qualify } from '../utility';
+import { Type } from '../Type';
+import { escapeString, qualify } from '../utility';
 import { generate } from './generate';
 import { queryVerbs, Verbs } from './verbs';
 import { whereFunction, whereObject } from './where';
@@ -61,7 +61,7 @@ declare namespace Query {
 
   interface Assert {
     <T extends Type>(entity: EntityOfType<T>): { has(values: Compare<T>): void };
-    <T>(field: T): Field.Assertions<T>;
+    <T>(field: T): Field.Assert<T>;
 
     any(...where: Instruction[]): Instruction;
     all(...where: Instruction[]): Instruction;
@@ -136,12 +136,13 @@ class Query<T = void> {
     }
 
     const verbs = queryVerbs(this);
-
-    return Object.assign(where, verbs, {
+    const assert = {
       any: this.group.bind(this, "OR"),
       all: this.group.bind(this, "AND"),
       sort: (a: Field, b: "asc" | "desc") => this.order.push([a, b])
-    })
+    }
+
+    return Object.assign(where, verbs, assert)
   }
 
   toString(): string {
@@ -276,6 +277,14 @@ class Query<T = void> {
   }
 
   assert(op: string, left: Field, right: any){
+    if(!(right instanceof Field)){
+      if(left.set)
+        right = left.set(right);
+
+      if(typeof right == "string")
+        right = escapeString(right);
+    }
+
     const apply: Instruction = (arg) => {
       let entry = `${left} ${op} ${right}`;
 

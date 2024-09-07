@@ -1,6 +1,6 @@
-import { Type } from '../Type';
 import { Query, RelevantTable } from '../query/Query';
-import { escapeString, qualify } from '../utility';
+import { Type } from '../Type';
+import { qualify } from '../utility';
 
 declare namespace Field {
   type FieldType<T extends Field = Field> = typeof Field & (new (...args: any[]) => T);
@@ -24,7 +24,7 @@ declare namespace Field {
     (modify: (where: string) => string): void;
   }
 
-  interface Assertions<T> {
+  interface Assert<T> {
     is(equalTo: T): Instruction;
     not(equalTo: T): Instruction;
     greater(than: T): Instruction;
@@ -57,32 +57,18 @@ class Field {
     this.column = property;
   }
 
-  where(query: Query<any>): Field.Assertions<any> {
+  where(query: Query<unknown>): Field.Assert<any> {
     return {
-      is: this.assert(query, "="),
-      not: this.assert(query, "<>"),
-      greater: this.assert(query, ">"),
-      less: this.assert(query, "<"),
+      is: val => query.assert("=", this, val),
+      not: val => query.assert("<>", this, val),
+      greater: val => query.assert(">", this, val),
+      less: val => query.assert("<", this, val),
     }
   }
 
   toString(){
     const { alias, name } = RelevantTable.get(this)!;
     return qualify(alias || name, this.column);
-  }
-
-  assert(query: Query, op: string){
-    return (value: any) => {
-      if(!(value instanceof Field)){
-        if(this.set)
-          value = this.set(value);
-
-        if(typeof value == "string")
-          value = escapeString(value);
-      }
-
-      return query.assert(op, this, value);
-    }
   }
 
   init(options?: Partial<this>){
