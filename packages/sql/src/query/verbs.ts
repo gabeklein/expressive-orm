@@ -1,11 +1,30 @@
 import { Field } from '../field/Field';
+import { Type } from '../Type';
 import { Query, RelevantTable } from './Query';
 
-export function queryVerbs<T>(query: Query<T>): Query.Ops {
+type From<T> = T | (() => T);
+
+export interface Verbs {
+  get<T>(select: From<T>): Query.Execute<T[]>;
+
+  get<T>(limit: number, select: From<T>): Query.Execute<T[]>;
+
+  one<T>(select: From<T>, orFail: true): Query.Execute<T>;
+  one<T>(select: From<T>, orFail?: boolean): Query.Execute<T | undefined>;
+
+  has<T>(select: From<T>): Query.Execute<T>;
+
+  deletes(...entries: Query.EntityOfType<any>[]): void;
+  updates<T extends Type>(entry: Query.EntityOfType<T>, values: Query.Update<T>): void;
+}
+
+export function queryVerbs<T>(query: Query<T>): Verbs {
   return {
     get(a1: any, a2?: any){
-      if(!a2)
-        a2 = a1, a1 = undefined;
+      if(!a2){
+        a2 = a1;
+        a1 = undefined;
+      }
   
       const parse = selectQuery(query, a2, a1);
 

@@ -3,7 +3,7 @@ import { Type } from '../Type';
 import { Field } from '../field/Field';
 import { qualify } from '../utility';
 import { generate } from './generate';
-import { queryVerbs } from './verbs';
+import { queryVerbs, Verbs } from './verbs';
 import { whereFunction, whereObject } from './where';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
@@ -59,25 +59,6 @@ declare namespace Query {
     [K in Type.Field<T>]?: Exclude<T[K], undefined>;
   }
 
-  interface Ops {
-    get<T>(select: () => T): Execute<T[]>;
-    get<T>(select: T): Execute<T[]>;
-
-    get<T>(limit: number, select: () => T): Execute<T[]>;
-    get<T>(limit: number, select: T): Execute<T[]>;
-
-    one<T>(select: () => T, orFail: true): Execute<T>;
-    one<T>(select: T, orFail: true): Execute<T>;
-    one<T>(select: () => T, orFail?: boolean): Execute<T | undefined>;
-    one<T>(select: T, orFail?: boolean): Execute<T | undefined>;
-
-    has<T>(select: () => T): Execute<T>;
-    has<T>(select: T): Execute<T>;
-
-    deletes(...entries: Query.EntityOfType<any>[]): void;
-    updates<T extends Type>(entry: Query.EntityOfType<T>, values: Query.Update<T>): void;
-  }
-
   interface Assert {
     <T extends Type>(entity: EntityOfType<T>): { has(values: Compare<T>): void };
     <T>(field: T): Field.Assertions<T>;
@@ -87,7 +68,7 @@ declare namespace Query {
     sort(value: any, as: "asc" | "desc"): void;
   }
 
-  interface Where extends Ops, Assert {
+  interface Where extends Verbs, Assert {
     <T extends Type>(entity: Type.EntityType<T>): EntityOfType<T>;
     <T extends Type>(entity: Type.EntityType<T>, join: "left" | "outer", on?: Compare<T> | Join.Function): Partial<EntityOfType<T>>;
     <T extends Type>(entity: Type.EntityType<T>, join: Join.Mode, on?: Compare<T> | Join.Function): EntityOfType<T>;
