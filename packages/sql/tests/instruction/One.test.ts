@@ -1,4 +1,4 @@
-import { Type, Str, Num, One, Query } from '../../src';
+import { Num, One, Query, Str, Type } from '../../src';
 
 class A extends Type {
   b = One(B);

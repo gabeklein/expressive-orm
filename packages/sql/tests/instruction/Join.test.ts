@@ -1,4 +1,4 @@
-import { Type, Join, Num, Query, Str } from '../../src';
+import { Join, Num, Query, Str, Type } from '../../src';
 
 class Foo extends Type {
   color = Str();
