@@ -37,7 +37,7 @@ declare namespace Query {
   interface Table {
     entity: Type.EntityType;
     name: string;
-    join?: Query.Join.Mode;
+    join?: Join.Mode;
     alias?: string;
     on?: string[];
   }
@@ -89,22 +89,22 @@ declare namespace Query {
 
   interface Where extends Ops, Assert {
     <T extends Type>(entity: Type.EntityType<T>): EntityOfType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, join: "left" | "outer", on?: Compare<T> | Query.Join.Function): Partial<EntityOfType<T>>;
-    <T extends Type>(entity: Type.EntityType<T>, join: Join.Mode, on?: Compare<T> | Query.Join.Function): EntityOfType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T> | Query.Join.Function): EntityOfType<T>;
+    <T extends Type>(entity: Type.EntityType<T>, join: "left" | "outer", on?: Compare<T> | Join.Function): Partial<EntityOfType<T>>;
+    <T extends Type>(entity: Type.EntityType<T>, join: Join.Mode, on?: Compare<T> | Join.Function): EntityOfType<T>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T> | Join.Function): EntityOfType<T>;
   }
 
   type Function<R> = (where: Query.Where) => Execute<R> | void;
 
   type Select<R> =
-    | ((where: Query.Where) => () => R)
-    | ((where: Query.Where) => R)
+    | ((where: Where) => () => R)
+    | ((where: Where) => R)
 
   type Output<T> = T extends void ? number : T;
 
   type Mode = "select" | "update" | "delete";
 
-  type OnTable<T extends Type> = string[] | Query.Compare<T> | Query.Join.Function
+  type OnTable<T extends Type> = string[] | Query.Compare<T> | Join.Function
 }
 
 class Query<T = void> {
