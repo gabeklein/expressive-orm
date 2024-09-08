@@ -73,9 +73,7 @@ declare namespace Query {
 
   type Function<R> = (where: Query.Where) => Execute<R> | void;
 
-  type Select<R> =
-    | ((where: Where) => () => R)
-    | ((where: Where) => R)
+  type Select<R> = ((where: Where) => R | (() => R))
 
   type Output<T> = T extends void ? number : T;
 
