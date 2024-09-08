@@ -15,23 +15,23 @@ interface Instruction {
 }
 
 declare namespace Query {
+  interface Expect<T> {
+    is(equalTo: T | undefined): void;
+    not(equalTo: T | undefined): void;
+    greater(than: T | undefined): void;
+    less(than: T | undefined): void;
+  } 
+
   namespace Join {
     type Mode = "left" | "right" | "inner" | "full";
 
-    type Where = <T>(field: T) => Assertions<T>;
+    type Where = <T>(field: T) => Expect<T>;
 
     type Function = (on: Where) => void;
 
     type Object<T extends Type> = {
       [K in Type.Field<T>]?: T[K];
     }
-
-    interface Assertions<T> {
-      is(equalTo: T | undefined): void;
-      not(equalTo: T | undefined): void;
-      greater(than: T | undefined): void;
-      less(than: T | undefined): void;
-    } 
   }
 
   interface Table {
@@ -61,10 +61,11 @@ declare namespace Query {
 
   interface Assert {
     <T extends Type>(entity: EntityOfType<T>): { has(values: Compare<T>): void };
-    <T>(field: T): Field.Assert<T>;
+    <T>(field: T): Query.Expect<T>;
 
     any(...where: Instruction[]): Instruction;
     all(...where: Instruction[]): Instruction;
+
     sort(value: any, as: "asc" | "desc"): void;
   }
 
@@ -120,19 +121,19 @@ class Query<T = void> {
   }
 
   private prepare(): Query.Where {
-    const where = (
-      target: any, a2?: any, a3?: {}): any => {
-  
-      if(typeof a2 !== "string")
-        a3 = a2, a2 = "inner";
+    const where = (target: any, a2?: any, a3?: {}): any => {
+      if(typeof a2 !== "string"){
+        a3 = a2;
+        a2 = "inner";
+      }
 
-      return (
-        typeof target == "function" ?
-          this.table(target, a2, a3) :
-        target instanceof Field ?
-          target.where(this) :
-          this.compare(target)
-      )
+      if(target instanceof Field)
+        return target.where(this);
+
+      if(typeof target == "function")
+        return this.table(target, a2, a3);
+
+      return this.compare(target);
     }
 
     const verbs = queryVerbs(this);
