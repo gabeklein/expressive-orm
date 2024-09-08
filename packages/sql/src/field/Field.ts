@@ -50,15 +50,6 @@ class Field {
     this.column = property;
   }
 
-  where(query: Query<unknown>): Query.Expect<any> {
-    return {
-      is: val => query.assert("=", this, val),
-      not: val => query.assert("<>", this, val),
-      over: val => query.assert(">", this, val),
-      under: val => query.assert("<", this, val),
-    }
-  }
-
   toString(){
     const { alias, name } = RelevantTable.get(this)!;
     return qualify(alias || name, this.column);

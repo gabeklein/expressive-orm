@@ -121,7 +121,12 @@ class Query<T = void> {
       }
 
       if(target instanceof Field)
-        return target.where(this);
+        return <Query.Expect<T>> {
+          is: val => this.assert("=", target, val),
+          not: val => this.assert("<>", target, val),
+          over: val => this.assert(">", target, val),
+          under: val => this.assert("<", target, val),
+        }
 
       if(typeof target == "function")
         return this.table(target, a2, a3);
