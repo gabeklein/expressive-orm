@@ -29,7 +29,7 @@ export function whereObject<T extends Type>(
 
 export function whereFunction(
   query: Query<any>,
-  where: Query.Join.Function){
+  join: Query.Join.Function){
 
   const cond = [] as string[];
   const add = (op: string, left: Field, right: any) => {
@@ -37,7 +37,7 @@ export function whereFunction(
   }
 
   query.pending.unshift(() => {
-    where(field => {
+    join(field => {
       if(field instanceof Field)
         return {
           is: add.bind(null, "=", field),
