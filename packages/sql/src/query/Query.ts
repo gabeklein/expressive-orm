@@ -9,7 +9,7 @@ import { whereFunction, whereObject } from './where';
 export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
 
-interface Instruction {
+export interface Instruction {
   (skip?: true): void;
   (modify: (where: string) => string): void;
 }
@@ -66,9 +66,6 @@ declare namespace Query {
     <T extends Type>(entity: Type.EntityType<T>, on: Compare<T> | Join.Function): EntityOfType<T>;
     <T extends Type>(entity: EntityOfType<T>): { has(values: Compare<T>): void };
     <T>(field: T): Query.Expect<T>;
-
-    any(...where: Instruction[]): Instruction;
-    all(...where: Instruction[]): Instruction;
   }
 
   type Function<R> = (where: Query.Where) => Execute<R> | void;
@@ -79,7 +76,7 @@ declare namespace Query {
 
   type Mode = "select" | "update" | "delete";
 
-  type OnTable<T extends Type> = string[] | Query.Compare<T> | Join.Function
+  type JoinOn<T extends Type> = string[] | Query.Compare<T> | Join.Function;
 }
 
 class Query<T = void> {
@@ -88,7 +85,7 @@ class Query<T = void> {
   wheres = [] as string[];
   order = [] as [Field, "asc" | "desc"][];
 
-  where = this.prepare();
+  where: Query.Where;
   connection?: Connection;
   main?: Type.EntityType;
 
@@ -103,7 +100,12 @@ class Query<T = void> {
   limit?: number;
 
   constructor(from?: Query.Function<T>){
-    this.where = this.prepare();
+    const verbs = queryVerbs(this);
+    const where = (target: any, a2?: any, a3?: {}) => {
+      return this.use(target, a2, a3) as any;
+    }
+
+    this.where = Object.assign(where, verbs);
     
     if(from){
       const exec = from(this.where);
@@ -113,46 +115,36 @@ class Query<T = void> {
     }
   }
 
-  private prepare(): Query.Where {
-    const where = (target: any, a2?: any, a3?: {}): any => {
+  private use(target: any, a2?: any, a3?: {}){
+    if(target instanceof Field)
+      return <Query.Expect<T>> {
+        is: val => this.assert("=", target, val),
+        not: val => this.assert("<>", target, val),
+        over: val => this.assert(">", target, val),
+        under: val => this.assert("<", target, val),
+      }
+
+    if(typeof target == "function"){
       if(typeof a2 !== "string"){
         a3 = a2;
         a2 = "inner";
       }
 
-      if(target instanceof Field)
-        return <Query.Expect<T>> {
-          is: val => this.assert("=", target, val),
-          not: val => this.assert("<>", target, val),
-          over: val => this.assert(">", target, val),
-          under: val => this.assert("<", target, val),
-        }
+      return this.table(target, a2, a3);
+    }
 
-      if(typeof target == "function")
-        return this.table(target, a2, a3);
+    const info = RelevantTable.get(target);
 
-      const info = RelevantTable.get(target);
+    if(!info)
+      throw new Error(`Cannot create assertions for ${target}. Must be a field or full entity.`);
 
-      if(!info)
-        throw new Error(`Cannot create assertions for ${target}. Must be a field or full entity.`);
-
-      return {
-        has: (values: {}) => {
-          this.wheres.push(
-            ...whereObject(info.name, info.entity, values)
-          )
-        }
+    return {
+      has: (values: {}) => {
+        this.wheres.push(
+          ...whereObject(info.name, info.entity, values)
+        )
       }
     }
-
-    const verbs = queryVerbs(this);
-    const assert = {
-      any: this.group.bind(this, "OR"),
-      all: this.group.bind(this, "AND"),
-      sort: (a: Field, b: "asc" | "desc") => this.order.push([a, b])
-    }
-
-    return Object.assign(where, verbs, assert)
   }
 
   toString(): string {
@@ -217,9 +209,9 @@ class Query<T = void> {
     return apply
   }
 
-  table<T extends Type>(entity: Type.EntityType<T>, join: "left" | "full", on?: Query.OnTable<T>): Partial<Query.EntityOfType<T>>;
-  table<T extends Type>(entity: Type.EntityType<T>, join?: Query.Join.Mode, on?: Query.OnTable<T>): Query.EntityOfType<T>;
-  table<T extends Type>(entity: Type.EntityType<T>, join?: Query.Join.Mode, on?: Query.OnTable<T>){
+  table<T extends Type>(entity: Type.EntityType<T>, join: "left" | "full", on?: Query.JoinOn<T>): Partial<Query.EntityOfType<T>>;
+  table<T extends Type>(entity: Type.EntityType<T>, join?: Query.Join.Mode, on?: Query.JoinOn<T>): Query.EntityOfType<T>;
+  table<T extends Type>(entity: Type.EntityType<T>, join?: Query.Join.Mode, on?: Query.JoinOn<T>){
     const { tables } = this;
     let { schema, table } = entity.ensure();
     let alias: string | undefined;

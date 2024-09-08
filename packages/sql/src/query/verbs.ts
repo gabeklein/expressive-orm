@@ -1,6 +1,6 @@
 import { Field } from '../field/Field';
 import { Type } from '../Type';
-import { Query, RelevantTable } from './Query';
+import { Instruction, Query, RelevantTable } from './Query';
 
 type From<T> = T | (() => T);
 
@@ -19,6 +19,10 @@ export interface Verbs {
   updates<T extends Type>(entry: Query.EntityOfType<T>, values: Query.Update<T>): void;
 
   sort(value: any, as: "asc" | "desc"): void;
+
+  any(...where: Instruction[]): Instruction;
+
+  all(...where: Instruction[]): Instruction;
 }
 
 export function queryVerbs<T>(query: Query<T>): Verbs {
@@ -36,17 +40,23 @@ export function queryVerbs<T>(query: Query<T>): Verbs {
     one(select, orFail){
       return findQuery(query, select, orFail);
     },
-    has(from){
-      return findQuery(query, from, true);
+    has(select){
+      return findQuery(query, select, true);
     },
     deletes(...from: Query.EntityOfType<any>[]){
-      deleteQuery(query, from);
+      return deleteQuery(query, from);
     },
     updates(from: Query.EntityOfType<any>, update: Query.Update<any>){
-      updateQuery(query, from, update);
+      return updateQuery(query, from, update);
     },
     sort(a: Field, b: "asc" | "desc"){
       return query.order.push([a, b]);
+    },
+    any(...where: Instruction[]): Instruction {
+      return query.group("OR", ...where);
+    },
+    all(...where: Instruction[]): Instruction {
+      return query.group("AND", ...where);
     }
   }
 }
