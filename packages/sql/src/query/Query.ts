@@ -59,21 +59,16 @@ declare namespace Query {
     [K in Type.Field<T>]?: Exclude<T[K], undefined>;
   }
 
-  interface Assert {
+  interface Where extends Verbs {
+    <T extends Type>(entity: Type.EntityType<T>): EntityOfType<T>;
+    <T extends Type>(entity: Type.EntityType<T>, join: "left" | "outer", on?: Compare<T> | Join.Function): Partial<EntityOfType<T>>;
+    <T extends Type>(entity: Type.EntityType<T>, join: Join.Mode, on?: Compare<T> | Join.Function): EntityOfType<T>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T> | Join.Function): EntityOfType<T>;
     <T extends Type>(entity: EntityOfType<T>): { has(values: Compare<T>): void };
     <T>(field: T): Query.Expect<T>;
 
     any(...where: Instruction[]): Instruction;
     all(...where: Instruction[]): Instruction;
-
-    sort(value: any, as: "asc" | "desc"): void;
-  }
-
-  interface Where extends Verbs, Assert {
-    <T extends Type>(entity: Type.EntityType<T>): EntityOfType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, join: "left" | "outer", on?: Compare<T> | Join.Function): Partial<EntityOfType<T>>;
-    <T extends Type>(entity: Type.EntityType<T>, join: Join.Mode, on?: Compare<T> | Join.Function): EntityOfType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T> | Join.Function): EntityOfType<T>;
   }
 
   type Function<R> = (where: Query.Where) => Execute<R> | void;

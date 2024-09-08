@@ -15,7 +15,10 @@ export interface Verbs {
   has<T>(select: From<T>): Query.Execute<T>;
 
   deletes(...entries: Query.EntityOfType<any>[]): void;
+
   updates<T extends Type>(entry: Query.EntityOfType<T>, values: Query.Update<T>): void;
+
+  sort(value: any, as: "asc" | "desc"): void;
 }
 
 export function queryVerbs<T>(query: Query<T>): Verbs {
@@ -41,6 +44,9 @@ export function queryVerbs<T>(query: Query<T>): Verbs {
     },
     updates(from: Query.EntityOfType<any>, update: Query.Update<any>){
       updateQuery(query, from, update);
+    },
+    sort(a: Field, b: "asc" | "desc"){
+      return query.order.push([a, b]);
     }
   }
 }
