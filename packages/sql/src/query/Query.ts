@@ -18,8 +18,8 @@ declare namespace Query {
   interface Expect<T> {
     is(equalTo: T | undefined): void;
     not(equalTo: T | undefined): void;
-    greater(than: T | undefined): void;
-    less(than: T | undefined): void;
+    over(than: T | undefined): void;
+    under(than: T | undefined): void;
   } 
 
   namespace Join {

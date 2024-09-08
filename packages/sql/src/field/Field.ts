@@ -54,8 +54,8 @@ class Field {
     return {
       is: val => query.assert("=", this, val),
       not: val => query.assert("<>", this, val),
-      greater: val => query.assert(">", this, val),
-      less: val => query.assert("<", this, val),
+      over: val => query.assert(">", this, val),
+      under: val => query.assert("<", this, val),
     }
   }
 
