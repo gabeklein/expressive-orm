@@ -101,7 +101,7 @@ function generateTables(tables: Query.Table[]){
   return lines.join(" ");
 }
 
-function serialize(value: any){
+export function serialize(value: any){
   switch(typeof value){
     case "undefined":
       return "default";
