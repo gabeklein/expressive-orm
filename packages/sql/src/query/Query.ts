@@ -133,7 +133,18 @@ class Query<T = void> {
       if(typeof target == "function")
         return this.table(target, a2, a3);
 
-      return this.compare(target);
+      const info = RelevantTable.get(target);
+
+      if(!info)
+        throw new Error(`Cannot create assertions for ${target}. Must be a field or full entity.`);
+
+      return {
+        has: (values: {}) => {
+          this.wheres.push(
+            ...whereObject(info.name, info.entity, values)
+          )
+        }
+      }
     }
 
     const verbs = queryVerbs(this);
@@ -182,21 +193,6 @@ class Query<T = void> {
       this.main.focus = undefined;
 
     this.pending.forEach(apply => apply());
-  }
-
-  compare(a1: any){
-    const info = RelevantTable.get(a1);
-
-    if(!info)
-      throw new Error(`Cannot create assertions for ${a1}. Must be a field or full entity.`);
-
-    return {
-      has: (values: {}) => {
-        this.wheres.push(
-          ...whereObject(info.name, info.entity, values)
-        )
-      }
-    }
   }
 
   group(keyword: "AND" | "OR", ...where: Instruction[]){
