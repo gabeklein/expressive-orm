@@ -31,24 +31,17 @@ export function whereFunction(
   query: Query<any>,
   join: Query.Join.Function){
 
-  const cond = [] as string[];
-  const add = (op: string, left: Field, right: any) => {
-    cond.push(`${left} ${op} ${right}`);
-  }
-
-  query.pending.unshift(() => {
+  const nested = query.wheres = [] as string[];
+  query.pending.push(() => {
+    const current = query.wheres;
+    query.wheres = nested;
     join(field => {
       if(field instanceof Field)
-        return {
-          is: add.bind(null, "=", field),
-          isNot: add.bind(null, "<>", field),
-          isMore: add.bind(null, ">", field),
-          isLess: add.bind(null, "<", field),
-        }
+        return field.assert(query);
       else
         throw new Error("Join assertions can only apply to fields.");
     });
-  });
-  
-  return cond;
+    query.wheres = current;
+  })
+  return nested;
 }
