@@ -22,9 +22,9 @@ it("will emit where clauses", () => {
     const test = where(Test);
 
     where(test.a).is(1);
-    where(test.b).not(2);
-    where(test.c).over(3);
-    where(test.d).under(4);
+    where(test.b).isNot(2);
+    where(test.c).isMore(3);
+    where(test.d).isLess(4);
   });
 
   expect(query).toMatchSnapshot();

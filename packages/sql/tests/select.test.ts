@@ -84,8 +84,8 @@ describe("joins", () => {
       const bar = where(Bar, { color: foo.color });
       const baz = where(Baz, "left", { rating: bar.rating });
   
-      where(foo.name).not("Danny");
-      where(bar.rating).over(50);
+      where(foo.name).isNot("Danny");
+      where(bar.rating).isMore(50);
   
       return where.get({
         fooValue: foo.name,

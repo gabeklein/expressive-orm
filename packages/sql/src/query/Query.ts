@@ -16,10 +16,10 @@ export interface Instruction {
 
 declare namespace Query {
   interface Expect<T> {
-    is(equalTo: T | undefined): void;
-    not(equalTo: T | undefined): void;
-    over(than: T | undefined): void;
-    under(than: T | undefined): void;
+    is(equalTo: T | undefined): Instruction;
+    isNot(equalTo: T | undefined): Instruction;
+    isMore(than: T | undefined): Instruction;
+    isLess(than: T | undefined): Instruction;
   } 
 
   namespace Join {
@@ -119,9 +119,9 @@ class Query<T = void> {
     if(target instanceof Field)
       return <Query.Expect<T>> {
         is: val => this.assert("=", target, val),
-        not: val => this.assert("<>", target, val),
-        over: val => this.assert(">", target, val),
-        under: val => this.assert("<", target, val),
+        isNot: val => this.assert("<>", target, val),
+        isMore: val => this.assert(">", target, val),
+        isLess: val => this.assert("<", target, val),
       }
 
     if(typeof target == "function"){

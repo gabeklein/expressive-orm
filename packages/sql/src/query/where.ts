@@ -41,9 +41,9 @@ export function whereFunction(
       if(field instanceof Field)
         return {
           is: add.bind(null, "=", field),
-          not: add.bind(null, "<>", field),
-          over: add.bind(null, ">", field),
-          under: add.bind(null, "<", field),
+          isNot: add.bind(null, "<>", field),
+          isMore: add.bind(null, ">", field),
+          isLess: add.bind(null, "<", field),
         }
       else
         throw new Error("Join assertions can only apply to fields.");

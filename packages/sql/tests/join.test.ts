@@ -22,8 +22,8 @@ it("will join using object", async () => {
     const bar = where(Bar, { color: foo.color });
     const baz = where(Baz, { rating: bar.rating });
 
-    where(foo.name).not("Danny");
-    where(bar.rating).over(50);
+    where(foo.name).isNot("Danny");
+    where(bar.rating).isMore(50);
     where(baz.color).is("blue");
   });
 
@@ -34,12 +34,12 @@ it("will join using function", async () => {
   const query = new Query(where => {
     const foo = where(Foo);
     const bar = where(Bar, on => {
-      on(bar.name).not(foo.name);
+      on(bar.name).isNot(foo.name);
       on(bar.color).is(foo.color);
     });
 
-    where(foo.name).not("Danny");
-    where(bar.rating).over(50);
+    where(foo.name).isNot("Danny");
+    where(bar.rating).isMore(50);
   });
 
   expect(query).toMatchSnapshot();
