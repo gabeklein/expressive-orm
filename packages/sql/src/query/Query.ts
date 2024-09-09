@@ -210,12 +210,7 @@ class Query<T = void> {
     }
 
     const proxy = {} as any;
-    const metadata: Query.Table = {
-      name: table,
-      alias,
-      entity,
-      join
-    };
+    const metadata: Query.Table = { name: table, alias, entity, join };
 
     if(tables.length){
       if(this.connection !== entity.connection)
@@ -225,11 +220,11 @@ class Query<T = void> {
         metadata.join = "inner";
 
       if(typeof on == "function")
-        on = whereFunction(this, on);
+        metadata.on = whereFunction(this, on);
       else if(!Array.isArray(on))
-        on = whereObject(table, entity, on);
-
-      metadata.on = on;
+        metadata.on = whereObject(table, entity, on);
+      else
+        throw new Error(`Invalid join on: ${on}`);
     }
     else {
       this.main = entity;
