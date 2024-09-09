@@ -23,6 +23,13 @@ declare namespace Field {
     (skip?: true): void;
     (modify: (where: string) => string): void;
   }
+
+  interface Assert<T> {
+    is(equalTo: T | undefined): Instruction;
+    isNot(equalTo: T | undefined): Instruction;
+    isMore(than: T | undefined): Instruction;
+    isLess(than: T | undefined): Instruction;
+  }
 }
 
 class Field {
@@ -48,6 +55,15 @@ class Field {
     public property: string
   ){
     this.column = property;
+  }
+
+  assert<T>(query: Query<any>): Field.Assert<T> {
+    return {
+      is: val => query.assert("=", this, val),
+      isNot: val => query.assert("<>", this, val),
+      isMore: val => query.assert(">", this, val),
+      isLess: val => query.assert("<", this, val),
+    }
   }
 
   toString(){

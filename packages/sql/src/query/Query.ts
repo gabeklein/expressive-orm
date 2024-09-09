@@ -14,18 +14,11 @@ export interface Instruction {
   (modify: (where: string) => string): void;
 }
 
-declare namespace Query {
-  interface Expect<T> {
-    is(equalTo: T | undefined): Instruction;
-    isNot(equalTo: T | undefined): Instruction;
-    isMore(than: T | undefined): Instruction;
-    isLess(than: T | undefined): Instruction;
-  } 
-
+declare namespace Query { 
   namespace Join {
     type Mode = "left" | "right" | "inner" | "full";
 
-    type Where = <T>(field: T) => Expect<T>;
+    type Where = <T>(field: T) => Field.Assert<T>;
 
     type Function = (on: Where) => void;
 
@@ -65,7 +58,7 @@ declare namespace Query {
     <T extends Type>(entity: Type.EntityType<T>, join: Join.Mode, on?: Compare<T> | Join.Function): EntityOfType<T>;
     <T extends Type>(entity: Type.EntityType<T>, on: Compare<T> | Join.Function): EntityOfType<T>;
     <T extends Type>(entity: EntityOfType<T>): { has(values: Compare<T>): void };
-    <T>(field: T): Query.Expect<T>;
+    <T>(field: T): Field.Assert<T>;
   }
 
   type Function<R> = (where: Query.Where) => Execute<R> | void;
@@ -117,12 +110,7 @@ class Query<T = void> {
 
   private use(target: any, a2?: any, a3?: {}){
     if(target instanceof Field)
-      return <Query.Expect<T>> {
-        is: val => this.assert("=", target, val),
-        isNot: val => this.assert("<>", target, val),
-        isMore: val => this.assert(">", target, val),
-        isLess: val => this.assert("<", target, val),
-      }
+      return target.assert(this);
 
     if(typeof target == "function"){
       if(typeof a2 !== "string"){
