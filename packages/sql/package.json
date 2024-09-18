@@ -2,7 +2,8 @@
   "name": "@expressive/sql",
   "version": "0.0.1",
   "description": "Query builder and ORM",
-  "main": "lib",
+  "main": "src",
+  "module": "src",
   "scripts": {
     "watch": "jest --watchAll",
     "test": "jest",

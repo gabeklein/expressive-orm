@@ -35,15 +35,16 @@ it("will include FROM statement where JOIN exists", () => {
   expect(query).toMatchSnapshot();
 })
 
-it("will delete from multiple", () => {
-  const query = new Query(where => {
-    const foo = where(Foo);
-    const bar = where(Bar, { color: foo.color });
+// this is only suprted in MySQL
+// it.skip("will delete from multiple", () => {
+//   const query = new Query(where => {
+//     const foo = where(Foo);
+//     const bar = where(Bar, { color: foo.color });
 
-    where(bar.value).is("Hello World!");
+//     where(bar.value).is("Hello World!");
 
-    where.deletes(foo, bar);
-  });
+//     where.deletes(foo, bar);
+//   });
 
-  expect(query).toMatchSnapshot();
-})
+//   expect(query).toMatchSnapshot();
+// })

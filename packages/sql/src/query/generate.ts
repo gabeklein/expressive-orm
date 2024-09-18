@@ -1,7 +1,10 @@
-import { qualify } from '../utility';
+import knex, { Knex } from 'knex';
 import { Query } from './Query';
 
-export function generate(query: Query<any>){
+type Engine = 'pg' | 'mysql' | 'sqlite3' | 'mssql' | 'oracledb';
+
+export function generate(from: Query<any>, engine: Engine = 'mysql'): string {
+  const k = knex({ client: engine });
   const {
     deletes,
     limit,
@@ -10,115 +13,76 @@ export function generate(query: Query<any>){
     tables,
     updates,
     wheres
-  } = query;
+  } = from;
 
-  let sql = "";
+  let query: Knex.QueryBuilder;
 
-  if(selects){
-    if(!selects.size)
-      throw new Error("Nothing is selected by this query.");
-
-    const keys = [] as string[];
-    
+  if (selects) {
+    query = k.select();
     selects.forEach((alias, field) => {
-      let select = String(field);
-
-      if(alias)
-        select += " AS " + qualify(alias);
-
-      keys.push(select);
-    })
-
-    sql += "SELECT " + keys.join(",");
-  }
-  else if(updates){
-    const tableName = qualify(updates.table);
-    const updated = [] as string[];
-
+      const name = field.toString()
+      query.select(alias ? k.raw(`?? as ??`, [name, alias]) : name);
+    });
+  } 
+  else if (updates) {
+    query = k(updates.table);
+    const updateObj: { [key: string]: any } = {};
     updates.values.forEach((value, field) => {
-      const key = qualify(field.column);
-      const output = serialize(field.set ? field.set(value) : value);
+      updateObj[field.column] = field.set ? field.set(value) : value;
+    });
+    query.update(updateObj);
+  } 
+  else if (deletes) {
+    query = k(deletes.name);
+    query.del();
+  } 
+  else
+    throw new Error("Invalid query: no select, update, or delete specified");
 
-      updated.push(`${key} = ${output}`);
-    })
+  if (selects || tables.length > 1 || tables[0].alias){
+    const [from, ...joins] = tables;
 
-    sql += `UPDATE ${tableName} SET ${updated.join(", ")}`;
-  }
-  else if(deletes){
-    const targets = [] as string[];
+    query.from(from.name);
 
-    deletes.forEach(table => {
-      targets.push(table.alias || table.name)
-    })
+    if (from.alias)
+      query.as(from.alias);
 
-    sql += `DELETE ${targets.join(", ")}`;
-  }
+    joins.forEach(table => {
+      let { name } = table;
 
-  if(selects || tables.length > 1 || tables[0].alias)
-    sql += " " + generateTables(tables);
+      if (table.alias)
+        name = `${name} as ${table.alias}`;
 
-  if(wheres.length)
-    sql += " WHERE" + wheres.join(" AND ");
-
-  if(order.length)
-    sql += " ORDER BY" + order
-      .map(([field, dir]) => `${field} ${dir.toUpperCase()}`)
-      .join(", ");
-
-  if(typeof limit == "number")
-    sql += " " + `LIMIT ${limit}`;
-
-  return sql;
-}
-
-function generateTables(tables: Query.Table[]){
-  const [ from, ...joins ] = tables;
-  const lines = [] as string[];
-
-  let fromStatement = `FROM ${qualify(from.name)}`;
-
-  if(from.alias)
-    fromStatement += ` AS ${qualify(from.alias)}`;
-
-  lines.push(fromStatement);
-
-  for(const table of joins){
-    const { name, alias, join, on } = table;
-    let statement = `JOIN ${qualify(name)}`;
-
-    if(join && join !== "inner")
-      statement = join.toUpperCase() + " " + statement;
-
-    if(alias)
-      statement += ` AS ${qualify(alias)}`;
-
-    if(on) 
-      statement += ` ON ` + on.join(" AND ");
-
-    lines.push(statement);
+      if (table.join && table.on){
+        const on = k.raw(table.on.join(' and '))
+        switch (table.join.toLowerCase()) {
+          case 'inner':
+            query.innerJoin(name, on);
+            break;
+          case 'left':
+            query.leftJoin(name, on);
+            break;
+          case 'right':
+            query.rightJoin(name, on);
+            break;
+          case 'full':
+            query.fullOuterJoin(name, on);
+            break;
+        }
+      }
+    });
   }
 
-  return lines.join(" ");
-}
+  if (wheres.length)
+    for (const where of wheres)
+      query.whereRaw(where);
 
-export function serialize(value: any){
-  switch(typeof value){
-    case "undefined":
-      return "default";
+  if (order && order.length)
+    for (const [field, dir] of order)
+      query.orderBy(String(field), dir);
 
-    case "object":
-      if(value === null)
-        return "NULL";
-      else
-        value = String(value);
+  if (typeof limit === "number")
+    query.limit(limit);
 
-    case "string":
-      return `"` + value.replace(`"`, `\\"`) + `"`;
-
-    case "number":
-      return String(value);
-
-    default:
-      return "???";
-  }
+  return query.toString().replace(/```/g, "`")
 }

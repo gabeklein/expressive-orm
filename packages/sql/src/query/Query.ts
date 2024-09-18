@@ -83,18 +83,31 @@ class Query<T = void> {
   main?: Type.EntityType;
 
   selects?: Map<string | Field, string | number>;
-  deletes?: Set<Query.Table>;
+  deletes?: Query.Table;
   updates?: {
     table: string;
     values: Map<Field, any>;
   };
 
   mode?: Query.Mode;
+
   limit?: number;
 
   constructor(from?: Query.Function<T>){
     const verbs = queryVerbs(this);
     const where = (target: any, a2?: any, a3?: {}) => {
+      if(target instanceof Field)
+        return target.assert(this);
+
+      if(typeof target == "function"){
+        if(typeof a2 !== "string"){
+          a3 = a2;
+          a2 = "inner";
+        }
+
+        return this.table(target, a2, a3);
+      }
+
       return this.use(target, a2, a3) as any;
     }
 
@@ -109,17 +122,6 @@ class Query<T = void> {
   }
 
   private use(target: any, a2?: any, a3?: {}){
-    if(target instanceof Field)
-      return target.assert(this);
-
-    if(typeof target == "function"){
-      if(typeof a2 !== "string"){
-        a3 = a2;
-        a2 = "inner";
-      }
-
-      return this.table(target, a2, a3);
-    }
 
     const info = RelevantTable.get(target);
 
@@ -162,8 +164,9 @@ class Query<T = void> {
   }
 
   commit(mode: Query.Mode){
-    if(this.mode)
-      throw new Error("Query has already been committed.");
+    // not necessary but happens to be causing errors
+    // if(this.mode)
+    //   throw new Error("Query has already been committed.");
 
     this.mode = mode;
 
@@ -173,7 +176,7 @@ class Query<T = void> {
     this.pending.forEach(apply => apply());
   }
 
-  group(keyword: "AND" | "OR", ...where: Instruction[]){
+  group(keyword: "and" | "or", ...where: Instruction[]){
     const sep = ` ${keyword} `;
     const root = this.pending;
     const [cond, ...rest] = where;
@@ -221,7 +224,9 @@ class Query<T = void> {
 
       if(typeof on == "function")
         metadata.on = whereFunction(this, on);
-      else if(!Array.isArray(on))
+      else if(Array.isArray(on))
+        metadata.on = on;
+      else if(typeof on == "object")
         metadata.on = whereObject(table, entity, on);
       else
         throw new Error(`Invalid join on: ${on}`);

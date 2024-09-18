@@ -14,7 +14,7 @@ export interface Verbs {
 
   has<T>(select: From<T>): Query.Execute<T>;
 
-  deletes(...entries: Query.EntityOfType<any>[]): void;
+  deletes(entry: Query.EntityOfType<any>): void;
 
   updates<T extends Type>(entry: Query.EntityOfType<T>, values: Query.Update<T>): void;
 
@@ -43,7 +43,7 @@ export function queryVerbs<T>(query: Query<T>): Verbs {
     has(select){
       return findQuery(query, select, true);
     },
-    deletes(...from: Query.EntityOfType<any>[]){
+    deletes(from: Query.EntityOfType<any>){
       return deleteQuery(query, from);
     },
     updates(from: Query.EntityOfType<any>, update: Query.Update<any>){
@@ -53,10 +53,10 @@ export function queryVerbs<T>(query: Query<T>): Verbs {
       return query.order.push([a, b]);
     },
     any(...where: Instruction[]): Instruction {
-      return query.group("OR", ...where);
+      return query.group("or", ...where);
     },
     all(...where: Instruction[]): Instruction {
-      return query.group("AND", ...where);
+      return query.group("and", ...where);
     }
   }
 }
@@ -80,21 +80,15 @@ function findQuery<T>(
 
 function deleteQuery(
   query: Query<any>,
-  from: Query.EntityOfType<any>[]){
+  from: Query.EntityOfType<any>){
 
-  const targets = new Set<Query.Table>();
+  const table = RelevantTable.get(from);
 
-  from.forEach(entity => {
-    const table = RelevantTable.get(entity);
-
-    if(table)
-      return targets.add(table);
-
-    throw new Error(`Argument ${entity} is not a query entity.`);
-  });
+  if(!table)
+    throw new Error(`Argument ${from} is not a query entity.`);
 
   query.commit("delete");
-  query.deletes = targets;
+  query.deletes = table;
 }
 
 function updateQuery(

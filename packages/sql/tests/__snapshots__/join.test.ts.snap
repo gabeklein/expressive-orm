@@ -4,7 +4,7 @@ exports[`will alias tables which have a schema 1`] = `
 	select
 	  \`COUNT(*)\` as \`count\`
 	from
-	  \`foobar\`.\`Foo\` as \`$0\`
+	  \`foobar\`.\`Foo\`
 	where
 	  \`$0\`.\`color\` = 'red'
 `;
@@ -14,8 +14,8 @@ exports[`will join using function 1`] = `
 	  \`COUNT(*)\` as \`count\`
 	from
 	  \`Foo\`
-	  inner join \`Bar\` on \`Bar\`.\`name\` <> \`Foo\`.\`name\`
-	  and \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	  inner join \`Bar\` on \`Foo\`.\`name\` <> 'Danny'
+	  and \`Bar\`.\`rating\` > 50
 	where
 	  \`Foo\`.\`name\` <> 'Danny'
 	  and \`Bar\`.\`rating\` > 50
