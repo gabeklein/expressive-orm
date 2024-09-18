@@ -44,13 +44,13 @@ export function queryVerbs<T>(query: Query<T>): Verbs {
       return findQuery(query, select, true);
     },
     deletes(from: Query.EntityOfType<any>){
-      return deleteQuery(query, from);
+      deleteQuery(query, from);
     },
     updates(from: Query.EntityOfType<any>, update: Query.Update<any>){
-      return updateQuery(query, from, update);
+      updateQuery(query, from, update);
     },
     sort(a: Field, b: "asc" | "desc"){
-      return query.order.push([a, b]);
+      query.order.push([a, b]);
     },
     any(...where: Instruction[]): Instruction {
       return query.group("or", ...where);
