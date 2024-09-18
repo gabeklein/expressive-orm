@@ -2,7 +2,7 @@
 
 exports[`will assert a joined property's value 1`] = `
 	select
-	  COUNT(*) as \`count\`
+	  \`COUNT(*)\` as \`count\`
 	from
 	  \`Foo\`
 	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
@@ -12,7 +12,7 @@ exports[`will assert a joined property's value 1`] = `
 
 exports[`will emit where clauses 1`] = `
 	select
-	  COUNT(*) as \`count\`
+	  \`COUNT(*)\` as \`count\`
 	from
 	  \`Test\`
 	where
@@ -24,7 +24,7 @@ exports[`will emit where clauses 1`] = `
 
 exports[`will match values via object 1`] = `
 	select
-	  COUNT(*) as \`count\`
+	  \`COUNT(*)\` as \`count\`
 	from
 	  \`Foo\`
 	where
