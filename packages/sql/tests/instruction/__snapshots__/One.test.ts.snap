@@ -13,7 +13,7 @@ exports[`will query nested relationships 1`] = `
 
 exports[`will query via select function 1`] = `
 	select
-	  \`A\`.\`value\` as \`1\`
+	  \`A\`.\`value\` as 1
 	from
 	  \`A\`
 	  left join \`B\` on \`B\`.\`id\` = \`A\`.\`bId\`

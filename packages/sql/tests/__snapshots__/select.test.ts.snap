@@ -68,8 +68,8 @@ exports[`where.get will select a field directly 1`] = `
 
 exports[`where.get will select via map function 1`] = `
 	select
-	  \`Foo\`.\`bar\` as \`1\`,
-	  \`Foo\`.\`baz\` as \`2\`
+	  \`Foo\`.\`bar\` as 1,
+	  \`Foo\`.\`baz\` as 2
 	from
 	  \`Foo\`
 `;
