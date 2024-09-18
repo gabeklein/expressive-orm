@@ -6,6 +6,6 @@ exports[`will generate query 1`] = `
 	SET
 	  \`value\` = "new!",
 	  \`color\` = "blue"
-	WHERE
+	where
 	  \`Foo\`.\`color\` = 'red'
 `;

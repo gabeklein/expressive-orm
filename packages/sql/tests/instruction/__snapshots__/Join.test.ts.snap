@@ -1,11 +1,11 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`will integrate query on select 1`] = `
-	SELECT
-	  \`Baz\`.\`value\` AS \`baz\`,
-	  \`Foo\`.\`color\` AS \`color\`
-	FROM
+	select
+	  \`Baz\`.\`value\` as \`baz\`,
+	  \`Foo\`.\`color\` as \`color\`
+	from
 	  \`Foo\`
-	  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-	  JOIN \`Baz\` ON \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
+	  join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	  join \`Baz\` on \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
 `;

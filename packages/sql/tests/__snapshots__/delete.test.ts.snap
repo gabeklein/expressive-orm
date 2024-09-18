@@ -3,24 +3,24 @@
 exports[`will delete from multiple 1`] = `
 	DELETE Foo,
 	Bar
-	FROM
+	from
 	  \`Foo\`
-	  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-	WHERE
+	  join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	where
 	  \`Bar\`.\`value\` = 'Hello World!'
 `;
 
 exports[`will generate query 1`] = `
 	DELETE Foo
-	WHERE
+	where
 	  \`Foo\`.\`value\` = 'Hello World!'
 `;
 
-exports[`will include FROM statement where JOIN exists 1`] = `
+exports[`will include from statement where join exists 1`] = `
 	DELETE Foo
-	FROM
+	from
 	  \`Foo\`
-	  JOIN \`Bar\` ON \`Bar\`.\`color\` = \`Foo\`.\`color\`
-	WHERE
+	  join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	where
 	  \`Bar\`.\`value\` = 'Hello World!'
 `;
