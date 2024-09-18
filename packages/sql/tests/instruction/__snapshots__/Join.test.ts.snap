@@ -6,6 +6,6 @@ exports[`will integrate query on select 1`] = `
 	  \`Foo\`.\`color\` as \`color\`
 	from
 	  \`Foo\`
-	  join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
-	  join \`Baz\` on \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
+	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	  inner join \`Baz\` on \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
 `;

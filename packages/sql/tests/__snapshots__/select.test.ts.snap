@@ -15,7 +15,7 @@ exports[`joins will select joined values 1`] = `
 	  \`Baz\`.\`rating\` as \`bazRating\`
 	from
 	  \`Foo\`
-	  join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
 	  left join \`Baz\` on \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
 	where
 	  \`Foo\`.\`name\` <> 'Danny'
@@ -46,7 +46,7 @@ exports[`sort will sort by joined table 1`] = `
 	  \`Test\`.\`name\` as \`name\`
 	from
 	  \`Test\`
-	  join \`Other\` on \`Other\`.\`name\` = \`Test\`.\`name\`
+	  inner join \`Other\` on \`Other\`.\`name\` = \`Test\`.\`name\`
 	order by
 	  \`Other\`.\`rank\` asc
 `;

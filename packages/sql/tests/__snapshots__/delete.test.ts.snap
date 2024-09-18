@@ -5,7 +5,7 @@ exports[`will delete from multiple 1`] = `
 	Bar
 	from
 	  \`Foo\`
-	  join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
 	where
 	  \`Bar\`.\`value\` = 'Hello World!'
 `;
@@ -20,7 +20,7 @@ exports[`will include from statement where join exists 1`] = `
 	DELETE Foo
 	from
 	  \`Foo\`
-	  join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
 	where
 	  \`Bar\`.\`value\` = 'Hello World!'
 `;

@@ -5,7 +5,7 @@ exports[`will assert a joined property's value 1`] = `
 	  COUNT(*) as \`count\`
 	from
 	  \`Foo\`
-	  join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
 	where
 	  \`Bar\`.\`value\` = 42
 `;

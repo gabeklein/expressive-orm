@@ -14,7 +14,7 @@ exports[`will join using function 1`] = `
 	  COUNT(*) as \`count\`
 	from
 	  \`Foo\`
-	  join \`Bar\` on \`Bar\`.\`name\` <> \`Foo\`.\`name\`
+	  inner join \`Bar\` on \`Bar\`.\`name\` <> \`Foo\`.\`name\`
 	  and \`Bar\`.\`color\` = \`Foo\`.\`color\`
 	where
 	  \`Foo\`.\`name\` <> 'Danny'
@@ -26,8 +26,8 @@ exports[`will join using object 1`] = `
 	  COUNT(*) as \`count\`
 	from
 	  \`Foo\`
-	  join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
-	  join \`Baz\` on \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
+	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	  inner join \`Baz\` on \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
 	where
 	  \`Foo\`.\`name\` <> 'Danny'
 	  and \`Bar\`.\`rating\` > 50
