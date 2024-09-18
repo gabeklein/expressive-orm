@@ -1,11 +1,11 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`will generate query 1`] = `
-	UPDATE
+	update
 	  \`Foo\`
-	SET
-	  \`value\` = "new!",
-	  \`color\` = "blue"
+	set
+	  \`value\` = 'new!',
+	  \`color\` = 'blue'
 	where
 	  \`Foo\`.\`color\` = 'red'
 `;

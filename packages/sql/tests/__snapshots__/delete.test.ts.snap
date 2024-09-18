@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`will delete from multiple 1`] = `
-	DELETE Foo,
+	delete Foo,
 	Bar
 	from
 	  \`Foo\`
@@ -11,13 +11,13 @@ exports[`will delete from multiple 1`] = `
 `;
 
 exports[`will generate query 1`] = `
-	DELETE Foo
+	delete Foo
 	where
 	  \`Foo\`.\`value\` = 'Hello World!'
 `;
 
 exports[`will include from statement where join exists 1`] = `
-	DELETE Foo
+	delete Foo
 	from
 	  \`Foo\`
 	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
