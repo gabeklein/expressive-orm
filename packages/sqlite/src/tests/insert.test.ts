@@ -1,6 +1,6 @@
 import { Type, Num, Query, Str } from '@expressive/sql';
 import { TestConnection } from './database';
-import { random } from './random';
+import { random } from './helpers';
 
 class User extends Type  {
   name = Str();
