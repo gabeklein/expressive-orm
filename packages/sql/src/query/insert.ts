@@ -1,6 +1,5 @@
 import { Type } from "../Type";
 import { qualify } from "../utility";
-import { serialize } from "./generate";
 
 export declare namespace insert { 
   type Property<T> = T extends Type ? T | number : T;
@@ -49,4 +48,10 @@ export function insertQuery<T extends Type>(
   }).join(",");
 
   return `INSERT INTO ${tableName} (${insertKeys}) VALUES ${insertValues}`;
+}
+
+function serialize(value: any): any {
+  if (value === undefined) return 'default';
+  if (value === null) return null;
+  return value;
 }
