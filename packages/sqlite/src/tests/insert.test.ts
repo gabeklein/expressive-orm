@@ -8,7 +8,7 @@ class User extends Type  {
   age = Num();
 }
 
-TestConnection.prepare([ User ]);
+TestConnection.attach([ User ]);
 
 it.skip("will insert procedurally generated rows", async () => {
   const names = [

@@ -31,11 +31,11 @@ class TestConnection extends SQLiteConnection {
     return super.query(qs);
   }
 
-  static prepare(
-    argument: Type.EntityType[],
+  static attach(
+    types: Type.EntityType[],
     effect?: TestConnection.Effect){
     
-    const connect = new this(argument);
+    const connect = new this(types);
     let callback: (() => void) | undefined;
 
     beforeAll(async () => {

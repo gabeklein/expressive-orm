@@ -11,7 +11,9 @@ class Foo extends Type {
   date = Time();
 }
 
-TestConnection.prepare([ Foo ]);
+beforeAll(() => {
+  TestConnection.attach([ Foo ]);
+})
 
 it("will insert and retrieve a Date", async () => {
   const now = new Date();
