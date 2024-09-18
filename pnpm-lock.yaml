@@ -17,6 +17,9 @@ importers:
       jest:
         specifier: ^27.5.1
         version: 27.5.1
+      sql-formatter:
+        specifier: ^10.7.2
+        version: 10.7.2
       ts-jest:
         specifier: ^27.0.3
         version: 27.1.5(@babel/core@7.25.2)(@types/jest@27.5.2)(jest@27.5.1)(typescript@4.9.5)
@@ -70,9 +73,6 @@ importers:
       '@types/sqlstring':
         specifier: ^2.3.2
         version: 2.3.2
-      sql-formatter:
-        specifier: ^10.7.2
-        version: 10.7.2
       ts-jest:
         specifier: ^27.0.3
         version: 27.1.5(@babel/core@7.25.2)(@types/jest@27.5.2)(jest@27.5.1)(typescript@4.9.5)
@@ -1991,6 +1991,7 @@ packages:
 
   /isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
+    requiresBuild: true
     dev: true
 
   /istanbul-lib-coverage@3.2.2:
