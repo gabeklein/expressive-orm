@@ -282,7 +282,7 @@ class Query<T = void> {
   }
 
   static get<R>(where: Query.Select<R>){
-    return this.run(i => i.get(where(i) as R));
+    return this.run(i => i.selects(where(i) as R));
   }
 
   static one<R>(where: Query.Select<R>){

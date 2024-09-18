@@ -1,4 +1,4 @@
-import { Join, Num, Query, Str, Type } from '../../src';
+import { Join, Num, Query, Str, Type } from '../..';
 
 class Foo extends Type {
   color = Str();
@@ -26,7 +26,7 @@ it("will integrate query on select", () => {
   const query = new Query(where => {
     const foo = where(Foo);
 
-    return where.get({
+    return where.selects({
       baz: foo.bazValue,
       color: foo.color
     });

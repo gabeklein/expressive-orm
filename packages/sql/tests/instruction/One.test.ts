@@ -1,4 +1,4 @@
-import { Num, One, Query, Str, Type } from '../../src';
+import { Num, One, Query, Str, Type } from '../..';
 
 class A extends Type {
   b = One(B);
@@ -14,11 +14,21 @@ class C extends Type {
   label = Str();
 }
 
+it("will query via direct selection", () => {
+  const query = new Query(where => {
+    const a = where(A);
+
+    return where.selects(a.value);
+  });
+
+  expect(query).toMatchSnapshot();
+})
+
 it("will query via select function", () => {
   const query = new Query(where => {
     const a = where(A);
 
-    return where.get(() => a.value);
+    return where.selects(() => a.value);
   });
 
   expect(query).toMatchSnapshot();
@@ -28,7 +38,7 @@ it("will select via an object", () => {
   const query = new Query(where => {
     const a = where(A);
 
-    return where.get({
+    return where.selects({
       aValue: a.value,
       cValue: a.b.c.value
     })
@@ -44,7 +54,7 @@ it("will query nested relationships", () => {
 
     where(a.b.c.value).is(100);
     
-    return where.get(a.b.c.label);
+    return where.selects(a.b.c.label);
   })
 
   expect(query).toMatchSnapshot();

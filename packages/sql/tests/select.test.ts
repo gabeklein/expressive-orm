@@ -5,12 +5,12 @@ class Foo extends Type {
   baz = Str();
 }
 
-describe("where.get", () => {
+describe("where.selects", () => {
   it("will select via object", () => {
     const query = new Query(where => {
       const { bar, baz } = where(Foo);
   
-      return where.get({ bar, baz })
+      return where.selects({ bar, baz })
     })
   
     expect(query).toMatchSnapshot();
@@ -20,7 +20,7 @@ describe("where.get", () => {
     const query = new Query(where => {
       const foo = where(Foo);
   
-      return where.get(() => ({
+      return where.selects(() => ({
         bar: foo.bar,
         baz: foo.baz
       }));
@@ -33,7 +33,7 @@ describe("where.get", () => {
     const query = new Query(where => {
       const foo = where(Foo);
   
-      return where.get(foo.bar);
+      return where.selects(foo.bar);
     })
   
     expect(query).toMatchSnapshot();
@@ -43,7 +43,7 @@ describe("where.get", () => {
     const query = new Query(where => {
       const foo = where(Foo);
   
-      return where.get(foo);
+      return where.selects(foo);
     })
   
     expect(query).toMatchSnapshot();
@@ -87,7 +87,7 @@ describe("joins", () => {
       where(foo.name).isNot("Danny");
       where(bar.rating).isMore(50);
   
-      return where.get({
+      return where.selects({
         fooValue: foo.name,
         barValue: bar.name,
         bazRating: baz.rating
@@ -106,7 +106,7 @@ describe("joins", () => {
     const query = new Query(where => {
       const bar = where(Bar);
   
-      return where.get(bar.foo.name)
+      return where.selects(bar.foo.name)
     });
   
     expect(query).toMatchSnapshot();
@@ -124,9 +124,9 @@ describe("sort", () => {
     const query = new Query(where => {
       const test = where(Test);
   
-      where.sort(test.id, "asc");
+      where.sorts(test.id, "asc");
   
-      return where.get({
+      return where.selects({
         name: test.name
       })
     });
@@ -138,10 +138,10 @@ describe("sort", () => {
     const query = new Query(where => {
       const test = where(Test);
   
-      where.sort(test.rating, "asc");
-      where.sort(test.name, "asc");
+      where.sorts(test.rating, "asc");
+      where.sorts(test.name, "asc");
   
-      return where.get({
+      return where.selects({
         name: test.name
       })
     });
@@ -161,9 +161,9 @@ describe("sort", () => {
         name: test.name
       })
   
-      where.sort(other.rank, "asc");
+      where.sorts(other.rank, "asc");
   
-      return where.get({
+      return where.selects({
         name: test.name
       })
     });

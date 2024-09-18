@@ -5,20 +5,20 @@ import { Instruction, Query, RelevantTable } from './Query';
 type From<T> = T | (() => T);
 
 export interface Verbs {
-  get<T>(select: From<T>): Query.Execute<T[]>;
+  selects<T>(select: From<T>): Query.Execute<T[]>;
 
-  get<T>(limit: number, select: From<T>): Query.Execute<T[]>;
+  selects<T>(limit: number, select: From<T>): Query.Execute<T[]>;
+
+  deletes(entry: Query.EntityOfType<any>): void;
+
+  updates<T extends Type>(entry: Query.EntityOfType<T>, values: Query.Update<T>): void;
 
   one<T>(select: From<T>, orFail: true): Query.Execute<T>;
   one<T>(select: From<T>, orFail?: boolean): Query.Execute<T | undefined>;
 
   has<T>(select: From<T>): Query.Execute<T>;
 
-  deletes(entry: Query.EntityOfType<any>): void;
-
-  updates<T extends Type>(entry: Query.EntityOfType<T>, values: Query.Update<T>): void;
-
-  sort(value: any, as: "asc" | "desc"): void;
+  sorts(value: any, as: "asc" | "desc"): void;
 
   any(...where: Instruction[]): Instruction;
 
@@ -27,7 +27,7 @@ export interface Verbs {
 
 export function queryVerbs<T>(query: Query<T>): Verbs {
   return {
-    get(a1: any, a2?: any){
+    selects(a1: any, a2?: any){
       if(!a2){
         a2 = a1;
         a1 = undefined;
@@ -49,7 +49,7 @@ export function queryVerbs<T>(query: Query<T>): Verbs {
     updates(from: Query.EntityOfType<any>, update: Query.Update<any>){
       updateQuery(query, from, update);
     },
-    sort(a: Field, b: "asc" | "desc"){
+    sorts(a: Field, b: "asc" | "desc"){
       query.order.push([a, b]);
     },
     any(...where: Instruction[]): Instruction {

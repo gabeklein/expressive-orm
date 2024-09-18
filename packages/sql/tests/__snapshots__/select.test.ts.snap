@@ -51,37 +51,6 @@ exports[`sort will sort by joined table 1`] = `
 	  \`Other\`.\`rank\` asc
 `;
 
-exports[`where.get will select a entire entity 1`] = `
-	select
-	  \`Foo\`.\`bar\` as \`bar\`,
-	  \`Foo\`.\`baz\` as \`baz\`
-	from
-	  \`Foo\`
-`;
-
-exports[`where.get will select a field directly 1`] = `
-	select
-	  \`Foo\`.\`bar\` as \`bar\`
-	from
-	  \`Foo\`
-`;
-
-exports[`where.get will select via map function 1`] = `
-	select
-	  \`Foo\`.\`bar\` as 1,
-	  \`Foo\`.\`baz\` as 2
-	from
-	  \`Foo\`
-`;
-
-exports[`where.get will select via object 1`] = `
-	select
-	  \`Foo\`.\`bar\` as \`bar\`,
-	  \`Foo\`.\`baz\` as \`baz\`
-	from
-	  \`Foo\`
-`;
-
 exports[`where.one will limit results 1`] = `
 	select
 	  \`Foo\`.\`bar\` as \`bar\`,
@@ -90,4 +59,35 @@ exports[`where.one will limit results 1`] = `
 	  \`Foo\`
 	limit
 	  1
+`;
+
+exports[`where.selects will select a entire entity 1`] = `
+	select
+	  \`Foo\`.\`bar\` as \`bar\`,
+	  \`Foo\`.\`baz\` as \`baz\`
+	from
+	  \`Foo\`
+`;
+
+exports[`where.selects will select a field directly 1`] = `
+	select
+	  \`Foo\`.\`bar\` as \`bar\`
+	from
+	  \`Foo\`
+`;
+
+exports[`where.selects will select via map function 1`] = `
+	select
+	  \`Foo\`.\`bar\` as 1,
+	  \`Foo\`.\`baz\` as 2
+	from
+	  \`Foo\`
+`;
+
+exports[`where.selects will select via object 1`] = `
+	select
+	  \`Foo\`.\`bar\` as \`bar\`,
+	  \`Foo\`.\`baz\` as \`baz\`
+	from
+	  \`Foo\`
 `;
