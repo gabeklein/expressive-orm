@@ -15,6 +15,7 @@
     "@expressive/sql": "^0.0.1"
   },
   "devDependencies": {
-    "sqlite3": "^5.1.2"
+    "sqlite3": "^5.1.2",
+    "sql-formatter": "^10.7.2"
   }
 }

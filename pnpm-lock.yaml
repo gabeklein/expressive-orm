@@ -102,6 +102,9 @@ importers:
         specifier: ^0.0.1
         version: link:../sql
     devDependencies:
+      sql-formatter:
+        specifier: ^10.7.2
+        version: 10.7.2
       sqlite3:
         specifier: ^5.1.2
         version: 5.1.7
@@ -736,6 +739,7 @@ packages:
   /@tootallnate/once@1.1.2:
     resolution: {integrity: sha512-RbzJvlNzmRq5c3O09UipeuXno4tA1FE6ikOjxZK0tuxVv3412l64l5t1W5pj4+rJq9vpkm/kwiR07aZXnsKPxw==}
     engines: {node: '>= 6'}
+    requiresBuild: true
     dev: true
 
   /@tsconfig/node10@1.0.11:
@@ -907,6 +911,7 @@ packages:
   /agent-base@6.0.2:
     resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
     engines: {node: '>= 6.0.0'}
+    requiresBuild: true
     dependencies:
       debug: 4.3.7
     transitivePeerDependencies:
