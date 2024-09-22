@@ -13,6 +13,14 @@
       "statements": 100
     }
   },
+  "globals": {
+    "ts-jest": {
+      "tsconfig": {
+        "noUnusedLocals": false,
+        "noUnusedParameters": false
+      }
+    }
+  },
   "snapshotSerializers": [
     "./jest.config.js"
   ]

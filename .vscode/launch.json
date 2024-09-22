@@ -6,7 +6,12 @@
       "request": "launch",
       "name": "Jest Tests",
       "program": "${workspaceFolder}/node_modules/jest/bin/jest.js",
-      "args": ["--watchAll", "--runInBand", "--config=${workspaceFolder}/jest.config.json", "${input:test_suite}"],
+      "args": [
+        "${input:test_suite}",
+        "--watchAll",
+        "--runInBand", 
+        "--config=${workspaceFolder}/jest.config.json"
+      ],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
       "runtimeExecutable": "/usr/local/bin/node"
@@ -18,7 +23,7 @@
       "program": "${workspaceFolder}/node_modules/ts-node-dev/lib/bin.js",
       "console": "integratedTerminal",
       "sourceMaps": true,
-      "args": ["--transpile-only", "--clear", "src/develop"],
+      "args": ["--transpile-only", "--clear", "${relativeFile}"],
       "envFile": "${workspaceFolder}/.env",
       "env": {
         "NODE_ENV": "development"
@@ -31,10 +36,9 @@
       "program": "${workspaceFolder}/node_modules/jest/bin/jest.js",
       "args": [
         "${relativeFile}",
-        "--preset=ts-jest",
-        "--testEnvironment=node",
-        "--coveragePathIgnorePatterns=/node_modules/",
-        "--coveragePathIgnorePatterns=/src/index.ts",
+        "--watchAll",
+        "--noUnusedLocals=false",
+        "--config=${workspaceFolder}/jest.config.json",
         "--testTimeout=3600000"
       ],
       "console": "integratedTerminal",
