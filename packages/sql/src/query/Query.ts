@@ -177,33 +177,6 @@ class Query<T = void> {
     return apply
   }
 
-  // assert(op: string, left: Field, right: any){
-  //   if(!(right instanceof Field)){
-  //     if(left.set)
-  //       right = left.set(right);
-
-  //     if(typeof right == "string")
-  //       right = escapeString(right);
-  //   }
-
-  //   const apply: Instruction = (arg) => {
-  //     // TODO: use knex
-  //     let entry = `${left} ${op} ${right}`;
-
-  //     if(typeof arg === "function")
-  //       entry = arg(entry);
-
-  //     if(arg !== true)
-  //       this.wheres.push(entry);
-
-  //     return entry;
-  //   };
-
-  //   this.pending.push(apply);
-
-  //   return apply;
-  // }
-
   static run<R>(where: Query.Function<R>){
     return new Query(where).run();
   }
