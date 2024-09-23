@@ -3,8 +3,10 @@ import { Query } from './Query';
 
 type Engine = 'pg' | 'mysql' | 'sqlite3' | 'mssql' | 'oracledb';
 
-export function generate(from: Query<any>, engine: Engine | Knex = 'mysql'){
-  const k = typeof engine == "string" ? knex({ client: engine }) : engine;
+export function generate(
+  from: Query<any>,
+  engine: Engine | Knex = 'mysql'){
+
   const {
     deletes,
     limit,
@@ -15,16 +17,19 @@ export function generate(from: Query<any>, engine: Engine | Knex = 'mysql'){
     wheres
   } = from;
 
+  if(typeof engine == "string")
+    engine = knex({ client: engine, pool: { max: 0 } });
+
   let query: Knex.QueryBuilder;
 
   if (selects) {
-    query = k.select();
+    query = engine.select();
     selects.forEach((property, field) => {
       query.select(`${field} as ${property}`);
     });
   } 
   else if (updates) {
-    query = k(updates.table);
+    query = engine(updates.table);
     const updateObj: { [key: string]: any } = {};
     updates.values.forEach((value, field) => {
       updateObj[field.column] = field.set ? field.set(value) : value;
@@ -32,7 +37,7 @@ export function generate(from: Query<any>, engine: Engine | Knex = 'mysql'){
     query.update(updateObj);
   } 
   else if (deletes) {
-    query = k(deletes.name);
+    query = engine(deletes.name);
     query.del();
   } 
   else
