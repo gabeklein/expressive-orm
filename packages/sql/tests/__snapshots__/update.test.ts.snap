@@ -2,10 +2,10 @@
 
 exports[`will generate query 1`] = `
 	update
-	  \`Foo\`
+	  \`foo\`
 	set
 	  \`value\` = 'new!',
 	  \`color\` = 'blue'
 	where
-	  \`Foo\`.\`color\` = 'red'
+	  \`foo\`.\`color\` = 'red'
 `;

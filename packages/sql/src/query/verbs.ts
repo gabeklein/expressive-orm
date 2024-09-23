@@ -25,6 +25,10 @@ export interface Verbs {
   all(...where: Instruction[]): Instruction;
 }
 
+export function queryWhere(){
+
+}
+
 export function queryVerbs<T>(query: Query<T>): Verbs {
   return {
     selects(a1: any, a2?: any){
@@ -102,7 +106,7 @@ function updateQuery(
     throw new Error(`Argument ${from} is not a query entity.`);
 
   const values = new Map<Field, string>();
-  const { name: table, entity } = meta;
+  const { name: table, type: entity } = meta;
 
   Object.entries(update).forEach((entry) => {
     const [key, value] = entry;

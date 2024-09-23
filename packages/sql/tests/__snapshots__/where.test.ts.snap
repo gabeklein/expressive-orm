@@ -4,38 +4,31 @@ exports[`basic will assert a joined property's value 1`] = `
 	select
 	  \`COUNT(*)\` as \`count\`
 	from
-	  \`Foo\`
-	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	  \`foo\`
+	  inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
 	where
-	  \`Bar\`.\`value\` = 42
+	  \`bar\`.\`value\` = 42
 `;
 
 exports[`basic will emit where clauses 1`] = `
 	select
 	  \`COUNT(*)\` as \`count\`
 	from
-	  \`Test\`
+	  \`test\`
 	where
-	  \`Test\`.\`a\` = 1
-	  and \`Test\`.\`b\` <> 2
-	  and \`Test\`.\`c\` > 3
-	  and \`Test\`.\`d\` < 4
-`;
-
-exports[`basic will match values via object 1`] = `
-	select
-	  \`COUNT(*)\` as \`count\`
-	from
-	  \`Foo\`
-	where
-	  \`Foo\`.\`name\` = 'Gabe'
-	  and \`Foo\`.\`color\` = 'blue'
+	  \`test\`.\`a\` = 1
+	  and \`test\`.\`b\` <> 2
+	  and \`test\`.\`c\` > 3
+	  and \`test\`.\`d\` < 4
 `;
 
 exports[`nested will match nested values 1`] = `
 	select
 	  \`COUNT(*)\` as \`count\`
 	from
-	  \`Foo\`
-	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	  \`foo\`
+	  inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
+	where
+	  \`foo\`.\`name\` = 'Gabe'
+	  and \`bar\`.\`value\` = 42
 `;

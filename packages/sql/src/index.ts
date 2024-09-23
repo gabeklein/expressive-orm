@@ -1,5 +1,5 @@
 export { Bool } from './field/Bool';
-export { Connection } from './connection/Connection';
+export { Connection, Entities } from './connection/Connection';
 export { default as Util } from './utility';
 export { Enum } from './field/Enum';
 export { Field } from './field/Field';

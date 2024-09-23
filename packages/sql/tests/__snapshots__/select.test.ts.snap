@@ -2,92 +2,93 @@
 
 exports[`joins will select implicit joined values 1`] = `
 	select
-	  \`Foo\`.\`name\` as \`name\`
+	  \`foo\`.\`name\` as \`name\`
 	from
-	  \`Bar\`
-	  left join \`Foo\` on \`Foo\`.\`id\` = \`Bar\`.\`fooId\`
+	  \`bar\`
+	  left join \`foo\` on \`foo\`.\`id\` = \`bar\`.\`fooId\`
 `;
 
 exports[`joins will select joined values 1`] = `
 	select
-	  \`Foo\`.\`name\` as \`fooValue\`,
-	  \`Bar\`.\`name\` as \`barValue\`,
-	  \`Baz\`.\`rating\` as \`bazRating\`
+	  \`foo\`.\`name\` as \`fooValue\`,
+	  \`bar\`.\`name\` as \`barValue\`,
+	  \`baz\`.\`rating\` as \`bazRating\`
 	from
-	  \`Foo\`
-	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
-	  left join \`Baz\` on \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
+	  \`foo\`
+	  inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
+	  left join \`baz\` on \`baz\`.\`rating\` = \`bar\`.\`rating\`
 	where
-	  \`Foo\`.\`name\` <> 'Danny'
-	  and \`Bar\`.\`rating\` > 50
+	  \`foo\`.\`name\` <> 'Danny'
+	  and \`bar\`.\`rating\` > 50
 `;
 
 exports[`sort will add multiple clauses 1`] = `
 	select
-	  \`Test\`.\`name\` as \`name\`
+	  \`test\`.\`name\` as \`name\`
 	from
-	  \`Test\`
+	  \`test\`
 	order by
-	  \`Test\`.\`rating\` asc,
-	  \`Test\`.\`name\` asc
+	  \`test\`.\`rating\` asc,
+	  \`test\`.\`name\` asc
 `;
 
 exports[`sort will add order clause 1`] = `
 	select
-	  \`Test\`.\`name\` as \`name\`
+	  \`test\`.\`name\` as \`name\`
 	from
-	  \`Test\`
+	  \`test\`
 	order by
-	  \`Test\`.\`id\` asc
+	  \`test\`.\`id\` asc
 `;
 
 exports[`sort will sort by joined table 1`] = `
 	select
-	  \`Test\`.\`name\` as \`name\`
+	  \`test\`.\`name\` as \`name\`
 	from
-	  \`Test\`
-	  inner join \`Other\` on \`Other\`.\`name\` = \`Test\`.\`name\`
+	  \`test\`
+	  inner join \`other\` on \`other\`.\`name\` = \`test\`.\`name\`
 	order by
-	  \`Other\`.\`rank\` asc
+	  \`other\`.\`rank\` asc
 `;
 
 exports[`where.one will limit results 1`] = `
 	select
-	  \`Foo\`.\`bar\` as \`bar\`,
-	  \`Foo\`.\`baz\` as \`baz\`
+	  \`foo\`.\`bar\` as \`bar\`,
+	  \`foo\`.\`baz\` as \`baz\`
 	from
-	  \`Foo\`
+	  \`foo\`
 	limit
 	  1
 `;
 
 exports[`where.selects will select a entire entity 1`] = `
 	select
-	  \`Foo\`.\`bar\` as \`bar\`,
-	  \`Foo\`.\`baz\` as \`baz\`
+	  \`foo\`.\`id\` as \`id\`,
+	  \`foo\`.\`bar\` as \`bar\`,
+	  \`foo\`.\`baz\` as \`baz\`
 	from
-	  \`Foo\`
+	  \`foo\`
 `;
 
 exports[`where.selects will select a field directly 1`] = `
 	select
-	  \`Foo\`.\`bar\` as \`bar\`
+	  \`foo\`.\`bar\` as \`bar\`
 	from
-	  \`Foo\`
+	  \`foo\`
 `;
 
 exports[`where.selects will select via map function 1`] = `
 	select
-	  \`Foo\`.\`bar\` as 1,
-	  \`Foo\`.\`baz\` as 2
+	  \`foo\`.\`bar\` as \`1\`,
+	  \`foo\`.\`baz\` as \`2\`
 	from
-	  \`Foo\`
+	  \`foo\`
 `;
 
 exports[`where.selects will select via object 1`] = `
 	select
-	  \`Foo\`.\`bar\` as \`bar\`,
-	  \`Foo\`.\`baz\` as \`baz\`
+	  \`foo\`.\`bar\` as \`bar\`,
+	  \`foo\`.\`baz\` as \`baz\`
 	from
-	  \`Foo\`
+	  \`foo\`
 `;

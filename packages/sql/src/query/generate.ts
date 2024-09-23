@@ -3,8 +3,8 @@ import { Query } from './Query';
 
 type Engine = 'pg' | 'mysql' | 'sqlite3' | 'mssql' | 'oracledb';
 
-export function generate(from: Query<any>, engine: Engine = 'mysql'): string {
-  const k = knex({ client: engine });
+export function generate(from: Query<any>, engine: Engine | Knex = 'mysql'){
+  const k = typeof engine == "string" ? knex({ client: engine }) : engine;
   const {
     deletes,
     limit,
@@ -19,9 +19,8 @@ export function generate(from: Query<any>, engine: Engine = 'mysql'): string {
 
   if (selects) {
     query = k.select();
-    selects.forEach((alias, field) => {
-      const name = field.toString()
-      query.select(alias ? k.raw(`?? as ??`, [name, alias]) : name);
+    selects.forEach((property, field) => {
+      query.select(`${field} as ${property}`);
     });
   } 
   else if (updates) {
@@ -48,25 +47,30 @@ export function generate(from: Query<any>, engine: Engine = 'mysql'): string {
       query.as(from.alias);
 
     joins.forEach(table => {
+      const { on, join } = table;
       let { name } = table;
 
       if (table.alias)
         name = `${name} as ${table.alias}`;
 
-      if (table.join && table.on){
-        const on = k.raw(table.on.join(' and '))
-        switch (table.join.toLowerCase()) {
+      if (join && on){
+        const clause: Knex.JoinCallback = (table) => {
+          for(const { left, right, operator } of on)
+            table.on(String(left), operator, String(right));
+        }
+
+        switch (join.toLowerCase()) {
           case 'inner':
-            query.innerJoin(name, on);
+            query.innerJoin(name, clause);
             break;
           case 'left':
-            query.leftJoin(name, on);
+            query.leftJoin(name, clause);
             break;
           case 'right':
-            query.rightJoin(name, on);
+            query.rightJoin(name, clause);
             break;
           case 'full':
-            query.fullOuterJoin(name, on);
+            query.fullOuterJoin(name, clause);
             break;
         }
       }
@@ -74,8 +78,10 @@ export function generate(from: Query<any>, engine: Engine = 'mysql'): string {
   }
 
   if (wheres.length)
-    for (const where of wheres)
-      query.whereRaw(where);
+    for (const { left, right, operator } of wheres){
+      const value = typeof right == "number" ? right : String(right);
+      query.where(String(left), operator, value);
+    }
 
   if (order && order.length)
     for (const [field, dir] of order)
@@ -84,5 +90,5 @@ export function generate(from: Query<any>, engine: Engine = 'mysql'): string {
   if (typeof limit === "number")
     query.limit(limit);
 
-  return query.toString().replace(/```/g, "`")
+  return query
 }

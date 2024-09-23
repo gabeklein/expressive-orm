@@ -3,7 +3,7 @@ import { escapeId } from 'sqlstring';
 import { Field } from './Field';
 import { Query } from '../query/Query';
 import { Type } from '../Type';
-import { decapitalize, qualify, sql } from '../utility';
+import { decapitalize, sql } from '../utility';
 
 declare namespace One {
   interface Options<T extends Type> extends Field.Options {
@@ -40,7 +40,7 @@ class OneToManyRelation extends Field {
   init(options: Partial<this>){
     super.init(options);
 
-    const foreign = this.type.ensure();
+    const foreign = this.type.ready();
     const foreignKey = "id";
     const local = `FK_${foreign.name}${this.table.name}`;
 
@@ -59,10 +59,11 @@ class OneToManyRelation extends Field {
   proxy(query: Query){
     let { type } = this;
 
-    const fk = qualify(type.table, "id");
-    const lk = qualify(this.table.name, this.column);
+    const fk = `${type.table}.id`;
+    const lk = `${this.table.name}.${this.column}`;
 
-    const proxy = query.table(type, "left", [`${fk} = ${lk}`]);
+    // @ts-ignore
+    const proxy = query.where(type, [`${fk} = ${lk}`], "left");
 
     return () => proxy;
   }

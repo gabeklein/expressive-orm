@@ -14,6 +14,8 @@ class C extends Type {
   label = Str();
 }
 
+it.only("skip tests", () => {})
+
 it("will query via direct selection", () => {
   const query = new Query(where => {
     const a = where(A);

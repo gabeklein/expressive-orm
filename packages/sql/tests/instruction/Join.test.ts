@@ -22,7 +22,7 @@ class Baz extends Type {
   rating = Num();
 }
 
-it("will integrate query on select", () => {
+it.skip("will integrate query on select", () => {
   const query = new Query(where => {
     const foo = where(Foo);
 

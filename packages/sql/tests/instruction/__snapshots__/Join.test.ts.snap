@@ -2,10 +2,10 @@
 
 exports[`will integrate query on select 1`] = `
 	select
-	  \`Baz\`.\`value\` as \`baz\`,
-	  \`Foo\`.\`color\` as \`color\`
+	  \`baz\`.\`value\` as \`baz\`,
+	  \`foo\`.\`color\` as \`color\`
 	from
-	  \`Foo\`
-	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
-	  inner join \`Baz\` on \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
+	  \`foo\`
+	  inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
+	  inner join \`baz\` on \`baz\`.\`rating\` = \`bar\`.\`rating\`
 `;

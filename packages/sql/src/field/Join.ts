@@ -2,7 +2,7 @@ import { Field } from "./Field";
 import { Query } from "../query/Query";
 
 declare namespace Join {
-  type Function<R> = (where: Query.Where) => R | (() => R);
+  type Function<R> = (where: Query.From) => R | (() => R);
 }
 
 function Join<R>(factory: Join.Function<R>): R {

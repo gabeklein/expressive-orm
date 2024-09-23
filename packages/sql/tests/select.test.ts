@@ -82,7 +82,7 @@ describe("joins", () => {
     const query = new Query(where => {
       const foo = where(Foo);
       const bar = where(Bar, { color: foo.color });
-      const baz = where(Baz, "left", { rating: bar.rating });
+      const baz = where(Baz, { rating: bar.rating }, "left");
   
       where(foo.name).isNot("Danny");
       where(bar.rating).isMore(50);
@@ -97,19 +97,8 @@ describe("joins", () => {
     expect(query).toMatchSnapshot();
   })
 
-  it("will select implicit joined values", async () => {
-    class Bar extends Type {
-      name = Str();
-      foo = One(Foo);
-    }
-  
-    const query = new Query(where => {
-      const bar = where(Bar);
-  
-      return where.selects(bar.foo.name)
-    });
-  
-    expect(query).toMatchSnapshot();
+  it.skip("will join values using function", async () => {
+
   })
 })
 

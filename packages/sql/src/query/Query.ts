@@ -1,10 +1,10 @@
 import { Connection } from '../connection/Connection';
 import { Field } from '../field/Field';
 import { Type } from '../Type';
-import { escapeString, qualify } from '../utility';
+// import { escapeString } from '../utility';
 import { generate } from './generate';
 import { queryVerbs, Verbs } from './verbs';
-import { whereFunction, whereObject } from './where';
+import { queryWhere } from './where';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
@@ -20,19 +20,25 @@ declare namespace Query {
 
     type Where = <T>(field: T) => Field.Assert<T>;
 
-    type Function = (on: Where) => void;
+    type Function<R = void> = (on: Where) => R;
 
     type Object<T extends Type> = {
       [K in Type.Field<T>]?: T[K];
     }
   }
 
+  type Cond<T = unknown> = {
+    left: Field | T,
+    right: Field | T,
+    operator: string
+  }
+
   interface Table {
-    entity: Type.EntityType;
+    type: Type.EntityType;
     name: string;
-    join?: Join.Mode;
     alias?: string;
-    on?: string[];
+    join?: Join.Mode;
+    on?: Cond[];
   }
 
   type Execute<T> = () => Promise<T>;
@@ -52,13 +58,16 @@ declare namespace Query {
     [K in Type.Field<T>]?: Exclude<T[K], undefined>;
   }
 
-  interface Where extends Verbs {
+  interface From {
     <T extends Type>(entity: Type.EntityType<T>): EntityOfType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, join: "left" | "outer", on?: Compare<T> | Join.Function): Partial<EntityOfType<T>>;
-    <T extends Type>(entity: Type.EntityType<T>, join: Join.Mode, on?: Compare<T> | Join.Function): EntityOfType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T> | Join.Function): EntityOfType<T>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<"left" | "outer">): Partial<EntityOfType<T>>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<Join.Mode | void>): EntityOfType<T>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join: "left" | "outer"): Partial<EntityOfType<T>>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join?: Join.Mode): EntityOfType<T>;
     <T>(field: T): Field.Assert<T>;
   }
+
+  interface Where extends From, Verbs {}
 
   type Function<R> = (where: Query.Where) => Execute<R> | void;
 
@@ -74,7 +83,7 @@ declare namespace Query {
 class Query<T = void> {
   pending = [] as Instruction[];
   tables = [] as Query.Table[];
-  wheres = [] as string[];
+  wheres = [] as Query.Cond[];
   order = [] as [Field, "asc" | "desc"][];
 
   where: Query.Where;
@@ -89,28 +98,13 @@ class Query<T = void> {
   };
 
   mode?: Query.Mode;
-
   limit?: number;
 
   constructor(from?: Query.Function<T>){
     const verbs = queryVerbs(this);
-    const where = (target: any, a2?: any, a3?: {}) => {
-      if(target instanceof Field)
-        return target.assert(this);
+    const where = queryWhere(this);
 
-      if(typeof target == "function"){
-        if(typeof a2 !== "string"){
-          a3 = a2;
-          a2 = "inner";
-        }
-
-        return this.table(target, a2, a3);
-      }
-
-      throw new Error("Invalid query");
-    }
-
-    this.where = Object.assign(where, verbs);
+    this.where = Object.assign(where, verbs) as Query.Where;
     
     if(from){
       const exec = from(this.where);
@@ -120,26 +114,26 @@ class Query<T = void> {
     }
   }
 
-  toString(): string {
+  toQueryBuilder(){
     if(!this.mode){
       this.commit("select");
       this.selects = new Map([["COUNT(*)", "count"]]);
     }
 
-    return generate(this);
+    return generate(this, this.connection?.knex);
+  }
+
+  toString(){
+    return this.toQueryBuilder().toString().replace(/```/g, "`");
   }
 
   async run(): Promise<T> {
-    return this.send().then(res => res[0].count);
+    return this.toQueryBuilder().then(res => res[0].count);
   }
 
+  // redundant
   async send(){
-    const sql = this.toString();
-
-    if(!this.connection)
-      throw new Error("Query has no connection, have you setup entities?");
-
-    return this.connection.query(sql);
+    return await this.toQueryBuilder();
   }
 
   access(field: Field): any {
@@ -183,82 +177,32 @@ class Query<T = void> {
     return apply
   }
 
-  table<T extends Type>(entity: Type.EntityType<T>, join: "left" | "full", on?: Query.JoinOn<T>): Partial<Query.EntityOfType<T>>;
-  table<T extends Type>(entity: Type.EntityType<T>, join?: Query.Join.Mode, on?: Query.JoinOn<T>): Query.EntityOfType<T>;
-  table<T extends Type>(entity: Type.EntityType<T>, join?: Query.Join.Mode, on?: Query.JoinOn<T>){
-    const { tables } = this;
-    let { schema, table } = entity.ensure();
-    let alias: string | undefined;
+  // assert(op: string, left: Field, right: any){
+  //   if(!(right instanceof Field)){
+  //     if(left.set)
+  //       right = left.set(right);
 
-    if(schema){
-      table = qualify(schema, table);
-      alias = `$${tables.length}`;
-    }
+  //     if(typeof right == "string")
+  //       right = escapeString(right);
+  //   }
 
-    const proxy = {} as any;
-    const metadata: Query.Table = { name: table, alias, entity, join };
+  //   const apply: Instruction = (arg) => {
+  //     // TODO: use knex
+  //     let entry = `${left} ${op} ${right}`;
 
-    if(tables.length){
-      if(this.connection !== entity.connection)
-        throw new Error(`Joined entity ${entity} does not share an SQL connection with ${this.main}`);
-    
-      if(!join)
-        metadata.join = "inner";
+  //     if(typeof arg === "function")
+  //       entry = arg(entry);
 
-      if(typeof on == "function")
-        metadata.on = whereFunction(this, on);
-      else if(Array.isArray(on))
-        metadata.on = on;
-      else if(typeof on == "object")
-        metadata.on = whereObject(table, entity, on);
-      else
-        throw new Error(`Invalid join on: ${on}`);
-    }
-    else {
-      this.main = entity;
-      this.connection = entity.connection;
-    }
+  //     if(arg !== true)
+  //       this.wheres.push(entry);
 
-    RelevantTable.set(proxy, metadata);
-    tables.push(metadata);
+  //     return entry;
+  //   };
 
-    entity.fields.forEach((field, key) => {
-      field = Object.create(field);
+  //   this.pending.push(apply);
 
-      RelevantTable.set(field, metadata);
-      Object.defineProperty(proxy, key, {
-        get: field.proxy(this, proxy)
-      })
-    })
-
-    return proxy;
-  }
-
-  assert(op: string, left: Field, right: any){
-    if(!(right instanceof Field)){
-      if(left.set)
-        right = left.set(right);
-
-      if(typeof right == "string")
-        right = escapeString(right);
-    }
-
-    const apply: Instruction = (arg) => {
-      let entry = `${left} ${op} ${right}`;
-
-      if(typeof arg === "function")
-        entry = arg(entry);
-
-      if(arg !== true)
-        this.wheres.push(entry);
-
-      return entry;
-    };
-
-    this.pending.push(apply);
-
-    return apply;
-  }
+  //   return apply;
+  // }
 
   static run<R>(where: Query.Function<R>){
     return new Query(where).run();

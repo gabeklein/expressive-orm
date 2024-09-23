@@ -1,6 +1,5 @@
 import { Query, RelevantTable } from '../query/Query';
 import { Type } from '../Type';
-import { qualify } from '../utility';
 
 declare namespace Field {
   type FieldType<T extends Field = Field> = typeof Field & (new (...args: any[]) => T);
@@ -25,24 +24,31 @@ declare namespace Field {
   }
 
   interface Assert<T> {
-    is(equalTo: T | undefined): Instruction;
-    isNot(equalTo: T | undefined): Instruction;
-    isMore(than: T | undefined): Instruction;
-    isLess(than: T | undefined): Instruction;
+    is(equalTo: T): void;
+    isNot(equalTo: T): void;
+    isMore(than: T): void;
+    isLess(than: T): void;
   }
 }
 
 class Field {
+  column!: string;
+  datatype?: string;
+  constraint?: string;
   unique?: boolean;
   default?: any;
   nullable?: boolean;
   primary?: boolean;
   increment?: boolean;
-  column: string;
-  constraint?: string;
   placeholder: any;
 
-  datatype: string | undefined;
+  // TODO: Implement these
+  // foreign?: string;
+  // index?: string;
+  // references?: string;
+  // onDelete?: string;
+  // onUpdate?: string;
+  // onInsert?: string;
 
   set?(value: any): any;
 
@@ -57,18 +63,18 @@ class Field {
     this.column = property;
   }
 
-  assert<T>(query: Query<any>): Field.Assert<T> {
+  assert<T>(apply: (cond: Query.Cond<T>) => void): Field.Assert<T> {
     return {
-      is: val => query.assert("=", this, val),
-      isNot: val => query.assert("<>", this, val),
-      isMore: val => query.assert(">", this, val),
-      isLess: val => query.assert("<", this, val),
+      is: val => apply({ left: this, right: val, operator: "=" }),
+      isNot: val => apply({ left: this, right: val, operator: "<>" }),
+      isMore: val => apply({ left: this, right: val, operator: ">" }),
+      isLess: val => apply({ left: this, right: val, operator: "<" }),
     }
   }
 
   toString(){
     const { alias, name } = RelevantTable.get(this)!;
-    return qualify(alias || name, this.column);
+    return `${alias || name}.${this.column}`;
   }
 
   init(options?: Partial<this>){

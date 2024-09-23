@@ -2,16 +2,16 @@
 
 exports[`will generate query 1`] = `
 	delete from
-	  \`Foo\`
+	  \`foo\`
 	where
-	  \`Foo\`.\`value\` = 'Hello World!'
+	  \`foo\`.\`value\` = 'Hello World!'
 `;
 
 exports[`will include FROM statement where JOIN exists 1`] = `
-	delete \`Foo\`
+	delete \`foo\`
 	from
-	  \`Foo\`
-	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
+	  \`foo\`
+	  inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
 	where
-	  \`Bar\`.\`value\` = 'Hello World!'
+	  \`bar\`.\`value\` = 'Hello World!'
 `;

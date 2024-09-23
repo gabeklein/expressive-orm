@@ -36,6 +36,7 @@ it("will join using function", async () => {
     const bar = where(Bar, on => {
       on(bar.name).isNot(foo.name);
       on(bar.color).is(foo.color);
+      return "left";
     });
 
     where(foo.name).isNot("Danny");

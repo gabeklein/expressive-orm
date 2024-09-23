@@ -4,32 +4,32 @@ exports[`will alias tables which have a schema 1`] = `
 	select
 	  \`COUNT(*)\` as \`count\`
 	from
-	  \`foobar\`.\`Foo\`
+	  \`foo\`
 	where
-	  \`$0\`.\`color\` = 'red'
+	  \`foo\`.\`color\` = 'red'
 `;
 
 exports[`will join using function 1`] = `
 	select
 	  \`COUNT(*)\` as \`count\`
 	from
-	  \`Foo\`
-	  inner join \`Bar\` on \`Foo\`.\`name\` <> 'Danny'
-	  and \`Bar\`.\`rating\` > 50
+	  \`foo\`
+	  inner join \`bar\` on \`bar\`.\`name\` <> \`foo\`.\`name\`
+	  and \`bar\`.\`color\` = \`foo\`.\`color\`
 	where
-	  \`Foo\`.\`name\` <> 'Danny'
-	  and \`Bar\`.\`rating\` > 50
+	  \`foo\`.\`name\` <> 'Danny'
+	  and \`bar\`.\`rating\` > 50
 `;
 
 exports[`will join using object 1`] = `
 	select
 	  \`COUNT(*)\` as \`count\`
 	from
-	  \`Foo\`
-	  inner join \`Bar\` on \`Bar\`.\`color\` = \`Foo\`.\`color\`
-	  inner join \`Baz\` on \`Baz\`.\`rating\` = \`Bar\`.\`rating\`
+	  \`foo\`
+	  inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
+	  inner join \`baz\` on \`baz\`.\`rating\` = \`bar\`.\`rating\`
 	where
-	  \`Foo\`.\`name\` <> 'Danny'
-	  and \`Bar\`.\`rating\` > 50
-	  and \`Baz\`.\`color\` = 'blue'
+	  \`foo\`.\`name\` <> 'Danny'
+	  and \`bar\`.\`rating\` > 50
+	  and \`baz\`.\`color\` = 'blue'
 `;

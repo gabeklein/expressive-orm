@@ -4,7 +4,7 @@ export function bootstrap(entities: Iterable<Type.EntityType>){
   const commands = [] as string[];
   
   for(const entity of entities)
-    entity.ensure();
+    entity.ready();
 
   for(const entity of entities)
     commands.push(table(entity));

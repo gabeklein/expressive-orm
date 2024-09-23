@@ -1,6 +1,5 @@
-import { Type, Num, Query, Str } from '@expressive/sql';
-import { TestConnection } from './database';
-import { random } from './helpers';
+import { Type, Num, Str } from '@expressive/sql';
+import { random, database } from './helpers';
 
 class User extends Type  {
   name = Str();
@@ -8,9 +7,9 @@ class User extends Type  {
   age = Num();
 }
 
-TestConnection.attach([ User ]);
-
 it.skip("will insert procedurally generated rows", async () => {
+  await database([User]);
+
   const names = [
     "Gabe",
     "Justin",
@@ -19,15 +18,17 @@ it.skip("will insert procedurally generated rows", async () => {
     "Josiah"
   ];
 
-  await User.insert(names, (name) => ({
-    name,
-    age: random(20, 35),
-    email: `${name.toLowerCase()}@email.org`
-  }));
+  await User.insert(
+    names.map((name) => ({
+      name,
+      age: random(20, 35),
+      email: `${name.toLowerCase()}@email.org`
+    }))
+  );
 
-  const results = await Query.get(where => where(User))
+  // const results = await Query.get(where => where(User))
 
-  void results;
+  // void results;
 
   // const authors: any[] = [];
   // const books: any[] = [];

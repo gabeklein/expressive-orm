@@ -1,5 +1,5 @@
 import { Type } from "../Type";
-import { qualify } from "../utility";
+import { Knex } from "knex";
 
 export declare namespace insert { 
   type Property<T> = T extends Type ? T | number : T;
@@ -9,49 +9,49 @@ export declare namespace insert {
   }
 }
 
-export function insertQuery<T extends Type>(
+export function insert<T extends Type>(
   type: Type.EntityType<T>,
-  data: insert.Data<T>[]){
+  data: insert.Data<T>[] | number,
+  mapper?: (i: any) => Type.Insert<T>
+): Knex.QueryBuilder {
+  const { fields, table, connection } = type;
+  
+  if(!connection)
+    throw new Error("weird");
 
-  const { fields, table } = type;
-  const keys = new Set<string>();
+  const knex = connection!.knex;
+  
+  if(mapper)
+    data = typeof data == "number"
+      ? Array.from({ length: data }, (_, i) => mapper(i))
+      : data.map(mapper);
 
-  const entries = data.map(insert => {
-    const values = {} as { [key: string]: any };
+  else if(typeof data == "number")
+    throw new Error("Cannot insert a number without a map function!");
+
+  else if(!Array.isArray(data))
+    data = [data];
+
+  const insertData = data.map(insert => {
+    const values: Record<string, any> = {};
 
     fields.forEach((field, key) => {
       const { column } = field;
 
-      if(key in insert){
+      if (key in insert) {
         const given = insert[key as Type.Field<T>];
         const value = field.set ? field.set(given) : given;
 
-        keys.add(column); 
         values[column] = value;
       }
-    })
-    
+    });
+
     return values;
   });
 
-  const tableName = qualify(table);
-  const insertKeys = Array.from(keys)
-    .map(k => qualify(k))
-    .join(",");
+  const query = knex(table).insert(insertData);
 
-  const insertValues = entries.map(entry => {
-    const values = Array.from(keys)
-      .map(key => serialize(entry[key]))
-      .join(",");
-
-    return "(" + values + ")";
-  }).join(",");
-
-  return `INSERT INTO ${tableName} (${insertKeys}) VALUES ${insertValues}`;
-}
-
-function serialize(value: any): any {
-  if (value === undefined) return 'default';
-  if (value === null) return null;
-  return value;
+  // console.log(`Will send:\n${query.toQuery()}`);
+  
+  return query;
 }

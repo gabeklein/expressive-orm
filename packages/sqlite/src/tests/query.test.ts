@@ -1,18 +1,14 @@
-import { Type, Time, Num, Query, Str } from '@expressive/sql';
-import { TestConnection } from './database';
-import { seconds } from './helpers';
+import { Type, Time, Query, Str } from '@expressive/sql';
+import { database } from './helpers';
 
 class Foo extends Type {
-  id = Num();
   name = Str();
   date = Time();
 }
 
-beforeAll(() => {
-  TestConnection.attach([ Foo ]);
-})
-
 it("will insert and retrieve a Date", async () => {
+  await database([Foo]);
+
   const now = new Date();
 
   await Foo.insert({
@@ -28,6 +24,9 @@ it("will insert and retrieve a Date", async () => {
     return foo.date;
   });
 
+  // database has limited precision
+  now.setMilliseconds(0);
+
   expect(date).toBeInstanceOf(Date);
-  expect(seconds(now)).toBe(seconds(date!));
+  expect(date).toEqual(now);
 })

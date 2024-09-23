@@ -1,12 +1,13 @@
 import { Connection } from './connection/Connection';
 import { Field } from './field/Field';
 import { capitalize } from './generate/util';
-import { insertQuery } from './query/insert';
+import { insert } from './query/insert';
 import { Query } from './query/Query';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
 const REGISTER = new Set<Type.EntityType>();
+const CONNECTION = new Map<typeof Type, Connection>();
 const INSTRUCTION = new Map<symbol, Type.Instruction>();
 
 const describe = Object.getOwnPropertyDescriptor;
@@ -33,7 +34,7 @@ declare namespace Type {
   type Field<T extends Type> = Exclude<keyof T, "table">;
 
   type Where<T extends Type, R> =
-    (source: Query.EntityOfType<T>, query: Query.Where) => () => R;
+    (source: Query.EntityOfType<T>, query: Query.From) => () => R;
 
   type Instruction = (parent: Type.EntityType, key: string) => void;
 
@@ -47,24 +48,41 @@ declare namespace Type {
 }
 
 abstract class Type {
+  // why is this non-nullable?
   this!: Type.EntityType;
-  id?: number | string;
 
-  static table: string;
-  static schema: string;
-  static fields: Map<string, Field>;
-  static deps: Set<Type.EntityType>;
-  static connection?: Connection;
+  id: number | string = Field.create({
+    datatype: "int",
+    nullable: false,
+    increment: true,
+    primary: true
+  });
+
+  static table = "";
+  static schema = "";
+  static fields = new Map<string, Field>();
+  static deps = new Set<Type.EntityType>();
+
+  static get connection(){
+    return CONNECTION.get(this) || Connection.default || new Connection({ client: "mysql" });
+  }
+
+  static set connection(connection: Connection){
+    CONNECTION.set(this, connection);
+  }
+
   static focus?: { [key: string]: any };
 
-  static ensure<T extends Type>(this: Type.EntityType<T>){
-    if(!REGISTER.has(this)){
-      REGISTER.add(this);
+  static toString(){
+    return this.name;
+  }
 
-      this.table = this.name;
-      this.schema = "";
-      this.fields = new Map();
-      this.deps = new Set();
+  static ready<T extends Type>(this: Type.EntityType<T>){
+    if(!REGISTER.has(this)){
+      if(!this.table)
+        this.table = this.name.replace(/^[A-Z]/, m => m.toLowerCase());
+
+      REGISTER.add(this);
       
       const reference = new (this as any)();
       
@@ -101,9 +119,9 @@ abstract class Type {
     getValue: (type: Field, key: Type.Field<T>, proxy: {}) => any,
     cache?: boolean
   ){
-    const proxy = {} as any;
+    this.ready();
 
-    this.ensure();
+    const proxy = {} as any;
 
     for(const [key, type] of this.fields)
       define(proxy, key, {
@@ -134,28 +152,8 @@ abstract class Type {
     this: Type.EntityType<T>,
     data: any,
     mapper?: (i: any) => Type.Insert<T>){
-  
-    if(!this.connection)
-      throw new Error("weird");
-  
-    if(mapper)
-      data = typeof data == "number"
-        ? Array.from({ length: data }, (_, i) => mapper(i))
-        : data.map(mapper);
-  
-    else if(typeof data == "number")
-      throw new Error("Cannot insert a number without a map function!");
-
-    else if(!Array.isArray(data))
-      data = [data];
-  
-    const sql = insertQuery(this, data);
     
-    return this.connection.query(sql) as Promise<void>;
-  }
-
-  static toString(){
-    return this.name;
+    return insert(this, data, mapper);
   }
 }
 
