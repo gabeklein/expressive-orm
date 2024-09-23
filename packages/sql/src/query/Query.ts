@@ -43,7 +43,7 @@ declare namespace Query {
 
   type Execute<T> = () => Promise<T>;
 
-  type EntityOfType<T extends Type> = {
+  type FromType<T extends Type> = {
     [K in Type.Field<T>]: Exclude<T[K], null>;
   } & {
     [ENTITY]?: T
@@ -59,11 +59,11 @@ declare namespace Query {
   }
 
   interface From {
-    <T extends Type>(entity: Type.EntityType<T>): EntityOfType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<"left" | "outer">): Partial<EntityOfType<T>>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<Join.Mode | void>): EntityOfType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join: "left" | "outer"): Partial<EntityOfType<T>>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join?: Join.Mode): EntityOfType<T>;
+    <T extends Type>(entity: Type.EntityType<T>): FromType<T>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<"left" | "outer">): Partial<FromType<T>>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<Join.Mode | void>): FromType<T>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join: "left" | "outer"): Partial<FromType<T>>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join?: Join.Mode): FromType<T>;
     <T>(field: T): Field.Assert<T>;
   }
 

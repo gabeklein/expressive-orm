@@ -9,9 +9,9 @@ export interface Verbs {
 
   selects<T>(limit: number, select: From<T>): Query.Execute<T[]>;
 
-  deletes(entry: Query.EntityOfType<any>): void;
+  deletes(entry: Query.FromType<any>): void;
 
-  updates<T extends Type>(entry: Query.EntityOfType<T>, values: Query.Update<T>): void;
+  updates<T extends Type>(entry: Query.FromType<T>, values: Query.Update<T>): void;
 
   one<T>(select: From<T>, orFail: true): Query.Execute<T>;
   one<T>(select: From<T>, orFail?: boolean): Query.Execute<T | undefined>;
@@ -47,10 +47,10 @@ export function queryVerbs<T>(query: Query<T>): Verbs {
     has(select){
       return findQuery(query, select, true);
     },
-    deletes(from: Query.EntityOfType<any>){
+    deletes(from: Query.FromType<any>){
       deleteQuery(query, from);
     },
-    updates(from: Query.EntityOfType<any>, update: Query.Update<any>){
+    updates(from: Query.FromType<any>, update: Query.Update<any>){
       updateQuery(query, from, update);
     },
     sorts(a: Field, b: "asc" | "desc"){
@@ -84,7 +84,7 @@ function findQuery<T>(
 
 function deleteQuery(
   query: Query<any>,
-  from: Query.EntityOfType<any>){
+  from: Query.FromType<any>){
 
   const table = RelevantTable.get(from);
 
@@ -97,7 +97,7 @@ function deleteQuery(
 
 function updateQuery(
   query: Query<any>,
-  from: Query.EntityOfType<any>,
+  from: Query.FromType<any>,
   update: Query.Update<any>){
 
   const meta = RelevantTable.get(from);
