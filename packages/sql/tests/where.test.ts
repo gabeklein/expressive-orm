@@ -57,18 +57,19 @@ describe("basic", () => {
     expect(query).toMatchInlineSnapshot();
   })
   
-  it("will match values via object", () => {
-    const query = new Query(where => {
-      const foo = where(Foo);
+  // replace with where(foo).is({ ... })
+  // it.skip("will match values via object", () => {
+  //   const query = new Query(where => {
+  //     const foo = where(Foo);
   
-      where(foo).has({
-        name: "Gabe",
-        color: "blue"
-      })
-    });
+  //     where(foo).has({
+  //       name: "Gabe",
+  //       color: "blue"
+  //     })
+  //   });
   
-    expect(query).toMatchSnapshot();
-  })
+  //   expect(query).toMatchSnapshot();
+  // })
 })
 
 describe("nested", () => {

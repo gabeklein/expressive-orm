@@ -57,7 +57,6 @@ declare namespace Query {
     <T extends Type>(entity: Type.EntityType<T>, join: "left" | "outer", on?: Compare<T> | Join.Function): Partial<EntityOfType<T>>;
     <T extends Type>(entity: Type.EntityType<T>, join: Join.Mode, on?: Compare<T> | Join.Function): EntityOfType<T>;
     <T extends Type>(entity: Type.EntityType<T>, on: Compare<T> | Join.Function): EntityOfType<T>;
-    <T extends Type>(entity: EntityOfType<T>): { has(values: Compare<T>): void };
     <T>(field: T): Field.Assert<T>;
   }
 
@@ -108,7 +107,7 @@ class Query<T = void> {
         return this.table(target, a2, a3);
       }
 
-      return this.use(target, a2, a3) as any;
+      throw new Error("Invalid query");
     }
 
     this.where = Object.assign(where, verbs);
@@ -118,22 +117,6 @@ class Query<T = void> {
 
       if(exec)
         this.run = exec as any;
-    }
-  }
-
-  private use(target: any, a2?: any, a3?: {}){
-
-    const info = RelevantTable.get(target);
-
-    if(!info)
-      throw new Error(`Cannot create assertions for ${target}. Must be a field or full entity.`);
-
-    return {
-      has: (values: {}) => {
-        this.wheres.push(
-          ...whereObject(info.name, info.entity, values)
-        )
-      }
     }
   }
 
