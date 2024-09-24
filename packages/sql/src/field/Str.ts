@@ -64,6 +64,7 @@ function Str(
 
   return Field.create({
     ...opts,
+    accept: (x) => typeof x == "string",
     datatype: datatype.toUpperCase(),
     placeholder: ""
   });

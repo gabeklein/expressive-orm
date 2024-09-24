@@ -34,6 +34,7 @@ function Bool(options: Bool.Options | string = {}, nullable?: boolean){
     ...options,
     datatype,
     placeholder: true,
+    accept: x => typeof x == "boolean",
     get(value: any){
       return value === isTrue;
     },

@@ -28,6 +28,7 @@ function Num(options: Num.Options | string = {}, nullable?: boolean){
 
   return Field.create({
     datatype: type.toUpperCase(),
+    accept: (x) => typeof x == "number",
     placeholder: Infinity,
     nullable,
     ...options

@@ -144,17 +144,44 @@ abstract class Type {
     return proxy;
   }
 
-  static insert<T extends Type>(this: Type.EntityType<T>, data: Type.Insert<T>): Promise<void>;
+  static insert<T extends Type>(this: Type.EntityType<T>, data: Type.Insert<T> | Iterable<Type.Insert<T>>): Promise<void>;
   static insert<T extends Type>(this: Type.EntityType<T>, number: number, mapper: (index: number) => Type.Insert<T>): Promise<void>;
-  static insert<T extends Type, I>(this: Type.EntityType<T>, input: I[], mapper: (item: I) => Type.Insert<T>): Promise<void>;
-  static insert<T extends Type>(this: Type.EntityType<T>, data: Type.Insert<T>[]): Promise<void>;
+  static insert<T extends Type, I>(this: Type.EntityType<T>, input: Iterable<I>, mapper: (item: I) => Type.Insert<T>): Promise<void>;
   static insert<T extends Type>(
     this: Type.EntityType<T>,
     data: any,
-    mapper?: (i: any) => Type.Insert<T>){
+    map?: (i: any) => Type.Insert<T>){
+
+    if(typeof data == "number"){
+      if(!map)
+        throw new Error("Cannot insert a number without a map function!");
+  
+      data = Array.from({ length: data }, (_, i) => map(i));
+    }
+    else if(map)
+      data = data.map(map);
+    else if(!isIterable(data))
+      data = [data];
     
-    return insert(this, data, mapper);
+    return insert(this, Array.from(data));
   }
+
+  static get<T extends Type, R>(
+    this: Type.EntityType<T>,
+    query: Type.QueryFunction<T, R>){
+
+    return new Query(where => {
+      return query(where(this), where);
+    });
+  }
+}
+
+function isIterable(obj: unknown): obj is Iterable<unknown> {
+  type MaybeIterable = {
+    [Symbol.iterator]?: () => IterableIterator<unknown>;
+  };
+
+  return obj != null && typeof (obj as MaybeIterable)[Symbol.iterator] === 'function';
 }
 
 export { Type }

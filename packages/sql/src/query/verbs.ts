@@ -141,7 +141,8 @@ function selectQuery<R = any>(
         selects.set(output, output.column);
     
         return raw => raw.map(row => {
-          return output.get(row[output.column]);
+          const value = row[output.column];
+          return output.get ? output.get(value) : value;
         });
       }
       else if(output){
@@ -156,7 +157,7 @@ function selectQuery<R = any>(
           const values = Object.create(output as {});
       
           selects.forEach((column, field) => {
-            const value = field instanceof Field
+            const value = field instanceof Field && field.get
               ? field.get(row[column]) : field;
 
             Object.defineProperty(values, column, { value });

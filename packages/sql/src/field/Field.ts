@@ -50,11 +50,17 @@ class Field {
   // onUpdate?: string;
   // onInsert?: string;
 
+  /** Converts acceptable values to their respective database values. */
   set?(value: any): any;
 
-  get(value: any){
-    return value;
-  }
+  /** Converts database values to type of value in javascript. */
+  get?(value: any): any;
+
+  /**
+   * Determines if a value is acceptable as a value for this field.
+   * Throws specified type error if not.
+   */
+  accept?(value: any, key: string): void | boolean;
 
   constructor(
     public table: Type.EntityType,

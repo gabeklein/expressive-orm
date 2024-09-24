@@ -1,0 +1,7 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`will add index to specify error 1`] = `"Provided value for Foo.color is undefined on index [1] but column is not nullable."`;
+
+exports[`will throw for bad value 1`] = `"Provided value for Foo.color is 3 but not acceptable for type VARCHAR(255)."`;
+
+exports[`will throw for no value non-nullable 1`] = `"Provided value for Foo.color is undefined but column is not nullable."`;

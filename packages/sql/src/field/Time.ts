@@ -20,6 +20,7 @@ function Time(options?: Time.Options | string, nullable?: boolean){
     ...options,
     datatype: 'DATETIME',
     nullable,
+    accept: (value) => value instanceof Date,
     get(dt: string){
       return new global.Date(dt.replace(/[-]/g, '/') + "Z");
     },

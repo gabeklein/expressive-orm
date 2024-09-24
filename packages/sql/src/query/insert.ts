@@ -1,57 +1,50 @@
 import { Type } from "../Type";
 import { Knex } from "knex";
 
-export declare namespace insert { 
-  type Property<T> = T extends Type ? T | number : T;
-
-  type Data<T extends Type> = {
-    [K in Type.Field<T>]?: Property<T[K]>;
-  }
-}
-
 export function insert<T extends Type>(
   type: Type.EntityType<T>,
-  data: insert.Data<T>[] | number,
-  mapper?: (i: any) => Type.Insert<T>
+  data: Type.Insert<T>[]
 ): Knex.QueryBuilder {
-  const { fields, table, connection } = type;
-  
-  if(!connection)
-    throw new Error("weird");
+  const { fields, table, connection } = type.ready();
 
-  const knex = connection!.knex;
-  
-  if(mapper)
-    data = typeof data == "number"
-      ? Array.from({ length: data }, (_, i) => mapper(i))
-      : data.map(mapper);
-
-  else if(typeof data == "number")
-    throw new Error("Cannot insert a number without a map function!");
-
-  else if(!Array.isArray(data))
-    data = [data];
-
-  const insertData = data.map(insert => {
+  const insertData = data.map((insert, index) => {
     const values: Record<string, any> = {};
 
     fields.forEach((field, key) => {
-      const { column } = field;
+      const given = insert[key as Type.Field<T>];
+      const which = data.length > 1 ? ` on index [${index}]` : ""
 
-      if (key in insert) {
-        const given = insert[key as Type.Field<T>];
-        const value = field.set ? field.set(given) : given;
+      if(given == null){
+        if(field.nullable || field.default || field.primary)
+          return
 
-        values[column] = value;
+        throw new Error(
+          `Provided value for ${type}.${key} is ${given}${which} but column is not nullable.`
+        );
       }
+
+      const value = field.set ? field.set(given) : given;
+      const issue = field.accept && field.accept(value, key);
+
+      if(issue === false || typeof issue === "string"){
+        let message = `Provided value for ${type}.${key} is ${value}${which} but not acceptable for type ${field.datatype}.`;
+
+        if(issue)
+          message += ` ${issue}`;
+
+        throw new Error(message);
+      }
+
+      values[field.column] = value;
     });
 
     return values;
   });
-
-  const query = knex(table).insert(insertData);
-
-  // console.log(`Will send:\n${query.toQuery()}`);
   
-  return query;
+  if(!connection)
+    throw new Error("No connection found for type");
+
+  const { knex } = connection;
+
+  return knex(table).insert(insertData);
 }
