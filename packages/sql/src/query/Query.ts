@@ -3,7 +3,7 @@ import { Field } from '../field/Field';
 import { Type } from '../Type';
 // import { escapeString } from '../utility';
 import { generate } from './generate';
-import { queryVerbs, Verbs } from './verbs';
+import { queryVerbs, selectQuery, Verbs } from './verbs';
 import { queryWhere } from './where';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
@@ -69,7 +69,7 @@ declare namespace Query {
 
   interface Where extends From, Verbs {}
 
-  type Function<R> = (where: Query.Where) => Execute<R> | void;
+  type Function<R> = (where: Query.Where) => R | void;
 
   type Select<R> = ((where: Where) => R | (() => R))
 
@@ -89,6 +89,7 @@ class Query<T = void> {
   where: Query.Where;
   connection?: Connection;
   main?: Type.EntityType;
+  parse = (raw: unknown[]) => raw;
 
   selects?: Map<string | Field, string | number>;
   deletes?: Query.Table;
@@ -98,7 +99,6 @@ class Query<T = void> {
   };
 
   mode?: Query.Mode;
-  limit?: number;
 
   constructor(from?: Query.Function<T>){
     const verbs = queryVerbs(this);
@@ -110,30 +110,37 @@ class Query<T = void> {
       const exec = from(this.where);
 
       if(exec)
-        this.run = exec as any;
+        this.parse = selectQuery<T>(this, exec);
     }
   }
 
   toQueryBuilder(){
-    if(!this.mode){
-      this.commit("select");
-      this.selects = new Map([["COUNT(*)", "count"]]);
-    }
-
     return generate(this, this.connection?.knex);
+  }
+
+  then(resolve: (res: any) => any, reject: (err: any) => any){
+    return this.toQueryBuilder().then(this.parse).then(resolve).catch(reject);
   }
 
   toString(){
     return this.toQueryBuilder().toString().replace(/```/g, "`");
   }
 
-  async run(): Promise<T> {
-    return this.toQueryBuilder().then(res => res[0].count);
+  async run(){
+    return this.toQueryBuilder().then(this.parse) as Promise<T[]>;
   }
 
-  // redundant
-  async send(){
-    return await this.toQueryBuilder();
+  async one(orFail?: boolean){
+    const res = await this.toQueryBuilder().limit(1).then(this.parse);
+
+    if(res.length == 0 && orFail)
+      throw new Error("Query returned no results.");
+
+    return res[0] as T;
+  }
+
+  count(){
+    return this.toQueryBuilder().clearSelect().count();
   }
 
   access(field: Field): any {
@@ -141,15 +148,7 @@ class Query<T = void> {
   }
 
   commit(mode: Query.Mode){
-    // not necessary but happens to be causing errors
-    // if(this.mode)
-    //   throw new Error("Query has already been committed.");
-
     this.mode = mode;
-
-    if(this.main)
-      this.main.focus = undefined;
-
     this.pending.forEach(apply => apply());
   }
 
@@ -177,20 +176,8 @@ class Query<T = void> {
     return apply
   }
 
-  static run<R>(where: Query.Function<R>){
-    return new Query(where).run();
-  }
-
-  static get<R>(where: Query.Select<R>){
-    return this.run(i => i.selects(where(i) as R));
-  }
-
-  static one<R>(where: Query.Select<R>){
-    return this.run(i => i.one(where(i) as R));
-  }
-
-  static has<R>(where: Query.Select<R>){
-    return this.run(i => i.has(where(i) as R));
+  static one<R>(where: Query.Function<R>, orFail?: boolean){
+    return new Query(where).one(orFail);
   }
 }
 

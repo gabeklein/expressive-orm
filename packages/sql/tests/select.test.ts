@@ -1,16 +1,16 @@
-import { Num, One, Query, Str, Type } from '../src';
+import { Num, Query, Str, Type } from '../src';
 
 class Foo extends Type {
   bar = Str();
   baz = Str();
 }
 
-describe("where.selects", () => {
+describe("select", () => {
   it("will select via object", () => {
     const query = new Query(where => {
       const { bar, baz } = where(Foo);
   
-      return where.selects({ bar, baz })
+      return { bar, baz }
     })
   
     expect(query).toMatchSnapshot();
@@ -20,10 +20,10 @@ describe("where.selects", () => {
     const query = new Query(where => {
       const foo = where(Foo);
   
-      return where.selects(() => ({
+      return () => ({
         bar: foo.bar,
         baz: foo.baz
-      }));
+      })
     })
   
     expect(query).toMatchSnapshot();
@@ -33,7 +33,7 @@ describe("where.selects", () => {
     const query = new Query(where => {
       const foo = where(Foo);
   
-      return where.selects(foo.bar);
+      return foo.bar;
     })
   
     expect(query).toMatchSnapshot();
@@ -41,21 +41,7 @@ describe("where.selects", () => {
   
   it("will select a entire entity", () => {
     const query = new Query(where => {
-      const foo = where(Foo);
-  
-      return where.selects(foo);
-    })
-  
-    expect(query).toMatchSnapshot();
-  })
-})
-
-describe("where.one", () => {
-  it("will limit results", () => {
-    const query = new Query(where => {
-      const { bar, baz } = where(Foo);
-  
-      return where.one({ bar, baz })
+      return where(Foo);
     })
   
     expect(query).toMatchSnapshot();
@@ -87,19 +73,17 @@ describe("joins", () => {
       where(foo.name).isNot("Danny");
       where(bar.rating).isMore(50);
   
-      return where.selects({
+      return {
         fooValue: foo.name,
         barValue: bar.name,
         bazRating: baz.rating
-      })
+      }
     });
   
     expect(query).toMatchSnapshot();
   })
 
-  it.skip("will join values using function", async () => {
-
-  })
+  it.todo("will join values using function")
 })
 
 describe("sort", () => {
@@ -115,9 +99,9 @@ describe("sort", () => {
   
       where.sorts(test.id, "asc");
   
-      return where.selects({
+      return {
         name: test.name
-      })
+      }
     });
   
     expect(query).toMatchSnapshot();
@@ -130,9 +114,9 @@ describe("sort", () => {
       where.sorts(test.rating, "asc");
       where.sorts(test.name, "asc");
   
-      return where.selects({
+      return {
         name: test.name
-      })
+      }
     });
   
     expect(query).toMatchSnapshot();
@@ -152,9 +136,9 @@ describe("sort", () => {
   
       where.sorts(other.rank, "asc");
   
-      return where.selects({
+      return {
         name: test.name
-      })
+      }
     });
   
     expect(query).toMatchSnapshot();

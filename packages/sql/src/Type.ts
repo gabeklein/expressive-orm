@@ -45,12 +45,21 @@ declare namespace Type {
   type Insert<T extends Type> = {
     [K in Type.Field<T>]?: Insert.Property<T[K]>;
   }
+
+  type QueryFunction<T extends Type, R> =
+    (query: Query.FromType<T>, where: Query.Where) => R;
 }
 
 abstract class Type {
   // why is this non-nullable?
   this!: Type.EntityType;
 
+  /**
+   * Primary key of this entity.
+   * May be any name in the actual database, however requred to be `id` as a property name.
+   * 
+   * Setting to zero to disable this field, and not expect it to be present in the database.
+   */
   id: number | string = Field.create({
     datatype: "int",
     nullable: false,
@@ -64,7 +73,7 @@ abstract class Type {
   static deps = new Set<Type.EntityType>();
 
   static get connection(){
-    return CONNECTION.get(this) || Connection.default || new Connection({ client: "mysql" });
+    return CONNECTION.get(this) || Connection.default;
   }
 
   static set connection(connection: Connection){

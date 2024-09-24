@@ -20,7 +20,7 @@ it("will query via direct selection", () => {
   const query = new Query(where => {
     const a = where(A);
 
-    return where.selects(a.value);
+    return a.value
   });
 
   expect(query).toMatchSnapshot();
@@ -30,7 +30,7 @@ it("will query via select function", () => {
   const query = new Query(where => {
     const a = where(A);
 
-    return where.selects(() => a.value);
+    return () => a.value
   });
 
   expect(query).toMatchSnapshot();
@@ -40,10 +40,10 @@ it("will select via an object", () => {
   const query = new Query(where => {
     const a = where(A);
 
-    return where.selects({
+    return {
       aValue: a.value,
       cValue: a.b.c.value
-    })
+    }
   });
 
   expect(query).toMatchSnapshot();
@@ -56,7 +56,7 @@ it("will query nested relationships", () => {
 
     where(a.b.c.value).is(100);
     
-    return where.selects(a.b.c.label);
+    return a.b.c.label
   })
 
   expect(query).toMatchSnapshot();

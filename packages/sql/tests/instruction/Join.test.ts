@@ -26,10 +26,10 @@ it.skip("will integrate query on select", () => {
   const query = new Query(where => {
     const foo = where(Foo);
 
-    return where.selects({
+    return {
       baz: foo.bazValue,
       color: foo.color
-    });
+    }
   });
 
   expect(query).toMatchSnapshot();

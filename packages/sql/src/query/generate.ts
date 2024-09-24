@@ -4,18 +4,17 @@ import { Query } from './Query';
 type Engine = 'pg' | 'mysql' | 'sqlite3' | 'mssql' | 'oracledb';
 
 export function generate(
-  from: Query<any>,
+  using: Query<any>,
   engine: Engine | Knex = 'mysql'){
 
   const {
     deletes,
-    limit,
     order,
     selects,
     tables,
     updates,
     wheres
-  } = from;
+  } = using;
 
   if(typeof engine == "string")
     engine = knex({ client: engine, pool: { max: 0 } });
@@ -37,50 +36,49 @@ export function generate(
     query.update(updateObj);
   } 
   else if (deletes) {
-    query = engine(deletes.name);
-    query.del();
+    query = engine(deletes.name).del();
   } 
-  else
-    throw new Error("Invalid query: no select, update, or delete specified");
-
-  if (selects || tables.length > 1 || tables[0].alias){
-    const [from, ...joins] = tables;
-
-    query.from(from.name);
-
-    if (from.alias)
-      query.as(from.alias);
-
-    joins.forEach(table => {
-      const { on, join } = table;
-      let { name } = table;
-
-      if (table.alias)
-        name = `${name} as ${table.alias}`;
-
-      if (join && on){
-        const clause: Knex.JoinCallback = (table) => {
-          for(const { left, right, operator } of on)
-            table.on(String(left), operator, String(right));
-        }
-
-        switch (join.toLowerCase()) {
-          case 'inner':
-            query.innerJoin(name, clause);
-            break;
-          case 'left':
-            query.leftJoin(name, clause);
-            break;
-          case 'right':
-            query.rightJoin(name, clause);
-            break;
-          case 'full':
-            query.fullOuterJoin(name, clause);
-            break;
-        }
-      }
-    });
+  else {
+    // TDOO: Should this be replaced with star?
+    query = engine.select("COUNT(*) as count");
   }
+
+  const [from, ...joins] = tables;
+
+  query.from(from.name);
+
+  if (from.alias)
+    query.as(from.alias);
+
+  joins.forEach(table => {
+    const { on, join } = table;
+    let { name } = table;
+
+    if (table.alias)
+      name = `${name} as ${table.alias}`;
+
+    if (join && on){
+      const clause: Knex.JoinCallback = (table) => {
+        for(const { left, right, operator } of on)
+          table.on(String(left), operator, String(right));
+      }
+
+      switch (join.toLowerCase()) {
+        case 'inner':
+          query.innerJoin(name, clause);
+          break;
+        case 'left':
+          query.leftJoin(name, clause);
+          break;
+        case 'right':
+          query.rightJoin(name, clause);
+          break;
+        case 'full':
+          query.fullOuterJoin(name, clause);
+          break;
+      }
+    }
+  });
 
   if (wheres.length)
     for (const { left, right, operator } of wheres){
@@ -91,9 +89,6 @@ export function generate(
   if (order && order.length)
     for (const [field, dir] of order)
       query.orderBy(String(field), dir);
-
-  if (typeof limit === "number")
-    query.limit(limit);
 
   return query
 }

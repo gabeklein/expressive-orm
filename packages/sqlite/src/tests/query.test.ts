@@ -1,9 +1,10 @@
-import { Type, Time, Query, Str } from '@expressive/sql';
+import { Type, Time, Query, Str } from '..';
 import { database } from './helpers';
 
 class Foo extends Type {
   name = Str();
   date = Time();
+  color = Str();
 }
 
 it("will insert and retrieve a Date", async () => {
@@ -13,6 +14,7 @@ it("will insert and retrieve a Date", async () => {
 
   await Foo.insert({
     name: "foobar",
+    color: "red",
     date: now
   })
 
@@ -27,6 +29,21 @@ it("will insert and retrieve a Date", async () => {
   // database has limited precision
   now.setMilliseconds(0);
 
-  expect(date).toBeInstanceOf(Date);
-  expect(date).toEqual(now);
+  // asserts Date type is preserved also
+  expect<Date>(date).toBeInstanceOf(Date);
+  expect<Date>(date).toEqual(now);
+})
+
+it("will create count query", async () => {
+  await database([Foo]);
+
+  const query = new Query(where => {
+    const foo = where(Foo);
+
+    where(foo.color).is("red");
+  });
+
+  const qb = query.count().toString();
+
+  expect(qb).toMatchSnapshot();
 })

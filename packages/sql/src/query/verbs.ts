@@ -2,21 +2,10 @@ import { Field } from '../field/Field';
 import { Type } from '../Type';
 import { Instruction, Query, RelevantTable } from './Query';
 
-type From<T> = T | (() => T);
-
 export interface Verbs {
-  selects<T>(select: From<T>): Query.Execute<T[]>;
-
-  selects<T>(limit: number, select: From<T>): Query.Execute<T[]>;
-
   deletes(entry: Query.FromType<any>): void;
 
   updates<T extends Type>(entry: Query.FromType<T>, values: Query.Update<T>): void;
-
-  one<T>(select: From<T>, orFail: true): Query.Execute<T>;
-  one<T>(select: From<T>, orFail?: boolean): Query.Execute<T | undefined>;
-
-  has<T>(select: From<T>): Query.Execute<T>;
 
   sorts(value: any, as: "asc" | "desc"): void;
 
@@ -25,28 +14,8 @@ export interface Verbs {
   all(...where: Instruction[]): Instruction;
 }
 
-export function queryWhere(){
-
-}
-
 export function queryVerbs<T>(query: Query<T>): Verbs {
   return {
-    selects(a1: any, a2?: any){
-      if(!a2){
-        a2 = a1;
-        a1 = undefined;
-      }
-  
-      const parse = selectQuery(query, a2, a1);
-
-      return () => query.send().then(parse);
-    },
-    one(select, orFail){
-      return findQuery(query, select, orFail);
-    },
-    has(select){
-      return findQuery(query, select, true);
-    },
     deletes(from: Query.FromType<any>){
       deleteQuery(query, from);
     },
@@ -62,23 +31,6 @@ export function queryVerbs<T>(query: Query<T>): Verbs {
     all(...where: Instruction[]): Instruction {
       return query.group("and", ...where);
     }
-  }
-}
-
-function findQuery<T>(
-  query: Query<any>,
-  select: T | (() => T),
-  orFail?: boolean){
-
-  const parse = selectQuery(query, select, 1);
-
-  return async () => {
-    const raw = await query.send();
-
-    if(raw.length < 1 && orFail)
-      throw new Error("No result found.");
-
-    return parse(raw)[0];
   }
 }
 
@@ -124,16 +76,14 @@ function updateQuery(
   query.updates = { table, values };
 }
 
-function selectQuery<R = any>(
+export function selectQuery<R = any>(
   query: Query<any>,
   output: R | (() => R),
-  limit?: number
 ): (raw: any[]) => R[] {
   const selects = new Map<string | Field, string | number>();
 
   query.commit("select");
   query.selects = selects;
-  query.limit = limit;
 
   switch(typeof output){
     case "object":

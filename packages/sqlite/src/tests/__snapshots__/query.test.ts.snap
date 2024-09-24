@@ -1,0 +1,10 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`will create count query 1`] = `
+	select
+	  count(*)
+	from
+	  \`foo\`
+	where
+	  \`foo\`.\`color\` = 'red'
+`;

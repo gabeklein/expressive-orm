@@ -1,13 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`joins will select implicit joined values 1`] = `
-	select
-	  \`foo\`.\`name\` as \`name\`
-	from
-	  \`bar\`
-	  left join \`foo\` on \`foo\`.\`id\` = \`bar\`.\`fooId\`
-`;
-
 exports[`joins will select joined values 1`] = `
 	select
 	  \`foo\`.\`name\` as \`fooValue\`,
@@ -20,6 +12,38 @@ exports[`joins will select joined values 1`] = `
 	where
 	  \`foo\`.\`name\` <> 'Danny'
 	  and \`bar\`.\`rating\` > 50
+`;
+
+exports[`select will select a entire entity 1`] = `
+	select
+	  \`foo\`.\`id\` as \`id\`,
+	  \`foo\`.\`bar\` as \`bar\`,
+	  \`foo\`.\`baz\` as \`baz\`
+	from
+	  \`foo\`
+`;
+
+exports[`select will select a field directly 1`] = `
+	select
+	  \`foo\`.\`bar\` as \`bar\`
+	from
+	  \`foo\`
+`;
+
+exports[`select will select via map function 1`] = `
+	select
+	  \`foo\`.\`bar\` as \`1\`,
+	  \`foo\`.\`baz\` as \`2\`
+	from
+	  \`foo\`
+`;
+
+exports[`select will select via object 1`] = `
+	select
+	  \`foo\`.\`bar\` as \`bar\`,
+	  \`foo\`.\`baz\` as \`baz\`
+	from
+	  \`foo\`
 `;
 
 exports[`sort will add multiple clauses 1`] = `
@@ -49,46 +73,4 @@ exports[`sort will sort by joined table 1`] = `
 	  inner join \`other\` on \`other\`.\`name\` = \`test\`.\`name\`
 	order by
 	  \`other\`.\`rank\` asc
-`;
-
-exports[`where.one will limit results 1`] = `
-	select
-	  \`foo\`.\`bar\` as \`bar\`,
-	  \`foo\`.\`baz\` as \`baz\`
-	from
-	  \`foo\`
-	limit
-	  1
-`;
-
-exports[`where.selects will select a entire entity 1`] = `
-	select
-	  \`foo\`.\`id\` as \`id\`,
-	  \`foo\`.\`bar\` as \`bar\`,
-	  \`foo\`.\`baz\` as \`baz\`
-	from
-	  \`foo\`
-`;
-
-exports[`where.selects will select a field directly 1`] = `
-	select
-	  \`foo\`.\`bar\` as \`bar\`
-	from
-	  \`foo\`
-`;
-
-exports[`where.selects will select via map function 1`] = `
-	select
-	  \`foo\`.\`bar\` as \`1\`,
-	  \`foo\`.\`baz\` as \`2\`
-	from
-	  \`foo\`
-`;
-
-exports[`where.selects will select via object 1`] = `
-	select
-	  \`foo\`.\`bar\` as \`bar\`,
-	  \`foo\`.\`baz\` as \`baz\`
-	from
-	  \`foo\`
 `;

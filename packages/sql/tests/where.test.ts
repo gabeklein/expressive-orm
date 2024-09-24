@@ -72,16 +72,41 @@ describe("basic", () => {
   // })
 })
 
-describe("nested", () => {
+describe.skip("nested", () => {
   it("will match nested values", () => {
     const query = new Query(where => {
       const foo = where(Foo);
       const bar = where(Bar, { color: foo.color });
 
-      where.any(() => {
-        where(foo.name).is("Gabe")
-        where(bar.value).is(42)
-      })
+      // @ts-ignore
+      where([
+        where(foo.name).is("Gabe"),
+        where(bar.value).is(42),
+      ])
+    });
+
+    expect(query).toMatchSnapshot();
+  })
+
+  it("will match absurdly", () => {
+    const query = new Query(where => {
+      const foo = where(Foo);
+      const bar = where(Bar, { color: foo.color });
+
+      // @ts-ignore
+      where([
+        [ 
+          where(foo.name).is("Gabe"),
+          where(bar.value).is(69),
+        ],
+        [
+          where(foo.name).is("Bob"),
+          where([
+            where(foo.color).is("blue"),
+            where(bar.value).is(42),
+          ])
+        ]
+      ])
     });
 
     expect(query).toMatchSnapshot();

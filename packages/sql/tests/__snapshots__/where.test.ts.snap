@@ -30,5 +30,5 @@ exports[`nested will match nested values 1`] = `
 	  inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
 	where
 	  \`foo\`.\`name\` = 'Gabe'
-	  and \`bar\`.\`value\` = 42
+	  or \`bar\`.\`value\` = 42
 `;
