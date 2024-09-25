@@ -20,12 +20,15 @@ function Time(options?: Time.Options | string, nullable?: boolean){
     ...options,
     datatype: 'DATETIME',
     nullable,
-    accept: (value) => value instanceof Date,
-    get(dt: string){
-      return new global.Date(dt.replace(/[-]/g, '/') + "Z");
+    get(value: string){
+      return new global.Date(value.replace(/[-]/g, '/') + "Z");
     },
-    set(date: Date){
-      return date.toISOString().slice(0, 19).replace("T", " ");
+    set(value: unknown){
+      // TODO: consider using typescript differing get/set types to accept string.
+      if(!(value instanceof Date))
+        throw "Value must be a Date object."
+
+      return value.toISOString().slice(0, 19).replace("T", " ");
     }
   });
 }

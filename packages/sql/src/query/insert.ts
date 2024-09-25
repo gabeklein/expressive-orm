@@ -5,13 +5,28 @@ export function insert<T extends Type>(
   type: Type.EntityType<T>,
   data: Type.Insert<T>[]
 ): Knex.QueryBuilder {
-  const { fields, table, connection } = type.ready();
+  const { table, connection } = type.ready();
+  const insertData = sanitize(type, data);
+  
+  if(!connection)
+    throw new Error("No connection found for type");
 
-  const insertData = data.map((insert, index) => {
+  const { knex } = connection;
+
+  return knex(table).insert(insertData);
+}
+
+export function sanitize<T extends Type>(
+  type: Type.EntityType<T>,
+  data: Type.Insert<T>[]
+): Record<string, unknown>[] {
+  const { fields } = type.ready();
+
+  return data.map((insert, index) => {
     const values: Record<string, any> = {};
 
     fields.forEach((field, key) => {
-      const given = insert[key as Type.Field<T>];
+      const given = insert[key as Type.Field<T>] as unknown;
       const which = data.length > 1 ? ` on index [${index}]` : ""
 
       if(given == null){
@@ -23,28 +38,20 @@ export function insert<T extends Type>(
         );
       }
 
-      const value = field.set ? field.set(given) : given;
-      const issue = field.accept && field.accept(value, key);
-
-      if(issue === false || typeof issue === "string"){
-        let message = `Provided value for ${type}.${key} is ${value}${which} but not acceptable for type ${field.datatype}.`;
-
-        if(issue)
-          message += ` ${issue}`;
-
-        throw new Error(message);
+      try {
+        const value = field.set ? field.set(given) : undefined;
+        values[field.column] = value === undefined ? given : value;
       }
+      catch(err: unknown){
+        let message = `Provided value for ${type}.${key}${which} but not acceptable for type ${field.datatype}.`;
 
-      values[field.column] = value;
+        if(typeof err == "string")
+          message += `\n${err}`;
+
+        throw err instanceof Error ? err : new Error(message);
+      }
     });
 
     return values;
   });
-  
-  if(!connection)
-    throw new Error("No connection found for type");
-
-  const { knex } = connection;
-
-  return knex(table).insert(insertData);
 }

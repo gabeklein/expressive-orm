@@ -34,12 +34,14 @@ function Bool(options: Bool.Options | string = {}, nullable?: boolean){
     ...options,
     datatype,
     placeholder: true,
-    accept: x => typeof x == "boolean",
-    get(value: any){
+    get(value: unknown){
       return value === isTrue;
     },
-    set(value: boolean){
-      return value ? isTrue : isFalse;
+    set(value: unknown){
+      if(typeof value == "boolean")
+        return value ? isTrue : isFalse;
+
+      throw "Value must be a boolean."
     }
   });
 }

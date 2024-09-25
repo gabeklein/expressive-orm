@@ -58,13 +58,20 @@ function Str(
   }
 
   let datatype: string = opts.datatype || "varchar";
+  let maxLength = opts.length || 255;
 
   if(datatype && datatype.includes("char"))
-    datatype = `${datatype}(${opts.length || 255})`
+    datatype = `${datatype}(${maxLength})`
 
   return Field.create({
     ...opts,
-    accept: (x) => typeof x == "string",
+    set(value: unknown){
+      if(typeof value !== "string")
+        throw "Value must be a string."
+
+      if(value.length > maxLength)
+        throw `Value length ${value.length} exceeds maximum of ${maxLength}.`
+    },
     datatype: datatype.toUpperCase(),
     placeholder: ""
   });

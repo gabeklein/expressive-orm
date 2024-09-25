@@ -24,12 +24,19 @@ function Num(options: Num.Options | string = {}, nullable?: boolean){
   if(typeof options == "string")
     options = { column: options };
 
-  const type = options.datatype || "int";
+  const type = (options.datatype || "int").toUpperCase();
 
   return Field.create({
     datatype: type.toUpperCase(),
-    accept: (x) => typeof x == "number",
+    //TODO: why is this infinity?...
     placeholder: Infinity,
+    set: (value: unknown) => {
+      if(typeof value !== "number" || isNaN(value))
+        throw `Got '${value}' but value must be a number.`
+
+      if(type === "INT" && value !== Math.floor(value))
+        throw `Got '${value}' but selected datatype is INT.`
+    },
     nullable,
     ...options
   });
