@@ -1,5 +1,5 @@
 import { Connection } from '../connection/Connection';
-import { Field } from '../field/Field';
+import { Field } from '../Field';
 import { Type } from '../Type';
 // import { escapeString } from '../utility';
 import { generate } from './generate';

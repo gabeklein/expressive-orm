@@ -1,5 +1,5 @@
-import { Field } from "./Field";
-import { Query } from "../query/Query";
+import { Query } from '../query/Query';
+import { Field } from '../Field';
 
 declare namespace Join {
   type Function<R> = (where: Query.From) => R | (() => R);

@@ -1,17 +1,8 @@
-export { Bool } from './field/Bool';
 export { Connection, Entities } from './connection/Connection';
 export { default as Util } from './utility';
-export { Enum } from './field/Enum';
-export { Field } from './field/Field';
-export { Join } from './field/Join';
-export { Json } from './field/Json';
-export { Many } from './field/Many';
-export { Num } from './field/Num';
-export { One } from './field/One';
 export { Query } from './query/Query';
-export { Ref } from './field/Ref';
 export { Schema } from './connection/Schema';
-export { Str } from './field/Str';
-export { Table } from './field/Table';
-export { Time } from './field/Time';
+export { Field } from './Field';
 export { Type } from './Type';
+
+export * from  './columns';

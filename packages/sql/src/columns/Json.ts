@@ -1,4 +1,4 @@
-import { Field } from './Field';
+import { Field } from '../Field';
 
 declare namespace Json {
   interface Options<T> extends Field.Options {}

@@ -1,5 +1,5 @@
-import { Query, RelevantTable } from '../query/Query';
-import { Type } from '../Type';
+import { Query, RelevantTable } from './query/Query';
+import { Type } from './Type';
 
 declare namespace Field {
   type FieldType<T extends Field = Field> = typeof Field & (new (...args: any[]) => T);

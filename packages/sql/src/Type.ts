@@ -1,5 +1,5 @@
 import { Connection } from './connection/Connection';
-import { Field } from './field/Field';
+import { Field } from './Field';
 import { capitalize } from './generate/util';
 import { insert } from './query/insert';
 import { Query } from './query/Query';

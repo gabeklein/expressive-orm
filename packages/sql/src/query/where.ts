@@ -1,5 +1,5 @@
 import { Type } from '../Type';
-import { Field } from '../field/Field';
+import { Field } from '../Field';
 import { qualify } from '../utility';
 import { Query, RelevantTable } from './Query';
 

@@ -1,4 +1,4 @@
-import { Field } from '../field/Field';
+import { Field } from '../Field';
 import { Type } from '../Type';
 import { Instruction, Query, RelevantTable } from './Query';
 
