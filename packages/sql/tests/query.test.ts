@@ -1,5 +1,5 @@
 import { Query, Str, Time, Type } from '../src';
-import { inMemoryDatabase } from './helpers';
+import { inMemoryDatabase } from '.';
 
 class Foo extends Type {
   name = Str();

@@ -1,4 +1,4 @@
-import { Entities, Connection } from "..";
+import { Entities, Connection } from "../src";
 
 export function random(min: number, max: number) {
   const u = Math.max(min, max);
