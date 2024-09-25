@@ -1,4 +1,4 @@
-import { Type } from '../Type';
+import { Type } from './Type';
 
 namespace Table {
   export interface Options {

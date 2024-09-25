@@ -3,6 +3,7 @@ export { Schema } from './connection/Schema';
 export { Field } from './Field';
 export { Query } from './query/Query';
 export { Type } from './Type';
+export { Table } from './Table';
 
 export * as Util from './utility';
 export * from  './columns';
