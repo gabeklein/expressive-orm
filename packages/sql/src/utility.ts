@@ -47,11 +47,3 @@ export function asPromise<T = void>(action: asPromise.Action<T>){
     })
   })
 }
-
-export default {
-  asPromise,
-  decapitalize,
-  escapeString,
-  qualify,
-  sql
-}
