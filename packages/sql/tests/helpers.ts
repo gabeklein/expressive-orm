@@ -1,5 +1,4 @@
-import { Entities } from "@expressive/sql";
-import { SQLite } from "../Connection";
+import { Entities, Connection } from "..";
 
 export function random(min: number, max: number) {
   const u = Math.max(min, max);
@@ -15,8 +14,14 @@ const gc = new Set<Function>();
  * Generates a new in-memory database specific to
  * a test and attaches the given entities to it.
  **/
-export async function database(entities: Entities){
-  const db = new SQLite({ filename: ":memory:" });
+export async function inMemoryDatabase(entities: Entities){
+  const db = new Connection({
+    client: "sqlite3",
+    useNullAsDefault: true,
+    connection: {
+      filename: ":memory:"
+    }
+  });
 
   await db.attach(entities);
   gc.add(() => db.close());

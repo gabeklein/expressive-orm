@@ -1,5 +1,5 @@
 import { Num, Str, Type } from "..";
-import { database } from "./helpers";
+import { inMemoryDatabase } from "./helpers";
 
 class User extends Type {
   name = Str();
@@ -8,7 +8,7 @@ class User extends Type {
 }
 
 it("will create a table", async () => {
-  await database([ User ]);
+  await inMemoryDatabase([ User ]);
 
   await User.insert({
     name: "Gabe",

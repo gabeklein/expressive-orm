@@ -18,22 +18,22 @@ export type Entities = Connection.Entities;
 
 let defaultConnection: Connection;
 
+const DEFAULT_CONFIG: Knex.Config = {
+  client: 'sqlite3',
+  useNullAsDefault: true,
+  connection: {
+    filename: ':memory:'
+  }
+}
+
 class Connection {
-  static get default(){
-    return defaultConnection;
-  }
-
-  static set default(connection: Connection){
-    defaultConnection = connection;
-  }
-
   database?: string;
 
   managed = new Set<typeof Type>();
   schema: { [name: string]: Schema } = {};
   knex: Knex;
 
-  constructor(knexConfig: Knex.Config) {
+  constructor(knexConfig: Knex.Config = DEFAULT_CONFIG) {
     Connection.default = this;
     this.knex = knex(knexConfig);
   }
@@ -57,6 +57,14 @@ class Connection {
     }
 
     return toSchemaBuilder(knex, types, strict);
+  }
+
+  static get default(){
+    return defaultConnection;
+  }
+
+  static set default(connection: Connection){
+    defaultConnection = connection;
   }
 }
 
