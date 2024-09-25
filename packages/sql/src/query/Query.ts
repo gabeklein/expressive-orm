@@ -100,18 +100,16 @@ class Query<T = void> {
 
   mode?: Query.Mode;
 
-  constructor(from?: Query.Function<T>){
+  constructor(from: Query.Function<T>){
     const verbs = queryVerbs(this);
     const where = queryWhere(this);
 
     this.where = Object.assign(where, verbs) as Query.Where;
     
-    if(from){
-      const exec = from(this.where);
+    const exec = from(this.where);
 
-      if(exec)
-        this.parse = selectQuery<T>(this, exec);
-    }
+    if(exec)
+      this.parse = selectQuery<T>(this, exec);
   }
 
   toQueryBuilder(){
