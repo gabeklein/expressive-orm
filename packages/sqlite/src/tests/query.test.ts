@@ -43,7 +43,7 @@ it("will create count query", async () => {
     where(foo.color).is("red");
   });
 
-  const qb = query.count().toString();
+  const qb = query.count();
 
   expect(qb).toMatchSnapshot();
 })
