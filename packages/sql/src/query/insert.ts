@@ -11,9 +11,7 @@ export function insert<T extends Type>(
   if(!connection)
     throw new Error("No connection found for type");
 
-  const { knex } = connection;
-
-  return knex(table).insert(insertData);
+  return connection.knex(table).insert(insertData);
 }
 
 export function sanitize<T extends Type>(

@@ -11,6 +11,10 @@ export function random(min: number, max: number) {
 
 const gc = new Set<Function>();
 
+/**
+ * Generates a new in-memory database specific to
+ * a test and attaches the given entities to it.
+ **/
 export async function database(entities: Entities){
   const db = new SQLite({ filename: ":memory:" });
 
@@ -26,17 +30,3 @@ afterEach(async () => {
     return fn();
   }));
 });
-
-export function bootstrap(entities: Entities){
-  const db = new SQLite({ filename: ":memory:" });
-
-  beforeAll(async () => {
-    await db.attach(entities);
-  })
-
-  afterAll(async () => {
-    await db.close();
-  })
-
-  return db;
-}
