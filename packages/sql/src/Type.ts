@@ -1,7 +1,7 @@
+import { Knex } from 'knex';
 import { Connection } from './connection/Connection';
 import { Field } from './Field';
 import { capitalize } from './generate/util';
-import { insert } from './query/insert';
 import { Query } from './query/Query';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
@@ -84,6 +84,43 @@ abstract class Type {
 
   static toString(){
     return this.name;
+  }
+
+  static sanitize<T extends Type>(data: Type.Insert<T>[]){
+    const { fields } = this.ready();
+
+    return data.map((insert, index) => {
+      const values: Record<string, any> = {};
+
+      fields.forEach((field, key) => {
+        const given = insert[key as Type.Field<T>] as unknown;
+        const which = data.length > 1 ? ` on index [${index}]` : ""
+
+        if(given == null){
+          if(field.nullable || field.default || field.primary)
+            return
+
+          throw new Error(
+            `Provided value for ${this}.${key} is ${given}${which} but column is not nullable.`
+          );
+        }
+
+        try {
+          const value = field.set ? field.set(given) : undefined;
+          values[field.column] = value === undefined ? given : value;
+        }
+        catch(err: unknown){
+          let message = `Provided value for ${this}.${key}${which} but not acceptable for type ${field.datatype}.`;
+
+          if(typeof err == "string")
+            message += `\n${err}`;
+
+          throw err instanceof Error ? err : new Error(message);
+        }
+      });
+
+      return values;
+    });
   }
 
   static ready<T extends Type>(this: Type.EntityType<T>){
@@ -172,7 +209,13 @@ abstract class Type {
     else if(!isIterable(data))
       data = [data];
     
-    return insert(this, Array.from(data));
+    const { table, connection } = this.ready();
+    const insertData = this.sanitize(data);
+    
+    if(!connection)
+      throw new Error("No connection found for type");
+
+    return connection.knex(table).insert(insertData) as Knex.QueryBuilder;
   }
 
   static get<T extends Type, R>(
