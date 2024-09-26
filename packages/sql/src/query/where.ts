@@ -100,7 +100,7 @@ export function queryWhere(
   return proxy;
 }
 
-export function queryVerbs<T extends Type>(
+function queryVerbs<T extends Type>(
   query: Query<T>, from: Query.FromType<T>): Query.Verbs<T> {
 
   return {
@@ -110,7 +110,6 @@ export function queryVerbs<T extends Type>(
       if(!table)
         throw new Error(`Argument ${from} is not a query entity.`);
     
-      query.commit("delete");
       query.deletes = table;
       query.limit = limit;
     },
@@ -135,7 +134,6 @@ export function queryVerbs<T extends Type>(
         values.set(field, value);
       });
     
-      query.commit("update");
       query.updates = { table, values };
       query.limit = limit;
     }

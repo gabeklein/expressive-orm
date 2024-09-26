@@ -1,7 +1,7 @@
+import knex, { Knex } from 'knex';
 import { Connection } from '../connection/Connection';
 import { Field } from '../Field';
 import { Type } from '../Type';
-import { generate } from './generate';
 import { queryWhere } from './where';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
@@ -117,7 +117,6 @@ class Query<T = void> {
 
     const selects = new Map<string | Field, string | number>();
 
-    this.commit("select");
     this.selects = selects;
   
     switch(typeof output){
@@ -188,7 +187,103 @@ class Query<T = void> {
   }
 
   toQueryBuilder(){
-    return generate(this, this.connection?.knex);
+    this.pending.forEach(apply => apply());
+    this.pending = [];
+  
+    const {
+      deletes,
+      order,
+      selects,
+      tables,
+      updates,
+      wheres,
+      limit,
+      connection
+    } = this;
+
+    const engine =
+      connection?.knex ||
+      knex({
+        client: "sqlite3",
+        useNullAsDefault: true,
+        pool: { max: 0 }
+      });
+  
+    let query: Knex.QueryBuilder;
+  
+    if (selects) {
+      query = engine.select();
+      selects.forEach((property, field) => {
+        query.select(`${field} as ${property}`);
+      });
+    } 
+    else if (updates) {
+      query = engine(updates.table);
+      const updateObj: { [key: string]: any } = {};
+      updates.values.forEach((value, field) => {
+        updateObj[field.column] = field.set ? field.set(value) : value;
+      });
+      query.update(updateObj);
+    } 
+    else if (deletes) {
+      query = engine(deletes.name).del();
+    } 
+    else {
+      // TDOO: Should this be replaced with star?
+      query = engine.select("COUNT(*) as count");
+    }
+  
+    const [from, ...joins] = tables;
+  
+    query.from(from.name);
+  
+    if (from.alias)
+      query.as(from.alias);
+  
+    joins.forEach(table => {
+      const { on, join } = table;
+      let { name } = table;
+  
+      if (table.alias)
+        name = `${name} as ${table.alias}`;
+  
+      if (join && on){
+        const clause: Knex.JoinCallback = (table) => {
+          for(const { left, right, operator } of on)
+            table.on(String(left), operator, String(right));
+        }
+  
+        switch (join.toLowerCase()) {
+          case 'inner':
+            query.innerJoin(name, clause);
+            break;
+          case 'left':
+            query.leftJoin(name, clause);
+            break;
+          case 'right':
+            query.rightJoin(name, clause);
+            break;
+          case 'full':
+            query.fullOuterJoin(name, clause);
+            break;
+        }
+      }
+    });
+  
+    if (wheres.length)
+      for (const { left, right, operator } of wheres){
+        const value = typeof right == "number" ? right : String(right);
+        query.where(String(left), operator, value);
+      }
+  
+    if (order && order.length)
+      for (const [field, dir] of order)
+        query.orderBy(String(field), dir);
+  
+    if (limit)
+      query.limit(limit);
+  
+    return query
   }
 
   toString(){
@@ -218,11 +313,6 @@ class Query<T = void> {
 
   access(field: Field): any {
     return field;
-  }
-
-  commit(mode: Query.Mode){
-    this.mode = mode;
-    this.pending.forEach(apply => apply());
   }
 
   static one<R>(where: Query.Function<R>, orFail?: boolean){
