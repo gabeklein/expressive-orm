@@ -19,7 +19,7 @@ declare namespace Query {
 
     type Where = <T>(field: T) => Field.Assert<T>;
 
-    type Function<R = Mode> = (on: Where) => R;
+    type Function<R = Mode> = (on: Where) => R | void;
 
     type Object<T extends Type> = {
       [K in Type.Field<T>]?: T[K];
@@ -87,6 +87,7 @@ declare namespace Query {
 
 class Query<T = void> {
   tables = [] as Query.Table[];
+  pending = new Set<() => void>();
 
   builder!: Knex.QueryBuilder;
 
@@ -123,6 +124,9 @@ class Query<T = void> {
 
       throw new Error("Invalid query.");
     });
+
+    this.pending.forEach(fn => fn());
+    this.pending.clear();
 
     if(output)
       this.select(output);
@@ -219,23 +223,25 @@ class Query<T = void> {
     else {
       if(this.connection !== connection)
         throw new Error(`Joined entity ${type} does not share a connection with ${this.main}`);
-      
-      function callback(table: Knex.JoinClause) {
-        if (typeof on == "function") {
-          on(field => {
-            if (field instanceof Field)
-              return field.assert(cond => {
-                table.on(String(cond.left), cond.operator, String(cond.right));
-              });
 
-            else
-              throw new Error("Join assertions can only apply to fields.");
-          });
+      let callback: Knex.JoinCallback;
 
-          return;
+      if(typeof on == "function")
+        callback = table => {
+          this.pending.add(() => {
+            on(field => {
+              if (field instanceof Field){
+                return field.assert(cond => {
+                  table.on(String(cond.left), cond.operator, String(cond.right));
+                });
+              }
+              else
+                throw new Error("Join assertions can only apply to fields.");
+            });
+          })
         }
-
-        if (typeof on == "object") {
+      else if(typeof on == "object")
+        callback = table => {
           for (const key in on) {
             const left = proxy[key];
             const right = (on as any)[key];
@@ -245,12 +251,9 @@ class Query<T = void> {
 
             table.on(String(left), "=", String(right));
           }
-
-          return;
         }
-
+      else
         throw new Error(`Invalid join on: ${on}`);
-      }
       
       switch(join){
         case "left":
@@ -261,6 +264,10 @@ class Query<T = void> {
         case undefined:
           this.builder.join(name, callback);
           break;
+
+        case "right" as unknown:
+        case "full" as unknown:
+          throw new Error(`Cannot ${join} join because that would affect ${this.main.constructor.name} which is already defined.`);
 
         default:
           throw new Error(`Invalid join type ${join}.`);

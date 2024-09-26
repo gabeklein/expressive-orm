@@ -30,19 +30,20 @@ it("will join using object", async () => {
   expect(query).toMatchSnapshot();
 })
 
-it.skip("will join using function", async () => {
-  // const query = new Query(where => {
-  //   const foo = where(Foo);
-  //   const bar = where(Bar, [
-  //     where(bar.name).isNot(foo.name),
-  //     where(bar.color).is(foo.color)
-  //   ], 'left');
+it("will join using function", async () => {
+  const query = new Query(where => {
+    const foo = where(Foo);
+    const bar = where(Bar, on => {
+      on(bar.name).isNot(foo.name);
+      on(bar.color).is(foo.color);
+      return 'left';
+    });
 
-  //   where(foo.name).isNot("Danny");
-  //   where(bar.rating).isMore(50);
-  // });
+    where(foo.name).isNot("Danny");
+    where(bar.rating).isMore(50);
+  });
 
-  // expect(query).toMatchSnapshot();
+  expect(query).toMatchSnapshot();
 })
 
 it("will alias tables which have a schema", () => {
