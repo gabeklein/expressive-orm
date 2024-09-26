@@ -175,7 +175,8 @@ class Query<T = void> {
   table(
     type: Type.EntityType,
     on?: Query.Compare | Query.Join.Function,
-    join?: Query.Join.Mode){
+    join?: Query.Join.Mode
+  ): Query.FromType {
 
     let { schema, table: name } = type.ready();
     let alias: string | undefined;
@@ -250,7 +251,7 @@ class Query<T = void> {
   
     tables.push(metadata);
   
-    return proxy as Query.FromType;
+    return proxy;
   }
 
   verbs<T extends Type>(from: Query.FromType<T>): Query.Verbs<T> {
