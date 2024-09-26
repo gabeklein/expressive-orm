@@ -4,9 +4,9 @@ exports[`will alias tables which have a schema 1`] = `
 	select
 	  \`COUNT(*)\` as \`count\`
 	from
-	  \`foo\`
+	  \`foobar\`.\`foo\` as \`$0\`
 	where
-	  \`foo\`.\`color\` = 'red'
+	  \`$0\`.\`color\` = 'red'
 `;
 
 exports[`will join using function 1`] = `
