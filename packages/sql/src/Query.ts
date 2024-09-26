@@ -106,11 +106,18 @@ class Query<T = void> {
   limit?: number;
 
   constructor(from: Query.Function<T>){
-    const output = from((
+    const where = (
       type: unknown,
       on?: Query.Compare | Query.Join.Function<any> | Query.SortBy,
       join?: Query.Join.Mode
     ): any => {
+      if(isTypeConstructor(type)){
+        if(typeof on == "string")
+          throw new Error("Bad parameters.");
+
+        return this.table(type, on, join);
+      }
+
       if(type instanceof Field){
         if(typeof on == "string"){
           this.order.push([type, on]);
@@ -121,19 +128,14 @@ class Query<T = void> {
           this.wheres.push(cond);
         });
       }
-    
-      if(isTypeConstructor(type)){
-        if(typeof on == "string")
-          throw new Error("Bad parameters.");
 
-        return this.table(type, on, join);
-      }
-  
       if(isFromType(type))
         return this.verbs(type);
 
       throw new Error("Invalid query.");
-    });
+    }
+    
+    const output = from(where);
 
     if(typeof output !== "object")
       return;
