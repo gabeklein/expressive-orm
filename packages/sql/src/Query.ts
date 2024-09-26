@@ -147,7 +147,7 @@ function Query<T = void>(from: Query.Function<T>): Query<T> {
       }
   
       return type.assert(cond => {
-        builder.andWhere(String(cond.left), cond.operator, cond.right as any);
+        builder.where(String(cond.left), cond.operator, cond.right as any);
       });
     }
 
