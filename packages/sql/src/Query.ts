@@ -86,10 +86,7 @@ declare namespace Query {
 }
 
 class Query<T = void> {
-  pending = [] as Instruction[];
   tables = [] as Query.Table[];
-  wheres = [] as Query.Cond[];
-  order = [] as [Field, "asc" | "desc"][];
 
   builder!: Knex.QueryBuilder;
 
@@ -97,18 +94,8 @@ class Query<T = void> {
   main?: Type.EntityType;
   parse = (raw: unknown[]) => raw;
 
-  mode?: Query.Mode;
-  limit?: number;
-
-  selects?: Map<string | Field, string | number>;
-  deletes?: Query.Table;
-  updates?: {
-    table: string | Knex.AliasDict;
-    values: Map<Field, any>;
-  };
-
   constructor(from: Query.Function<T>){
-    const where = (
+    const output = from((
       type: unknown,
       on?: Query.Compare | Query.Join.Function<any> | Query.SortBy,
       join?: Query.Join.Mode
@@ -122,12 +109,12 @@ class Query<T = void> {
 
       if(type instanceof Field){
         if(typeof on == "string"){
-          this.order.push([type, on]);
+          this.builder.orderBy(String(type), on);
           return
         }
     
         return type.assert(cond => {
-          this.wheres.push(cond);
+          this.builder.andWhere(String(cond.left), cond.operator, cond.right as any);
         });
       }
 
@@ -135,17 +122,23 @@ class Query<T = void> {
         return this.verbs(type);
 
       throw new Error("Invalid query.");
-    }
-    
-    const output = from(where);
+    });
 
-    if(typeof output !== "object")
-      return;
+    if(output)
+      this.select(output);
+  }
 
-    const selects = this.selects = new Map<string | Field, string | number>();
+  select(output: T){
+    const selects = new Map<string | Field, string | number>();
+
+    this.builder.clearSelect();
 
     if(output instanceof Field){
       selects.set(output, output.column);
+
+      this.builder.select({
+        [output.column]: String(output)
+      });
   
       this.parse = raw => raw.map(row => {
         const value = (row as any)[output.column];
@@ -154,26 +147,30 @@ class Query<T = void> {
 
       return;
     }
- 
-    Object.getOwnPropertyNames(output).forEach(key => {
-      const value = (output as any)[key];
-  
-      if(value instanceof Field)
-        selects.set(value, key);
-    })
 
-    this.parse = raw => raw.map(row => {
-      const values = Object.create(output as {});
-  
-      selects.forEach((column, field) => {
-        const value = field instanceof Field && field.get
-          ? field.get((row as any)[column]) : field;
-
-        Object.defineProperty(values, column, { value });
+    if(typeof output == "object"){
+      Object.getOwnPropertyNames(output).forEach(key => {
+        const value = (output as any)[key];
+    
+        if(value instanceof Field){
+          selects.set(value, key);
+          this.builder.select({ [key]: String(value) });
+        }
       })
-      
-      return values as T;
-    })
+
+      this.parse = raw => raw.map(row => {
+        const values = Object.create(output as {});
+    
+        selects.forEach((column, field) => {
+          const value = field instanceof Field && field.get
+            ? field.get((row as any)[column]) : field;
+
+          Object.defineProperty(values, column, { value });
+        })
+        
+        return values as T;
+      })
+    }
   }
 
   table(
@@ -201,7 +198,6 @@ class Query<T = void> {
   
     fields.forEach((field, key) => {
       field = Object.create(field);
-  
       RelevantTable.set(field, metadata);
       Object.defineProperty(proxy, key, {
         get: field.proxy(this, proxy)
@@ -211,188 +207,98 @@ class Query<T = void> {
     if(this.main === undefined){
       this.main = type;
       this.connection = connection;
+
+      const engine = connection?.knex || knex({
+        client: "sqlite3",
+        useNullAsDefault: true,
+        pool: { max: 0 }
+      });
+
+      this.builder = engine(name).select({ count: "COUNT(*)" });;
     }
     else {
       if(this.connection !== connection)
         throw new Error(`Joined entity ${type} does not share a connection with ${this.main}`);
       
-      let joinOn;
-    
-      if(typeof on == "function"){
-        const conds = [] as Query.Cond[];
-  
-        this.pending.push(() => {
+      function callback(table: Knex.JoinClause) {
+        if (typeof on == "function") {
           on(field => {
-            if(field instanceof Field)
+            if (field instanceof Field)
               return field.assert(cond => {
-                conds.push(cond);
-              })
+                table.on(String(cond.left), cond.operator, String(cond.right));
+              });
+
             else
               throw new Error("Join assertions can only apply to fields.");
           });
-        })
-  
-        joinOn = conds;
-      }
-      else if(Array.isArray(on)){
-        joinOn = on;
-      }
-      else if(typeof on == "object"){
-        const cond = [] as Query.Cond[];
-      
-        for(const key in on){
-          const left = proxy[key];
-          const right = (on as any)[key];
-      
-          if(!left)
-            throw new Error(`${key} is not a valid field in ${type}.`);
-      
-          cond.push({ left, right, operator: "=" });
+
+          return;
         }
-  
-        joinOn = cond;
-      }
-      else
+
+        if (typeof on == "object") {
+          for (const key in on) {
+            const left = proxy[key];
+            const right = (on as any)[key];
+
+            if (!left)
+              throw new Error(`${key} is not a valid field in ${type}.`);
+
+            table.on(String(left), "=", String(right));
+          }
+
+          return;
+        }
+
         throw new Error(`Invalid join on: ${on}`);
+      }
+      
+      switch(join){
+        case "left":
+          this.builder.leftJoin(name, callback);
+          break;
   
+        case "inner":
+        case undefined:
+          this.builder.join(name, callback);
+          break;
+
+        default:
+          throw new Error(`Invalid join type ${join}.`);
+      }
+
       metadata.join = join || "inner";
-      metadata.on = joinOn;
     }
   
     return proxy;
   }
 
   verbs<T extends Type>(from: Query.FromType<T>): Query.Verbs<T> {
+    const { builder } = this;
+    const table = RelevantTable.get(from);
+
+    if(!table)
+      throw new Error(`Argument ${from} is not a query entity.`);
+
     return {
       delete: (limit?: number) => {
-        // @ts-ignore
-        const table = RelevantTable.get(from);
-      
-        if(!table)
-          throw new Error(`Argument ${from} is not a query entity.`);
-      
-        this.deletes = table;
-        this.limit = limit;
+        builder.table(table.name).delete();
+
+        if(limit)
+          builder.limit(limit);
       },
       update: (update: Query.Update<any>, limit?: number) => {
-        // @ts-ignore
-        const meta = RelevantTable.get(from);
-      
-        if(!meta)
-          throw new Error(`Argument ${from} is not a query entity.`);
-      
-        const values = new Map<Field, string>();
-        const { name: table, type: entity } = meta;
-      
-        Object.entries(update).forEach((entry) => {
-          const [key, value] = entry;
-          const field = entity.fields.get(key);
-      
-          if(!field)
-            throw new Error(
-              `Property ${key} has no corresponding field in entity ${entity.constructor.name}`
-            );
-      
-          values.set(field, value);
-        });
-      
-        this.updates = { table, values };
-        this.limit = limit;
+        const data = table.type.sanitize(update);
+
+        builder.table(table.name).update(data);
+
+        if(limit)
+          builder.limit(limit);
       }
     }
-  }
-
-  toQueryBuilder(){
-    this.pending.forEach(apply => apply());
-    this.pending = [];
-  
-    const {
-      deletes,
-      order,
-      selects,
-      tables,
-      updates,
-      wheres,
-      limit,
-      connection
-    } = this;
-
-    const engine =
-      connection?.knex ||
-      knex({
-        client: "sqlite3",
-        useNullAsDefault: true,
-        pool: { max: 0 }
-      });
-  
-    let query = engine.queryBuilder();
-  
-    if (selects) {
-      selects.forEach((property, field) => {
-        query.select(`${field} as ${property}`);
-      });
-    } 
-    else if (updates) {
-      const updateObj: { [key: string]: any } = {};
-      query = engine(updates.table);
-      updates.values.forEach((value, field) => {
-        updateObj[field.column] = field.set ? field.set(value) : value;
-      });
-      query.update(updateObj);
-    } 
-    else if (deletes) {
-      query = engine(deletes.name).del();
-    } 
-    else {
-      // TDOO: Should this be replaced with star?
-      query.select({ count: "COUNT(*)" });
-    }
-  
-    const [from, ...joins] = tables;
-  
-    query.from(from.name);
-  
-    if (from.alias)
-      query.as(from.alias);
-  
-    joins.forEach(table => {
-      const { on, join, name } = table;
-
-      if (join && on){
-        const clause: Knex.JoinCallback = (table) => {
-          for(const { left, right, operator } of on)
-            table.on(String(left), operator, String(right));
-        }
-  
-        switch (join.toLowerCase()) {
-          case 'inner':
-            query.innerJoin(name, clause);
-            break;
-          case 'left':
-            query.leftJoin(name, clause);
-            break;
-        }
-      }
-    });
-  
-    if (wheres.length)
-      for (const { left, right, operator } of wheres){
-        const value = typeof right == "number" ? right : String(right);
-        query.where(String(left), operator, value);
-      }
-  
-    if (order && order.length)
-      for (const [field, dir] of order)
-        query.orderBy(String(field), dir);
-  
-    if (limit)
-      query.limit(limit);
-  
-    return query
   }
 
   count(){
-    return this.toQueryBuilder().clearSelect().count();
+    return this.builder.clone().clearSelect().count();
   }
 
   access(field: Field): any {
@@ -400,19 +306,19 @@ class Query<T = void> {
   }
 
   toString(){
-    return this.toQueryBuilder().toString().replace(/```/g, "`");
+    return this.builder.toString().replace(/```/g, "`");
   }
 
   then(resolve: (res: any) => any, reject: (err: any) => any){
-    return this.toQueryBuilder().then(this.parse).then(resolve).catch(reject);
+    return this.builder.then(this.parse).then(resolve).catch(reject);
   }
 
   async run(){
-    return this.toQueryBuilder().then(this.parse) as Promise<T[]>;
+    return this.builder.then(this.parse) as Promise<T[]>;
   }
 
   async one(orFail?: boolean){
-    const res = await this.toQueryBuilder().limit(1).then(this.parse);
+    const res = await this.builder.clone().limit(1).then(this.parse);
 
     if(res.length == 0 && orFail)
       throw new Error("Query returned no results.");
