@@ -1,7 +1,7 @@
 import { escapeId } from 'sqlstring';
 
 import { Field } from '../Field';
-import { Query } from '../query/Query';
+import { Query } from '../Query';
 import { Type } from '../Type';
 import { decapitalize, sql } from '../utility';
 

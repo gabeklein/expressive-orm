@@ -2,7 +2,7 @@ import { Knex } from 'knex';
 import { Connection } from './connection/Connection';
 import { Field } from './Field';
 import { capitalize } from './generate/util';
-import { Query } from './query/Query';
+import { Query } from './Query';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 

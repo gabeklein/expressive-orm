@@ -1,4 +1,4 @@
-import { Query, RelevantTable } from './query/Query';
+import { Query, RelevantTable } from './Query';
 import { Type } from './Type';
 
 declare namespace Field {

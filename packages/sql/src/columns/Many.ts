@@ -1,6 +1,6 @@
 import { Type } from '../Type';
 import { Field } from '../Field';
-import { Query } from '../query/Query';
+import { Query } from '../Query';
 
 declare namespace Many {
   // interface Select<T extends Type> {

@@ -1,8 +1,9 @@
 import knex, { Knex } from 'knex';
-import { Connection } from '../connection/Connection';
-import { Field } from '../Field';
-import { isTypeConstructor, Type } from '../Type';
-import { qualify } from '../utility';
+
+import { Connection } from './connection/Connection';
+import { Field } from './Field';
+import { isTypeConstructor, Type } from './Type';
+import { qualify } from './utility';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
