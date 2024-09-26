@@ -392,6 +392,14 @@ class Query<T = void> {
     return query
   }
 
+  count(){
+    return this.toQueryBuilder().clearSelect().count();
+  }
+
+  access(field: Field): any {
+    return field;
+  }
+
   toString(){
     return this.toQueryBuilder().toString().replace(/```/g, "`");
   }
@@ -411,14 +419,6 @@ class Query<T = void> {
       throw new Error("Query returned no results.");
 
     return res[0] as T;
-  }
-
-  count(){
-    return this.toQueryBuilder().clearSelect().count();
-  }
-
-  access(field: Field): any {
-    return field;
   }
 
   static one<R>(where: Query.Function<R>, orFail?: boolean){
