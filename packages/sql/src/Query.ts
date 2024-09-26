@@ -39,7 +39,7 @@ declare namespace Query {
 
   interface Table {
     type: Type.EntityType;
-    name: string;
+    name: string | Knex.AliasDict;
     alias?: string;
     join?: Join.Mode;
     on?: Cond[];
@@ -91,19 +91,21 @@ class Query<T = void> {
   wheres = [] as Query.Cond[];
   order = [] as [Field, "asc" | "desc"][];
 
+  builder!: Knex.QueryBuilder;
+
   connection?: Connection;
   main?: Type.EntityType;
   parse = (raw: unknown[]) => raw;
 
+  mode?: Query.Mode;
+  limit?: number;
+
   selects?: Map<string | Field, string | number>;
   deletes?: Query.Table;
   updates?: {
-    table: string;
+    table: string | Knex.AliasDict;
     values: Map<Field, any>;
   };
-
-  mode?: Query.Mode;
-  limit?: number;
 
   constructor(from: Query.Function<T>){
     const where = (
@@ -180,21 +182,24 @@ class Query<T = void> {
     join?: Query.Join.Mode
   ): Query.FromType {
 
-    let { schema, table: name } = type.ready();
+    const { tables } = this;
+
+    let { connection, fields, schema } = type.ready();
+    let name: string | Knex.AliasDict = type.table
     let alias: string | undefined;
   
-    const { tables } = this;
-    const proxy = {} as any;
-    const metadata: Query.Table = { name, alias, type, join };
-  
     if(schema){
-      name = qualify(schema, name);
       alias = `$${tables.length}`;
+      name = { [alias]: qualify(schema, name) }
     }
   
+    const proxy = {} as any;
+    const metadata: Query.Table = { name, alias, type };
+  
+    tables.push(metadata);
     RelevantTable.set(proxy, metadata);
   
-    type.fields.forEach((field, key) => {
+    fields.forEach((field, key) => {
       field = Object.create(field);
   
       RelevantTable.set(field, metadata);
@@ -203,16 +208,34 @@ class Query<T = void> {
       })
     })
   
-    if(tables.length === 0){
+    if(this.main === undefined){
       this.main = type;
-      this.connection = type.connection;
+      this.connection = connection;
     }
-    else if(this.connection === type.connection){
-      if(!join)
-        metadata.join = "inner";
+    else {
+      if(this.connection !== connection)
+        throw new Error(`Joined entity ${type} does not share a connection with ${this.main}`);
+      
+      let joinOn;
+    
+      if(typeof on == "function"){
+        const conds = [] as Query.Cond[];
   
-      if(Array.isArray(on)){
-        metadata.on = on;
+        this.pending.push(() => {
+          on(field => {
+            if(field instanceof Field)
+              return field.assert(cond => {
+                conds.push(cond);
+              })
+            else
+              throw new Error("Join assertions can only apply to fields.");
+          });
+        })
+  
+        joinOn = conds;
+      }
+      else if(Array.isArray(on)){
+        joinOn = on;
       }
       else if(typeof on == "object"){
         const cond = [] as Query.Cond[];
@@ -227,31 +250,14 @@ class Query<T = void> {
           cond.push({ left, right, operator: "=" });
         }
   
-        metadata.on = cond;
-      }
-      else if(typeof on == "function"){
-        const conds = [] as Query.Cond[];
-  
-        this.pending.push(() => {
-          on(field => {
-            if(field instanceof Field)
-              return field.assert(cond => {
-                conds.push(cond);
-              })
-            else
-              throw new Error("Join assertions can only apply to fields.");
-          });
-        })
-  
-        metadata.on = conds;
+        joinOn = cond;
       }
       else
         throw new Error(`Invalid join on: ${on}`);
-    }
-    else 
-      throw new Error(`Joined entity ${type} does not share a connection with ${this.main}`);
   
-    tables.push(metadata);
+      metadata.join = join || "inner";
+      metadata.on = joinOn;
+    }
   
     return proxy;
   }
@@ -327,8 +333,8 @@ class Query<T = void> {
       });
     } 
     else if (updates) {
-      query = engine(updates.table);
       const updateObj: { [key: string]: any } = {};
+      query = engine(updates.table);
       updates.values.forEach((value, field) => {
         updateObj[field.column] = field.set ? field.set(value) : value;
       });
@@ -339,7 +345,7 @@ class Query<T = void> {
     } 
     else {
       // TDOO: Should this be replaced with star?
-      query.select("COUNT(*) as count");
+      query.select({ count: "COUNT(*)" });
     }
   
     const [from, ...joins] = tables;
@@ -350,11 +356,7 @@ class Query<T = void> {
       query.as(from.alias);
   
     joins.forEach(table => {
-      const { on, join } = table;
-      let name: string | Knex.AliasDict = table.name;
-  
-      if (table.alias)
-        name = { [table.alias]: name };
+      const { on, join, name } = table;
 
       if (join && on){
         const clause: Knex.JoinCallback = (table) => {
