@@ -34,7 +34,7 @@ declare namespace Type {
   type Field<T extends Type> = Exclude<keyof T, "table">;
 
   type Where<T extends Type, R> =
-    (source: Query.FromType<T>, query: Query.Where) => () => R;
+    (source: Query.FromType<T>, query: Query.Callback) => () => R;
 
   type Instruction = (parent: Type.EntityType, key: string) => void;
 
@@ -47,7 +47,7 @@ declare namespace Type {
   }
 
   type QueryFunction<T extends Type, R> =
-    (query: Query.FromType<T>, where: Query.Where) => R;
+    (query: Query.FromType<T>, where: Query.Callback) => R;
 }
 
 abstract class Type {
@@ -191,6 +191,10 @@ function isIterable(obj: unknown): obj is Iterable<unknown> {
   };
 
   return obj != null && typeof (obj as MaybeIterable)[Symbol.iterator] === 'function';
+}
+
+export function isTypeConstructor(obj: unknown): obj is typeof Type {
+  return typeof obj === 'function' && obj.prototype instanceof Type;
 }
 
 export { Type }

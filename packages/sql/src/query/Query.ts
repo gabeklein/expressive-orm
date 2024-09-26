@@ -1,8 +1,8 @@
 import knex, { Knex } from 'knex';
 import { Connection } from '../connection/Connection';
 import { Field } from '../Field';
-import { Type } from '../Type';
-import { queryWhere } from './where';
+import { isTypeConstructor, Type } from '../Type';
+import { qualify } from '../utility';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
@@ -25,7 +25,7 @@ declare namespace Query {
     }
   }
 
-  export interface Verbs <T extends Type> {
+  interface Verbs <T extends Type> {
     delete(limit?: number): void;
     update(values: Query.Update<T>, limit?: number): void;
   }
@@ -44,8 +44,6 @@ declare namespace Query {
     on?: Cond[];
   }
 
-  type Execute<T> = () => Promise<T>;
-
   type FromType<T extends Type = Type> = {
     [K in Type.Field<T>]: Exclude<T[K], null>;
   } & {
@@ -61,29 +59,29 @@ declare namespace Query {
     [K in Type.Field<T>]?: Exclude<T[K], undefined>;
   }
 
-  interface Where {
+  type Function<R> = (where: Callback) => R | void;
+
+  type Output<T> = T extends void ? number : T;
+
+  type Mode = "select" | "update" | "delete";
+
+  type SortBy = "asc" | "desc";
+
+  type JoinOn<T extends Type> = string[] | Query.Compare<T> | Join.Function;
+
+  type Execute<T> = () => Promise<T>;
+
+  interface Callback {
     <T extends Type>(entity: Type.EntityType<T>, on?: Join.Function<"inner" | void>): FromType<T>;
     <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join?: "inner"): FromType<T>;
     <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<Join.Mode>): Partial<FromType<T>>;
     <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join: Join.Mode): Partial<FromType<T>>;
 
     <T extends Type>(field: FromType<T>): Verbs<T>;
-    
     <T>(field: T): Field.Assert<T>;
-    (field: unknown, as: "asc" | "desc"): void;
+
+    (field: unknown, as: SortBy): void;
   }
-
-  type Function<R> = (where: Where) => R | void;
-
-  type Select<R> = ((where: Where) => R | (() => R))
-
-  type Output<T> = T extends void ? number : T;
-
-  type Mode = "select" | "update" | "delete";
-
-  type JoinOn<T extends Type> = string[] | Query.Compare<T> | Join.Function;
-
-  type Sort = "asc" | "desc";
 }
 
 class Query<T = void> {
@@ -92,7 +90,6 @@ class Query<T = void> {
   wheres = [] as Query.Cond[];
   order = [] as [Field, "asc" | "desc"][];
 
-  where: Query.Where;
   connection?: Connection;
   main?: Type.EntityType;
   parse = (raw: unknown[]) => raw;
@@ -108,81 +105,190 @@ class Query<T = void> {
   limit?: number;
 
   constructor(from: Query.Function<T>){
-    const output = from(
-      this.where = queryWhere.bind(this) as Query.Where
-    );
+    const output = from((
+      type: unknown,
+      on?: Query.Compare | Query.Join.Function<any> | Query.SortBy,
+      join?: Query.Join.Mode
+    ): any => {
+      if(type instanceof Field){
+        if(typeof on == "string"){
+          this.order.push([type, on]);
+          return
+        }
+    
+        return type.assert(cond => {
+          this.wheres.push(cond);
+        });
+      }
+    
+      if(isTypeConstructor(type)){
+        if(typeof on == "string")
+          throw new Error("Bad parameters.");
 
-    if(!output)
+        return this.table(type, on, join);
+      }
+  
+      if(isFromType(type))
+        return this.verbs(type);
+
+      throw new Error("Invalid query.");
+    });
+
+    if(typeof output !== "object")
       return;
 
-    const selects = new Map<string | Field, string | number>();
+    const selects = this.selects = new Map<string | Field, string | number>();
 
-    this.selects = selects;
+    if(output instanceof Field){
+      selects.set(output, output.column);
   
-    switch(typeof output){
-      case "object": {
-        if(output instanceof Field){
-          selects.set(output, output.column);
+      this.parse = raw => raw.map(row => {
+        const value = (row as any)[output.column];
+        return output.get ? output.get(value) : value;
+      });
+
+      return;
+    }
+ 
+    Object.getOwnPropertyNames(output).forEach(key => {
+      const value = (output as any)[key];
+  
+      if(value instanceof Field)
+        selects.set(value, key);
+    })
+
+    this.parse = raw => raw.map(row => {
+      const values = Object.create(output as {});
+  
+      selects.forEach((column, field) => {
+        const value = field instanceof Field && field.get
+          ? field.get((row as any)[column]) : field;
+
+        Object.defineProperty(values, column, { value });
+      })
       
-          this.parse = raw => raw.map(row => {
-            const value = (row as any)[output.column];
-            return output.get ? output.get(value) : value;
+      return values as T;
+    })
+  }
+
+  table(
+    type: Type.EntityType,
+    on?: Query.Compare | Query.Join.Function,
+    join?: Query.Join.Mode){
+
+    let { schema, table: name } = type.ready();
+    let alias: string | undefined;
+  
+    const { tables } = this;
+    const proxy = {} as any;
+    const metadata: Query.Table = { name, alias, type, join };
+  
+    if(schema){
+      name = qualify(schema, name);
+      alias = `$${tables.length}`;
+    }
+  
+    RelevantTable.set(proxy, metadata);
+  
+    type.fields.forEach((field, key) => {
+      field = Object.create(field);
+  
+      RelevantTable.set(field, metadata);
+      Object.defineProperty(proxy, key, {
+        get: field.proxy(this, proxy)
+      })
+    })
+  
+    if(tables.length === 0){
+      this.main = type;
+      this.connection = type.connection;
+    }
+    else if(this.connection === type.connection){
+      if(!join)
+        metadata.join = "inner";
+  
+      if(Array.isArray(on)){
+        metadata.on = on;
+      }
+      else if(typeof on == "object"){
+        const cond = [] as Query.Cond[];
+      
+        for(const key in on){
+          const left = proxy[key];
+          const right = (on as any)[key];
+      
+          if(!left)
+            throw new Error(`${key} is not a valid field in ${type}.`);
+      
+          cond.push({ left, right, operator: "=" });
+        }
+  
+        metadata.on = cond;
+      }
+      else if(typeof on == "function"){
+        const conds = [] as Query.Cond[];
+  
+        this.pending.push(() => {
+          on(field => {
+            if(field instanceof Field)
+              return field.assert(cond => {
+                conds.push(cond);
+              })
+            else
+              throw new Error("Join assertions can only apply to fields.");
           });
-        }
-        else if(output){
-          Object.getOwnPropertyNames(output).forEach(key => {
-            const value = (output as any)[key];
-        
-            if(value instanceof Field)
-              selects.set(value, key);
-          })
+        })
+  
+        metadata.on = conds;
+      }
+      else
+        throw new Error(`Invalid join on: ${on}`);
+    }
+    else 
+      throw new Error(`Joined entity ${type} does not share a connection with ${this.main}`);
+  
+    tables.push(metadata);
+  
+    return proxy as Query.FromType;
+  }
+
+  verbs<T extends Type>(from: Query.FromType<T>): Query.Verbs<T> {
+    return {
+      delete: (limit?: number) => {
+        // @ts-ignore
+        const table = RelevantTable.get(from);
       
-          this.parse = raw => raw.map(row => {
-            const values = Object.create(output as {});
-        
-            selects.forEach((column, field) => {
-              const value = field instanceof Field && field.get
-                ? field.get((row as any)[column]) : field;
-  
-              Object.defineProperty(values, column, { value });
-            })
-            
-            return values as T;
-          })
-        }
-        break;
+        if(!table)
+          throw new Error(`Argument ${from} is not a query entity.`);
+      
+        this.deletes = table;
+        this.limit = limit;
+      },
+      update: (update: Query.Update<any>, limit?: number) => {
+        // @ts-ignore
+        const meta = RelevantTable.get(from);
+      
+        if(!meta)
+          throw new Error(`Argument ${from} is not a query entity.`);
+      
+        const values = new Map<Field, string>();
+        const { name: table, type: entity } = meta;
+      
+        Object.entries(update).forEach((entry) => {
+          const [key, value] = entry;
+          const field = entity.fields.get(key);
+      
+          if(!field)
+            throw new Error(
+              `Property ${key} has no corresponding field in entity ${entity.constructor.name}`
+            );
+      
+          values.set(field, value);
+        });
+      
+        this.updates = { table, values };
+        this.limit = limit;
       }
-  
-      case "function": {
-        let focus: any;
-    
-        this.access = field => {
-          selects.set(field, selects.size + 1);
-          return field.placeholder;
-        };
-    
-        (output as () => T)();
-    
-        this.access = field => {
-          const value = focus[selects.get(field)!];
-          return value === null ? undefined : value;
-        }
-    
-        this.parse = raw => {
-          const results = [] as T[];
-    
-          for(const row of raw){
-            focus = row;
-            results.push((output as () => T)());
-          }
-    
-          return results;
-        }
-        break
-      }
-  
-      default:
-        throw new Error("Bad argument");
     }
   }
 
@@ -209,10 +315,9 @@ class Query<T = void> {
         pool: { max: 0 }
       });
   
-    let query: Knex.QueryBuilder;
+    let query = engine.queryBuilder();
   
     if (selects) {
-      query = engine.select();
       selects.forEach((property, field) => {
         query.select(`${field} as ${property}`);
       });
@@ -230,7 +335,7 @@ class Query<T = void> {
     } 
     else {
       // TDOO: Should this be replaced with star?
-      query = engine.select("COUNT(*) as count");
+      query.select("COUNT(*) as count");
     }
   
     const [from, ...joins] = tables;
@@ -318,6 +423,10 @@ class Query<T = void> {
   static one<R>(where: Query.Function<R>, orFail?: boolean){
     return new Query(where).one(orFail);
   }
+}
+
+function isFromType(type: any): type is Query.FromType {
+  return RelevantTable.has(type);
 }
 
 export { Query }
