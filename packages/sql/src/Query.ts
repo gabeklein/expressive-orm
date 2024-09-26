@@ -351,11 +351,11 @@ class Query<T = void> {
   
     joins.forEach(table => {
       const { on, join } = table;
-      let { name } = table;
+      let name: string | Knex.AliasDict = table.name;
   
       if (table.alias)
-        name = `${name} as ${table.alias}`;
-  
+        name = { [table.alias]: name };
+
       if (join && on){
         const clause: Knex.JoinCallback = (table) => {
           for(const { left, right, operator } of on)
@@ -368,12 +368,6 @@ class Query<T = void> {
             break;
           case 'left':
             query.leftJoin(name, clause);
-            break;
-          case 'right':
-            query.rightJoin(name, clause);
-            break;
-          case 'full':
-            query.fullOuterJoin(name, clause);
             break;
         }
       }
