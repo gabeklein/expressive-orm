@@ -27,8 +27,8 @@ declare namespace Query {
   }
 
   interface Verbs <T extends Type> {
-    delete(limit?: number): void;
-    update(values: Query.Update<T>, limit?: number): void;
+    delete(): void;
+    update(values: Query.Update<T>): void;
   }
 
   type Cond<T = unknown> = {
@@ -291,19 +291,13 @@ class Query<T = void> {
       throw new Error(`Argument ${from} is not a query entity.`);
 
     return {
-      delete: (limit?: number) => {
+      delete: () => {
         builder.table(table.name).delete();
-
-        if(limit)
-          builder.limit(limit);
       },
-      update: (update: Query.Update<any>, limit?: number) => {
+      update: (update: Query.Update<any>) => {
         const data = table.type.sanitize(update);
 
         builder.table(table.name).update(data);
-
-        if(limit)
-          builder.limit(limit);
       }
     }
   }
