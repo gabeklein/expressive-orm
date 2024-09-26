@@ -1,5 +1,5 @@
 import { Type, Num, Str } from '..';
-import { random, inMemoryDatabase } from './helpers';
+import { random, inMemoryDatabase } from '.';
 
 class Foo extends Type {
   name = Str();

@@ -13,7 +13,8 @@ export function generate(
     selects,
     tables,
     updates,
-    wheres
+    wheres,
+    limit
   } = using;
 
   if(typeof engine == "string")
@@ -89,6 +90,9 @@ export function generate(
   if (order && order.length)
     for (const [field, dir] of order)
       query.orderBy(String(field), dir);
+
+  if (limit)
+    query.limit(limit);
 
   return query
 }

@@ -3,8 +3,7 @@ import { Field } from '../Field';
 import { Type } from '../Type';
 // import { escapeString } from '../utility';
 import { generate } from './generate';
-import { queryVerbs, selectQuery, Verbs } from './verbs';
-import { queryWhere } from './where';
+import { queryWhere, selectQuery } from './where';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
@@ -16,15 +15,20 @@ export interface Instruction {
 
 declare namespace Query { 
   namespace Join {
-    type Mode = "left" | "right" | "inner" | "full";
+    type Mode = "left" | "inner";
 
     type Where = <T>(field: T) => Field.Assert<T>;
 
-    type Function<R = void> = (on: Where) => R;
+    type Function<R = Mode> = (on: Where) => R;
 
     type Object<T extends Type> = {
       [K in Type.Field<T>]?: T[K];
     }
+  }
+
+  export interface Verbs <T extends Type> {
+    delete(limit?: number): void;
+    update(values: Query.Update<T>, limit?: number): void;
   }
 
   type Cond<T = unknown> = {
@@ -43,13 +47,13 @@ declare namespace Query {
 
   type Execute<T> = () => Promise<T>;
 
-  type FromType<T extends Type> = {
+  type FromType<T extends Type = Type> = {
     [K in Type.Field<T>]: Exclude<T[K], null>;
   } & {
     [ENTITY]?: T
   }
 
-  type Compare<T extends Type> = {
+  type Compare<T extends Type = Type> = {
     [K in Type.Field<T>]?: T[K];
   }
 
@@ -58,18 +62,19 @@ declare namespace Query {
     [K in Type.Field<T>]?: Exclude<T[K], undefined>;
   }
 
-  interface From {
-    <T extends Type>(entity: Type.EntityType<T>): FromType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<"left" | "outer">): Partial<FromType<T>>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<Join.Mode | void>): FromType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join: "left" | "outer"): Partial<FromType<T>>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join?: Join.Mode): FromType<T>;
+  interface Where {
+    <T extends Type>(entity: Type.EntityType<T>, on?: Join.Function<"inner" | void>): FromType<T>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join?: "inner"): FromType<T>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<Join.Mode>): Partial<FromType<T>>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join: Join.Mode): Partial<FromType<T>>;
+
+    <T extends Type>(field: FromType<T>): Verbs<T>;
+    
     <T>(field: T): Field.Assert<T>;
+    (field: unknown, as: "asc" | "desc"): void;
   }
 
-  interface Where extends From, Verbs {}
-
-  type Function<R> = (where: Query.Where) => R | void;
+  type Function<R> = (where: Where) => R | void;
 
   type Select<R> = ((where: Where) => R | (() => R))
 
@@ -78,6 +83,8 @@ declare namespace Query {
   type Mode = "select" | "update" | "delete";
 
   type JoinOn<T extends Type> = string[] | Query.Compare<T> | Join.Function;
+
+  type Sort = "asc" | "desc";
 }
 
 class Query<T = void> {
@@ -99,14 +106,12 @@ class Query<T = void> {
   };
 
   mode?: Query.Mode;
+  limit?: number;
 
   constructor(from: Query.Function<T>){
-    const verbs = queryVerbs(this);
-    const where = queryWhere(this);
-
-    this.where = Object.assign(where, verbs) as Query.Where;
-    
-    const exec = from(this.where);
+    const exec = from(
+      this.where = queryWhere.bind(this) as Query.Where
+    );
 
     if(exec)
       this.parse = selectQuery<T>(this, exec);
@@ -116,12 +121,12 @@ class Query<T = void> {
     return generate(this, this.connection?.knex);
   }
 
-  then(resolve: (res: any) => any, reject: (err: any) => any){
-    return this.toQueryBuilder().then(this.parse).then(resolve).catch(reject);
-  }
-
   toString(){
     return this.toQueryBuilder().toString().replace(/```/g, "`");
+  }
+
+  then(resolve: (res: any) => any, reject: (err: any) => any){
+    return this.toQueryBuilder().then(this.parse).then(resolve).catch(reject);
   }
 
   async run(){
@@ -148,30 +153,6 @@ class Query<T = void> {
   commit(mode: Query.Mode){
     this.mode = mode;
     this.pending.forEach(apply => apply());
-  }
-
-  group(keyword: "and" | "or", ...where: Instruction[]){
-    const sep = ` ${keyword} `;
-    const root = this.pending;
-    const [cond, ...rest] = where;
-
-    const apply: Instruction = (arg) => {
-      if(arg === true)
-        return "(" + where.map(where => where(true)).join(sep) + ")";
-
-      cond(where => {
-        where += rest.map(cond => sep + cond(true)).join("");
-
-        if(typeof arg == "function")
-          return arg("(" + where + ")");
-
-        return where;
-      });
-    }
-
-    root.splice(root.indexOf(cond), where.length, apply);
-
-    return apply
   }
 
   static one<R>(where: Query.Function<R>, orFail?: boolean){

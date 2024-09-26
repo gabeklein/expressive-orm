@@ -15,8 +15,7 @@ it("will generate query", () => {
     const foo = where(Foo);
 
     where(foo.value).is("Hello World!");
-
-    where.deletes(foo);
+    where(foo).delete();
   });
 
   expect(query).toMatchSnapshot();
@@ -28,8 +27,7 @@ it("will include FROM statement where JOIN exists", () => {
     const bar = where(Bar, { color: foo.color });
 
     where(bar.value).is("Hello World!");
-
-    where.deletes(foo);
+    where(foo).delete();
   });
 
   expect(query).toMatchSnapshot();
@@ -43,7 +41,7 @@ it("will include FROM statement where JOIN exists", () => {
 
 //     where(bar.value).is("Hello World!");
 
-//     where.deletes(foo, bar);
+//     where.delete(foo, bar);
 //   });
 
 //   expect(query).toMatchSnapshot();

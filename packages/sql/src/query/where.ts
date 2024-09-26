@@ -3,91 +3,231 @@ import { Field } from '../Field';
 import { qualify } from '../utility';
 import { Query, RelevantTable } from './Query';
 
-export function queryWhere(from: Query<any>){
-  return (
-    target: Field | typeof Type,
-    on?: Query.Compare<any> | Query.Join.Function,
-    join?: Query.Join.Mode) => {
+export function queryWhere(
+  this: Query<any>,
+  target: Field | Query.FromType | Type.EntityType,
+  on?: Query.Compare | Query.Join.Function | Query.Sort,
+  join?: Query.Join.Mode){
 
-    if(target instanceof Field)
-      return target.assert(cond => {
-        from.wheres.push(cond);
-      });
-  
-    let { schema, table: name } = target.ready();
-    let alias: string | undefined;
-
-    const { tables } = from;
-    const proxy = {} as any;
-    const metadata: Query.Table = { name, alias, type: target, join };
-
-    if(schema){
-      name = qualify(schema, name);
-      alias = `$${tables.length}`;
+  if(target instanceof Field){
+    if(typeof on == "string"){
+      this.order.push([target, on]);
+      return
     }
 
-    RelevantTable.set(proxy, metadata);
+    return target.assert(cond => {
+      this.wheres.push(cond);
+    });
+  }
 
-    target.fields.forEach((field, key) => {
-      field = Object.create(field);
+  if(typeof target === "object")
+    return queryVerbs(this, target);
 
-      RelevantTable.set(field, metadata);
-      Object.defineProperty(proxy, key, {
-        get: field.proxy(from, proxy)
-      })
+  let { schema, table: name } = target.ready();
+  let alias: string | undefined;
+
+  const { tables } = this;
+  const proxy = {} as any;
+  const metadata: Query.Table = { name, alias, type: target, join };
+
+  if(schema){
+    name = qualify(schema, name);
+    alias = `$${tables.length}`;
+  }
+
+  RelevantTable.set(proxy, metadata);
+
+  target.fields.forEach((field, key) => {
+    field = Object.create(field);
+
+    RelevantTable.set(field, metadata);
+    Object.defineProperty(proxy, key, {
+      get: field.proxy(this, proxy)
     })
+  })
 
-    if(tables.length){
-      if(from.connection !== target.connection) 
-        throw new Error(`Joined entity ${target} does not share a connection with ${from.main}`);
+  if(tables.length){
+    if(this.connection !== target.connection) 
+      throw new Error(`Joined entity ${target} does not share a connection with ${this.main}`);
+  
+    if(!join)
+      metadata.join = "inner";
+
+    if(Array.isArray(on)){
+      metadata.on = on;
+    }
+    else if(typeof on == "object"){
+      const cond = [] as Query.Cond[];
     
-      if(!join)
-        metadata.join = "inner";
-
-      if(Array.isArray(on)){
-        metadata.on = on;
+      for(const key in on){
+        const left = proxy[key];
+        const right = (on as any)[key];
+    
+        if(!left)
+          throw new Error(`${key} is not a valid field in ${target}.`);
+    
+        cond.push({ left, right, operator: "=" });
       }
-      else if(typeof on == "object"){
-        const cond = [] as Query.Cond[];
-      
-        for(const key in on){
-          const left = proxy[key];
-          const right = (on as any)[key];
-      
-          if(!left)
-            throw new Error(`${key} is not a valid field in ${target}.`);
-      
-          cond.push({ left, right, operator: "=" });
-        }
 
-        metadata.on = cond;
+      metadata.on = cond;
+    }
+    else if(typeof on == "function"){
+      const conds = [] as Query.Cond[];
+
+      this.pending.push(() => {
+        on(field => {
+          if(field instanceof Field)
+            return field.assert(cond => {
+              conds.push(cond);
+            })
+          else
+            throw new Error("Join assertions can only apply to fields.");
+        });
+      })
+
+      metadata.on = conds;
+    }
+    else
+      throw new Error(`Invalid join on: ${on}`);
+  }
+  else {
+    this.main = target;
+    this.connection = target.connection;
+  }
+
+  tables.push(metadata);
+
+  return proxy;
+}
+
+export function queryVerbs<T extends Type>(
+  query: Query<T>, table: Query.FromType<T>): Query.Verbs<T> {
+
+  return {
+    delete(limit?: number){
+      return deleteQuery(query, table, limit);
+    },
+    update(values: Query.Update<any>, limit?: number){
+      return updateQuery(query, table, values, limit);
+    }
+  }
+}
+
+function deleteQuery(
+  query: Query<any>,
+  from: Query.FromType<any>,
+  limit?: number){
+
+  const table = RelevantTable.get(from);
+
+  if(!table)
+    throw new Error(`Argument ${from} is not a query entity.`);
+
+  query.commit("delete");
+  query.deletes = table;
+  query.limit = limit;
+}
+
+function updateQuery(
+  query: Query<any>,
+  from: Query.FromType<any>,
+  update: Query.Update<any>,
+  limit?: number){
+
+  const meta = RelevantTable.get(from);
+
+  if(!meta)
+    throw new Error(`Argument ${from} is not a query entity.`);
+
+  const values = new Map<Field, string>();
+  const { name: table, type: entity } = meta;
+
+  Object.entries(update).forEach((entry) => {
+    const [key, value] = entry;
+    const field = entity.fields.get(key);
+
+    if(!field)
+      throw new Error(
+        `Property ${key} has no corresponding field in entity ${entity.constructor.name}`
+      );
+
+    values.set(field, value);
+  });
+
+  query.commit("update");
+  query.updates = { table, values };
+  query.limit = limit;
+}
+
+export function selectQuery<R = any>(
+  query: Query<any>,
+  output: R | (() => R),
+): (raw: any[]) => R[] {
+  const selects = new Map<string | Field, string | number>();
+
+  query.commit("select");
+  query.selects = selects;
+
+  switch(typeof output){
+    case "object":
+      if(output instanceof Field){
+        selects.set(output, output.column);
+    
+        return raw => raw.map(row => {
+          const value = row[output.column];
+          return output.get ? output.get(value) : value;
+        });
       }
-      else if(typeof on == "function"){
-        const conds = [] as Query.Cond[];
-
-        from.pending.push(() => {
-          on(field => {
-            if(field instanceof Field)
-              return field.assert(cond => {
-                conds.push(cond);
-              })
-            else
-              throw new Error("Join assertions can only apply to fields.");
-          });
+      else if(output){
+        Object.getOwnPropertyNames(output).forEach(key => {
+          const value = (output as any)[key];
+      
+          if(value instanceof Field)
+            selects.set(value, key);
         })
+    
+        return raw => raw.map(row => {
+          const values = Object.create(output as {});
+      
+          selects.forEach((column, field) => {
+            const value = field instanceof Field && field.get
+              ? field.get(row[column]) : field;
 
-        metadata.on = conds;
+            Object.defineProperty(values, column, { value });
+          })
+          
+          return values as R;
+        })
       }
-      else
-        throw new Error(`Invalid join on: ${on}`);
-    }
-    else {
-      from.main = target;
-      from.connection = target.connection;
+
+    case "function": {
+      let focus: any;
+  
+      query.access = field => {
+        selects.set(field, selects.size + 1);
+        return field.placeholder;
+      };
+  
+      (output as () => R)();
+  
+      query.access = field => {
+        const value = focus[selects.get(field)!];
+        return value === null ? undefined : value;
+      }
+  
+      return raw => {
+        const results = [] as R[];
+  
+        for(const row of raw){
+          focus = row;
+          results.push((output as () => R)());
+        }
+  
+        return results;
+      }
     }
 
-    tables.push(metadata);
-
-    return proxy;
+    default:
+      throw new Error("Bad argument");
   }
 }

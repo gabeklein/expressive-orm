@@ -97,7 +97,7 @@ describe("sort", () => {
     const query = new Query(where => {
       const test = where(Test);
   
-      where.sorts(test.id, "asc");
+      where(test.id, "asc")
   
       return {
         name: test.name
@@ -111,8 +111,8 @@ describe("sort", () => {
     const query = new Query(where => {
       const test = where(Test);
   
-      where.sorts(test.rating, "asc");
-      where.sorts(test.name, "asc");
+      where(test.rating, "asc")
+      where(test.name, "asc")
   
       return {
         name: test.name
@@ -134,7 +134,7 @@ describe("sort", () => {
         name: test.name
       })
   
-      where.sorts(other.rank, "asc");
+      where(other.rank, "asc")
   
       return {
         name: test.name
