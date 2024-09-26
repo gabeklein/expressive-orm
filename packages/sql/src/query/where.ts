@@ -101,62 +101,45 @@ export function queryWhere(
 }
 
 export function queryVerbs<T extends Type>(
-  query: Query<T>, table: Query.FromType<T>): Query.Verbs<T> {
+  query: Query<T>, from: Query.FromType<T>): Query.Verbs<T> {
 
   return {
     delete(limit?: number){
-      return deleteQuery(query, table, limit);
+      const table = RelevantTable.get(from);
+    
+      if(!table)
+        throw new Error(`Argument ${from} is not a query entity.`);
+    
+      query.commit("delete");
+      query.deletes = table;
+      query.limit = limit;
     },
-    update(values: Query.Update<any>, limit?: number){
-      return updateQuery(query, table, values, limit);
+    update(update: Query.Update<any>, limit?: number){
+      const meta = RelevantTable.get(from);
+    
+      if(!meta)
+        throw new Error(`Argument ${from} is not a query entity.`);
+    
+      const values = new Map<Field, string>();
+      const { name: table, type: entity } = meta;
+    
+      Object.entries(update).forEach((entry) => {
+        const [key, value] = entry;
+        const field = entity.fields.get(key);
+    
+        if(!field)
+          throw new Error(
+            `Property ${key} has no corresponding field in entity ${entity.constructor.name}`
+          );
+    
+        values.set(field, value);
+      });
+    
+      query.commit("update");
+      query.updates = { table, values };
+      query.limit = limit;
     }
   }
-}
-
-function deleteQuery(
-  query: Query<any>,
-  from: Query.FromType<any>,
-  limit?: number){
-
-  const table = RelevantTable.get(from);
-
-  if(!table)
-    throw new Error(`Argument ${from} is not a query entity.`);
-
-  query.commit("delete");
-  query.deletes = table;
-  query.limit = limit;
-}
-
-function updateQuery(
-  query: Query<any>,
-  from: Query.FromType<any>,
-  update: Query.Update<any>,
-  limit?: number){
-
-  const meta = RelevantTable.get(from);
-
-  if(!meta)
-    throw new Error(`Argument ${from} is not a query entity.`);
-
-  const values = new Map<Field, string>();
-  const { name: table, type: entity } = meta;
-
-  Object.entries(update).forEach((entry) => {
-    const [key, value] = entry;
-    const field = entity.fields.get(key);
-
-    if(!field)
-      throw new Error(
-        `Property ${key} has no corresponding field in entity ${entity.constructor.name}`
-      );
-
-    values.set(field, value);
-  });
-
-  query.commit("update");
-  query.updates = { table, values };
-  query.limit = limit;
 }
 
 export function selectQuery<R = any>(
