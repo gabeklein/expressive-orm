@@ -41,8 +41,6 @@ declare namespace Query {
     type: Type.EntityType;
     name: string | Knex.AliasDict;
     alias?: string;
-    join?: Join.Mode;
-    on?: Cond[];
   }
 
   type FromType<T extends Type = Type> = {
@@ -184,22 +182,21 @@ class Query<T = void> {
   ): Query.FromType {
 
     const { tables } = this;
-
     let { connection, fields, schema } = type.ready();
     let name: string | Knex.AliasDict = type.table
     let alias: string | undefined;
-  
+
     if(schema){
       alias = `$${tables.length}`;
       name = { [alias]: qualify(schema, name) }
     }
-  
+
     const proxy = {} as any;
     const metadata: Query.Table = { name, alias, type };
-  
+
     tables.push(metadata);
     RelevantTable.set(proxy, metadata);
-  
+
     fields.forEach((field, key) => {
       field = Object.create(field);
       RelevantTable.set(field, metadata);
@@ -207,7 +204,7 @@ class Query<T = void> {
         get: field.proxy(this, proxy)
       })
     })
-  
+
     if(this.main === undefined){
       this.main = type;
       this.connection = connection;
@@ -220,63 +217,71 @@ class Query<T = void> {
 
       this.builder = engine(name).select({ count: "COUNT(*)" });;
     }
-    else {
-      if(this.connection !== connection)
-        throw new Error(`Joined entity ${type} does not share a connection with ${this.main}`);
+    else if(connection !== this.connection)
+      throw new Error(`Joined entity ${type} does not share a connection with ${this.main}`);
+    else
+      this.join(metadata, on, join)
 
-      let callback: Knex.JoinCallback;
-
-      if(typeof on == "function")
-        callback = table => {
-          this.pending.add(() => {
-            on(field => {
-              if (field instanceof Field){
-                return field.assert(cond => {
-                  table.on(String(cond.left), cond.operator, String(cond.right));
-                });
-              }
-              else
-                throw new Error("Join assertions can only apply to fields.");
-            });
-          })
-        }
-      else if(typeof on == "object")
-        callback = table => {
-          for (const key in on) {
-            const left = proxy[key];
-            const right = (on as any)[key];
-
-            if (!left)
-              throw new Error(`${key} is not a valid field in ${type}.`);
-
-            table.on(String(left), "=", String(right));
-          }
-        }
-      else
-        throw new Error(`Invalid join on: ${on}`);
-      
-      switch(join){
-        case "left":
-          this.builder.leftJoin(name, callback);
-          break;
-  
-        case "inner":
-        case undefined:
-          this.builder.join(name, callback);
-          break;
-
-        case "right" as unknown:
-        case "full" as unknown:
-          throw new Error(`Cannot ${join} join because that would affect ${this.main.constructor.name} which is already defined.`);
-
-        default:
-          throw new Error(`Invalid join type ${join}.`);
-      }
-
-      metadata.join = join || "inner";
-    }
-  
     return proxy;
+  }
+
+  join(
+    table: Query.Table,
+    on?: Query.Compare | Query.Join.Function,
+    join?: Query.Join.Mode
+  ){
+    const { name, type } = table;
+
+    let callback: Knex.JoinCallback;
+
+    if(typeof on == "function")
+      callback = table => {
+        this.pending.add(() => {
+          on(field => {
+            if (field instanceof Field){
+              return field.assert(cond => {
+                table.on(String(cond.left), cond.operator, String(cond.right));
+              });
+            }
+            else
+              throw new Error("Join assertions can only apply to fields.");
+          });
+        })
+      }
+    else if(typeof on == "object")
+      callback = table => {
+        for (const key in on) {
+          const field = type.fields.get(key);
+
+          if (!field)
+            throw new Error(`${key} is not a valid field in ${type}.`);
+
+          const left = `${type.table}.${field.column}`;
+          const right = String((on as any)[key]);
+
+          table.on(left, "=", right);
+        }
+      }
+    else
+      throw new Error(`Invalid join on: ${on}`);
+    
+    switch(join){
+      case "left":
+        this.builder.leftJoin(name, callback);
+        break;
+
+      case "inner":
+      case undefined:
+        this.builder.join(name, callback);
+        break;
+
+      case "right" as unknown:
+      case "full" as unknown:
+        throw new Error(`Cannot ${join} join because that would affect ${this.main} which is already defined.`);
+
+      default:
+        throw new Error(`Invalid join type ${join}.`);
+    }
   }
 
   verbs<T extends Type>(from: Query.FromType<T>): Query.Verbs<T> {
