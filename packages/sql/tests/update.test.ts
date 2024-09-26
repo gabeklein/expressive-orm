@@ -6,7 +6,7 @@ class Foo extends Type {
 }
 
 it.skip("will generate query", () => {
-  const query = new Query(where => {
+  const query = Query(where => {
     const foo = where(Foo);
 
     where(foo.color).is("red");

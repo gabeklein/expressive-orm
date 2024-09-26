@@ -17,27 +17,15 @@ class C extends Type {
 it.only("skip tests", () => {})
 
 it("will query via direct selection", () => {
-  const query = new Query(where => {
-    const a = where(A);
-
-    return a.value
-  });
-
-  expect(query).toMatchSnapshot();
-})
-
-it("will query via select function", () => {
-  const query = new Query(where => {
-    const a = where(A);
-
-    return () => a.value
+  const query = Query(where => {
+    return where(A).value
   });
 
   expect(query).toMatchSnapshot();
 })
 
 it("will select via an object", () => {
-  const query = new Query(where => {
+  const query = Query(where => {
     const a = where(A);
 
     return {
@@ -51,7 +39,7 @@ it("will select via an object", () => {
 
 it("will query nested relationships", () => {
   // TODO: fix types
-  const query = new Query(where => {
+  const query = Query(where => {
     const a = where(A);
 
     where(a.b.c.value).is(100);

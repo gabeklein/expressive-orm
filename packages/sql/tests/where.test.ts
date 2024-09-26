@@ -19,7 +19,7 @@ describe("basic", () => {
       d = Num();
     }
   
-    const query = new Query(where => {
+    const query = Query(where => {
       const test = where(Test);
   
       where(test.a).is(1);
@@ -32,7 +32,7 @@ describe("basic", () => {
   })
   
   it("will assert a joined property's value", () => {
-    const query = new Query(where => {
+    const query = Query(where => {
       const foo = where(Foo);
       const bar = where(Bar, { color: foo.color });
   
@@ -48,7 +48,7 @@ describe("basic", () => {
       greeting = "Hello World";
     }
   
-    const query = new Query(where => {
+    const query = Query(where => {
       const bar = where(Bar);
   
       where(bar.foo.color).is("blue");
@@ -59,7 +59,7 @@ describe("basic", () => {
   
   // replace with where(foo).is({ ... })
   // it.skip("will match values via object", () => {
-  //   const query = new Query(where => {
+  //   const query = Query(where => {
   //     const foo = where(Foo);
   
   //     where(foo).has({
@@ -74,7 +74,7 @@ describe("basic", () => {
 
 describe.skip("nested", () => {
   it("will match nested values", () => {
-    const query = new Query(where => {
+    const query = Query(where => {
       const foo = where(Foo);
       const bar = where(Bar, { color: foo.color });
 
@@ -89,7 +89,7 @@ describe.skip("nested", () => {
   })
 
   it("will match absurdly", () => {
-    const query = new Query(where => {
+    const query = Query(where => {
       const foo = where(Foo);
       const bar = where(Bar, { color: foo.color });
 

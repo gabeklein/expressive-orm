@@ -11,7 +11,7 @@ class Bar extends Type {
 }
 
 it("will generate query", () => {
-  const query = new Query(where => {
+  const query = Query(where => {
     const foo = where(Foo);
 
     where(foo.value).is("Hello World!");
@@ -22,7 +22,7 @@ it("will generate query", () => {
 })
 
 it("will include FROM statement where JOIN exists", () => {
-  const query = new Query(where => {
+  const query = Query(where => {
     const foo = where(Foo);
     const bar = where(Bar, { color: foo.color });
 
@@ -35,7 +35,7 @@ it("will include FROM statement where JOIN exists", () => {
 
 // this is only suprted in MySQL
 // it.skip("will delete from multiple", () => {
-//   const query = new Query(where => {
+//   const query = Query(where => {
 //     const foo = where(Foo);
 //     const bar = where(Bar, { color: foo.color });
 

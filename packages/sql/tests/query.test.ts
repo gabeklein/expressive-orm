@@ -35,7 +35,7 @@ it("will insert and retrieve a Date", async () => {
 })
 
 it("will create count query", () => {
-  const query = new Query(where => {
+  const query = Query(where => {
     const foo = where(Foo);
 
     where(foo.color).is("red");
@@ -45,3 +45,5 @@ it("will create count query", () => {
 
   expect(qb).toMatchSnapshot();
 })
+
+it.todo("will reject query via select function")

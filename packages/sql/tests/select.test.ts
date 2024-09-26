@@ -7,7 +7,7 @@ class Foo extends Type {
 
 describe("select", () => {
   it("will select via object", () => {
-    const query = new Query(where => {
+    const query = Query(where => {
       const { bar, baz } = where(Foo);
   
       return { bar, baz }
@@ -17,7 +17,7 @@ describe("select", () => {
   })
   
   it("will select a field directly", () => {
-    const query = new Query(where => {
+    const query = Query(where => {
       const foo = where(Foo);
   
       return foo.bar;
@@ -27,7 +27,7 @@ describe("select", () => {
   })
   
   it("will select a entire entity", () => {
-    const query = new Query(where => {
+    const query = Query(where => {
       return where(Foo);
     })
   
@@ -52,7 +52,7 @@ describe("joins", () => {
       rating = Num();
     }
   
-    const query = new Query(where => {
+    const query = Query(where => {
       const foo = where(Foo);
       const bar = where(Bar, { color: foo.color });
       const baz = where(Baz, { rating: bar.rating }, "left");
@@ -81,7 +81,7 @@ describe("sort", () => {
   }
 
   it("will add order clause", async () => {
-    const query = new Query(where => {
+    const query = Query(where => {
       const test = where(Test);
   
       where(test.id, "asc")
@@ -95,7 +95,7 @@ describe("sort", () => {
   })
 
   it("will add multiple clauses", async () => {
-    const query = new Query(where => {
+    const query = Query(where => {
       const test = where(Test);
   
       where(test.rating, "asc")
@@ -115,7 +115,7 @@ describe("sort", () => {
       rank = Num();
     }
 
-    const query = new Query(where => {
+    const query = Query(where => {
       const test = where(Test);
       const other = where(Other, {
         name: test.name

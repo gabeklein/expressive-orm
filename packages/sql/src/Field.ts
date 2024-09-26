@@ -81,9 +81,7 @@ class Field {
     Object.assign(this, options);
   }
 
-  proxy(query: Query<any>, _proxy: {}){
-    return () => query.access(this);
-  }
+  proxy?(query: Query.Callback): () => any;
 
   static create<T extends Field>(
     this: Field.FieldType<T>, options?: Partial<T>){

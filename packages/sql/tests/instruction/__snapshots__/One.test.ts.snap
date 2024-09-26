@@ -20,15 +20,6 @@ exports[`will query via direct selection 1`] = `
 	  left join \`C\` on \`C\`.\`id\` = \`B\`.\`cId\`
 `;
 
-exports[`will query via select function 1`] = `
-	select
-	  \`A\`.\`value\` as 1
-	from
-	  \`A\`
-	  left join \`B\` on \`B\`.\`id\` = \`A\`.\`bId\`
-	  left join \`C\` on \`C\`.\`id\` = \`B\`.\`cId\`
-`;
-
 exports[`will select via an object 1`] = `
 	select
 	  \`A\`.\`value\` as \`aValue\`,

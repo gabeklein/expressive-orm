@@ -227,7 +227,7 @@ abstract class Type {
     this: Type.EntityType<T>,
     query: Type.QueryFunction<T, R>){
 
-    return new Query(where => {
+    return Query(where => {
       return query(where(this), where);
     });
   }

@@ -56,14 +56,15 @@ class OneToManyRelation extends Field {
     `
   }
 
-  proxy(query: Query){
+  proxy(query: Query.Callback){
     let { type } = this;
 
     const fk = `${type.table}.id`;
     const lk = `${this.table.name}.${this.column}`;
 
     // @ts-ignore
-    const proxy = query.table(type, [`${fk} = ${lk}`], "left");
+    // TODO: fix this
+    const proxy = query(type, [`${fk} = ${lk}`], "left");
 
     return () => proxy;
   }

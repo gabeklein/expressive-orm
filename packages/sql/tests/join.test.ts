@@ -17,7 +17,7 @@ class Baz extends Type {
 }
 
 it("will join using object", async () => {
-  const query = new Query(where => {
+  const query = Query(where => {
     const foo = where(Foo);
     const bar = where(Bar, { color: foo.color });
     const baz = where(Baz, { rating: bar.rating });
@@ -31,7 +31,7 @@ it("will join using object", async () => {
 })
 
 it("will join using function", async () => {
-  const query = new Query(where => {
+  const query = Query(where => {
     const foo = where(Foo);
     const bar = where(Bar, on => {
       on(bar.name).isNot(foo.name);
@@ -54,7 +54,7 @@ it("will alias tables which have a schema", () => {
     color = Str();
   }
 
-  const query = new Query(where => {
+  const query = Query(where => {
     const foo = where(Foo);
 
     where(foo.color).is("red");
