@@ -1,9 +1,8 @@
 import { Connection } from '../connection/Connection';
 import { Field } from '../Field';
 import { Type } from '../Type';
-// import { escapeString } from '../utility';
 import { generate } from './generate';
-import { queryWhere, selectQuery } from './where';
+import { queryWhere } from './where';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
@@ -109,12 +108,83 @@ class Query<T = void> {
   limit?: number;
 
   constructor(from: Query.Function<T>){
-    const exec = from(
+    const output = from(
       this.where = queryWhere.bind(this) as Query.Where
     );
 
-    if(exec)
-      this.parse = selectQuery<T>(this, exec);
+    if(!output)
+      return;
+
+    const selects = new Map<string | Field, string | number>();
+
+    this.commit("select");
+    this.selects = selects;
+  
+    switch(typeof output){
+      case "object": {
+        if(output instanceof Field){
+          selects.set(output, output.column);
+      
+          this.parse = raw => raw.map(row => {
+            const value = (row as any)[output.column];
+            return output.get ? output.get(value) : value;
+          });
+        }
+        else if(output){
+          Object.getOwnPropertyNames(output).forEach(key => {
+            const value = (output as any)[key];
+        
+            if(value instanceof Field)
+              selects.set(value, key);
+          })
+      
+          this.parse = raw => raw.map(row => {
+            const values = Object.create(output as {});
+        
+            selects.forEach((column, field) => {
+              const value = field instanceof Field && field.get
+                ? field.get((row as any)[column]) : field;
+  
+              Object.defineProperty(values, column, { value });
+            })
+            
+            return values as T;
+          })
+        }
+        break;
+      }
+  
+      case "function": {
+        let focus: any;
+    
+        this.access = field => {
+          selects.set(field, selects.size + 1);
+          return field.placeholder;
+        };
+    
+        (output as () => T)();
+    
+        this.access = field => {
+          const value = focus[selects.get(field)!];
+          return value === null ? undefined : value;
+        }
+    
+        this.parse = raw => {
+          const results = [] as T[];
+    
+          for(const row of raw){
+            focus = row;
+            results.push((output as () => T)());
+          }
+    
+          return results;
+        }
+        break
+      }
+  
+      default:
+        throw new Error("Bad argument");
+    }
   }
 
   toQueryBuilder(){
