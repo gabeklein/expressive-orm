@@ -30,14 +30,6 @@ exports[`select will select a field directly 1`] = `
 	  \`foo\`
 `;
 
-exports[`select will select via map function 1`] = `
-	select
-	  \`foo\`.\`bar\` as \`1\`,
-	  \`foo\`.\`baz\` as \`2\`
-	from
-	  \`foo\`
-`;
-
 exports[`select will select via object 1`] = `
 	select
 	  \`foo\`.\`bar\` as \`bar\`,

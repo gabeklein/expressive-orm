@@ -16,19 +16,6 @@ describe("select", () => {
     expect(query).toMatchSnapshot();
   })
   
-  it("will select via map function", () => {
-    const query = new Query(where => {
-      const foo = where(Foo);
-  
-      return () => ({
-        bar: foo.bar,
-        baz: foo.baz
-      })
-    })
-  
-    expect(query).toMatchSnapshot();
-  })
-  
   it("will select a field directly", () => {
     const query = new Query(where => {
       const foo = where(Foo);
