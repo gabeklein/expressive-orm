@@ -86,12 +86,11 @@ declare namespace Query {
 class Query<T = void> {
   tables = [] as Query.Table[];
   pending = new Set<() => void>();
+  parse = (raw: unknown[]) => raw;
 
   builder!: Knex.QueryBuilder;
-
   connection?: Connection;
   main?: Type.EntityType;
-  parse = (raw: unknown[]) => raw;
 
   constructor(from: Query.Function<T>){
     const output = from((
