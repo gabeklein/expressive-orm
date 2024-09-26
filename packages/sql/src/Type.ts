@@ -86,22 +86,25 @@ abstract class Type {
     return this.name;
   }
 
-  static sanitize<T extends Type>(data: Type.Insert<T>[]){
-    const { fields } = this.ready();
+  static sanitize<T extends Type>(data: Type.Insert<T>): Record<string, unknown>;
+  static sanitize<T extends Type>(data: Type.Insert<T>[]): Record<string, unknown>[];
+  static sanitize<T extends Type>(data: Type.Insert<T> | Type.Insert<T>[]){
+    const { fields, name } = this.ready();
+    const multiple = Array.isArray(data) && data.length > 1;
 
-    return data.map((insert, index) => {
+    function sanitize(insert: Type.Insert<T>, index?: number){
       const values: Record<string, any> = {};
 
       fields.forEach((field, key) => {
         const given = insert[key as Type.Field<T>] as unknown;
-        const which = data.length > 1 ? ` on index [${index}]` : ""
+        const which = multiple ? ` on index [${index}]` : ""
 
         if(given == null){
           if(field.nullable || field.default || field.primary)
             return
 
           throw new Error(
-            `Provided value for ${this}.${key} is ${given}${which} but column is not nullable.`
+            `Provided value for ${name}.${key} is ${given}${which} but column is not nullable.`
           );
         }
 
@@ -110,7 +113,7 @@ abstract class Type {
           values[field.column] = value === undefined ? given : value;
         }
         catch(err: unknown){
-          let message = `Provided value for ${this}.${key}${which} but not acceptable for type ${field.datatype}.`;
+          let message = `Provided value for ${name}.${key}${which} but not acceptable for type ${field.datatype}.`;
 
           if(typeof err == "string")
             message += `\n${err}`;
@@ -120,7 +123,9 @@ abstract class Type {
       });
 
       return values;
-    });
+    }
+
+    return Array.isArray(data) ? data.map(sanitize) : sanitize(data);  
   }
 
   static ready<T extends Type>(this: Type.EntityType<T>){
