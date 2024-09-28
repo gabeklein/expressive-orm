@@ -1,17 +1,19 @@
 import { Field } from '../Field';
 
 declare namespace Enum {
-  interface Options<T extends string> extends Field.Options {
-    values: T[];
+  interface OrNull<T extends string> extends Enum<T> {
+    nullable: true;
   }
+}
 
-  type Nullable<T extends string> = Options<T> & { nullable: true };
+interface Enum<T extends string> extends Field {
+  values: T[];
 }
 
 function Enum<T extends string>(values: T[]): T;
-function Enum<T extends string>(options: Enum.Nullable<T>): T | null | undefined;
-function Enum<T extends string>(options: Enum.Options<T>): T;
-function Enum<T extends string>(options: T[] | Enum.Options<T>){
+function Enum<T extends string>(options: Enum.OrNull<T>): T | null | undefined;
+function Enum<T extends string>(options: Enum<T>): T;
+function Enum<T extends string>(options: T[] | Enum<T>){
   if(Array.isArray(options))
     options = { values: options };
 
@@ -22,7 +24,7 @@ function Enum<T extends string>(options: T[] | Enum.Options<T>){
     ))
     .join(',');
 
-  return Field.create({
+  return Field({
     ...rest,
     datatype: `ENUM(${signature})`
   });

@@ -1,7 +1,7 @@
 import { Field } from '../Field';
 
 declare namespace Str {
-  type DataType =
+  type Type =
     | "char"
     | "varchar"
     | "nchar"
@@ -11,31 +11,33 @@ declare namespace Str {
     | "mediumtext"
     | "longtext";
 
-  interface Options extends Field.Options {
-    datatype?: DataType;
-    length?: number;
-    oneOf?: any[];
-    variable?: boolean;
-  }
-
-  interface Specific<T extends string> extends Options {
+  interface Specific<T extends string> extends Str {
     oneOf: T[];
   }
 
-  type Nullable = Options & { nullable: true };
+  interface OrNull extends Str {
+    nullable: true;
+  }
 }
 
-function Str<T extends string>(oneOf: Str.Specific<T> & Str.Nullable): T | null | undefined;
+interface Str extends Field {
+  datatype?: Str.Type;
+  length?: number;
+  oneOf?: any[];
+  variable?: boolean;
+}
+
+function Str<T extends string>(oneOf: Str.Specific<T> & Str.OrNull): T | null | undefined;
 function Str<T extends string>(oneOf?: Str.Specific<T>): T;
 function Str(column: string, nullable: true): string | null | undefined;
 function Str(column: string, nullable?: boolean): string;
-function Str(length: number, options: Str.Nullable): string | null | undefined;
-function Str(length: number, options?: Str.Options): string;
-function Str(options: Str.Nullable): string | null | undefined;
-function Str(options?: Str.Options): string;
+function Str(length: number, options: Str.OrNull): string | null | undefined;
+function Str(length: number, options?: Str): string;
+function Str(options: Str.OrNull): string | null | undefined;
+function Str(options?: Str): string;
 function Str(
-  opts: number | Str.Options = {},
-  arg2?: Str.Options | boolean): any {
+  opts: number | Str = {},
+  arg2?: Str | boolean): any {
 
   switch(typeof opts){
     case "number":
@@ -57,13 +59,13 @@ function Str(
     break;
   }
 
+  const maxLength = opts.length || 255;
   let datatype: string = opts.datatype || "varchar";
-  let maxLength = opts.length || 255;
 
   if(datatype && datatype.includes("char"))
     datatype = `${datatype}(${maxLength})`
 
-  return Field.create({
+  return Field({
     ...opts,
     set(value: unknown){
       if(typeof value !== "string")
@@ -72,8 +74,7 @@ function Str(
       if(value.length > maxLength)
         throw `Value length ${value.length} exceeds maximum of ${maxLength}.`
     },
-    datatype: datatype.toUpperCase(),
-    placeholder: ""
+    datatype: datatype.toUpperCase()
   });
 }
 

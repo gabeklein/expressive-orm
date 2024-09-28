@@ -1,16 +1,21 @@
 import { Field } from '../Field';
 
 declare namespace Json {
-  interface Options<T> extends Field.Options {}
-
-  
-  type Nullable<T> = Options<T> & { nullable: true };
+  interface OrNull<T extends {}> extends Json<T> {
+    nullable: true;
+  }
 }
 
-function Json<T extends {}>(a1: Json.Nullable<T>): T | null | undefined;
-function Json<T extends {}>(a1?: Json.Options<T>): T;
-function Json(a1?: Json.Options<any>){
-  return Field.create({
+interface Json<T extends {}> extends Field {
+  datatype: "json";
+  get(value: string): T;
+  set(value: T): string;
+}
+
+function Json<T extends {}>(a1: Json.OrNull<T>): T | null | undefined;
+function Json<T extends {}>(a1?: Json<T>): T;
+function Json(a1?: Json<any>){
+  return Field({
     ...a1,
     datatype: "JSON",
     get(value: string){

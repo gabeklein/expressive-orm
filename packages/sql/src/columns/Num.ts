@@ -1,7 +1,7 @@
 import { Field } from '../Field';
 
 declare namespace Num {
-  type DataType =
+  type Type =
     | "int"
     | "tinyint"
     | "smallint"
@@ -9,32 +9,32 @@ declare namespace Num {
     | "float"
     | "double";
 
-  interface Options extends Field.Options {
-    datatype?: DataType;
+  interface OrNull extends Num {
+    nullable: true;
   }
+}
 
-  type Nullable = Options & { nullable: true };
+interface Num extends Field {
+  datatype?: Num.Type;
 }
 
 function Num(column: string, nullable: true): string | null | undefined;
 function Num(column: string, nullable?: boolean): string;
-function Num(options: Num.Nullable): number | null | undefined;
-function Num(options?: Num.Options): number;
-function Num(options: Num.Options | string = {}, nullable?: boolean){
+function Num(options: Num.OrNull): number | null | undefined;
+function Num(options?: Num): number;
+function Num(options: Num | string = {}, nullable?: boolean){
   if(typeof options == "string")
     options = { column: options };
 
-  const type = (options.datatype || "int").toUpperCase();
+  const type = options.datatype || "int";
 
-  return Field.create({
-    datatype: type.toUpperCase(),
-    //TODO: why is this infinity?...
-    placeholder: Infinity,
+  return Field({
+    datatype: type,
     set: (value: unknown) => {
       if(typeof value !== "number" || isNaN(value))
         throw `Got '${value}' but value must be a number.`
 
-      if(type === "INT" && value !== Math.floor(value))
+      if(type === "int" && value !== Math.floor(value))
         throw `Got '${value}' but selected datatype is INT.`
     },
     nullable,

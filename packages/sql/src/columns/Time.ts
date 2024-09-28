@@ -1,22 +1,27 @@
 import { Field } from '../Field';
 
 declare namespace Time {
-  interface Options extends Field.Options {
-    default?: "NOW" | Date;
+  interface OrNull extends Time {
+    nullable: true;
   }
+}
 
-  type Nullable = Options & { nullable: true };
+interface Time extends Field {
+  datatype?: "DATETIME";
+  default?: "NOW";
+  get?(value: string): Date;
+  set?(value: Date): string;
 }
 
 function Time(column: string, nullable: true): string | null | undefined;
 function Time(column: string, nullable?: boolean): string;
-function Time<T>(options: Time.Nullable): Date | null | undefined;
-function Time(options?: Time.Options): Date;
-function Time(options?: Time.Options | string, nullable?: boolean){
+function Time<T>(options: Time.OrNull): Date | null | undefined;
+function Time(options?: Time): Date;
+function Time(options?: Time | string, nullable?: boolean){
   if(typeof options == "string")
     options = { column: options };
 
-  return Field.create({
+  return Field({
     ...options,
     datatype: 'DATETIME',
     nullable,

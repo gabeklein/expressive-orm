@@ -1,19 +1,21 @@
 import { Field } from '../Field';
 
 declare namespace Bool {
-  interface Options extends Field.Options {
-    either?: readonly [string, string];
+  interface Nullable extends Bool {
+    nullable: true;
   }
+}
 
-  type Nullable = Options & { nullable: true };
+interface Bool extends Field {
+  either?: readonly [string, string];
 }
 
 function Bool(): boolean;
-function Bool(column: string, nullable: true): string | null | undefined;
-function Bool(column: string, nullable?: boolean): string;
+function Bool(column: string, nullable?: true): string | null | undefined;
+function Bool(column: string, nullable: boolean): string;
 function Bool(options: Bool.Nullable): boolean | null | undefined;
-function Bool(options: Bool.Options): boolean;
-function Bool(options: Bool.Options | string = {}, nullable?: boolean){
+function Bool(options: Bool): boolean;
+function Bool(options: Bool | string = {}, nullable?: boolean){
   let isTrue: any = 1;
   let isFalse: any = 0;
   let datatype = "TINYINT";
@@ -29,19 +31,18 @@ function Bool(options: Bool.Options | string = {}, nullable?: boolean){
     })`
   }
 
-  return Field.create({
+  return Field({
     nullable,
     ...options,
     datatype,
-    placeholder: true,
     get(value: unknown){
       return value === isTrue;
     },
     set(value: unknown){
-      if(typeof value == "boolean")
-        return value ? isTrue : isFalse;
+      if(typeof value != "boolean")
+        throw "Value must be a boolean."
 
-      throw "Value must be a boolean."
+      return value ? isTrue : isFalse;
     }
   });
 }

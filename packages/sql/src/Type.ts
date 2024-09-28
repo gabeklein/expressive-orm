@@ -60,7 +60,7 @@ abstract class Type {
    * 
    * Setting to zero to disable this field, and not expect it to be present in the database.
    */
-  id: number | string = Field.create({
+  id: number | string = Field({
     datatype: "int",
     nullable: false,
     increment: true,
@@ -69,7 +69,7 @@ abstract class Type {
 
   static table = "";
   static schema = "";
-  static fields = new Map<string, Field>();
+  static fields = new Map<string, Field.Defined>();
   static deps = new Set<Type.EntityType>();
 
   static get connection(){

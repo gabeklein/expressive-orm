@@ -17,13 +17,20 @@ declare namespace Query {
   namespace Join {
     type Mode = "left" | "inner";
 
-    type Where = <T>(field: T) => Field.Assert<T>;
+    type Where = <T>(field: T) => Assert<T>;
 
     type Function<R = Mode> = (on: Where) => R | void;
 
     type Object<T extends Type> = {
       [K in Type.Field<T>]?: T[K];
     }
+  }
+
+  interface Assert<T> {
+    is(equalTo: T): void;
+    isNot(equalTo: T): void;
+    isMore(than: T): void;
+    isLess(than: T): void;
   }
 
   interface Verbs <T extends Type> {
@@ -78,7 +85,7 @@ declare namespace Query {
     <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join: Join.Mode): Partial<FromType<T>>;
 
     <T extends Type>(field: FromType<T>): Verbs<T>;
-    <T>(field: T): Field.Assert<T>;
+    <T>(field: T): Assert<T>;
 
     (field: unknown, as: SortBy): void;
   }
@@ -140,13 +147,13 @@ function Query<T = void>(from: Query.Function<T>): Query<T> {
       return table(type, on, join);
     }
 
-    if(type instanceof Field){
+    if(Field.is(type)){
       if(typeof on == "string"){
         builder.orderBy(String(type), on);
         return
       }
   
-      return type.assert(cond => {
+      return assert(type, cond => {
         builder.where(String(cond.left), cond.operator, cond.right as any);
       });
     }
@@ -163,7 +170,7 @@ function Query<T = void>(from: Query.Function<T>): Query<T> {
   if(output){
     builder.clearSelect();
 
-    if(output instanceof Field){
+    if(Field.is(output)){
       builder.select({
         [output.column]: String(output)
       });
@@ -180,7 +187,7 @@ function Query<T = void>(from: Query.Function<T>): Query<T> {
       Object.getOwnPropertyNames(output).forEach(key => {
         const value = (output as any)[key];
     
-        if(value instanceof Field){
+        if(Field.is(value)){
           selects.set(value, key);
           builder.select({ [key]: String(value) });
         }
@@ -189,15 +196,24 @@ function Query<T = void>(from: Query.Function<T>): Query<T> {
       parse = raw => raw.map(row => {
         const values = Object.create(output as {});
     
-        selects.forEach((column, field) => {
-          const value = field instanceof Field && field.get
-            ? field.get((row as any)[column]) : field;
+        selects.forEach((column, value) => {
+          if(Field.is(value) && value.get)
+            value = value.get((row as any)[column]);
 
           Object.defineProperty(values, column, { value });
         })
         
         return values as T;
       })
+    }
+  }
+
+  function assert<T>(field: Field, apply: (cond: Query.Cond<T>) => void): Query.Assert<T> {
+    return {
+      is: val => apply({ left: field, operator: "=", right: val }),
+      isNot: val => apply({ left: field, operator: "<>", right: val }),
+      isMore: val => apply({ left: field, operator: ">", right: val }),
+      isLess: val => apply({ left: field, operator: "<", right: val }),
     }
   }
 
@@ -260,8 +276,8 @@ function Query<T = void>(from: Query.Function<T>): Query<T> {
       callback = table => {
         pending.add(() => {
           on(field => {
-            if (field instanceof Field){
-              return field.assert(cond => {
+            if (Field.is(field)) {
+              return assert(field, cond => {
                 table.on(String(cond.left), cond.operator, String(cond.right));
               });
             }
