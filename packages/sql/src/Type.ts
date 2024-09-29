@@ -86,9 +86,9 @@ abstract class Type {
     return this.name;
   }
 
-  static sanitize<T extends Type>(data: Type.Insert<T>): Record<string, unknown>;
-  static sanitize<T extends Type>(data: Type.Insert<T>[]): Record<string, unknown>[];
-  static sanitize<T extends Type>(data: Type.Insert<T> | Type.Insert<T>[]){
+  static ingest<T extends Type>(data: Type.Insert<T>): Record<string, unknown>;
+  static ingest<T extends Type>(data: Type.Insert<T>[]): Record<string, unknown>[];
+  static ingest<T extends Type>(data: Type.Insert<T> | Type.Insert<T>[]){
     const { fields, name } = this.ready();
     const multiple = Array.isArray(data) && data.length > 1;
 
@@ -215,7 +215,7 @@ abstract class Type {
       data = [data];
     
     const { table, connection } = this.ready();
-    const insertData = this.sanitize(data);
+    const insertData = this.ingest(data);
     
     if(!connection)
       throw new Error("No connection found for type");

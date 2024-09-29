@@ -333,7 +333,7 @@ function Query<T = void>(from: Query.Function<T>): Query<T> {
         builder.table(table.name).delete();
       },
       update: (update: Query.Update<any>) => {
-        const data = table.type.sanitize(update);
+        const data = table.type.ingest(update);
 
         builder.table(table.name).update(data);
       }
