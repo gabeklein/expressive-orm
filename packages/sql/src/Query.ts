@@ -3,7 +3,6 @@ import knex, { Knex } from 'knex';
 import { Connection } from './connection/Connection';
 import { Field } from './Field';
 import { isTypeConstructor, Type } from './Type';
-import { qualify } from './utility';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
@@ -228,7 +227,7 @@ function Query<T = void>(from: Query.Function<T>): Query<T> {
 
     if(schema){
       alias = `$${tables.length}`;
-      name = { [alias]: qualify(schema, name) }
+      name = { [alias]: schema + '.' + name };
     }
 
     const proxy = {} as any;
