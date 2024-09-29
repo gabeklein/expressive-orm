@@ -1,10 +1,14 @@
 import { RelevantTable } from './Query';
 import { Type } from './Type';
 
+export const FIELD = new Map<symbol, Type.Instruction>();
+
 declare namespace Field {
   type Defined = {
     readonly [K in keyof Field]-?: Field[K];
   }
+
+  type Callback = (parent: Type.EntityType, key: string) => void;
 
   const defaults: Partial<Field>;
 
@@ -29,26 +33,35 @@ interface Field {
   get?(value: unknown): any;
 }
 
-function Field(options: Partial<Field>): any {
-  return Type.add((parent, key) => {
-    const field = Object.create(Field.prototype);
+function Field(options: Partial<Field> | Field.Callback){
+  const placeholder = Symbol(`field`);
 
-    Object.assign(field, Field.defaults, options, {
-      column: options.column || key,
-      toString(this: Field){
-        const table = RelevantTable.get(this);
-        const prefix = table ? `${table.alias || table.name}.` : "";
+  if(typeof options == "object"){
+    const inputs = options;
 
-        return prefix + this.column;
-      }
-    });
+    options = (parent, key) => {
+      const field = Object.create(Field.prototype);
+  
+      Object.assign(field, Field.defaults, inputs, {
+        column: inputs.column || key,
+        toString(this: Field){
+          const table = RelevantTable.get(this);
+          const prefix = table ? `${table.alias || table.name}.` : "";
+  
+          return prefix + this.column;
+        }
+      });
+  
+      Object.freeze(field);
+      parent.fields.set(key, field);
+  
+      return field;
+    }
+  }
 
-    Object.freeze(field);
-
-    parent.fields.set(key, field);
-
-    return field;
-  })
+  FIELD.set(placeholder, options);
+  
+  return placeholder as any;
 }
 
 Object.defineProperty(Field, "is", {

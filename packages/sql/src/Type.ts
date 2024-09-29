@@ -1,6 +1,6 @@
 import { Knex } from 'knex';
 import { Connection } from './connection/Connection';
-import { Field } from './Field';
+import { FIELD, Field } from './Field';
 import { capitalize } from './generate/util';
 import { Query } from './Query';
 
@@ -8,7 +8,6 @@ export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
 const REGISTER = new Set<Type.EntityType>();
 const CONNECTION = new Map<typeof Type, Connection>();
-const INSTRUCTION = new Map<symbol, Type.Instruction>();
 
 const describe = Object.getOwnPropertyDescriptor;
 const define = Object.defineProperty;
@@ -139,12 +138,12 @@ abstract class Type {
       
       for(const key in reference){
         const { value } = describe(reference, key)!;
-        const instruction = INSTRUCTION.get(value);    
+        const instruction = FIELD.get(value);    
   
         if(!instruction)
           throw new Error(`Entities do not support normal values, only fields. Did you forget to import \`${capitalize(typeof value)}\`?`);
   
-        INSTRUCTION.delete(value);
+        FIELD.delete(value);
         instruction(this, key);
         define(reference, key, {
           get: () => this.focus![key],
@@ -154,12 +153,6 @@ abstract class Type {
     }
 
     return this;
-  }
-
-  static add(instruction: Type.Instruction){
-    const placeholder = Symbol(`field`);
-    INSTRUCTION.set(placeholder, instruction);
-    return placeholder as any;
   }
 
   /**

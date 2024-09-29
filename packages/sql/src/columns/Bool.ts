@@ -1,7 +1,7 @@
 import { Field } from '../Field';
 
 declare namespace Bool {
-  interface Nullable extends Bool {
+  interface OrNull extends Bool {
     nullable: true;
   }
 }
@@ -13,7 +13,7 @@ interface Bool extends Field {
 function Bool(): boolean;
 function Bool(column: string, nullable?: true): string | null | undefined;
 function Bool(column: string, nullable: boolean): string;
-function Bool(options: Bool.Nullable): boolean | null | undefined;
+function Bool(options: Bool.OrNull): boolean | null | undefined;
 function Bool(options: Bool): boolean;
 function Bool(options: Bool | string = {}, nullable?: boolean){
   let isTrue: any = 1;
