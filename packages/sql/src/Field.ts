@@ -76,7 +76,7 @@ Object.defineProperty(Field, "defaults", {
   value: <Field.Defined>{
     column: "",
     index: 0,
-    datatype: "VARCHAR(255)",
+    datatype: "varchar(255)",
     nullable: false,
     unique: false,
     primary: false,

@@ -17,7 +17,7 @@ function Json<T extends {}>(a1?: Json<T>): T;
 function Json(a1?: Json<any>){
   return Field({
     ...a1,
-    datatype: "JSON",
+    datatype: "json",
     get(value: string){
       return JSON.parse(value);
     },

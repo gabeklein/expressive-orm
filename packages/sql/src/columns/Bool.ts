@@ -18,7 +18,7 @@ function Bool(options: Bool): boolean;
 function Bool(options: Bool | string = {}, nullable?: boolean){
   let isTrue: any = 1;
   let isFalse: any = 0;
-  let datatype = "TINYINT";
+  let datatype = "tinyint";
 
   if(typeof options == "string")
     options = { column: options };
@@ -26,7 +26,7 @@ function Bool(options: Bool | string = {}, nullable?: boolean){
   if(options.either){
     [isTrue, isFalse] = options.either;
 
-    datatype = `VARCHAR(${
+    datatype = `varchar(${
       Math.max(isTrue.length, isFalse.length)
     })`
   }

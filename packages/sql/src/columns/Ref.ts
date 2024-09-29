@@ -21,7 +21,7 @@ function Ref<T extends Type>(arg1: any, arg2?: any): any {
     arg1 = { ...arg2, type: arg1 };
 
   return Field({
-    datatype: "INT",
+    datatype: "int",
     type: arg1.type,
     set(value: number | object){
       return typeof value == "object"

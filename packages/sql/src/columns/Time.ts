@@ -7,8 +7,8 @@ declare namespace Time {
 }
 
 interface Time extends Field {
-  datatype?: "DATETIME";
-  default?: "NOW";
+  datatype?: "datetime";
+  default?: "now";
   get?(value: string): Date;
   set?(value: Date): string;
 }
@@ -23,7 +23,7 @@ function Time(options?: Time | string, nullable?: boolean){
 
   return Field({
     ...options,
-    datatype: 'DATETIME',
+    datatype: 'datetime',
     nullable,
     get(value: string){
       return new global.Date(value.replace(/[-]/g, '/') + "Z");

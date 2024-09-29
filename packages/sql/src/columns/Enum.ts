@@ -26,7 +26,7 @@ function Enum<T extends string>(options: T[] | Enum<T>){
 
   return Field({
     ...rest,
-    datatype: `ENUM(${signature})`
+    datatype: `enum(${signature})`
   });
 }
 
