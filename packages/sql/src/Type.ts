@@ -1,7 +1,6 @@
 import { Knex } from 'knex';
 import { Connection } from './connection/Connection';
 import { FIELD, Field } from './Field';
-import { capitalize } from './generate/util';
 import { Query } from './Query';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
@@ -236,6 +235,10 @@ function isIterable(obj: unknown): obj is Iterable<unknown> {
 
 export function isTypeConstructor(obj: unknown): obj is typeof Type {
   return typeof obj === 'function' && obj.prototype instanceof Type;
+}
+
+export function capitalize(string: string){
+  return string[0].toUpperCase() + string.slice(1);
 }
 
 export { Type }

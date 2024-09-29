@@ -5,5 +5,4 @@ export { Query } from './Query';
 export { Type } from './Type';
 export { Table } from './Table';
 
-export * as Util from './utility';
 export * from  './columns';
