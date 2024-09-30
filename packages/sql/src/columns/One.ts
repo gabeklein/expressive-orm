@@ -52,7 +52,7 @@ function One<T extends Type>(arg1: any, arg2?: any, arg3?: any): any {
 //   init(options: Partial<this>){
 //     super.init(options);
 
-//     const foreign = this.type.ready();
+//     const foreign = this.type;
 //     const foreignKey = "id";
 //     const local = `FK_${foreign.name}${this.table.name}`;
 

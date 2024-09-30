@@ -34,7 +34,7 @@ class MySQLConnection extends Connection {
       .values<Type.EntityType>(schema)
       .forEach(entity => {
         entity.connection = this;
-        entity.ready()
+        entity.fields;
       })
   }
 }

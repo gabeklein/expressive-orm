@@ -10,8 +10,6 @@ export async function toSchemaBuilder(
 
   await Promise.all(
     Object.values(types).map(async type => {
-      type.ready();
-
       const exists = await validate(type, knex);
   
       if(exists)
@@ -27,16 +25,16 @@ export async function toSchemaBuilder(
 }
 
 async function validate(type: Type.EntityType, knex: Knex, strict?: boolean){
-  const { table: name } = type;
+  const { table, fields } = type;
 
-  const exists = await knex.schema.hasTable(name);
+  const exists = await knex.schema.hasTable(table);
 
   if(!exists)
     return false;
 
-  const columns = await knex(name).columnInfo();
+  const columns = await knex(table).columnInfo();
   
-  for (const [_property, field] of type.fields) {
+  for (const [_property, field] of fields) {
     const {
       column,
       datatype,

@@ -1,14 +1,14 @@
 import { RelevantTable } from './Query';
 import { Type } from './Type';
 
-export const FIELD = new Map<symbol, Type.Instruction>();
+export const FIELD = new Map<symbol, Field.Init>();
 
 declare namespace Field {
   type Defined = {
     readonly [K in keyof Field]-?: Field[K];
   }
 
-  type Callback = (parent: Type.EntityType, key: string) => void;
+  type Init = (parent: Type.EntityType, key: string) => void;
 
   const defaults: Partial<Field>;
 
@@ -33,7 +33,7 @@ interface Field {
   get?(value: unknown): any;
 }
 
-function Field(options: Partial<Field> | Field.Callback){
+function Field(options: Partial<Field> | Field.Init){
   const placeholder = Symbol(`field`);
 
   if(typeof options == "object"){

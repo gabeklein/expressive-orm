@@ -51,7 +51,6 @@ class Connection {
     types = Object.values(types);
 
     for (const type of types) {
-      type.ready();
       type.connection = this;
       this.managed.add(type);
     }

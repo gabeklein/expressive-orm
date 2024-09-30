@@ -5,7 +5,7 @@ import { Query } from './Query';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
-const REGISTER = new Set<Type.EntityType>();
+const REGISTER = new Map<Type.EntityType, Map<string, Field.Defined>>();
 const CONNECTION = new Map<typeof Type, Connection>();
 
 const describe = Object.getOwnPropertyDescriptor;
@@ -30,11 +30,6 @@ declare namespace Type {
   }
 
   type Field<T extends Type> = Exclude<keyof T, "table">;
-
-  type Where<T extends Type, R> =
-    (source: Query.FromType<T>, query: Query.Callback) => () => R;
-
-  type Instruction = (parent: Type.EntityType, key: string) => void;
 
   namespace Insert {
     type Property<T> = T extends Type ? T | number : T;
@@ -67,8 +62,39 @@ abstract class Type {
 
   static table = "";
   static schema = "";
-  static fields = new Map<string, Field.Defined>();
   static deps = new Set<Type.EntityType>();
+
+  static get fields(){
+    let fields = REGISTER.get(this);
+
+    if(!fields){
+      fields = new Map();
+
+      if(!this.table)
+        this.table = this.name.replace(/^[A-Z]/, m => m.toLowerCase());
+
+      REGISTER.set(this, fields);
+      
+      const reference = new (this as any)();
+      
+      for(const key in reference){
+        const { value } = describe(reference, key)!;
+        const instruction = FIELD.get(value);    
+  
+        if(!instruction)
+          throw new Error(`Entities do not support normal values, only fields. Did you forget to import \`${capitalize(typeof value)}\`?`);
+  
+        FIELD.delete(value);
+        instruction(this, key);
+        define(reference, key, {
+          get: () => this.focus![key],
+          set: is => this.focus![key] = is
+        })
+      }
+    }
+
+    return fields;
+  }
 
   static get connection(){
     return CONNECTION.get(this) || Connection.default;
@@ -87,7 +113,7 @@ abstract class Type {
   static ingest<T extends Type>(data: Type.Insert<T>): Record<string, unknown>;
   static ingest<T extends Type>(data: Type.Insert<T>[]): Record<string, unknown>[];
   static ingest<T extends Type>(data: Type.Insert<T> | Type.Insert<T>[]){
-    const { fields, name } = this.ready();
+    const { fields, name } = this;
     const multiple = Array.isArray(data) && data.length > 1;
 
     function sanitize(insert: Type.Insert<T>, index?: number){
@@ -126,34 +152,6 @@ abstract class Type {
     return Array.isArray(data) ? data.map(sanitize) : sanitize(data);  
   }
 
-  static ready<T extends Type>(this: Type.EntityType<T>){
-    if(!REGISTER.has(this)){
-      if(!this.table)
-        this.table = this.name.replace(/^[A-Z]/, m => m.toLowerCase());
-
-      REGISTER.add(this);
-      
-      const reference = new (this as any)();
-      
-      for(const key in reference){
-        const { value } = describe(reference, key)!;
-        const instruction = FIELD.get(value);    
-  
-        if(!instruction)
-          throw new Error(`Entities do not support normal values, only fields. Did you forget to import \`${capitalize(typeof value)}\`?`);
-  
-        FIELD.delete(value);
-        instruction(this, key);
-        define(reference, key, {
-          get: () => this.focus![key],
-          set: is => this.focus![key] = is
-        })
-      }
-    }
-
-    return this;
-  }
-
   /**
    * Create an arbitary map of managed fields.
    */
@@ -162,8 +160,6 @@ abstract class Type {
     getValue: (type: Field, key: Type.Field<T>, proxy: {}) => any,
     cache?: boolean
   ){
-    this.ready();
-
     const proxy = {} as any;
 
     for(const [key, type] of this.fields)
@@ -206,13 +202,12 @@ abstract class Type {
     else if(!isIterable(data))
       data = [data];
     
-    const { table, connection } = this.ready();
     const insertData = this.ingest(data);
     
-    if(!connection)
+    if(!this.connection)
       throw new Error("No connection found for type");
 
-    return connection.knex(table).insert(insertData) as Knex.QueryBuilder;
+    return this.connection.knex(this.table).insert(insertData) as Knex.QueryBuilder;
   }
 
   static get<T extends Type, R>(

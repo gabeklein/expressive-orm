@@ -221,7 +221,7 @@ function Query<T = void>(from: Query.Function<T>): Query<T> {
     on?: Query.Compare | Query.Join.Function,
     mode?: Query.Join.Mode
   ): Query.FromType {
-    let { fields, schema } = type.ready();
+    let { fields, schema } = type;
     let name: string | Knex.AliasDict = type.table
     let alias: string | undefined;
 
