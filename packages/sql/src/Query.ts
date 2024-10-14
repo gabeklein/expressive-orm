@@ -7,11 +7,6 @@ import { isTypeConstructor, Type } from './Type';
 export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
 
-export interface Instruction {
-  (skip?: true): void;
-  (modify: (where: string) => string): void;
-}
-
 declare namespace Query { 
   namespace Join {
     type Mode = "left" | "inner";
@@ -70,8 +65,6 @@ declare namespace Query {
 
   type SortBy = "asc" | "desc";
 
-  type JoinOn<T extends Type> = string[] | Query.Compare<T> | Join.Function;
-
   type Execute<T> = () => Promise<T>;
 
   interface Callback {
@@ -125,7 +118,7 @@ function Query(from: Query.Function<void>): Query<number>;
  */
 function Query<T = void>(from: Query.Function<T>): Query<T>;
 
-function Query<T = void>(from: Query.Function<T>): Query<T> {
+function Query<T = void>(constructor: Query.Function<T>): Query<T> {
   const tables = [] as Query.Table[];
   const pending = new Set<() => void>();
 
@@ -134,7 +127,7 @@ function Query<T = void>(from: Query.Function<T>): Query<T> {
   let connection: Connection;
   let main: Type.EntityType;
 
-  const output = from((
+  const where = (
     type: unknown,
     on?: Query.Compare | Query.Join.Function<any> | Query.SortBy,
     join?: Query.Join.Mode
@@ -161,7 +154,9 @@ function Query<T = void>(from: Query.Function<T>): Query<T> {
       return verbs(type);
 
     throw new Error("Invalid query.");
-  });
+  }
+
+  const output = constructor(where);
 
   pending.forEach(fn => fn());
   pending.clear();
@@ -179,7 +174,6 @@ function Query<T = void>(from: Query.Function<T>): Query<T> {
         return output.get ? output.get(value) : value;
       });
     }
-
     else if(typeof output == "object"){
       const selects = new Map<string | Field, string | number>();
 
