@@ -8,6 +8,8 @@ declare namespace Enum {
 
 interface Enum<T extends string> extends Field {
   values: T[];
+  get?(): T;
+  set?(value: T): void;
 }
 
 function Enum<T extends string>(values: T[]): T;
