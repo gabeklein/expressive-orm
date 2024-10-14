@@ -10,11 +10,10 @@ interface Bool extends Field {
   either?: readonly [string, string];
 }
 
-function Bool(): boolean;
-function Bool(column: string, nullable?: true): string | null | undefined;
-function Bool(column: string, nullable: boolean): string;
-function Bool(options: Bool.OrNull): boolean | null | undefined;
-function Bool(options: Bool): boolean;
+function Bool(options: Bool.OrNull): Bool.OrNull;
+function Bool(options?: Bool): Bool;
+function Bool(column: string, nullable?: true): Bool.OrNull;
+function Bool(column: string, nullable: boolean): Bool;
 function Bool(options: Bool | string = {}, nullable?: boolean){
   let isTrue: any = 1;
   let isFalse: any = 0;
