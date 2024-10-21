@@ -6,42 +6,26 @@ declare namespace Bool {
   }
 }
 
-interface Bool extends Field {
-  either?: readonly [string, string];
-}
+interface Bool extends Field {}
 
-function Bool(options: Bool.OrNull): Bool.OrNull;
-function Bool(options?: Bool): Bool;
-function Bool(column: string, nullable?: true): Bool.OrNull;
 function Bool(column: string, nullable: boolean): Bool;
-function Bool(options: Bool | string = {}, nullable?: boolean){
-  let isTrue: any = 1;
-  let isFalse: any = 0;
-  let datatype = "tinyint";
-
-  if(typeof options == "string")
-    options = { column: options };
-
-  if(options.either){
-    [isTrue, isFalse] = options.either;
-
-    datatype = `varchar(${
-      Math.max(isTrue.length, isFalse.length)
-    })`
-  }
+function Bool(column?: string, nullable?: true): Bool.OrNull;
+function Bool(column?: string, nullable?: boolean){
+  const TRUE = 1;
+  const FALSE = 0;
 
   return Field({
     nullable,
-    ...options,
-    datatype,
+    column,
+    datatype: "tinyint",
     get(value: unknown){
-      return value === isTrue;
+      return value === TRUE;
     },
     set(value: unknown){
       if(typeof value != "boolean")
         throw "Value must be a boolean."
 
-      return value ? isTrue : isFalse;
+      return value ? TRUE : FALSE;
     }
   });
 }
