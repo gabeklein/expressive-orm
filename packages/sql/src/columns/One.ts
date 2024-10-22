@@ -1,9 +1,5 @@
-// import { escapeId } from 'sqlstring';
-
 import { Field } from '../Field';
-// import { Query } from '../Query';
 import { Type } from '../Type';
-// import { decapitalize, sql } from '../utility';
 
 declare namespace One {
   interface OrNull<T extends Type> extends One<T> {
@@ -16,11 +12,8 @@ interface One<T extends Type> extends Field {
   type: Type.EntityType<T>;
 }
 
-function One<T extends Type>(type: Type.EntityType<T>): T;
+function One<T extends Type>(type: Type.EntityType<T>, options?: One<T>): T;
 function One<T extends Type>(type: Type.EntityType<T>, options: One.OrNull<T>): T | null | undefined;
-function One<T extends Type>(type: Type.EntityType<T>, options: One<T>): T;
-function One<T extends Type>(type: Type.EntityType<T>, column: string, nullable: true): string | null | undefined;
-function One<T extends Type>(type: Type.EntityType<T>, column: string, nullable?: boolean): string;
 function One<T extends Type>(options: One.OrNull<T>): T | null | undefined;
 function One<T extends Type>(options: One<T>): T;
 function One<T extends Type>(arg1: any, arg2?: any, arg3?: any): any {
