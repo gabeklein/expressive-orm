@@ -9,9 +9,9 @@ namespace Connection {
     | typeof Type[]
     | { [key: string | number]: typeof Type }
 
+  export type MySQLConfig = Knex.MySqlConnectionConfig;
   export type SQLiteConfig = Knex.Sqlite3ConnectionConfig;
   export type PostgresConfig = Knex.PgConnectionConfig;
-  export type MySQLConfig = Knex.MySqlConnectionConfig;
 }
 
 export type Entities = Connection.Entities;

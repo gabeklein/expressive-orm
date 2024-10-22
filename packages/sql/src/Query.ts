@@ -1,6 +1,5 @@
 import knex, { Knex } from 'knex';
 
-import { Connection } from './connection/Connection';
 import { Field } from './Field';
 import { isTypeConstructor, Type } from './Type';
 
@@ -71,14 +70,14 @@ declare namespace Query {
     <T extends Type>(entity: Type.EntityType<T>): FromType<T>;
 
     <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<"inner" | void>): FromType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join?: "inner"): FromType<T>;
-
     <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<Join.Mode>): Partial<FromType<T>>;
+    
+    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join?: "inner"): FromType<T>;
     <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join: Join.Mode): Partial<FromType<T>>;
 
     <T extends Type>(field: FromType<T>): Verbs<T>;
+    
     <T>(field: T): Assert<T>;
-
     (field: unknown, as: SortBy): void;
   }
 }
@@ -124,14 +123,21 @@ function Query<T = void>(constructor: Query.Function<T>): Query<T> {
 
   let parse = (raw: unknown[]) => raw;
   let builder!: Knex.QueryBuilder;
-  let connection: Connection;
   let main: Type.EntityType;
 
-  const where = (
+  const output = constructor(where);
+
+  pending.forEach(fn => fn());
+  pending.clear();
+
+  if(output)
+    select(output);
+
+  function where(
     type: unknown,
     on?: Query.Compare | Query.Join.Function<any> | Query.SortBy,
     join?: Query.Join.Mode
-  ): any => {
+  ): any {
     if(isTypeConstructor(type)){
       if(typeof on == "string")
         throw new Error("Bad parameters.");
@@ -156,12 +162,34 @@ function Query<T = void>(constructor: Query.Function<T>): Query<T> {
     throw new Error("Invalid query.");
   }
 
-  const output = constructor(where);
+  function assert<T>(field: Field, apply: (cond: Query.Cond<T>) => void): Query.Assert<T> {
+    return {
+      is: val => apply({ left: field, operator: "=", right: val }),
+      isNot: val => apply({ left: field, operator: "<>", right: val }),
+      isMore: val => apply({ left: field, operator: ">", right: val }),
+      isLess: val => apply({ left: field, operator: "<", right: val }),
+    }
+  }
 
-  pending.forEach(fn => fn());
-  pending.clear();
+  function verbs<T extends Type>(from: Query.FromType<T>): Query.Verbs<T> {
+    const table = RelevantTable.get(from);
 
-  if(output){
+    if(!table)
+      throw new Error(`Argument ${from} is not a query entity.`);
+
+    return {
+      delete: () => {
+        builder.table(table.name).delete();
+      },
+      update: (update: Query.Update<any>) => {
+        const data = table.type.ingest(update);
+
+        builder.table(table.name).update(data);
+      }
+    }
+  }
+
+  function select(output: T){
     builder.clearSelect();
 
     if(Field.is(output)){
@@ -201,15 +229,6 @@ function Query<T = void>(constructor: Query.Function<T>): Query<T> {
     }
   }
 
-  function assert<T>(field: Field, apply: (cond: Query.Cond<T>) => void): Query.Assert<T> {
-    return {
-      is: val => apply({ left: field, operator: "=", right: val }),
-      isNot: val => apply({ left: field, operator: "<>", right: val }),
-      isMore: val => apply({ left: field, operator: ">", right: val }),
-      isLess: val => apply({ left: field, operator: "<", right: val }),
-    }
-  }
-
   function table(
     type: Type.EntityType,
     on?: Query.Compare | Query.Join.Function,
@@ -238,9 +257,8 @@ function Query<T = void>(constructor: Query.Function<T>): Query<T> {
 
     if(main === undefined){
       main = type;
-      connection = type.connection;
 
-      const engine = connection?.knex || knex({
+      const engine = type.connection?.knex || knex({
         client: "sqlite3",
         useNullAsDefault: true,
         pool: { max: 0 }
@@ -248,7 +266,7 @@ function Query<T = void>(constructor: Query.Function<T>): Query<T> {
 
       builder = engine(name).select({ count: "COUNT(*)" });;
     }
-    else if(type.connection !== connection)
+    else if(type.connection !== main.connection)
       throw new Error(`Joined entity ${type} does not share a connection with ${main}`);
     else
       join(metadata, on, mode)
@@ -257,11 +275,11 @@ function Query<T = void>(constructor: Query.Function<T>): Query<T> {
   }
 
   function join(
-    table: Query.Table,
+    metadata: Query.Table,
     on?: Query.Compare | Query.Join.Function,
-    join?: Query.Join.Mode
+    mode?: Query.Join.Mode
   ){
-    const { name, type } = table;
+    const { name, type } = metadata;
 
     let callback: Knex.JoinCallback;
 
@@ -269,11 +287,10 @@ function Query<T = void>(constructor: Query.Function<T>): Query<T> {
       callback = table => {
         pending.add(() => {
           on(field => {
-            if (Field.is(field)) {
+            if (Field.is(field))
               return assert(field, cond => {
                 table.on(String(cond.left), cond.operator, String(cond.right));
               });
-            }
             else
               throw new Error("Join assertions can only apply to fields.");
           });
@@ -296,7 +313,7 @@ function Query<T = void>(constructor: Query.Function<T>): Query<T> {
     else
       throw new Error(`Invalid join on: ${on}`);
     
-    switch(join){
+    switch(mode){
       case "left":
         builder.leftJoin(name, callback);
         break;
@@ -308,28 +325,10 @@ function Query<T = void>(constructor: Query.Function<T>): Query<T> {
 
       case "right" as unknown:
       case "full" as unknown:
-        throw new Error(`Cannot ${join} join because that would affect ${main} which is already defined.`);
+        throw new Error(`Cannot ${mode} join because that would affect ${main} which is already defined.`);
 
       default:
-        throw new Error(`Invalid join type ${join}.`);
-    }
-  }
-
-  function verbs<T extends Type>(from: Query.FromType<T>): Query.Verbs<T> {
-    const table = RelevantTable.get(from);
-
-    if(!table)
-      throw new Error(`Argument ${from} is not a query entity.`);
-
-    return {
-      delete: () => {
-        builder.table(table.name).delete();
-      },
-      update: (update: Query.Update<any>) => {
-        const data = table.type.ingest(update);
-
-        builder.table(table.name).update(data);
-      }
+        throw new Error(`Invalid join type ${mode}.`);
     }
   }
 
