@@ -60,11 +60,7 @@ declare namespace Query {
 
   type Function<R> = (where: Callback) => R;
 
-  type Mode = "select" | "update" | "delete";
-
   type SortBy = "asc" | "desc";
-
-  type Execute<T> = () => Promise<T>;
 
   interface Callback {
     <T extends Type>(entity: Type.EntityType<T>): FromType<T>;
