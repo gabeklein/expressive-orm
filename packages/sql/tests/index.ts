@@ -1,18 +1,10 @@
 import { Entities, Connection } from "../src";
 
-export function random(min: number, max: number) {
-  const u = Math.max(min, max);
-  const l = Math.min(min, max);
-  const diff = u - l;
-  const r = Math.floor(Math.random() * (diff + 1));
-  return l + r;
-}
-
-const gc = new Set<Function>();
+const reset = new Set<Function>();
 
 /**
  * Generates a new in-memory database specific to
- * a test and attaches the given entities to it.
+ * a test and attaches entities provided to it.
  **/
 export async function inMemoryDatabase(entities: Entities){
   const db = new Connection({
@@ -24,14 +16,14 @@ export async function inMemoryDatabase(entities: Entities){
   });
 
   await db.attach(entities);
-  gc.add(() => db.close());
+  reset.add(() => db.close());
 
   return db;
 }
 
 afterEach(async () => {
-  await Promise.all(Array.from(gc).map(fn => {
-    gc.delete(fn);
-    return fn();
-  }));
+  for(const cb of reset){
+    reset.delete(cb);
+    await cb()
+  }
 });
