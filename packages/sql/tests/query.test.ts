@@ -12,6 +12,9 @@ it("will insert and retrieve a Date", async () => {
 
   const now = new Date();
 
+  // database has limited precision
+  now.setMilliseconds(0);
+
   await Foo.insert({
     name: "foobar",
     color: "red",
@@ -26,10 +29,7 @@ it("will insert and retrieve a Date", async () => {
     return foo.date;
   });
 
-  // database has limited precision
-  now.setMilliseconds(0);
-
-  // asserts Date type is preserved also
+  // Date type should be preserved
   expect<Date>(date).toBeInstanceOf(Date);
   expect<Date>(date).toEqual(now);
 })
@@ -41,7 +41,7 @@ it("will create count query", () => {
     where(foo.color).is("red");
   });
 
-  const qb = query.count();
+  const qb = query.count().toString();
 
   expect(qb).toMatchSnapshot();
 })
