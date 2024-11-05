@@ -76,15 +76,15 @@ describe("joins", () => {
 describe("sort", () => {
   class Test extends Type {
     id = Num();
-    rating = Num();
     name = Str();
+    rating = Num();
   }
 
   it("will add order clause", async () => {
     const query = Query(where => {
       const test = where(Test);
   
-      where(test.id, "asc")
+      where(test.id).isAsc()
   
       return {
         name: test.name
@@ -98,8 +98,8 @@ describe("sort", () => {
     const query = Query(where => {
       const test = where(Test);
   
-      where(test.rating, "asc")
-      where(test.name, "asc")
+      where(test.rating).isAsc()
+      where(test.name).isAsc()
   
       return {
         name: test.name
@@ -121,7 +121,7 @@ describe("sort", () => {
         name: test.name
       })
   
-      where(other.rank, "asc")
+      where(other.rank).isAsc()
   
       return {
         name: test.name
@@ -130,5 +130,4 @@ describe("sort", () => {
   
     expect(query).toMatchSnapshot();
   })
-
 })

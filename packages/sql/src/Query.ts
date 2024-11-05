@@ -24,6 +24,8 @@ declare namespace Query {
     isNot(equalTo: T): void;
     isMore(than: T): void;
     isLess(than: T): void;
+    isAsc(): void;
+    isDesc(): void;
   }
 
   interface Verbs <T extends Type> {
@@ -60,8 +62,6 @@ declare namespace Query {
 
   type Function<R> = (where: Callback) => R;
 
-  type SortBy = "asc" | "desc";
-
   interface Callback {
     <T extends Type>(entity: Type.EntityType<T>): FromType<T>;
 
@@ -74,7 +74,6 @@ declare namespace Query {
     <T extends Type>(field: FromType<T>): Verbs<T>;
     
     <T>(field: T): Assert<T>;
-    (field: unknown, as: SortBy): void;
   }
 }
 
@@ -131,7 +130,7 @@ function Query<T = void>(constructor: Query.Function<T>): Query<T> {
 
   function where(
     type: unknown,
-    on?: Query.Compare | Query.Join.Function<any> | Query.SortBy,
+    on?: Query.Compare | Query.Join.Function<any>,
     join?: Query.Join.Mode
   ): any {
     if(isTypeConstructor(type)){
@@ -141,16 +140,10 @@ function Query<T = void>(constructor: Query.Function<T>): Query<T> {
       return table(type, on, join);
     }
 
-    if(Field.is(type)){
-      if(typeof on == "string"){
-        builder.orderBy(String(type), on);
-        return
-      }
-  
+    if(Field.is(type))
       return assert(type, cond => {
         builder.where(String(cond.left), cond.operator, cond.right as any);
       });
-    }
 
     if(isFromType(type))
       return verbs(type);
@@ -164,6 +157,8 @@ function Query<T = void>(constructor: Query.Function<T>): Query<T> {
       isNot: val => apply({ left: field, operator: "<>", right: val }),
       isMore: val => apply({ left: field, operator: ">", right: val }),
       isLess: val => apply({ left: field, operator: "<", right: val }),
+      isAsc: () => builder.orderBy(String(field), "asc"),
+      isDesc: () => builder.orderBy(String(field), "desc"),
     }
   }
 
