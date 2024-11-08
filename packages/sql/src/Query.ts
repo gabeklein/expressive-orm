@@ -221,9 +221,8 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
       delete: () => {
         builder.table(table.name).delete();
       },
-      update: (update: Query.Update<any>) => {
-        const data = table.type.ingest(update);
-
+      update: (data: Query.Update<any>) => {
+        data = table.type.digest(data);
         builder.table(table.name).update(data);
       }
     }

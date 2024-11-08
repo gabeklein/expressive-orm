@@ -110,9 +110,9 @@ abstract class Type {
     return this.name;
   }
 
-  static ingest<T extends Type>(data: Type.Insert<T>): Record<string, unknown>;
-  static ingest<T extends Type>(data: Type.Insert<T>[]): Record<string, unknown>[];
-  static ingest<T extends Type>(data: Type.Insert<T> | Type.Insert<T>[]){
+  static digest<T extends Type>(data: Type.Insert<T>): Record<string, unknown>;
+  static digest<T extends Type>(data: Type.Insert<T>[]): Record<string, unknown>[];
+  static digest<T extends Type>(data: Type.Insert<T> | Type.Insert<T>[]){
     const { fields, name } = this;
     const multiple = Array.isArray(data) && data.length > 1;
 
@@ -202,7 +202,7 @@ abstract class Type {
     else if(!isIterable(data))
       data = [data];
     
-    const insertData = this.ingest(data);
+    const insertData = this.digest(data);
     
     if(!this.connection)
       throw new Error("No connection found for type");
