@@ -146,13 +146,13 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
       });
     }
     else if(typeof selects == "object"){
-      const selects = new Map<string | Field, string | number>();
+      const output = new Map<string | Field, string | number>();
 
       Object.getOwnPropertyNames(selects).forEach(key => {
         const value = (selects as any)[key];
     
         if(Field.is(value)){
-          selects.set(value, key);
+          output.set(value, key);
           builder.select({ [key]: String(value) });
         }
       })
@@ -160,7 +160,7 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
       parse = raw => raw.map(row => {
         const values = Object.create(selects as {});
     
-        selects.forEach((column, value) => {
+        output.forEach((column, value) => {
           if(Field.is(value) && value.get)
             value = value.get((row as any)[column]);
 
@@ -289,7 +289,7 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
           on(field => {
             if (Field.is(field))
               return assert(field, (left, op, right) => {
-                table.on(left, op, right);
+                table.on(left, op, right.toString());
               });
             else
               throw new Error("Join assertions can only apply to fields.");
