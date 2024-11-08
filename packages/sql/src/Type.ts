@@ -186,11 +186,7 @@ abstract class Type {
   static insert<T extends Type>(this: Type.EntityType<T>, data: Type.Insert<T> | Iterable<Type.Insert<T>>): Promise<void>;
   static insert<T extends Type>(this: Type.EntityType<T>, number: number, mapper: (index: number) => Type.Insert<T>): Promise<void>;
   static insert<T extends Type, I>(this: Type.EntityType<T>, input: Iterable<I>, mapper: (item: I) => Type.Insert<T>): Promise<void>;
-  static insert<T extends Type>(
-    this: Type.EntityType<T>,
-    data: any,
-    map?: (i: any) => Type.Insert<T>){
-
+  static insert<T extends Type>(this: Type.EntityType<T>, data: any, map?: (i: any) => Type.Insert<T>){
     if(typeof data == "number"){
       if(!map)
         throw new Error("Cannot insert a number without a map function!");
