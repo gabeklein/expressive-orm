@@ -64,6 +64,20 @@ abstract class Type {
   static schema = "";
   static deps = new Set<Type.EntityType>();
 
+  static focus?: { [key: string]: any };
+
+  static get connection(){
+    return CONNECTION.get(this) || Connection.default;
+  }
+
+  static set connection(connection: Connection){
+    CONNECTION.set(this, connection);
+  }
+
+  static toString(){
+    return this.name;
+  }
+
   static get fields(){
     let fields = REGISTER.get(this);
 
@@ -94,20 +108,6 @@ abstract class Type {
     }
 
     return fields;
-  }
-
-  static get connection(){
-    return CONNECTION.get(this) || Connection.default;
-  }
-
-  static set connection(connection: Connection){
-    CONNECTION.set(this, connection);
-  }
-
-  static focus?: { [key: string]: any };
-
-  static toString(){
-    return this.name;
   }
 
   static digest<T extends Type>(data: Type.Insert<T>): Record<string, unknown>;
