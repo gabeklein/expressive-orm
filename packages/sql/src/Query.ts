@@ -185,8 +185,8 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
     }
 
     if(Field.is(type))
-      return assert(type, cond => {
-        builder.where(String(cond.left), cond.operator, cond.right as any);
+      return assert(type, (left, op, right) => {
+        builder.where(left, op, right);
       });
 
     if(isFromType(type))
@@ -195,14 +195,19 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
     throw new Error("Invalid query.");
   }
 
-  function assert<T>(field: Field, apply: (cond: Query.Cond<T>) => void): Query.Assert<T> {
+  function assert<T = any>(
+    field: Field,
+    compare: (left: string, op: string, right: any) => void
+  ): Query.Assert<T> {
+    const ref = String(field);
+
     return {
-      is: val => apply({ left: field, operator: "=", right: val }),
-      isNot: val => apply({ left: field, operator: "<>", right: val }),
-      isMore: val => apply({ left: field, operator: ">", right: val }),
-      isLess: val => apply({ left: field, operator: "<", right: val }),
-      isAsc: () => builder.orderBy(String(field), "asc"),
-      isDesc: () => builder.orderBy(String(field), "desc"),
+      is: val => compare(ref, "=", val),
+      isNot: val => compare(ref, "<>", val),
+      isMore: val => compare(ref, ">", val),
+      isLess: val => compare(ref, "<", val),
+      isAsc: () => builder.orderBy(ref, "asc"),
+      isDesc: () => builder.orderBy(ref, "desc"),
     }
   }
 
@@ -283,8 +288,8 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
         pending.add(() => {
           on(field => {
             if (Field.is(field))
-              return assert(field, cond => {
-                table.on(String(cond.left), cond.operator, String(cond.right));
+              return assert(field, (left, op, right) => {
+                table.on(left, op, right);
               });
             else
               throw new Error("Join assertions can only apply to fields.");
