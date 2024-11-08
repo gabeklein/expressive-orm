@@ -49,9 +49,9 @@ abstract class Type {
 
   /**
    * Primary key of this entity.
-   * May be any name in the actual database, however requred to be `id` as a property name.
+   * May be any name in the actual database, however requred to be `id` as property of this type.
    * 
-   * Setting to zero to disable this field, and not expect it to be present in the database.
+   * Setting to zero will disable this field, and ORM will not expect it to be present in the database.
    */
   id: number | string = Field({
     datatype: "int",
