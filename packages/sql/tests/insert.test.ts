@@ -1,5 +1,5 @@
 import { Type, Num, Str } from '..';
-import { random, inMemoryDatabase } from '.';
+import { inMemoryDatabase } from '.';
 
 class Foo extends Type {
   name = Str();
@@ -24,9 +24,9 @@ it.skip("will insert procedurally generated rows", async () => {
   ];
 
   await User.insert(
-    names.map((name) => ({
+    names.map((name, i) => ({
       name,
-      age: random(20, 35),
+      age: i + 25,
       email: `${name.toLowerCase()}@email.org`
     }))
   );
