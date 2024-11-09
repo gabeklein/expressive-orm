@@ -1,4 +1,4 @@
-import { Entities, Connection } from "../src";
+import { Entities, Connection } from "../";
 
 const reset = new Set<Function>();
 

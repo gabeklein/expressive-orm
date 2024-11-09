@@ -1,4 +1,4 @@
-import { Query, Str, Time, Type } from '../src';
+import { Query, Str, Time, Type } from '../';
 import { inMemoryDatabase } from '.';
 
 class Foo extends Type {
