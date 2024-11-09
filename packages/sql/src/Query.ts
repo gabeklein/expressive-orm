@@ -10,20 +10,30 @@ declare namespace Query {
   namespace Join {
     type Mode = "left" | "inner";
 
-    type Where = <T>(field: T) => Assert<T>;
+    type Where = (field: Field) => {
+      is(equalTo: Field): void;
+      isNot(equalTo: Field): void;
+      isMore(than: Field): void;
+      isLess(than: Field): void;
+    }
 
-    type Function<R = Mode> = (on: Where) => R | void;
+    type Function = (on: Where) => void;
 
     type Object<T extends Type> = {
       [K in Type.Field<T>]?: T[K];
     }
   }
 
-  interface Assert<T> {
-    is(equalTo: T): void;
-    isNot(equalTo: T): void;
-    isMore(than: T): void;
-    isLess(than: T): void;
+  type Assertion = symbol;
+
+  interface Compare<T> {
+    is(equalTo: T): Assertion;
+    isNot(equalTo: T): Assertion;
+    isMore(than: T): Assertion;
+    isLess(than: T): Assertion;
+  }
+
+  interface Assert<T> extends Compare<T> {
     isAsc(): void;
     isDesc(): void;
   }
@@ -31,12 +41,6 @@ declare namespace Query {
   interface Verbs <T extends Type> {
     delete(): void;
     update(values: Query.Update<T>): void;
-  }
-
-  type Cond<T = unknown> = {
-    left: Field | T,
-    right: Field | T,
-    operator: string
   }
 
   interface Table {
@@ -51,7 +55,7 @@ declare namespace Query {
     [ENTITY]?: T
   }
 
-  type Compare<T extends Type = Type> = {
+  type Compat<T extends Type = Type> = {
     [K in Type.Field<T>]?: T[K];
   }
 
@@ -60,21 +64,16 @@ declare namespace Query {
     [K in Type.Field<T>]?: Exclude<T[K], undefined>;
   }
 
-  type Function<R> = (where: Callback) => R;
-
-  interface Callback {
-    <T extends Type>(entity: Type.EntityType<T>): FromType<T>;
-
-    <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<"inner" | void>): FromType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Join.Function<Join.Mode>): Partial<FromType<T>>;
-    
-    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join?: "inner"): FromType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Compare<T>, join: Join.Mode): Partial<FromType<T>>;
+  interface Where {
+    <T extends Type>(entity: Type.EntityType<T>, on?: Compat<T> | Join.Function, join?: "inner"): FromType<T>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Compat<T> | Join.Function, join: Join.Mode): Partial<FromType<T>>;
 
     <T extends Type>(field: FromType<T>): Verbs<T>;
     
     <T>(field: T): Assert<T>;
   }
+
+  type Function<R> = (where: Where) => R;
 }
 
 interface Query<T = unknown> extends PromiseLike<T> {
@@ -89,8 +88,6 @@ interface Query<T = unknown> extends PromiseLike<T> {
    */
   toString(): string;
 }
-
-interface VoidQuery extends Query<number> {}
 
 interface SelectQuery<T = unknown> extends Query<T[]> {
   /**
@@ -117,7 +114,7 @@ function Query<T extends {}>(from: Query.Function<T>): SelectQuery<T>;
  * If no selection is returned by the constructor, will return
  * the number of rows that would be selected or modified.
  */
-function Query(from: Query.Function<void>): VoidQuery;
+function Query(from: Query.Function<void>): Query<number>;
 
 function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | TypeQuery {
   const tables = [] as Query.Table[];
@@ -174,7 +171,7 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
 
   function where(
     type: unknown,
-    on?: Query.Compare | Query.Join.Function<any>,
+    on?: Query.Compat | Query.Join.Function,
     join?: Query.Join.Mode
   ): any {
     if(isTypeConstructor(type)){
@@ -184,31 +181,29 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
       return table(type, on, join);
     }
 
-    if(Field.is(type))
-      return assert(type, (left, op, right) => {
-        builder.where(left, op, right);
-      });
+    if(Field.is(type)){
+      const ref = String(type);
+      const compare = (op: string) => (right: any) => {
+        if(typeof right !== "number")
+          right = String(right);
+
+        builder.where(ref, op, right);
+      }
+  
+      return {
+        is: compare("="),
+        isNot: compare("<>"),
+        isMore: compare(">"),
+        isLess: compare("<"),
+        isAsc: () => builder.orderBy(ref, "asc"),
+        isDesc: () => builder.orderBy(ref, "desc"),
+      }
+    }
 
     if(isFromType(type))
       return verbs(type);
 
     throw new Error("Invalid query.");
-  }
-
-  function assert<T = any>(
-    field: Field,
-    compare: (left: string, op: string, right: any) => void
-  ): Query.Assert<T> {
-    const ref = String(field);
-
-    return {
-      is: val => compare(ref, "=", val),
-      isNot: val => compare(ref, "<>", val),
-      isMore: val => compare(ref, ">", val),
-      isLess: val => compare(ref, "<", val),
-      isAsc: () => builder.orderBy(ref, "asc"),
-      isDesc: () => builder.orderBy(ref, "desc"),
-    }
   }
 
   function verbs<T extends Type>(from: Query.FromType<T>): Query.Verbs<T> {
@@ -230,7 +225,7 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
 
   function table(
     type: Type.EntityType,
-    on?: Query.Compare | Query.Join.Function,
+    on?: Query.Compat | Query.Join.Function,
     mode?: Query.Join.Mode
   ): Query.FromType {
     let { fields, schema } = type;
@@ -263,72 +258,77 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
         pool: { max: 0 }
       });
 
-      builder = engine(name).select({ count: "COUNT(*)" });;
+      builder = engine(name).select({ count: "COUNT(*)" });
     }
-    else if(type.connection !== main.connection)
-      throw new Error(`Joined entity ${type} does not share a connection with ${main}`);
-    else
-      join(metadata, on, mode)
+    else {
+      if(type.connection !== main.connection)
+        throw new Error(`Joined entity ${type} does not share a connection with ${main}`);
+
+      let callback: Knex.JoinCallback;
+
+      switch(typeof on){
+        case "function":
+          callback = (table) => {
+            pending.add(() => {
+              on(field => {
+                if (!Field.is(field))
+                  throw new Error("Join assertions can only apply to fields.");
+
+                const on = (op: string) => (right: Field) => {
+                  table.on(String(field), op, String(right));
+                };
+
+                return {
+                  is: on("="),
+                  isNot: on("<>"),
+                  isMore: on(">"),
+                  isLess: on("<"),
+                }
+              });
+            })
+          }
+        break;
+
+        case "object":
+          callback = (table) => {
+            for (const key in on) {
+              const field = type.fields.get(key);
+    
+              if (!field)
+                throw new Error(`${key} is not a valid field in ${type}.`);
+    
+              const left = `${type.table}.${field.column}`;
+              const right = String((on as any)[key]);
+    
+              table.on(left, "=", right);
+            }
+          }
+        break;
+
+        default:
+          throw new Error(`Invalid join on: ${on}`);
+      }
+
+      switch(mode){
+        case "left":
+          builder.leftJoin(name, callback);
+          break;
+  
+        case "inner":
+        case undefined:
+          builder.join(name, callback);
+          break;
+  
+        case "right" as unknown:
+        case "full" as unknown:
+          throw new Error(`Cannot ${mode} join because that would affect ${main} which is already defined.`);
+  
+        default:
+          throw new Error(`Invalid join type ${mode}.`);
+      }
+    }
 
     return proxy;
-  }
-
-  function join(
-    metadata: Query.Table,
-    on?: Query.Compare | Query.Join.Function,
-    mode?: Query.Join.Mode
-  ){
-    const { name, type } = metadata;
-
-    let callback: Knex.JoinCallback;
-
-    if(typeof on == "function")
-      callback = table => {
-        pending.add(() => {
-          on(field => {
-            if (Field.is(field))
-              return assert(field, (left, op, right) => {
-                table.on(left, op, right.toString());
-              });
-            else
-              throw new Error("Join assertions can only apply to fields.");
-          });
-        })
-      }
-    else if(typeof on == "object")
-      callback = table => {
-        for (const key in on) {
-          const field = type.fields.get(key);
-
-          if (!field)
-            throw new Error(`${key} is not a valid field in ${type}.`);
-
-          const left = `${type.table}.${field.column}`;
-          const right = String((on as any)[key]);
-
-          table.on(left, "=", right);
-        }
-      }
-    else
-      throw new Error(`Invalid join on: ${on}`);
-    
-    switch(mode){
-      case "left":
-        builder.leftJoin(name, callback);
-        break;
-
-      case "inner":
-      case undefined:
-        builder.join(name, callback);
-        break;
-
-      case "right" as unknown:
-      case "full" as unknown:
-        throw new Error(`Cannot ${mode} join because that would affect ${main} which is already defined.`);
-
-      default:
-        throw new Error(`Invalid join type ${mode}.`);
-    }
   }
 
   const query: Query = {

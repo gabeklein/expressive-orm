@@ -40,7 +40,7 @@ declare namespace Type {
   }
 
   type QueryFunction<T extends Type, R> =
-    (query: Query.FromType<T>, where: Query.Callback) => R;
+    (query: Query.FromType<T>, where: Query.Where) => R;
 }
 
 abstract class Type {
