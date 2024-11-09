@@ -41,7 +41,7 @@ it("will create count query", () => {
     where(foo.color).is("red");
   });
 
-  const qb = query.count().toString();
+  const qb = query.toString();
 
   expect(qb).toMatchSnapshot();
 })

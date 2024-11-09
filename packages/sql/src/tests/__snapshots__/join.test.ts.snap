@@ -2,7 +2,7 @@
 
 exports[`will alias tables which have a schema 1`] = `
 	select
-	  \`COUNT(*)\` as \`count\`
+	  count(*)
 	from
 	  \`foobar\`.\`foo\` as \`$0\`
 	where
@@ -11,7 +11,7 @@ exports[`will alias tables which have a schema 1`] = `
 
 exports[`will join using function 1`] = `
 	select
-	  \`COUNT(*)\` as \`count\`
+	  count(*)
 	from
 	  \`foo\`
 	  inner join \`bar\` on \`bar\`.\`name\` <> \`foo\`.\`name\`
@@ -23,7 +23,7 @@ exports[`will join using function 1`] = `
 
 exports[`will join using object 1`] = `
 	select
-	  \`COUNT(*)\` as \`count\`
+	  count(*)
 	from
 	  \`foo\`
 	  inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`

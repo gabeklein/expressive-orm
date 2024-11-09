@@ -1,1 +1,0 @@
-it.todo("will assign subtype on fetch");
