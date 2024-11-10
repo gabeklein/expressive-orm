@@ -76,39 +76,48 @@ describe.skip("nested", () => {
   it("will match nested values", () => {
     const query = Query(where => {
       const foo = where(Foo);
-      const bar = where(Bar, { color: foo.color });
 
       // @ts-ignore
       where([
         where(foo.name).is("Gabe"),
-        where(bar.value).is(42),
+        where(foo.color).is("purple"),
       ])
     });
 
-    expect(query).toMatchSnapshot();
+    expect(query.toString()).toMatchInlineSnapshot(`
+      SELECT count(*)
+      WHERE (
+        foo.name = 'Gabe' OR foo.color = 'purple'
+      )
+    `);
   })
 
-  it("will match absurdly", () => {
+  it("will match recursively", () => {
     const query = Query(where => {
       const foo = where(Foo);
-      const bar = where(Bar, { color: foo.color });
 
       // @ts-ignore
-      where([
-        [ 
-          where(foo.name).is("Gabe"),
-          where(bar.value).is(69),
-        ],
-        [
-          where(foo.name).is("Bob"),
-          where([
-            where(foo.color).is("blue"),
-            where(bar.value).is(42),
-          ])
-        ]
+      where([ 
+        where(foo.name).is("Gabe"),
+        where(foo.color).is("red"),
+      ], [
+        where(foo.name).is("Bob"),
+        where([
+          where(foo.color).is("blue"),
+          where(foo.color).is("green"),
+        ])
       ])
     });
 
-    expect(query).toMatchSnapshot();
+    expect(query.toString()).toMatchInlineSnapshot(`
+      SELECT count(*)
+      WHERE (
+        foo.name = 'Gabe' AND foo.color = 'red'
+      ) OR (
+        foo.name = 'Bob' AND (
+          foo.color = 'blue' OR foo.color = 'green'
+        )
+      )
+    `);
   })
 })
