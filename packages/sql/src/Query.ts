@@ -117,18 +117,25 @@ function Query(from: Query.Function<void>): Query<number>;
 function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | TypeQuery {
   const tables = [] as Query.Table[];
   const pending = new Set<() => void>();
-
-  let parse = (raw: any[]) => raw;
-  let builder!: Knex.QueryBuilder;
-  let main: Type.EntityType;
-
   const wheres = new Set<readonly [
     left: string,
     right: string | number,
     op: string
   ]>();
 
+  let parse = (raw: any[]) => raw;
+  let builder!: Knex.QueryBuilder;
+  let main: Type.EntityType;
+
   const selects = constructor(where);
+  const query: Query = {
+    then(resolve: (res: any) => any, reject: (err: any) => any){
+      return builder.then(parse).then<T[]>(resolve).catch(reject);
+    },
+    toString(){
+      return builder.toString().replace(/```/g, "`");
+    }
+  }
 
   pending.forEach(fn => fn());
   pending.clear();
@@ -139,8 +146,10 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
 
   if(!selects){
     builder.count();
+    return query;
   }
-  else if(Field.is(selects)){
+  
+  if(Field.is(selects)){
     builder.select({ [selects.column]: String(selects) });
   
     parse = raw => raw.map(row => {
@@ -174,6 +183,21 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
     })
   }
 
+  return <SelectQuery> {
+    ...query,
+    count(){
+      return builder.clone().clearSelect().count();
+    },
+    async one(orFail?: boolean){
+      const res = await builder.clone().limit(1).then(parse);
+  
+      if(res.length == 0 && orFail)
+        throw new Error("Query returned no results.");
+  
+      return res[0] as T;
+    }
+  }
+
   function where(
     type: unknown,
     on?: Query.Join.On<any>,
@@ -186,25 +210,15 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
       return table(type, on, join);
     }
 
-    if(Field.is(type)){
-      const compare = (op: string) => (right: unknown) => {
-        const r = typeof right === "number" ? right : String(right);
-        const clause = [String(type), r, op] as const;
-
-        wheres.add(clause); 
-        
-        return clause;
-      }
-  
+    if(Field.is(type))
       return {
-        is: compare("="),
-        isNot: compare("<>"),
-        isMore: compare(">"),
-        isLess: compare("<"),
+        is: compare(type, "="),
+        isNot: compare(type, "<>"),
+        isMore: compare(type, ">"),
+        isLess: compare(type, "<"),
         isAsc: order(type, "asc"),
         isDesc: order(type, "desc"),
       }
-    }
 
     if(isFromType(type)){
       const table = RelevantTable.get(type);
@@ -224,6 +238,17 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
     }
 
     throw new Error("Invalid query.");
+  }
+
+  function compare(type: Field, op: string) {
+    return (right: unknown) => {
+      const r = typeof right === "number" ? right : String(right);
+      const clause = [String(type), r, op] as const;
+
+      wheres.add(clause);
+
+      return clause;
+    };
   }
 
   function order(by: Field, direction: "asc" | "desc"){
@@ -319,13 +344,13 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
       }
 
       switch(mode){
-        case "left":
-          builder.leftJoin(name, callback);
-          break;
-  
         case "inner":
         case undefined:
           builder.join(name, callback);
+          break;
+
+        case "left":
+          builder.leftJoin(name, callback);
           break;
   
         case "right" as unknown:
@@ -339,33 +364,6 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
 
     return proxy;
   }
-
-  const query: Query = {
-    then(resolve: (res: any) => any, reject: (err: any) => any){
-      return builder.then(parse).then<T[]>(resolve).catch(reject);
-    },
-    toString(){
-      return builder.toString().replace(/```/g, "`");
-    }
-  }
-
-  if(selects)
-    return {
-      ...query,
-      count(){
-        return builder.clone().clearSelect().count();
-      },
-      async one(orFail?: boolean){
-        const res = await builder.clone().limit(1).then(parse);
-    
-        if(res.length == 0 && orFail)
-          throw new Error("Query returned no results.");
-    
-        return res[0] as T;
-      }
-    }
-
-  return query;
 }
 
 Query.one = function one<T extends {}>(
