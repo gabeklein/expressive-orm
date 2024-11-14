@@ -4,7 +4,7 @@ module.exports = {
   test: (x) => true,
   serialize: (query) => {
     try {
-      return format(String(query)).replace(/^/gm, "\t");
+      return format(String(query)).replace(/^/gm, "");
     }
     catch (e) {
       return query;

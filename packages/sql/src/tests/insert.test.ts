@@ -66,7 +66,10 @@ it("will throw for bad value", async () => {
     }) 
   )
 
-  expect(insert).toThrowErrorMatchingSnapshot();
+  expect(insert).toThrowErrorMatchingInlineSnapshot(`
+    Provided value for Foo.color but not acceptable for type varchar(255).
+    Value must be a string.
+  `);
 })
 
 it("will throw for no value non-nullable", async () => {
@@ -78,7 +81,7 @@ it("will throw for no value non-nullable", async () => {
     }) 
   )
 
-  expect(insert).toThrowErrorMatchingSnapshot();
+  expect(insert).toThrowErrorMatchingInlineSnapshot(`Provided value for Foo.color is undefined but column is not nullable.`);
 })
 
 it("will add index to specify error", async () => {
@@ -96,7 +99,7 @@ it("will add index to specify error", async () => {
     ]) 
   )
 
-  expect(insert).toThrowErrorMatchingSnapshot();
+  expect(insert).toThrowErrorMatchingInlineSnapshot(`Provided value for Foo.color is undefined on index [1] but column is not nullable.`);
 })
 
 it.todo("will warn in typescript for bad value");

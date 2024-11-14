@@ -5,7 +5,7 @@ class Foo extends Type {
   color = Str();
 }
 
-it.skip("will generate query", () => {
+it("will generate query", () => {
   const query = Query(where => {
     const foo = where(Foo);
 
@@ -17,5 +17,13 @@ it.skip("will generate query", () => {
     })
   });
 
-  expect(query).toMatchSnapshot();
+  expect(query).toMatchInlineSnapshot(`
+    update
+      \`foo\`
+    set
+      \`value\` = 'new!',
+      \`color\` = 'blue'
+    where
+      \`foo\`.\`color\` = 'red'
+  `);
 })

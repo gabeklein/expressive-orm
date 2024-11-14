@@ -43,7 +43,14 @@ it("will create count query", () => {
 
   const qb = query.toString();
 
-  expect(qb).toMatchSnapshot();
+  expect(qb).toMatchInlineSnapshot(`
+    select
+      count(*)
+    from
+      \`foo\`
+    where
+      \`foo\`.\`color\` = 'red'
+  `);
 })
 
 it.todo("will reject query via select function")

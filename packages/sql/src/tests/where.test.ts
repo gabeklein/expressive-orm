@@ -28,7 +28,17 @@ describe("basic", () => {
       where(test.d).isLess(4);
     });
   
-    expect(query).toMatchSnapshot();
+    expect(query).toMatchInlineSnapshot(`
+      select
+        count(*)
+      from
+        \`test\`
+      where
+        \`test\`.\`a\` = 1
+        and \`test\`.\`b\` <> 2
+        and \`test\`.\`c\` > 3
+        and \`test\`.\`d\` < 4
+    `);
   })
   
   it("will assert a joined property's value", () => {
@@ -39,7 +49,15 @@ describe("basic", () => {
       where(bar.value).is(42);
     });
     
-    expect(query).toMatchSnapshot();
+    expect(query).toMatchInlineSnapshot(`
+      select
+        count(*)
+      from
+        \`foo\`
+        inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
+      where
+        \`bar\`.\`value\` = 42
+    `);
   })
   
   it.skip("will assert an implictly joined value", () => {

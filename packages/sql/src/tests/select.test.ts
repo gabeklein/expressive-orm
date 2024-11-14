@@ -13,7 +13,13 @@ describe("select", () => {
       return { bar, baz }
     })
   
-    expect(query).toMatchSnapshot();
+    expect(query).toMatchInlineSnapshot(`
+      select
+        \`foo\`.\`bar\` as \`bar\`,
+        \`foo\`.\`baz\` as \`baz\`
+      from
+        \`foo\`
+    `);
   })
   
   it("will select a field directly", () => {
@@ -23,7 +29,12 @@ describe("select", () => {
       return foo.bar;
     })
   
-    expect(query).toMatchSnapshot();
+    expect(query).toMatchInlineSnapshot(`
+      select
+        \`foo\`.\`bar\` as \`bar\`
+      from
+        \`foo\`
+    `);
   })
   
   it("will select a entire entity", () => {
@@ -31,7 +42,14 @@ describe("select", () => {
       return where(Foo);
     })
   
-    expect(query).toMatchSnapshot();
+    expect(query).toMatchInlineSnapshot(`
+      select
+        \`foo\`.\`id\` as \`id\`,
+        \`foo\`.\`bar\` as \`bar\`,
+        \`foo\`.\`baz\` as \`baz\`
+      from
+        \`foo\`
+    `);
   })
 })
 
@@ -67,7 +85,19 @@ describe("joins", () => {
       }
     });
   
-    expect(query).toMatchSnapshot();
+    expect(query).toMatchInlineSnapshot(`
+      select
+        \`foo\`.\`name\` as \`fooValue\`,
+        \`bar\`.\`name\` as \`barValue\`,
+        \`baz\`.\`rating\` as \`bazRating\`
+      from
+        \`foo\`
+        inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
+        left join \`baz\` on \`baz\`.\`rating\` = \`bar\`.\`rating\`
+      where
+        \`foo\`.\`name\` <> 'Danny'
+        and \`bar\`.\`rating\` > 50
+    `);
   })
 
   it.todo("will join values using function")
@@ -91,7 +121,14 @@ describe("sort", () => {
       }
     });
   
-    expect(query).toMatchSnapshot();
+    expect(query).toMatchInlineSnapshot(`
+      select
+        \`test\`.\`name\` as \`name\`
+      from
+        \`test\`
+      order by
+        \`test\`.\`id\` asc
+    `);
   })
 
   it("will add multiple clauses", async () => {
@@ -106,7 +143,15 @@ describe("sort", () => {
       }
     });
   
-    expect(query).toMatchSnapshot();
+    expect(query).toMatchInlineSnapshot(`
+      select
+        \`test\`.\`name\` as \`name\`
+      from
+        \`test\`
+      order by
+        \`test\`.\`rating\` asc,
+        \`test\`.\`name\` asc
+    `);
   })
 
   it("will sort by joined table", async () => {
@@ -128,6 +173,14 @@ describe("sort", () => {
       }
     });
   
-    expect(query).toMatchSnapshot();
+    expect(query).toMatchInlineSnapshot(`
+      select
+        \`test\`.\`name\` as \`name\`
+      from
+        \`test\`
+        inner join \`other\` on \`other\`.\`name\` = \`test\`.\`name\`
+      order by
+        \`other\`.\`rank\` asc
+    `);
   })
 })

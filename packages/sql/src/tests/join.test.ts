@@ -27,7 +27,18 @@ it("will join using object", async () => {
     where(baz.color).is("blue");
   });
 
-  expect(query).toMatchSnapshot();
+  expect(query).toMatchInlineSnapshot(`
+    select
+      count(*)
+    from
+      \`foo\`
+      inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
+      inner join \`baz\` on \`baz\`.\`rating\` = \`bar\`.\`rating\`
+    where
+      \`foo\`.\`name\` <> 'Danny'
+      and \`bar\`.\`rating\` > 50
+      and \`baz\`.\`color\` = 'blue'
+  `);
 })
 
 it("will join using function", async () => {
@@ -42,7 +53,17 @@ it("will join using function", async () => {
     where(bar.rating).isMore(50);
   });
 
-  expect(query).toMatchSnapshot();
+  expect(query).toMatchInlineSnapshot(`
+    select
+      count(*)
+    from
+      \`foo\`
+      inner join \`bar\` on \`bar\`.\`name\` <> \`foo\`.\`name\`
+      and \`bar\`.\`color\` = \`foo\`.\`color\`
+    where
+      \`foo\`.\`name\` <> 'Danny'
+      and \`bar\`.\`rating\` > 50
+  `);
 })
 
 it("will alias tables which have a schema", () => {
@@ -59,5 +80,12 @@ it("will alias tables which have a schema", () => {
     where(foo.color).is("red");
   })
 
-  expect(query).toMatchSnapshot();
+  expect(query).toMatchInlineSnapshot(`
+    select
+      count(*)
+    from
+      \`foobar\`.\`foo\` as \`$0\`
+    where
+      \`$0\`.\`color\` = 'red'
+  `);
 })

@@ -21,7 +21,7 @@ it("will query via direct selection", () => {
     return where(A).value
   });
 
-  expect(query).toMatchSnapshot();
+  expect(query).toMatchInlineSnapshot();
 })
 
 it("will select via an object", () => {
@@ -34,7 +34,7 @@ it("will select via an object", () => {
     }
   });
 
-  expect(query).toMatchSnapshot();
+  expect(query).toMatchInlineSnapshot();
 })
 
 it("will query nested relationships", () => {
@@ -47,5 +47,5 @@ it("will query nested relationships", () => {
     return a.b.c.label
   })
 
-  expect(query).toMatchSnapshot();
+  expect(query).toMatchInlineSnapshot();
 })

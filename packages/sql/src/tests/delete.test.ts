@@ -18,7 +18,12 @@ it("will generate query", () => {
     where(foo).delete();
   });
 
-  expect(query).toMatchSnapshot();
+  expect(query).toMatchInlineSnapshot(`
+    delete from
+      \`foo\`
+    where
+      \`foo\`.\`value\` = 'Hello World!'
+  `);
 })
 
 it("will include FROM statement where JOIN exists", () => {
@@ -30,7 +35,14 @@ it("will include FROM statement where JOIN exists", () => {
     where(foo).delete();
   });
 
-  expect(query).toMatchSnapshot();
+  expect(query).toMatchInlineSnapshot(`
+    delete \`foo\`
+    from
+      \`foo\`
+      inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
+    where
+      \`bar\`.\`value\` = 'Hello World!'
+  `);
 })
 
 // this is only suprted in MySQL
@@ -44,5 +56,5 @@ it("will include FROM statement where JOIN exists", () => {
 //     where.delete(foo, bar);
 //   });
 
-//   expect(query).toMatchSnapshot();
+//   expect(query).toMatchInlineSnapshot();
 // })
