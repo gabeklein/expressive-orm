@@ -7,6 +7,20 @@ export const RelevantTable = new WeakMap<{}, Query.Table>();
 declare const ENTITY: unique symbol;
 
 declare namespace Query { 
+  interface Where {
+    /** Registers a type as a inner join, returned object can be used to query against that table. */
+    <T extends Type>(entity: Type.EntityType<T>, on?: Join.On<T>, join?: "inner"): FromType<T>;
+
+    /** Registers a type as a left join, returned object has optional properties which may be undefined where the join is not present. */
+    <T extends Type>(entity: Type.EntityType<T>, on: Join.On<T>, join: Join.Mode): Partial<FromType<T>>;
+
+    /** Prepares write operations for a particular table. */
+    <T extends Type>(field: FromType<T>): Verbs<T>;
+    
+    /** Prepare comparison against a particilar field, returns operations for the given type. */
+    <T>(field: T): Assert<T>;
+  }
+
   namespace Join {
     type Mode = "left" | "inner";
 
@@ -26,13 +40,14 @@ declare namespace Query {
     type On<T extends Type = any> = Object<T> | Function;
   }
 
-  type Assertion = symbol;
+  /** A query instruction returned by assertions which can be nested. */
+  type Instruction = () => void;
 
   interface Compare<T> {
-    is(equalTo: T): Assertion;
-    isNot(equalTo: T): Assertion;
-    isMore(than: T): Assertion;
-    isLess(than: T): Assertion;
+    is(equalTo: T): Instruction;
+    isNot(equalTo: T): Instruction;
+    isMore(than: T): Instruction;
+    isLess(than: T): Instruction;
   }
 
   interface Assert<T> extends Compare<T> {
@@ -64,15 +79,6 @@ declare namespace Query {
   // TODO: make this default/nullable aware.
   type Update<T extends Type> = {
     [K in Type.Field<T>]?: Exclude<T[K], undefined>;
-  }
-
-  interface Where {
-    <T extends Type>(entity: Type.EntityType<T>, on?: Join.On<T>, join?: "inner"): FromType<T>;
-    <T extends Type>(entity: Type.EntityType<T>, on: Join.On<T>, join: Join.Mode): Partial<FromType<T>>;
-
-    <T extends Type>(field: FromType<T>): Verbs<T>;
-    
-    <T>(field: T): Assert<T>;
   }
 
   type Function<R> = (where: Where) => R;
