@@ -86,11 +86,11 @@ describe("basic", () => {
   //     })
   //   });
   
-  //   expect(query).toMatchSnapshot();
+  //   expect(query).toMatchInlineSnapshot();
   // })
 })
 
-describe.skip("nested", () => {
+describe("nested", () => {
   it("will match nested values", () => {
     const query = Query(where => {
       const foo = where(Foo);
@@ -103,10 +103,15 @@ describe.skip("nested", () => {
     });
 
     expect(query.toString()).toMatchInlineSnapshot(`
-      SELECT count(*)
-      WHERE (
-        foo.name = 'Gabe' OR foo.color = 'purple'
-      )
+      select
+        count(*)
+      from
+        \`foo\`
+      where
+        (
+          \`foo\`.\`name\` = 'Gabe'
+          or \`foo\`.\`color\` = 'purple'
+        )
     `);
   })
 
@@ -114,7 +119,8 @@ describe.skip("nested", () => {
     const query = Query(where => {
       const foo = where(Foo);
 
-      // @ts-ignore
+      where(foo.id).isMore(1);
+
       where([ 
         where(foo.name).is("Gabe"),
         where(foo.color).is("red"),
@@ -126,16 +132,25 @@ describe.skip("nested", () => {
         ])
       ])
     });
-
-    expect(query.toString()).toMatchInlineSnapshot(`
-      SELECT count(*)
-      WHERE (
-        foo.name = 'Gabe' AND foo.color = 'red'
-      ) OR (
-        foo.name = 'Bob' AND (
-          foo.color = 'blue' OR foo.color = 'green'
+    
+    expect(query).toMatchInlineSnapshot(`
+      select
+        count(*)
+      from
+        \`foo\`
+      where
+        \`foo\`.\`id\` > 1
+        and (
+          \`foo\`.\`name\` = 'Gabe'
+          and \`foo\`.\`color\` = 'red'
         )
-      )
+        or (
+          \`foo\`.\`name\` = 'Bob'
+          and (
+            \`foo\`.\`color\` = 'blue'
+            or \`foo\`.\`color\` = 'green'
+          )
+        )
     `);
   })
 })

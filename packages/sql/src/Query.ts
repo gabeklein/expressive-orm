@@ -8,6 +8,20 @@ declare const ENTITY: unique symbol;
 
 declare namespace Query { 
   interface Where {
+    /**
+     * Accepts instructions for nesting in a parenthesis.
+     * When only one group of instructions is provided, the statement are separated by OR.
+     **/
+    (orWhere: Instructions): Instruction;
+
+    /**
+     * Accepts instructions for nesting in a parenthesis.
+     * 
+     * When multiple groups of instructions are provided, the groups
+     * are separated by OR and nested comparisons are separated by AND.
+     */
+    (...orWhere: Instructions[]): Instruction;
+  
     /** Registers a type as a inner join, returned object can be used to query against that table. */
     <T extends Type>(entity: Type.EntityType<T>, on?: Join.On<T>, join?: "inner"): FromType<T>;
 
@@ -41,7 +55,10 @@ declare namespace Query {
   }
 
   /** A query instruction returned by assertions which can be nested. */
-  type Instruction = () => void;
+  type Instruction = (or?: boolean) => void;
+
+  /** A group of query instructions declared in a parenthesis. */
+  type Instructions  = Instruction[];
 
   interface Compare<T> {
     is(equalTo: T): Instruction;
@@ -122,21 +139,19 @@ function Query(from: Query.Function<void>): Query<number>;
 
 function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | TypeQuery {
   const tables = [] as Query.Table[];
-  const pending = new Set<() => void>();
-  const wheres = new Set<readonly [
-    left: string,
-    right: string | number,
-    op: string
-  ]>();
+  const pending = new Set<Query.Instruction>();
 
-  let parse = (raw: any[]) => raw;
+  let parse: ((raw: any[]) => any[]) | undefined;
   let builder!: Knex.QueryBuilder;
   let main: Type.EntityType;
 
-  const selects = constructor(where);
+  let currentTarget: Knex.QueryBuilder = builder;
+
+  const selects = constructor(where as any);
   const query: Query = {
     then(resolve: (res: any) => any, reject: (err: any) => any){
-      return builder.then(parse).then<T[]>(resolve).catch(reject);
+      const execute = parse ? builder.then(parse) : builder;
+      return execute.then<T[]>(resolve).catch(reject);
     },
     toString(){
       return builder.toString().replace(/```/g, "`");
@@ -146,48 +161,22 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
   pending.forEach(fn => fn());
   pending.clear();
 
-  wheres.forEach(([left, right, op]) => {
-    builder.where(left, op, right);
-  });
-
   if(!selects){
     builder.count();
     return query;
   }
   
   if(Field.is(selects)){
-    builder.select({ [selects.column]: String(selects) });
+    const name = selects.column;
+
+    builder.select({ [name]: String(selects) });
   
-    parse = raw => raw.map(row => {
-      const value = row[selects.column];
-      return selects.get ? selects.get(value) : value;
-    });
+    parse = raw => raw.map(({ [name]: value }) => (
+      selects.get ? selects.get(value) : value
+    ));
   }
-  else if(typeof selects == "object"){
-    const output = new Map<string | Field, string | number>();
-
-    Object.getOwnPropertyNames(selects).forEach(key => {
-      const value = (selects as any)[key];
-    
-      if(Field.is(value)){
-        output.set(value, key);
-        builder.select({ [key]: String(value) });
-      }
-    })
-
-    parse = raw => raw.map(row => {
-      const values = Object.create(selects as {});
-    
-      output.forEach((column, value) => {
-        if(Field.is(value) && value.get)
-          value = value.get(row[column]);
-
-        Object.defineProperty(values, column, { value });
-      })
-        
-      return values as T;
-    })
-  }
+  else if(typeof selects == "object")
+    map(selects)
 
   return <SelectQuery> {
     ...query,
@@ -195,7 +184,8 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
       return builder.clone().clearSelect().count();
     },
     async one(orFail?: boolean){
-      const res = await builder.clone().limit(1).then(parse);
+      const execute = builder.clone().limit(1) as Promise<any>;
+      const res = await (parse ? execute.then(parse) : execute);
   
       if(res.length == 0 && orFail)
         throw new Error("Query returned no results.");
@@ -226,6 +216,9 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
         isDesc: order(type, "desc"),
       }
 
+    if(Array.isArray(type))
+        return parens([...arguments])
+
     if(isFromType(type)){
       const table = RelevantTable.get(type);
   
@@ -246,15 +239,66 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
     throw new Error("Invalid query.");
   }
 
+  function parens(args: Query.Instructions[]){
+    for(const group of args)
+      for(const fn of group)
+        pending.delete(fn);
+
+    function apply(){
+      const orGroup = args.length > 1;
+      const current = currentTarget;
+
+      args.forEach((group, i) => {
+        currentTarget[i > 0 ? "orWhere" : "where"](context => {
+          currentTarget = context;
+          group.forEach(fn => fn(!orGroup));
+          currentTarget = current;
+        })
+      });
+    }
+
+    pending.add(apply);
+
+    return apply;
+  }
+
   function compare(type: Field, op: string) {
     return (right: unknown) => {
-      const r = typeof right === "number" ? right : String(right);
-      const clause = [String(type), r, op] as const;
+      function apply(or?: boolean) {
+        const r = typeof right === "number" ? right : String(right);
+        currentTarget[or ? "orWhere" : "where"](String(type), op, r);
+      }
 
-      wheres.add(clause);
+      pending.add(apply);
 
-      return clause;
+      return apply;
     };
+  }
+
+  function map(selects: NonNullable<T>){
+    const output = new Map<string | Field, string | number>();
+
+    Object.getOwnPropertyNames(selects).forEach(key => {
+      const value = (selects as any)[key];
+    
+      if(Field.is(value)){
+        output.set(value, key);
+        builder.select({ [key]: String(value) });
+      }
+    })
+
+    parse = raw => raw.map(row => {
+      const values = Object.create(selects as {});
+    
+      output.forEach((column, value) => {
+        if(Field.is(value) && value.get)
+          value = value.get(row[column]);
+
+        Object.defineProperty(values, column, { value });
+      })
+        
+      return values as T;
+    })
   }
 
   function order(by: Field, direction: "asc" | "desc"){
@@ -268,7 +312,7 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
     on?: Query.Join.On<any>,
     mode?: Query.Join.Mode
   ): Query.FromType {
-    let { fields, schema, connection } = type;
+    let { fields, schema } = type;
     let name: string | Knex.AliasDict = type.table
     let alias: string | undefined;
 
@@ -290,18 +334,18 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
     })
 
     if(main === undefined){
-      main = type;
 
-      const engine = connection?.knex || knex({
+      const engine = type.connection?.knex || knex({
         client: "sqlite3",
         useNullAsDefault: true,
         pool: { max: 0 }
       });
 
-      builder = engine(name)
+      main = type;
+      builder = currentTarget = engine(name)
     }
     else {
-      if(connection !== main.connection)
+      if(type.connection !== main.connection)
         throw new Error(`Joined entity ${type} does not share a connection with ${main}`);
 
       let callback: Knex.JoinCallback;
