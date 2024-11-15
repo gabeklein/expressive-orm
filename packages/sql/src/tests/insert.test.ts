@@ -15,13 +15,7 @@ class User extends Type  {
 it.skip("will insert procedurally generated rows", async () => {
   await inMemoryDatabase([User]);
 
-  const names = [
-    "Gabe",
-    "Justin",
-    "Joe",
-    "Steven",
-    "Josiah"
-  ];
+  const names = ["Foo", "Bar", "Baz", "Bob"];
 
   await User.insert(
     names.map((name, i) => ({
@@ -76,9 +70,7 @@ it("will throw for no value non-nullable", async () => {
   const insert = () => (
     // TODO: This should also have a type warning.
     //// @ts-expect-error
-    Foo.insert({
-      name: "foobar"
-    }) 
+    Foo.insert({ name: "foobar" }) 
   )
 
   expect(insert).toThrowErrorMatchingInlineSnapshot(`Provided value for Foo.color is undefined but column is not nullable.`);
@@ -87,15 +79,10 @@ it("will throw for no value non-nullable", async () => {
 it("will add index to specify error", async () => {
   const insert = () => (
     Foo.insert([
-      {
-        name: "foo",
-        color: "red"
-      },
-      // TODO: This should also have a type warning.
+      { name: "foo", color: "red" },
+      // TODO: This should have a type warning.
       //// @ts-expect-error
-      {
-        name: "bar"
-      }
+      { name: "bar" }
     ]) 
   )
 
