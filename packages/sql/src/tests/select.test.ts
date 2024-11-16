@@ -68,6 +68,7 @@ describe("joins", () => {
     
     class Baz extends Type {
       rating = Num();
+      name = Str();
     }
   
     const query = Query(where => {

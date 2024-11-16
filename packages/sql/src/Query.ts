@@ -4,7 +4,9 @@ import { Field } from './Field';
 import { isTypeConstructor, Type } from './Type';
 
 export const RelevantTable = new WeakMap<{}, Query.Table>();
+
 declare const ENTITY: unique symbol;
+declare const JOIN: unique symbol;
 
 declare namespace Query { 
   interface Where {
@@ -22,17 +24,26 @@ declare namespace Query {
      */
     (...orWhere: Instructions[]): Instruction;
   
-    /** Registers a type as a inner join, returned object can be used to query against that table. */
-    <T extends Type>(entity: Type.EntityType<T>, on?: Join.On<T>, join?: "inner"): FromType<T>;
+    /** Create a reference to the primary table, returned object can be used to query against that table. */
+    <T extends Type>(entity: Type.EntityType<T>): From<T>;
+  
+    /** Registers a type as a inner join. */
+    <T extends Type>(entity: Type.EntityType<T>, on: Join.On<T>, join?: "inner"): Join<T>;
 
     /** Registers a type as a left join, returned object has optional properties which may be undefined where the join is not present. */
-    <T extends Type>(entity: Type.EntityType<T>, on: Join.On<T>, join: Join.Mode): Partial<FromType<T>>;
+    <T extends Type>(entity: Type.EntityType<T>, on: Join.On<T>, join: Join.Mode): LeftJoin<T>;
 
     /** Prepares write operations for a particular table. */
-    <T extends Type>(field: FromType<T>): Verbs<T>;
+    <T extends Type>(field: From<T>): Verbs<T>;
     
     /** Prepare comparison against a particilar field, returns operations for the given type. */
     <T>(field: T): Assert<T>;
+  }
+
+  type From<T extends Type = Type> = {
+    [K in Type.Field<T>]: Exclude<T[K], null>;
+  } & {
+    [ENTITY]?: T
   }
 
   namespace Join {
@@ -54,10 +65,19 @@ declare namespace Query {
     type On<T extends Type = any> = Object<T> | Function;
   }
 
+  type Join<T extends Type> = From<T> & {
+    [JOIN]?: "inner"
+  };
+
+  type LeftJoin<T extends Type> = Compat<T> & {
+    [ENTITY]?: T
+    [JOIN]?: "left"
+  }
+
   /** A query instruction returned by assertions which can be nested. */
   type Instruction = (or?: boolean) => void;
 
-  /** A group of query instructions declared in a parenthesis. */
+  /** A group of query instructions declared within parenthesis. */
   type Instructions  = Instruction[];
 
   interface Compare<T> {
@@ -81,12 +101,6 @@ declare namespace Query {
     type: Type.EntityType;
     name: string | Knex.AliasDict;
     alias?: string;
-  }
-
-  type FromType<T extends Type = Type> = {
-    [K in Type.Field<T>]: Exclude<T[K], null>;
-  } & {
-    [ENTITY]?: T
   }
 
   type Compat<T extends Type = Type> = {
@@ -125,7 +139,7 @@ interface SelectQuery<T = unknown> extends Query<T[]> {
 /** Executable query on whole types. */
 interface TypeQuery<T extends Type = any> extends SelectQuery<T> {}
 
-function Query<T extends Type>(from: Query.Function<Query.FromType<T>>): TypeQuery<T>;
+function Query<T extends Type>(from: Query.Function<Query.From<T>>): TypeQuery<T>;
 
 function Query<T extends {}>(from: Query.Function<T>): SelectQuery<T>;
 
@@ -311,7 +325,7 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
     type: Type.EntityType,
     on?: Query.Join.On<any>,
     mode?: Query.Join.Mode
-  ): Query.FromType {
+  ): Query.From {
     let { fields, schema } = type;
     let name: string | Knex.AliasDict = type.table
     let alias: string | undefined;
@@ -421,7 +435,7 @@ Query.one = function one<T extends {}>(
   return Query(where).one(orFail);
 }
 
-function isFromType(type: any): type is Query.FromType {
+function isFromType(type: any): type is Query.From {
   return RelevantTable.has(type);
 }
 
