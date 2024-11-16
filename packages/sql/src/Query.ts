@@ -3,10 +3,17 @@ import knex, { Knex } from 'knex';
 import { Field } from './Field';
 import { isTypeConstructor, Type } from './Type';
 
-export const RelevantTable = new WeakMap<{}, Query.Table>();
+export const RelevantTable = new WeakMap<{}, Table>();
 
 declare const ENTITY: unique symbol;
 declare const JOIN: unique symbol;
+
+interface Table<T extends Type = Type> {
+  proxy: Query.From<T>;
+  type: Type.EntityType<T>;
+  name: string | Knex.AliasDict;
+  alias?: string;
+}
 
 declare namespace Query { 
   interface Where {
@@ -97,13 +104,7 @@ declare namespace Query {
     update(values: Query.Update<T>): void;
   }
 
-  interface Table {
-    type: Type.EntityType;
-    name: string | Knex.AliasDict;
-    alias?: string;
-  }
-
-  type Compat<T extends Type = Type> = {
+  type Compat<T extends Type> = {
     [K in Type.Field<T>]?: T[K];
   }
 
@@ -152,54 +153,26 @@ function Query<T extends {}>(from: Query.Function<T>): SelectQuery<T>;
 function Query(from: Query.Function<void>): Query<number>;
 
 function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | TypeQuery {
-  const tables = [] as Query.Table[];
-  const pending = new Set<Query.Instruction>();
+  const qb = new QueryBuilder();
 
-  let parse: ((raw: any[]) => any[]) | undefined;
-  let builder!: Knex.QueryBuilder;
-  let main: Type.EntityType;
-
-  let currentTarget: Knex.QueryBuilder = builder;
-
-  const selects = constructor(where as any);
-  const query: Query = {
+  const selects = qb.where(constructor);
+  const query = {
     then(resolve: (res: any) => any, reject: (err: any) => any){
-      const execute = parse ? builder.then(parse) : builder;
-      return execute.then<T[]>(resolve).catch(reject);
+      return qb.get().then<T[]>(resolve).catch(reject);
     },
     toString(){
-      return builder.toString().replace(/```/g, "`");
+      return qb.builder.toString().replace(/```/g, "`");
     }
   }
 
-  pending.forEach(fn => fn());
-  pending.clear();
-
-  if(!selects){
-    builder.count();
+  if(!selects)
     return query;
-  }
-  
-  if(Field.is(selects)){
-    const name = selects.column;
 
-    builder.select({ [name]: String(selects) });
-  
-    parse = raw => raw.map(({ [name]: value }) => (
-      selects.get ? selects.get(value) : value
-    ));
-  }
-  else if(typeof selects == "object")
-    map(selects)
-
-  return <SelectQuery> {
+  return {
     ...query,
-    count(){
-      return builder.clone().clearSelect().count();
-    },
+    count: () => qb.count(),
     async one(orFail?: boolean){
-      const execute = builder.clone().limit(1) as Promise<any>;
-      const res = await (parse ? execute.then(parse) : execute);
+      const res = await qb.get(1);
   
       if(res.length == 0 && orFail)
         throw new Error("Query returned no results.");
@@ -207,89 +180,108 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
       return res[0] as T;
     }
   }
+}
 
-  function where(
-    type: unknown,
-    on?: Query.Join.On<any>,
-    join?: Query.Join.Mode
-  ): any {
-    if(isTypeConstructor(type)){
-      if(typeof on == "string")
-        throw new Error("Bad parameters.");
+Query.one = function one<T extends {}>(
+  where: Query.Function<T>, orFail?: boolean){
 
-      return table(type, on, join);
-    }
+  return Query(where).one(orFail);
+}
 
-    if(Field.is(type))
-      return {
-        is: compare(type, "="),
-        isNot: compare(type, "<>"),
-        isMore: compare(type, ">"),
-        isLess: compare(type, "<"),
-        isAsc: order(type, "asc"),
-        isDesc: order(type, "desc"),
-      }
+class QueryBuilder {
+  main!: Type.EntityType;
+  builder!: Knex.QueryBuilder;
+  tables = [] as Table[];
+  pending = new Set<Query.Instruction>();
+  parse?: (raw: any[]) => any[];
 
-    if(Array.isArray(type))
-        return parens([...arguments])
+  where<T>(fn: Query.Function<T>){
+    const self = this;
 
-    if(isFromType(type)){
-      const table = RelevantTable.get(type);
+    function where(type: any, on?: any, joinMode?: any){
+      if(Array.isArray(type))
+        return self.andOr(...arguments)
+
+      if(isTypeConstructor(type))
+        return self.table(type, on, joinMode);
   
-      if(!table)
-        throw new Error(`Argument ${type} is not a query entity.`);
-  
-      return <Query.Verbs<Type>>{
-        delete: () => {
-          builder.table(table.name).delete();
-        },
-        update: (data: Query.Update<any>) => {
-          data = table.type.digest(data);
-          builder.table(table.name).update(data);
+      if(Field.is(type))
+        return {
+          is: self.compare(type, "="),
+          isNot: self.compare(type, "<>"),
+          isMore: self.compare(type, ">"),
+          isLess: self.compare(type, "<"),
+          isAsc: self.order(type, "asc"),
+          isDesc: self.order(type, "desc"),
+        }
+
+      if(isFromType(type)){
+        const table = RelevantTable.get(type);
+    
+        if(!table)
+          throw new Error(`Argument ${type} is not a query entity.`);
+    
+        return <Query.Verbs<Type>> {
+          delete: () => {
+            self.builder.table(table.name).delete();
+          },
+          update: (data: Query.Update<any>) => {
+            data = table.type.digest(data);
+            self.builder.table(table.name).update(data);
+          }
         }
       }
+  
+      throw new Error("Invalid query.");
     }
 
-    throw new Error("Invalid query.");
-  }
+    const selects = fn(where as any);
 
-  function parens(args: Query.Instructions[]){
-    for(const group of args)
-      for(const fn of group)
-        pending.delete(fn);
+    this.pending.forEach(fn => fn());
+    this.pending.clear();
 
-    function apply(){
-      const orGroup = args.length > 1;
-      const current = currentTarget;
-
-      args.forEach((group, i) => {
-        currentTarget[i > 0 ? "orWhere" : "where"](context => {
-          currentTarget = context;
-          group.forEach(fn => fn(!orGroup));
-          currentTarget = current;
-        })
-      });
+    if(!selects){
+      this.builder.count();
+      return;
     }
 
-    pending.add(apply);
-
-    return apply;
+    this.select(selects);
+    
+    return selects
   }
 
-  function compare(type: Field, op: string) {
-    return (right: unknown) => {
-      function apply(or?: boolean) {
-        const r = typeof right === "number" ? right : String(right);
-        currentTarget[or ? "orWhere" : "where"](String(type), op, r);
-      }
+  async get(limit?: number): Promise<any[]> {
+    let execute = this.builder;
 
-      pending.add(apply);
+    if(limit)
+      execute = execute.clone().limit(limit);
 
-      return apply;
-    };
+    if(this.parse)
+      return execute.then(this.parse);
+
+    return await execute;
   }
 
-  function map(selects: NonNullable<T>){
+  count(){
+    return this.builder.clone().clearSelect().count();
+  }
+
+  private select(selects: unknown){
+    if(Field.is(selects)){
+      const name = selects.column;
+  
+      this.builder.select({ [name]: String(selects) });
+    
+      this.parse = raw => raw.map(({ [name]: value }) => (
+        selects.get ? selects.get(value) : value
+      ));
+
+      return
+    }
+    
+    if(typeof selects != "object")
+      throw new Error("Invalid selection.");
+      
     const output = new Map<string | Field, string | number>();
 
     Object.getOwnPropertyNames(selects).forEach(key => {
@@ -297,11 +289,11 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
     
       if(Field.is(value)){
         output.set(value, key);
-        builder.select({ [key]: String(value) });
+        this.builder.select({ [key]: String(value) });
       }
     })
 
-    parse = raw => raw.map(row => {
+    this.parse = raw => raw.map(row => {
       const values = Object.create(selects as {});
     
       output.forEach((column, value) => {
@@ -311,128 +303,170 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
         Object.defineProperty(values, column, { value });
       })
         
-      return values as T;
+      return values;
     })
   }
 
-  function order(by: Field, direction: "asc" | "desc"){
-    return () => {
-      builder.orderBy(String(by), direction);
-    }
-  }
-
-  function table(
-    type: Type.EntityType,
+  table<T extends Type>(
+    type: Type.EntityType<T>, 
     on?: Query.Join.On<any>,
-    mode?: Query.Join.Mode
-  ): Query.From {
+    joinMode?: Query.Join.Mode
+  ){
+    if(typeof on == "string")
+      throw new Error("Bad parameters.");
+
     let { fields, schema } = type;
     let name: string | Knex.AliasDict = type.table
     let alias: string | undefined;
 
     if(schema){
-      alias = `$${tables.length}`;
+      alias = `$${this.tables.length}`;
       name = { [alias]: schema + '.' + name };
     }
 
-    const proxy = {} as any;
-    const metadata: Query.Table = { name, alias, type };
+    const proxy = {} as Query.From<T>;
+    const table: Table<T> = { proxy, name, alias, type };
 
-    tables.push(metadata);
-    RelevantTable.set(proxy, metadata);
+    this.tables.push(table);
+    RelevantTable.set(proxy, table);
 
     fields.forEach((field, key) => {
       field = Object.create(field);
-      RelevantTable.set(field, metadata);
+      RelevantTable.set(field, table);
       Object.defineProperty(proxy, key, { value: field })
     })
 
-    if(main === undefined){
+    if(this.main === undefined){
       const engine = type.connection?.knex || knex({
         client: "sqlite3",
         useNullAsDefault: true,
         pool: { max: 0 }
       });
 
-      main = type;
-      builder = currentTarget = engine(name)
+      this.main = type;
+      this.builder = engine(table.name)
     }
-    else {
-      if(type.connection !== main.connection)
-        throw new Error(`Joined entity ${type} does not share a connection with ${main}`);
+    else
+      this.join(table, on, joinMode);
 
-      let callback: Knex.JoinCallback;
-
-      switch(typeof on){
-        case "function":
-          callback = (table) => {
-            pending.add(() => {
-              on(field => {
-                if (!Field.is(field))
-                  throw new Error("Join assertions can only apply to fields.");
-
-                const on = (op: string) => (right: Field) => {
-                  table.on(String(field), op, String(right));
-                };
-
-                return {
-                  is: on("="),
-                  isNot: on("<>"),
-                  isMore: on(">"),
-                  isLess: on("<"),
-                }
-              });
-            })
-          }
-        break;
-
-        case "object":
-          callback = (table) => {
-            for (const key in on) {
-              const field = fields.get(key);
-    
-              if (!field)
-                throw new Error(`${key} is not a valid field in ${type}.`);
-    
-              const left = `${type.table}.${field.column}`;
-              const right = String(on[key]);
-    
-              table.on(left, "=", right);
-            }
-          }
-        break;
-
-        default:
-          throw new Error(`Invalid join on: ${on}`);
-      }
-
-      switch(mode){
-        case "inner":
-        case undefined:
-          builder.join(name, callback);
-          break;
-
-        case "left":
-          builder.leftJoin(name, callback);
-          break;
-  
-        case "right" as unknown:
-        case "full" as unknown:
-          throw new Error(`Cannot ${mode} join because that would affect ${main} which is already defined.`);
-  
-        default:
-          throw new Error(`Invalid join type ${mode}.`);
-      }
-    }
-
-    return proxy;
+    return table.proxy;
   }
-}
 
-Query.one = function one<T extends {}>(
-  where: Query.Function<T>, orFail?: boolean){
+  andOr(...args: Query.Instructions[]){
+    for(const group of args)
+      for(const fn of group)
+        this.pending.delete(fn);
 
-  return Query(where).one(orFail);
+    const apply = () => {
+      const orGroup = args.length > 1;
+      const current = this.builder;
+
+      args.forEach((group, i) => {
+        this.builder[i > 0 ? "orWhere" : "where"](context => {
+          this.builder = context;
+          group.forEach(fn => fn(!orGroup));
+          this.builder = current;
+        })
+      });
+    }
+
+    this.pending.add(apply);
+
+    return apply;
+  }
+
+  compare(type: Field, op: string) {
+    return (right: unknown) => {
+      const apply = (or?: boolean) => {
+        const r = typeof right === "number" ? right : String(right);
+        this.builder[or ? "orWhere" : "where"](String(type), op, r);
+      }
+
+      this.pending.add(apply);
+
+      return apply;
+    };
+  }
+
+  order(by: Field, direction: "asc" | "desc"){
+    return () => {
+      this.builder.orderBy(String(by), direction);
+    }
+  }
+
+  join(
+    table: Table,
+    on?: Query.Join.On<any>,
+    mode?: Query.Join.Mode
+  ){
+    const { type, name } = table;
+
+    if(type.connection !== this.main.connection)
+      throw new Error(`Joined entity ${type} does not share a connection with ${this.main}`);
+
+    let callback: Knex.JoinCallback;
+
+    switch(typeof on){
+      case "function":
+        callback = (table) => {
+          this.pending.add(() => {
+            on(field => {
+              if (!Field.is(field))
+                throw new Error("Join assertions can only apply to fields.");
+
+              const on = (op: string) => (right: Field) => {
+                table.on(String(field), op, String(right));
+              };
+
+              return {
+                is: on("="),
+                isNot: on("<>"),
+                isMore: on(">"),
+                isLess: on("<"),
+              }
+            });
+          })
+        }
+      break;
+
+      case "object":
+        callback = (table) => {
+          for (const key in on) {
+            const field = type.fields.get(key);
+  
+            if (!field)
+              throw new Error(`${key} is not a valid field in ${type}.`);
+  
+            const left = `${type.table}.${field.column}`;
+            const right = String(on[key]);
+  
+            table.on(left, "=", right);
+          }
+        }
+      break;
+
+      default:
+        throw new Error(`Invalid join on: ${on}`);
+    }
+
+    switch(mode){
+      case "inner":
+      case undefined:
+        this.builder.join(name, callback);
+        break;
+
+      case "left":
+        this.builder.leftJoin(name, callback);
+        break;
+
+      case "right" as unknown:
+      case "full" as unknown:
+        throw new Error(`Cannot ${mode} join because that would affect ${this.main} which is already defined.`);
+
+      default:
+        throw new Error(`Invalid join type ${mode}.`);
+    }
+  }
 }
 
 function isFromType(type: any): type is Query.From {
