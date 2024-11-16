@@ -33,22 +33,21 @@ interface Field {
   get?(value: unknown): any;
 }
 
-function Field(options: Partial<Field> | Field.Init){
-  const placeholder = Symbol(`field`);
-
+function Field(options: Partial<Field> | Field.Init): any {
   if(typeof options == "object"){
-    const inputs = options;
+    const opts = options;
 
     options = (parent, key) => {
       const field = Object.create(Field.prototype);
   
-      Object.assign(field, Field.defaults, inputs, {
-        column: inputs.column || key,
+      Object.assign(field, Field.defaults, opts, {
+        column: opts.column || key,
         toString(this: Field){
           const table = RelevantTable.get(this);
-          const prefix = table ? `${table.alias || table.name}.` : "";
-  
-          return prefix + this.column;
+
+          return table
+            ? `${table.alias || table.name}.${this.column}`
+            : this.column;
         }
       });
   
@@ -59,9 +58,9 @@ function Field(options: Partial<Field> | Field.Init){
     }
   }
 
+  const placeholder = Symbol(`field`);
   FIELD.set(placeholder, options);
-  
-  return placeholder as any;
+  return placeholder;
 }
 
 Object.defineProperty(Field, "is", {
