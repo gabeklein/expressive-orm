@@ -425,4 +425,4 @@ function isFromType(type: any): type is Query.FromType {
   return RelevantTable.has(type);
 }
 
-export { Query }
+export { Query, SelectQuery, TypeQuery };

@@ -1,12 +1,11 @@
 import { Knex } from 'knex';
 import { Connection } from './connection/Connection';
 import { FIELD, Field } from './Field';
-import { Query } from './Query';
+import { Query, SelectQuery, TypeQuery } from './Query';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
 const REGISTER = new Map<Type.EntityType, Map<string, Field.Defined>>();
-const CONNECTION = new Map<typeof Type, Connection>();
 
 const describe = Object.getOwnPropertyDescriptor;
 const define = Object.defineProperty;
@@ -60,18 +59,22 @@ abstract class Type {
     primary: true
   });
 
-  static table = "";
   static schema = "";
-  static deps = new Set<Type.EntityType>();
-
-  static focus?: { [key: string]: any };
 
   static get connection(){
-    return CONNECTION.get(this) || Connection.default;
+    return this.connection = Connection.default;
   }
 
-  static set connection(connection: Connection){
-    CONNECTION.set(this, connection);
+  static set connection(value: Connection){
+    define(this, "connection", { value });
+  }
+
+  static get table(){
+    return this.table = this.name.replace(/^[A-Z]/, m => m.toLowerCase());
+  }
+
+  static set table(value: string){
+    define(this, "table", { value });
   }
 
   static toString(){
@@ -109,21 +112,18 @@ abstract class Type {
     return table.insert(rows) as Knex.QueryBuilder;
   }
 
-  static get<T extends Type, R>(
-    this: Type.EntityType<T>,
-    query: Type.QueryFunction<T, R>){
-
+  static get<T extends Type>(this: Type.EntityType<T>, query: Type.QueryFunction<T, void>): TypeQuery<T>;
+  static get<T extends Type, R>(this: Type.EntityType<T>, query: Type.QueryFunction<T, R>): SelectQuery<R>;
+  static get<T extends Type, R>(this: Type.EntityType<T>, query: Type.QueryFunction<T, R>){
     return Query(where => {
-      return query(where(this), where);
+      const self = where(this);
+      return query(self, where) || self;
     });
   }
 }
 
 function init(type: Type.EntityType){
   const fields = new Map();
-
-  if(!type.table)
-    type.table = type.name.replace(/^[A-Z]/, m => m.toLowerCase());
 
   REGISTER.set(type, fields);
   
@@ -138,10 +138,6 @@ function init(type: Type.EntityType){
 
     FIELD.delete(value);
     instruction(type, key);
-    define(reference, key, {
-      get: () => type.focus![key],
-      set: is => type.focus![key] = is
-    })
   }
 
   return fields;
