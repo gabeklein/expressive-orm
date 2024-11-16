@@ -123,7 +123,7 @@ abstract class Type {
 }
 
 function init(type: Type.EntityType){
-  const fields = new Map();
+  const fields = new Map<string, Field.Defined>();
 
   REGISTER.set(type, fields);
   

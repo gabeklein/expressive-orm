@@ -4,7 +4,7 @@ import { Type } from "../Type";
 export async function toSchemaBuilder(
   knex: Knex<any, any[]>,
   types: Type.EntityType[],
-  strict?: boolean){
+  create?: boolean){
 
   const builder = knex.schema;
 
@@ -14,10 +14,44 @@ export async function toSchemaBuilder(
   
       if(exists)
         return;
-      else if(strict)
+      else if(create === false)
         throw new Error(`Table ${type.table} does not exist!`);
   
-      create(builder, type);
+      builder.createTable(type.table, (table) => {
+        for(const field of type.fields.values()){
+          const {
+            column,
+            increment,
+            datatype,
+            default: defaultTo,
+            nullable,
+            primary,
+            unique,
+          } = field;
+    
+          if(!datatype)
+            return;
+    
+          if(increment){
+            table.increments(column);
+            continue;
+          }
+    
+          const col = table.specificType(column, datatype);
+    
+          if(primary)
+            col.primary();
+    
+          if(unique)
+            col.unique();
+    
+          if(defaultTo)
+            col.defaultTo(defaultTo);
+    
+          if(!nullable)
+            col.notNullable();
+        }
+      });
     })
   )
 
@@ -33,8 +67,8 @@ async function validate(type: Type.EntityType, knex: Knex, strict?: boolean){
     return false;
 
   const columns = await knex(table).columnInfo();
-  
-  for (const [_property, field] of fields) {
+
+  for (const field of fields.values()) {
     const {
       column,
       datatype,
@@ -62,44 +96,4 @@ async function validate(type: Type.EntityType, knex: Knex, strict?: boolean){
   }
 
   return true;
-}
-
-function create(builder: Knex.SchemaBuilder, type: Type.EntityType){
-  const { table: name } = type;
-
-  builder.createTable(name, (table) => {
-    for(const [_property, field] of type.fields){
-      const {
-        column,
-        increment,
-        datatype,
-        default: defaultTo,
-        nullable,
-        primary,
-        unique,
-      } = field;
-
-      if(!datatype)
-        return;
-
-      if(increment){
-        table.increments(column);
-        continue;
-      }
-
-      const col = table.specificType(column, datatype);
-
-      if(primary)
-        col.primary();
-
-      if(unique)
-        col.unique();
-
-      if(defaultTo)
-        col.defaultTo(defaultTo);
-
-      if(!nullable)
-        col.notNullable();
-    }
-  });
 }

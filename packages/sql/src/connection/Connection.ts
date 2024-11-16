@@ -33,9 +33,9 @@ class Connection {
   schema: { [name: string]: Schema } = {};
   knex: Knex;
 
-  constructor(knexConfig: Knex.Config = DEFAULT_CONFIG) {
+  constructor(knexConfig?: Knex.Config) {
     Connection.default = this;
-    this.knex = knex(knexConfig);
+    this.knex = knex(knexConfig || DEFAULT_CONFIG);
   }
 
   async query(qs: string){
@@ -46,7 +46,7 @@ class Connection {
     return this.knex.destroy();
   }
 
-  async attach(types: Entities, strict?: boolean){
+  async attach(types: Entities, create?: boolean){
     const { knex } = this;
     types = Object.values(types);
 
@@ -55,7 +55,7 @@ class Connection {
       this.managed.add(type);
     }
 
-    return toSchemaBuilder(knex, types, strict);
+    return toSchemaBuilder(knex, types, create);
   }
 
   static get default(){
