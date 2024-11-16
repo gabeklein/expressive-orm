@@ -334,7 +334,6 @@ function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | 
     })
 
     if(main === undefined){
-
       const engine = type.connection?.knex || knex({
         client: "sqlite3",
         useNullAsDefault: true,

@@ -44,17 +44,3 @@ it("will include FROM statement where JOIN exists", () => {
       \`bar\`.\`value\` = 'Hello World!'
   `);
 })
-
-// this is only suprted in MySQL
-// it.skip("will delete from multiple", () => {
-//   const query = Query(where => {
-//     const foo = where(Foo);
-//     const bar = where(Bar, { color: foo.color });
-
-//     where(bar.value).is("Hello World!");
-
-//     where.delete(foo, bar);
-//   });
-
-//   expect(query).toMatchInlineSnapshot();
-// })

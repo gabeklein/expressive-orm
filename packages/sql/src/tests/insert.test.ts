@@ -12,7 +12,7 @@ class User extends Type  {
   age = Num();
 }
 
-it.skip("will insert procedurally generated rows", async () => {
+it("will insert procedurally generated rows", async () => {
   await inMemoryDatabase([User]);
 
   const names = ["Foo", "Bar", "Baz", "Bob"];
@@ -86,7 +86,7 @@ it("will add index to specify error", async () => {
     ]) 
   )
 
-  expect(insert).toThrowErrorMatchingInlineSnapshot(`Provided value for Foo.color is undefined on index [1] but column is not nullable.`);
+  expect(insert).toThrowErrorMatchingInlineSnapshot(`Provided value for Foo.color is undefined at [1] but column is not nullable.`);
 })
 
 it.todo("will warn in typescript for bad value");
