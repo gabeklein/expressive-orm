@@ -271,7 +271,6 @@ class QueryBuilder {
       const name = selects.column;
   
       this.builder.select({ [name]: String(selects) });
-    
       this.parse = raw => raw.map(({ [name]: value }) => (
         selects.get ? selects.get(value) : value
       ));
@@ -336,7 +335,7 @@ class QueryBuilder {
       Object.defineProperty(proxy, key, { value: field })
     })
 
-    if(this.main === undefined){
+    if(!this.main){
       const engine = type.connection?.knex || knex({
         client: "sqlite3",
         useNullAsDefault: true,
@@ -400,16 +399,17 @@ class QueryBuilder {
     mode?: Query.Join.Mode
   ){
     const { type, name } = table;
+    const { main, pending, builder } = this;
 
-    if(type.connection !== this.main.connection)
-      throw new Error(`Joined entity ${type} does not share a connection with ${this.main}`);
+    if(type.connection !== main.connection)
+      throw new Error(`Joined entity ${type} does not share a connection with ${main}`);
 
     let callback: Knex.JoinCallback;
 
     switch(typeof on){
       case "function":
         callback = (table) => {
-          this.pending.add(() => {
+          pending.add(() => {
             on(field => {
               if (!Field.is(field))
                 throw new Error("Join assertions can only apply to fields.");
@@ -452,16 +452,16 @@ class QueryBuilder {
     switch(mode){
       case "inner":
       case undefined:
-        this.builder.join(name, callback);
+        builder.join(name, callback);
         break;
 
       case "left":
-        this.builder.leftJoin(name, callback);
+        builder.leftJoin(name, callback);
         break;
 
       case "right" as unknown:
       case "full" as unknown:
-        throw new Error(`Cannot ${mode} join because that would affect ${this.main} which is already defined.`);
+        throw new Error(`Cannot ${mode} join because that would affect ${main} which is already defined.`);
 
       default:
         throw new Error(`Invalid join type ${mode}.`);
