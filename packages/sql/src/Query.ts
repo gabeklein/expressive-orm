@@ -137,10 +137,7 @@ interface SelectQuery<T = unknown> extends Query<T[]> {
   one(orFail?: boolean): Promise<T>;
 }
 
-/** Executable query on whole types. */
-interface TypeQuery<T extends Type = any> extends SelectQuery<T> {}
-
-function Query<T extends Type>(from: Query.Function<Query.From<T>>): TypeQuery<T>;
+function Query<T extends Type>(from: Query.Function<Query.From<T>>): SelectQuery<T>;
 
 function Query<T extends {}>(from: Query.Function<T>): SelectQuery<T>;
 
@@ -152,13 +149,16 @@ function Query<T extends {}>(from: Query.Function<T>): SelectQuery<T>;
  */
 function Query(from: Query.Function<void>): Query<number>;
 
-function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery | TypeQuery {
+function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery {
   const qb = new QueryBuilder();
 
   const selects = qb.where(constructor);
   const query = {
     then(resolve: (res: any) => any, reject: (err: any) => any){
       return qb.get().then<T[]>(resolve).catch(reject);
+    },
+    get(){
+      return qb.get();
     },
     toString(){
       return qb.builder.toString().replace(/```/g, "`");
@@ -473,4 +473,4 @@ function isFromType(type: any): type is Query.From {
   return RelevantTable.has(type);
 }
 
-export { Query, SelectQuery, TypeQuery };
+export { Query, SelectQuery };

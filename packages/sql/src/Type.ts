@@ -1,7 +1,7 @@
 import { Knex } from 'knex';
 import { Connection } from './connection/Connection';
 import { FIELD, Field } from './Field';
-import { Query, SelectQuery, TypeQuery } from './Query';
+import { Query, SelectQuery } from './Query';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
@@ -112,7 +112,7 @@ abstract class Type {
     return table.insert(rows) as Knex.QueryBuilder;
   }
 
-  static get<T extends Type>(this: Type.EntityType<T>, query: Type.QueryFunction<T, void>): TypeQuery<T>;
+  static get<T extends Type>(this: Type.EntityType<T>, query: Type.QueryFunction<T, void>): SelectQuery<T>;
   static get<T extends Type, R>(this: Type.EntityType<T>, query: Type.QueryFunction<T, R>): SelectQuery<R>;
   static get<T extends Type, R>(this: Type.EntityType<T>, query: Type.QueryFunction<T, R>){
     return Query(where => {
