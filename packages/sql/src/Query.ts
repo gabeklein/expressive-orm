@@ -12,6 +12,7 @@ interface Table<T extends Type = Type> {
   type: Type.EntityType<T>;
   name: string | Knex.AliasDict;
   alias?: string;
+  proxy: Query.From<T>;
 }
 
 declare namespace Query { 
@@ -369,14 +370,12 @@ class QueryBuilder {
     }
 
     const proxy = {} as any;
-    const table: Table<T> = { name, alias, type };
+    const table: Table<T> = { name, alias, type, proxy };
 
     RelevantTable.set(proxy, table);
 
-    fields.forEach((field, key) => {
-      field = proxy[key] = Object.create(field);
-      field.toString = () => `${alias || name}.${field.column}`;
-    })
+    for(const field of fields.values())
+      field.apply(table);
 
     Object.freeze(proxy);
 
@@ -459,4 +458,4 @@ class QueryBuilder {
   }
 }
 
-export { Query, SelectQuery };
+export { Query, SelectQuery, Table };

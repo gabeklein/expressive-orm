@@ -1,14 +1,14 @@
+import { Table } from './Query';
 import { Type } from './Type';
 
 export const FIELD = new Map<symbol, Field.Init>();
 
 declare namespace Field {
-  type Defined = {
-    readonly [K in keyof Field]-?: Field[K];
-  } & {
+  type Defined = Readonly<Required<Field> & {
     parent: Type.EntityType;
     property: string;
-  }
+    apply(table: Table): void;
+  }>
 
   type Init = (parent: Type.EntityType, key: string) => void;
 }
@@ -63,7 +63,13 @@ Field.prototype = <Field.Defined> {
   increment: false,
   default: null,
   set: (x: any) => x,
-  get: (x: any) => x
+  get: (x: any) => x,
+  apply({ name, proxy, alias }){
+    const field = Object.create(this);
+
+    field.toString = () => `${alias || name}.${this.column}`;
+    Object.defineProperty(proxy, this.property, { value: field });
+  }
 }
 
 export { Field }
