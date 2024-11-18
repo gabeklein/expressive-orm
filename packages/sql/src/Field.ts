@@ -1,4 +1,3 @@
-import { RelevantTable } from './Query';
 import { Type } from './Type';
 
 export const FIELD = new Map<symbol, Field.Init>();
@@ -6,13 +5,12 @@ export const FIELD = new Map<symbol, Field.Init>();
 declare namespace Field {
   type Defined = {
     readonly [K in keyof Field]-?: Field[K];
+  } & {
+    parent: Type.EntityType;
+    property: string;
   }
 
   type Init = (parent: Type.EntityType, key: string) => void;
-
-  const defaults: Partial<Field>;
-
-  function is(value: unknown): value is Defined;
 }
 
 interface Field {
@@ -23,7 +21,6 @@ interface Field {
   primary?: boolean;
   increment?: boolean;
   default?: string | null;
-
   index?: number;
 
   /** Converts acceptable values to their respective database values. */
@@ -33,57 +30,40 @@ interface Field {
   get?(value: unknown): any;
 }
 
-function Field(options: Partial<Field> | Field.Init): any {
+function Field(options: Field | Field.Init): any {
   if(typeof options == "object"){
     const opts = options;
 
-    options = (parent, key) => {
+    options = (parent, property) => {
       const field = Object.create(Field.prototype);
   
-      Object.assign(field, Field.defaults, opts, {
-        column: opts.column || key,
-        toString(this: Field){
-          const table = RelevantTable.get(this);
-
-          return table
-            ? `${table.alias || table.name}.${this.column}`
-            : this.column;
-        }
-      });
-  
+      Object.assign(field, { column: property, property, parent }, opts);
       Object.freeze(field);
-      parent.fields.set(key, field);
   
-      return field;
+      parent.fields.set(property, field);
     }
   }
 
   const placeholder = Symbol(`field`);
+
   FIELD.set(placeholder, options);
+
   return placeholder;
 }
 
-Object.defineProperty(Field, "is", {
-  writable: false,
-  value(value: unknown){
-    return value instanceof Field;
-  },
-})
+Field.is = (value: unknown): value is Field.Defined => value instanceof Field;
 
-Object.defineProperty(Field, "defaults", {
-  writable: false,
-  value: <Field.Defined>{
-    column: "",
-    index: 0,
-    datatype: "varchar(255)",
-    nullable: false,
-    unique: false,
-    primary: false,
-    increment: false,
-    default: null,
-    set: x => x,
-    get: x => x,
-  }
-})
+Field.prototype = <Field.Defined> {
+  column: "",
+  index: 0,
+  datatype: "varchar(255)",
+  nullable: false,
+  unique: false,
+  primary: false,
+  increment: false,
+  default: null,
+  set: (x: any) => x,
+  get: (x: any) => x
+}
 
 export { Field }
