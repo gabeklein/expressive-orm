@@ -2,6 +2,7 @@ import { Knex } from 'knex';
 import { Connection } from './connection/Connection';
 import { FIELD, Field } from './Field';
 import { Query, SelectQuery } from './Query';
+import { capitalize, isIterable } from './utils';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
@@ -181,20 +182,8 @@ function sanitize<T extends Type>(
   return values;
 }
 
-function isIterable(obj: unknown): obj is Iterable<unknown> {
-  type MaybeIterable = {
-    [Symbol.iterator]?: () => IterableIterator<unknown>;
-  };
-
-  return obj != null && typeof (obj as MaybeIterable)[Symbol.iterator] === 'function';
-}
-
 export function isTypeConstructor(obj: unknown): obj is typeof Type {
   return typeof obj === 'function' && obj.prototype instanceof Type;
-}
-
-export function capitalize(string: string){
-  return string[0].toUpperCase() + string.slice(1);
 }
 
 export { Type }

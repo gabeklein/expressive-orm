@@ -1,6 +1,7 @@
 import { Field } from '../Field';
 import { Query } from '../Query';
 import { Type } from '../Type';
+import { underscore } from '../utils';
 
 declare namespace One {
   interface OrNull<T extends Type> extends One<T> {
@@ -47,10 +48,6 @@ function One<T extends Type>(arg1: any, arg2?: any, arg3?: any): any {
     },
     ...arg1
   }));
-}
-
-function underscore(str: string){
-  return str.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
 }
 
 // class OneToManyRelation extends Field {

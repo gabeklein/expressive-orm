@@ -1,5 +1,6 @@
 import { Table } from './Query';
 import { Type } from './Type';
+import { underscore } from './utils';
 
 export const FIELD = new Map<symbol, Field.Init>();
 
@@ -47,10 +48,6 @@ function Field(options: Field | Field.Init): any {
   });
 
   return placeholder;
-}
-
-function underscore(str: string){
-  return str.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
 }
 
 Field.is = (value: unknown): value is Field.Ready => value instanceof Field;
