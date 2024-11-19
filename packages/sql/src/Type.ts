@@ -137,7 +137,7 @@ function init(type: Type.EntityType){
       throw new Error(`Entities do not support normal values, only fields. Did you forget to import \`${capitalize(typeof value)}\`?`);
 
     FIELD.delete(value);
-    instruction(type, key);
+    instruction(key, type);
   }
 
   return fields;

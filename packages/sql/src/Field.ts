@@ -9,7 +9,7 @@ declare namespace Field {
     property: string;
   }>
 
-  type Init = (parent: Type.EntityType, key: string) => Field | void;
+  type Init = (key: string, parent: Type.EntityType) => Field | void;
 }
 
 interface Field {
@@ -34,11 +34,11 @@ interface Field {
 function Field(options: Field | Field.Init): any {
   const placeholder = Symbol(`field`);
 
-  FIELD.set(placeholder, (parent, property) => {
+  FIELD.set(placeholder, (property, parent) => {
     const field = Object.create(Field.prototype);
 
     if (typeof options === "function")
-      options = options(parent, property) || {};
+      options = options(property, parent) || {};
 
     Object.assign(field, { column: property, property, parent }, options);
     Object.freeze(field);
