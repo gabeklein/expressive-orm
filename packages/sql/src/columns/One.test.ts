@@ -25,8 +25,8 @@ it("will query via direct selection", () => {
       \`b\`.\`value\` as \`value\`
     from
       \`a\`
-      inner join \`b\` on \`b\`.\`id\` = \`a\`.\`b\`
-`);
+      inner join \`b\` on \`b\`.\`id\` = \`a\`.\`b_id\`
+  `);
 })
 
 it("will select via an object", () => {
@@ -45,8 +45,8 @@ it("will select via an object", () => {
       \`c\`.\`value\` as \`cValue\`
     from
       \`a\`
-      inner join \`b\` on \`b\`.\`id\` = \`a\`.\`b\`
-      inner join \`c\` on \`c\`.\`id\` = \`b\`.\`c\`
+      inner join \`b\` on \`b\`.\`id\` = \`a\`.\`b_id\`
+      inner join \`c\` on \`c\`.\`id\` = \`b\`.\`c_id\`
   `);
 })
 
@@ -64,8 +64,8 @@ it("will query nested relationships", () => {
       \`c\`.\`label\` as \`label\`
     from
       \`a\`
-      inner join \`b\` on \`b\`.\`id\` = \`a\`.\`b\`
-      inner join \`c\` on \`c\`.\`id\` = \`b\`.\`c\`
+      inner join \`b\` on \`b\`.\`id\` = \`a\`.\`b_id\`
+      inner join \`c\` on \`c\`.\`id\` = \`b\`.\`c_id\`
     where
       \`c\`.\`value\` = 100
   `);

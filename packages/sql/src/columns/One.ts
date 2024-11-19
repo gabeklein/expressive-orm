@@ -27,9 +27,10 @@ function One<T extends Type>(arg1: any, arg2?: any, arg3?: any): any {
   if(typeof arg1 == "function")
     arg1 = { ...arg2, type: arg1 };
 
-  return Field({
+  return Field((key) => ({
     datatype: "int",
     type: arg1.type,
+    column: underscore(key) + "_id",
     set(value: number | { id: number }){
       return typeof value == "object" ? value.id : value;
     },
@@ -45,7 +46,11 @@ function One<T extends Type>(arg1: any, arg2?: any, arg3?: any): any {
       })
     },
     ...arg1
-  });
+  }));
+}
+
+function underscore(str: string){
+  return str.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
 }
 
 // class OneToManyRelation extends Field {
