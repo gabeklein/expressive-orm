@@ -1,6 +1,42 @@
 import { Knex } from "knex";
 import { Type } from "../Type";
 
+export function createTable(this: Knex.SchemaBuilder, type: Type.EntityType){
+  this.createTable(type.table, (table) => {
+    for(const field of type.fields.values()){
+      const {
+        column,
+        increment,
+        datatype,
+        default: defaultTo,
+        nullable,
+        primary,
+        unique,
+        references
+      } = field;
+
+      if(!datatype)
+        return;
+
+      const col = increment
+        ? table.increments(column, { primaryKey: primary })
+        : table.specificType(column, datatype);
+
+      if(!nullable)
+        col.notNullable();
+
+      if(unique)
+        col.unique();
+
+      if(defaultTo)
+        col.defaultTo(defaultTo);
+
+      if(references)
+        col.references(references.column).inTable(references.table);
+    }
+  });
+}
+
 export async function toSchemaBuilder(
   knex: Knex<any, any[]>,
   types: Type.EntityType[],
@@ -10,72 +46,36 @@ export async function toSchemaBuilder(
 
   await Promise.all(
     Object.values(types).map(async type => {
-      const exists = await validate(type, knex);
+      const exists = await expect.call(knex, type);
   
       if(exists)
         return;
       else if(create === false)
         throw new Error(`Table ${type.table} does not exist!`);
-  
-      builder.createTable(type.table, (table) => {
-        for(const field of type.fields.values()){
-          const {
-            column,
-            increment,
-            datatype,
-            default: defaultTo,
-            nullable,
-            primary,
-            unique,
-          } = field;
-    
-          if(!datatype)
-            return;
-    
-          if(increment){
-            table.increments(column);
-            continue;
-          }
-    
-          const col = table.specificType(column, datatype);
-    
-          if(primary)
-            col.primary();
-    
-          if(unique)
-            col.unique();
-    
-          if(defaultTo)
-            col.defaultTo(defaultTo);
-    
-          if(!nullable)
-            col.notNullable();
-        }
-      });
+
+      createTable.call(builder, type);
     })
   )
 
   return builder;
 }
 
-async function validate(type: Type.EntityType, knex: Knex, strict?: boolean){
+async function expect(this: Knex, type: Type.EntityType, strict?: boolean){
   const { table, fields } = type;
 
-  const exists = await knex.schema.hasTable(table);
+  const exists = await this.schema.hasTable(table);
 
   if(!exists)
     return false;
 
-  const columns = await knex(table).columnInfo();
+  const columns = await this(table).columnInfo();
 
   for (const field of fields.values()) {
     const {
       column,
       datatype,
       nullable = false,
-      // primary,
-      // default: defaultTo,
-      // unique,
+      references
     } = field;
 
     if(!datatype)
@@ -93,6 +93,26 @@ async function validate(type: Type.EntityType, knex: Knex, strict?: boolean){
 
     if(info.nullable != nullable)
       throw new Error(`Column ${column} has incorrect nullable value`);
+
+    if (references) {
+      const foreignTable = references.table;
+      const foreignColumn = references.column;
+
+      // Check if foreign table exists
+      const foreignTableExists = await this.schema.hasTable(foreignTable);
+
+      if (!foreignTableExists)
+        throw new Error(`Referenced table ${foreignTable} does not exist`);
+
+      // Check if foreign column exists
+      const foreignColumns = await this(foreignTable).columnInfo();
+      const foreignColumnInfo = foreignColumns[foreignColumn];
+
+      if (!foreignColumnInfo)
+        throw new Error(
+          `Referenced column ${foreignColumn} does not exist in table ${foreignTable}`
+        );
+    }
   }
 
   return true;

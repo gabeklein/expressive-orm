@@ -32,6 +32,10 @@ function One<T extends Type>(arg1: any, arg2?: any, arg3?: any): any {
     datatype: "int",
     type: arg1.type,
     column: underscore(key) + "_id",
+    references: {
+      table: arg1.type.table,
+      column: "id",
+    },
     set(value: number | { id: number }){
       return typeof value == "object" ? value.id : value;
     },
@@ -49,42 +53,5 @@ function One<T extends Type>(arg1: any, arg2?: any, arg3?: any): any {
     ...arg1
   }));
 }
-
-// class OneToManyRelation extends Field {
-//   type!: Type.EntityType;
-//   datatype = "INT";
-
-//   init(options: Partial<this>){
-//     super.init(options);
-
-//     const foreign = this.type;
-//     const foreignKey = "id";
-//     const local = `FK_${foreign.name}${this.table.name}`;
-
-//     this.table.deps.add(foreign);
-
-//     if(!options.column)
-//       this.column = decapitalize(foreign.name) + "Id";
-
-//     this.constraint = sql`
-//       ADD ${local && `CONSTRAINT ${escapeId(local)}`}
-//       FOREIGN KEY (${this.column})
-//       REFERENCES ${foreign.name}(${foreignKey})
-//     `
-//   }
-
-//   proxy(query: Query.Callback){
-//     let { type } = this;
-
-//     const fk = `${type.table}.id`;
-//     const lk = `${this.table.name}.${this.column}`;
-
-//     // @ts-ignore
-//     // TODO: fix this
-//     const proxy = query(type, [`${fk} = ${lk}`], "left");
-
-//     return () => proxy;
-//   }
-// }
 
 export { One }

@@ -23,6 +23,11 @@ interface Field {
   default?: string | null;
   index?: number;
 
+  references?: {
+    table: string;
+    column: string;
+  };
+
   /** Converts acceptable values to their respective database values. */
   set?(this: Field.Ready, value: unknown): any;
 
@@ -40,6 +45,10 @@ function Field(options: Field | Field.Init): any {
 
     if (typeof options === "function")
       options = options(property, parent) || {};
+
+    for(const key in options)
+      if((options as any)[key] === undefined)
+        delete (options as any)[key];
 
     Object.assign(field, { column: underscore(property), property, parent }, options);
     Object.freeze(field);
