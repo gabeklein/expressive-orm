@@ -7,10 +7,9 @@ declare namespace Field {
   type Ready = Readonly<Required<Field> & {
     parent: Type.EntityType;
     property: string;
-    apply(table: Table): void;
   }>
 
-  type Init = (parent: Type.EntityType, key: string) => void;
+  type Init = (parent: Type.EntityType, key: string) => Field | void;
 }
 
 interface Field {
@@ -24,29 +23,28 @@ interface Field {
   index?: number;
 
   /** Converts acceptable values to their respective database values. */
-  set?(value: unknown): any;
+  set?(this: Field.Ready, value: unknown): any;
 
   /** Converts database values to type of value in javascript. */
-  get?(value: unknown): any;
+  get?(this: Field.Ready, value: unknown): any;
+
+  query?(this: Field.Ready, table: Table, property: string): void;
 }
 
 function Field(options: Field | Field.Init): any {
-  if(typeof options == "object"){
-    const opts = options;
-
-    options = (parent, property) => {
-      const field = Object.create(Field.prototype);
-  
-      Object.assign(field, { column: property, property, parent }, opts);
-      Object.freeze(field);
-  
-      parent.fields.set(property, field);
-    }
-  }
-
   const placeholder = Symbol(`field`);
 
-  FIELD.set(placeholder, options);
+  FIELD.set(placeholder, (parent, property) => {
+    const field = Object.create(Field.prototype);
+
+    if (typeof options === "function")
+      options = options(parent, property) || {};
+
+    Object.assign(field, { column: property, property, parent }, options);
+    Object.freeze(field);
+
+    parent.fields.set(property, field);
+  });
 
   return placeholder;
 }
@@ -64,11 +62,11 @@ Field.prototype = <Field.Ready> {
   default: null,
   set: (x: any) => x,
   get: (x: any) => x,
-  apply({ name, proxy, alias }){
+  query({ name, proxy, alias }, property: string){
     const field = Object.create(this);
 
     field.toString = () => `${alias || name}.${this.column}`;
-    Object.defineProperty(proxy, this.property, { value: field });
+    Object.defineProperty(proxy, property, { value: field });
   }
 }
 

@@ -10,6 +10,7 @@ declare const JOINS: unique symbol;
 
 interface Table<T extends Type = Type> {
   type: Type.EntityType<T>;
+  query: QueryBuilder;
   name: string | Knex.AliasDict;
   alias?: string;
   proxy: Query.From<T>;
@@ -370,12 +371,17 @@ class QueryBuilder {
     }
 
     const proxy = {} as any;
-    const table: Table<T> = { name, alias, type, proxy };
+    const table: Table<T> = {
+      name,
+      alias,
+      type,
+      proxy,
+      query: this
+    };
 
     RelevantTable.set(proxy, table);
 
-    for(const field of fields.values())
-      field.apply(table);
+    fields.forEach((field, key) => field.query(table, key));
 
     Object.freeze(proxy);
 

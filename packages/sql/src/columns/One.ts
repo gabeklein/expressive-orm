@@ -1,4 +1,5 @@
 import { Field } from '../Field';
+import { Query } from '../Query';
 import { Type } from '../Type';
 
 declare namespace One {
@@ -29,12 +30,21 @@ function One<T extends Type>(arg1: any, arg2?: any, arg3?: any): any {
   return Field({
     datatype: "int",
     type: arg1.type,
-    set(value: number | object){
-      return typeof value == "object"
-        ? (value as any).id
-        : value;
+    set(value: number | { id: number }){
+      return typeof value == "object" ? value.id : value;
     },
-    ...arg1,
+    query(table, property){
+      let inner: Query.From<T> | undefined;
+
+      Object.defineProperty(table.proxy, property, {
+        get: () => inner || (
+          inner = table.query.table(arg1.type, {
+            id: `${table.alias || table.name}.${this.column}`
+          })
+        )
+      })
+    },
+    ...arg1
   });
 }
 

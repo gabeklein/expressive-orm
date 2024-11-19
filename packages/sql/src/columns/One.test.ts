@@ -7,6 +7,7 @@ class A extends Type {
 
 class B extends Type {
   c = One(C);
+  value = Str();
 }
 
 class C extends Type {
@@ -14,14 +15,18 @@ class C extends Type {
   label = Str();
 }
 
-it.only("skip tests", () => {})
-
 it("will query via direct selection", () => {
   const query = Query(where => {
-    return where(A).value
+    return where(A).b.value;
   });
 
-  expect(query).toMatchInlineSnapshot();
+  expect(query).toMatchInlineSnapshot(`
+    select
+      \`b\`.\`value\` as \`value\`
+    from
+      \`a\`
+      inner join \`b\` on \`b\`.\`id\` = \`a\`.\`b\`
+`);
 })
 
 it("will select via an object", () => {
@@ -34,18 +39,34 @@ it("will select via an object", () => {
     }
   });
 
-  expect(query).toMatchInlineSnapshot();
+  expect(query).toMatchInlineSnapshot(`
+    select
+      \`a\`.\`value\` as \`aValue\`,
+      \`c\`.\`value\` as \`cValue\`
+    from
+      \`a\`
+      inner join \`b\` on \`b\`.\`id\` = \`a\`.\`b\`
+      inner join \`c\` on \`c\`.\`id\` = \`b\`.\`c\`
+  `);
 })
 
 it("will query nested relationships", () => {
-  // TODO: fix types
   const query = Query(where => {
     const a = where(A);
 
     where(a.b.c.value).is(100);
     
-    return a.b.c.label
+    return a.b.c.label;
   })
 
-  expect(query).toMatchInlineSnapshot();
+  expect(query).toMatchInlineSnapshot(`
+    select
+      \`c\`.\`label\` as \`label\`
+    from
+      \`a\`
+      inner join \`b\` on \`b\`.\`id\` = \`a\`.\`b\`
+      inner join \`c\` on \`c\`.\`id\` = \`b\`.\`c\`
+    where
+      \`c\`.\`value\` = 100
+  `);
 })
