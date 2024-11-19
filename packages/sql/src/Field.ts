@@ -4,7 +4,7 @@ import { Type } from './Type';
 export const FIELD = new Map<symbol, Field.Init>();
 
 declare namespace Field {
-  type Defined = Readonly<Required<Field> & {
+  type Ready = Readonly<Required<Field> & {
     parent: Type.EntityType;
     property: string;
     apply(table: Table): void;
@@ -51,9 +51,9 @@ function Field(options: Field | Field.Init): any {
   return placeholder;
 }
 
-Field.is = (value: unknown): value is Field.Defined => value instanceof Field;
+Field.is = (value: unknown): value is Field.Ready => value instanceof Field;
 
-Field.prototype = <Field.Defined> {
+Field.prototype = <Field.Ready> {
   column: "",
   index: 0,
   datatype: "varchar(255)",

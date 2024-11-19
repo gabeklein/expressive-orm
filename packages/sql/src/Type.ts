@@ -5,7 +5,7 @@ import { Query, SelectQuery } from './Query';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
-const REGISTER = new Map<Type.EntityType, Map<string, Field.Defined>>();
+const REGISTER = new Map<Type.EntityType, Map<string, Field.Ready>>();
 
 const describe = Object.getOwnPropertyDescriptor;
 const define = Object.defineProperty;
@@ -123,7 +123,7 @@ abstract class Type {
 }
 
 function init(type: Type.EntityType){
-  const fields = new Map<string, Field.Defined>();
+  const fields = new Map<string, Field.Ready>();
 
   REGISTER.set(type, fields);
   
