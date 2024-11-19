@@ -40,13 +40,17 @@ function Field(options: Field | Field.Init): any {
     if (typeof options === "function")
       options = options(property, parent) || {};
 
-    Object.assign(field, { column: property, property, parent }, options);
+    Object.assign(field, { column: underscore(property), property, parent }, options);
     Object.freeze(field);
 
     parent.fields.set(property, field);
   });
 
   return placeholder;
+}
+
+function underscore(str: string){
+  return str.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
 }
 
 Field.is = (value: unknown): value is Field.Ready => value instanceof Field;
