@@ -2,7 +2,7 @@ import { Knex } from 'knex';
 import { Connection } from './connection/Connection';
 import { FIELD, Field } from './Field';
 import { Query, SelectQuery } from './Query';
-import { capitalize, isIterable } from './utils';
+import { capitalize, isIterable, underscore } from './utils';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
@@ -71,7 +71,7 @@ abstract class Type {
   }
 
   static get table(){
-    return this.table = this.name.replace(/^[A-Z]/, m => m.toLowerCase());
+    return this.table = underscore(this.name);
   }
 
   static set table(value: string){
