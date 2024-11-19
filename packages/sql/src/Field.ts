@@ -46,13 +46,16 @@ function Field(options: Field | Field.Init): any {
     if (typeof options === "function")
       options = options(property, parent) || {};
 
-    for(const key in options)
-      if((options as any)[key] === undefined)
-        delete (options as any)[key];
+    field.column = underscore(property);
+    field.property = property;
+    field.parent = parent;
 
-    Object.assign(field, { column: underscore(property), property, parent }, options);
+    Object.entries(options).forEach(([key, value]) => {
+      if(value !== undefined)
+        field[key] = value;
+    })
+
     Object.freeze(field);
-
     parent.fields.set(property, field);
   });
 
