@@ -13,14 +13,9 @@ interface Time extends Field {
   set?(value: Date): string;
 }
 
-function Time(column: string, nullable: true): string | null | undefined;
-function Time(column: string, nullable?: boolean): string;
 function Time<T>(options: Time.OrNull): Date | null | undefined;
 function Time(options?: Time): Date;
-function Time(options?: Time | string, nullable?: boolean){
-  if(typeof options == "string")
-    options = { column: options };
-
+function Time(options?: Time, nullable?: boolean){
   return Field({
     ...options,
     datatype: 'datetime',
