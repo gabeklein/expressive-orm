@@ -10,7 +10,9 @@ declare namespace Field {
     property: string;
   }>
 
-  type Init = (key: string, parent: Type.EntityType) => Field | void;
+  type Init<T extends Field = Field> = (key: string, parent: Type.EntityType) => T | void;
+
+  type Opts<T extends Field = Field> = T | Init<T>;
 }
 
 interface Field {
@@ -29,15 +31,15 @@ interface Field {
   };
 
   /** Converts acceptable values to their respective database values. */
-  set?(this: Field.Ready, value: unknown): any;
+  set?(value: unknown): any;
 
   /** Converts database values to type of value in javascript. */
-  get?(this: Field.Ready, value: unknown): any;
+  get?(value: unknown): any;
 
-  query?(this: Field.Ready, table: Table, property: string): void;
+  query?(table: Table, property: string): void;
 }
 
-function Field(options: Field | Field.Init): any {
+function Field(options: Field.Opts): any {
   const placeholder = Symbol(`field`);
 
   FIELD.set(placeholder, (property, parent) => {
