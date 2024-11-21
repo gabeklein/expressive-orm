@@ -18,8 +18,6 @@ interface Num extends Field {
   datatype?: Num.Type;
 }
 
-function Num(column: string, nullable: true): string | null | undefined;
-function Num(column: string, nullable?: boolean): string;
 function Num(options: Num.OrNull): number | null | undefined;
 function Num(options?: Num): number;
 function Num(options: Num | string = {}, nullable?: boolean){
