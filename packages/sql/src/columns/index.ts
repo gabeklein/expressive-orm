@@ -1,9 +1,5 @@
 export { Bool } from './Bool';
-export { Enum } from './Enum';
-export { Json } from './Json';
-export { Many } from './Many';
 export { Num } from './Num';
 export { One } from './One';
-export { Ref } from './Ref';
 export { Str } from './Str';
 export { Time } from './Time';
