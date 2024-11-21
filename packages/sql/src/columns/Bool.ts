@@ -6,7 +6,9 @@ declare namespace Bool {
   }
 }
 
-interface Bool extends Field {}
+interface Bool extends Field {
+  datatype?: "tinyint"; 
+}
 
 function Bool(column: string, nullable: boolean): Bool;
 function Bool(column?: string, nullable?: true): Bool.OrNull;
