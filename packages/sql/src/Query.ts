@@ -3,20 +3,20 @@ import knex, { Knex } from 'knex';
 import { Field } from './Field';
 import { isTypeConstructor, Type } from './Type';
 
-const RelevantTable = new WeakMap<{}, Table>();
+const RelevantTable = new WeakMap<{}, Query.Table>();
 
 declare const ENTITY: unique symbol;
 declare const JOINS: unique symbol;
 
-interface Table<T extends Type = Type> {
-  type: Type.EntityType<T>;
-  query: QueryBuilder;
-  name: string | Knex.AliasDict;
-  alias?: string;
-  proxy: Query.From<T>;
-}
-
 declare namespace Query { 
+  interface Table<T extends Type = Type> {
+    type: Type.EntityType<T>;
+    query: QueryBuilder;
+    name: string | Knex.AliasDict;
+    alias?: string;
+    proxy: Query.From<T>;
+  }
+
   interface Where {
     /**
      * Accepts instructions for nesting in a parenthesis.
@@ -197,7 +197,7 @@ Query.one = function one<T extends {}>(
 
 class QueryBuilder {
   builder!: Knex.QueryBuilder;
-  tables = [] as Table[];
+  tables = [] as Query.Table[];
   pending = new Set<Query.Instruction>();
   parse?: (raw: any[]) => any[];
 
@@ -370,8 +370,8 @@ class QueryBuilder {
       name = { [alias]: schema + '.' + name };
     }
 
-    const proxy = {} as any;
-    const table: Table<T> = {
+    const proxy = {} as Query.From<T>;
+    const table: Query.Table<T> = {
       name,
       alias,
       type,
@@ -464,4 +464,4 @@ class QueryBuilder {
   }
 }
 
-export { Query, SelectQuery, Table };
+export { Query, SelectQuery };
