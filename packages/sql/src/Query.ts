@@ -355,30 +355,7 @@ class QueryBuilder {
     return this.builder.clone().clearSelect().count();
   }
 
-  use(type: Type.EntityType<Type>, on: Query.Join.On<any>, joinMode?: Query.Join.Mode){
-    const main = this.tables[0];
-    const table = this.table(type);
-
-    if(!main){
-      const engine = table.type.connection?.knex || knex({
-        client: "sqlite3",
-        useNullAsDefault: true,
-        pool: { max: 0 }
-      });
-
-      this.builder = engine(table.name)
-    }
-    else if(typeof on == "string")
-      throw new Error("Bad parameters.");
-    else if(type.connection !== main.type.connection)
-      throw new Error(`Joined entity ${type} does not share a connection with main table ${main}`);
-    else
-      this.join(table, on, joinMode);
-    
-    return table.proxy;
-  }
-
-  private table<T extends Type>(type: Type.EntityType<T>){
+  use<T extends Type>(type: Type.EntityType<T>, on: Query.Join.On<any>, joinMode?: Query.Join.Mode){
     let { fields, schema } = type;
     let name: string | Knex.AliasDict = type.table
     let alias: string | undefined;
@@ -388,6 +365,7 @@ class QueryBuilder {
       name = { [alias]: schema + '.' + name };
     }
 
+    const main = this.tables[0];
     const proxy = {} as Query.From<T>;
     const table: Query.Table<T> = {
       name,
@@ -407,8 +385,24 @@ class QueryBuilder {
     this.tables.push(table);
     RelevantTable.set(proxy, table);
     Object.freeze(proxy);
-    
-    return table;
+
+    if(!main){
+      const engine = table.type.connection?.knex || knex({
+        client: "sqlite3",
+        useNullAsDefault: true,
+        pool: { max: 0 }
+      });
+
+      this.builder = engine(table.name)
+    }
+    else if(typeof on == "string")
+      throw new Error("Bad parameters.");
+    else if(type.connection !== main.type.connection)
+      throw new Error(`Joined entity ${type} does not share a connection with main table ${main}`);
+    else
+      this.join(table, on, joinMode);
+  
+    return table.proxy;
   }
 
   private join(table: Query.Table, on: Query.Join.On<any>, joinMode?: Query.Join.Mode){
