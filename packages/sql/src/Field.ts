@@ -84,20 +84,13 @@ class BaseField {
 
 class Field<T = unknown> extends BaseField {
   column = underscore(this.property);
-  type = "";
-
-  primary: boolean = false;
+  
+  type: string = "";
   unique: boolean = false;
   nullable: boolean = false;
   optional: boolean = false;
   increment: boolean = false;
-  default: string | null = null;
-  index: number = 0;
-
-  references?: {
-    table: string;
-    column: string;
-  };
+  default?: unknown = undefined;
 
   get datatype(){
     return this.type;
@@ -113,7 +106,7 @@ class Field<T = unknown> extends BaseField {
   }
 
   input(value: T){
-    if(value != null || this.nullable || this.default || this.primary)
+    if(value != null || this.nullable || this.default || this.increment)
       return
     
     throw new Error(`Column requires a value but got ${value}.`);
@@ -124,35 +117,23 @@ class Field<T = unknown> extends BaseField {
   }
 
   register(table: Knex.CreateTableBuilder){
-    const {
-      column,
-      increment,
-      datatype,
-      default: defaultTo,
-      nullable,
-      primary,
-      unique,
-      references
-    } = this;
-
-    if(!datatype)
+    if(!this.datatype)
       return;
 
-    const col = increment
-      ? table.increments(column, { primaryKey: primary })
-      : table.specificType(column, datatype);
+    const col = this.increment
+      ? table.increments(this.column)
+      : table.specificType(this.column, this.datatype);
 
-    if(!nullable)
+    if(!this.nullable)
       col.notNullable();
 
-    if(unique)
+    if(this.unique)
       col.unique();
 
-    if(defaultTo)
-      col.defaultTo(defaultTo);
+    if(this.default)
+      col.defaultTo(this.default);
 
-    if(references)
-      col.references(references.column).inTable(references.table);
+    return col;
   }
 }
 
