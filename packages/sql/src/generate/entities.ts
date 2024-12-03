@@ -1,7 +1,7 @@
 import * as t from '@expressive/estree';
 import { generate } from 'astring';
 
-import { Schema } from '../connection/Schema';
+import { Schema } from './Schema';
 // import { instruction } from './instruction';
 import { field } from './syntax';
 
