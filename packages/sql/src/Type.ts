@@ -5,8 +5,6 @@ import { FIELD, Field, Nullable, Optional } from './Field';
 import { Query, SelectQuery } from './Query';
 import { capitalize, isIterable, underscore } from './utils';
 
-export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
-
 const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
 
 const describe = Object.getOwnPropertyDescriptor;
@@ -75,7 +73,7 @@ abstract class Type {
   static digest<T extends Type>(data: Type.Insert<T>): Record<string, unknown>;
   static digest<T extends Type>(data: Type.Insert<T>[]): Record<string, unknown>[];
   static digest<T extends Type>(data: Type.Insert<T> | Type.Insert<T>[]){
-    return Array.isArray(data) ? data.map(sanitize, this) : sanitize.call(this, data);  
+    return Array.isArray(data) ? data.map(digest, this) : digest.call(this, data);  
   }
 
   static insert<T extends Type>(this: Type.EntityType<T>, entry: Type.Insert<T>): Promise<void>;
@@ -94,7 +92,7 @@ abstract class Type {
     if(!this.connection)
       throw new Error("No connection found for type");
 
-    const rows = Array.from(data).map(sanitize, this);
+    const rows = this.digest(Array.from(data));
     const table = this.connection.knex(this.table);
     
     return table.insert(rows) as Knex.QueryBuilder;
@@ -131,7 +129,7 @@ function init(type: Type.EntityType){
   return fields;
 }
 
-function sanitize<T extends Type>(
+function digest<T extends Type>(
   this: Type.EntityType<T>,
   data: Type.Insert<T>,
   index?: number,
@@ -140,29 +138,25 @@ function sanitize<T extends Type>(
   const values: Record<string, any> = {};
 
   this.fields.forEach((field, key) => {
-    const given = data[key as Type.Fields<T>] as unknown;
-    const which = array && array.length > 1 ? ` at [${index}]` : ""
-
-    if(given == null){
-      if(field.nullable || field.default || field.primary)
-        return
-
-      throw new Error(
-        `Provided value for ${this.name}.${key} is ${given}${which} but column is not nullable.`
-      );
-    }
-
     try {
-      const value = field.set ? field.set(given) : undefined;
+      const given = data[key as Type.Fields<T>];
+      const value = field.set(given);
+
       values[field.column] = value === undefined ? given : value;
     }
     catch(err: unknown){
+      const which = array && array.length > 1 ? ` at [${index}]` : "";
       let message = `Provided value for ${this.name}.${key}${which} but not acceptable for type ${field.datatype}.`;
 
+      if(err instanceof Error){
+        err.message = message + "\n" + err.message;
+        throw err;
+      }
+      
       if(typeof err == "string")
         message += `\n${err}`;
 
-      throw err instanceof Error ? err : new Error(message);
+      throw new Error(message);
     }
   });
 
@@ -181,4 +175,4 @@ export function isTypeConstructor(obj: unknown): obj is typeof Type {
   return typeof obj === 'function' && obj.prototype instanceof Type;
 }
 
-export { Type }
+export { Type, digest }

@@ -116,15 +116,10 @@ class Field<T = unknown> extends BaseField {
   }
 
   set(value: T){
-    if(value !== null)
-      return;
-
-    if(this.nullable || this.default || this.primary)
+    if(value != null || this.nullable || this.default || this.primary)
       return
     
-    throw new Error(
-      `Column ${this.parent.name}.${this.column} is not nullable and requires a value.`
-    );
+    throw new Error(`Column requires a value but got ${value}.`);
   }
 }
 

@@ -1,7 +1,7 @@
 import knex, { Knex } from 'knex';
 
 import { Field } from './Field';
-import { isTypeConstructor, Type } from './Type';
+import { digest, isTypeConstructor, Type } from './Type';
 
 const RelevantTable = new WeakMap<{}, Query.Table>();
 
@@ -237,7 +237,7 @@ class QueryBuilder {
           self.builder.table(table.name).delete();
         },
         update: (data: Query.Update<any>) => {
-          data = table.type.digest(data);
+          data = digest.call(table.type, data);
           self.builder.table(table.name).update(data);
         }
       }

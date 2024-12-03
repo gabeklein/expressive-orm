@@ -72,7 +72,10 @@ it("will throw for no value non-nullable", async () => {
     Foo.insert({ name: "foobar" }) 
   )
 
-  expect(insert).toThrowErrorMatchingInlineSnapshot(`Provided value for Foo.color is undefined but column is not nullable.`);
+  expect(insert).toThrowErrorMatchingInlineSnapshot(`
+    Provided value for Foo.color but not acceptable for type varchar(255).
+    Column requires a value but got undefined.
+  `);
 })
 
 it("will add index to specify error", async () => {
@@ -85,7 +88,10 @@ it("will add index to specify error", async () => {
     ]) 
   )
 
-  expect(insert).toThrowErrorMatchingInlineSnapshot(`Provided value for Foo.color is undefined at [1] but column is not nullable.`);
+  expect(insert).toThrowErrorMatchingInlineSnapshot(`
+    Provided value for Foo.color at [1] but not acceptable for type varchar(255).
+    Column requires a value but got undefined.
+  `);
 })
 
 it.todo("will warn in typescript for bad value");
