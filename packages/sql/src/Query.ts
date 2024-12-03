@@ -263,7 +263,7 @@ class QueryBuilder {
   
       this.builder.select({ [name]: String(selects) });
       this.parse = raw => raw.map(({ [name]: value }) => (
-        selects.get ? selects.get(value) : value
+        selects.parse ? selects.parse(value) : value
       ));
 
       return
@@ -287,8 +287,8 @@ class QueryBuilder {
       const values = Object.create(selects as {});
     
       output.forEach((column, value) => {
-        if(value instanceof Field && value.get)
-          value = value.get(row[column]) as any;
+        if(value instanceof Field && value.parse)
+          value = value.parse(row[column]) as any;
 
         Object.defineProperty(values, column, { value });
       })

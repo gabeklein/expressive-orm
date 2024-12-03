@@ -6,15 +6,12 @@ import { underscore } from '../utils';
 function One<T extends Type>(type: Type.EntityType<T>, nullable?: false): JoinOne<T>;
 function One<T extends Type>(type: Type.EntityType<T>, nullable: boolean): JoinOne<T> & Nullable;
 function One<T extends Type>(type: Type.EntityType<T>, nullable?: boolean){
-  return JoinOne.new((key) => {
-    return {
-      nullable,
-      entity: type,
-      column: underscore(key) + "_id",
-      references: {
-        table: type.table,
-        column: "id",
-      }
+  return JoinOne.new({
+    nullable,
+    entity: type,
+    references: {
+      table: type.table,
+      column: "id",
     }
   });
 }
@@ -24,12 +21,13 @@ class JoinOne<T extends Type> extends Field<T> {
 
   type = "int";
   foreignKey = "id";
+  column = underscore(this.property) + "_id";
 
-  set(value: T | number){
+  input(value: T | number){
     if(typeof value == "number")
       return value;
 
-    super.set(value);
+    super.input(value);
 
     return value.id;
   }

@@ -8,11 +8,11 @@ class DateTime extends Field<Date> {
   type = "datetime" as const;
   default = "NOW";
 
-  get(value: string): Date {
+  parse(value: string): Date {
     return new global.Date(value.replace(/[-]/g, '/') + "Z");
   }
 
-  set(value: string | Date){
+  input(value: string | Date){
     if(value === "NOW")
       return "CURRENT_TIMESTAMP";
 

@@ -18,9 +18,9 @@ declare namespace Field {
   type Specify<T, TT extends Field, D extends Field = TT> =
     Modifier<T, T extends { type: infer U } ? Extract<TT, { type: U }> : D>;
 
-  type Returns<T> = Field & { get(value: any): T }
+  type Returns<T> = Field & { parse(value: any): T }
 
-  type Accepts<T> = Field & { set(value: T): void }
+  type Accepts<T> = Field & { input(value: T): void }
 
   type Updates<T> =
     T extends Accepts<infer U> ?
@@ -111,11 +111,11 @@ class Field<T = unknown> extends BaseField {
     return value as unknown as T;
   }
 
-  get(value: any): T {
+  parse(value: any): T {
     return value;
   }
 
-  set(value: T){
+  input(value: T){
     if(value != null || this.nullable || this.default || this.primary)
       return
     
