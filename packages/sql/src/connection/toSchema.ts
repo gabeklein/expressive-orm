@@ -2,42 +2,6 @@ import { Knex } from 'knex';
 
 import { Type } from '../Type';
 
-export function createTable(this: Knex.SchemaBuilder, type: Type.EntityType){
-  this.createTable(type.table, (table) => {
-    for(const field of type.fields.values()){
-      const {
-        column,
-        increment,
-        datatype,
-        default: defaultTo,
-        nullable,
-        primary,
-        unique,
-        references
-      } = field;
-
-      if(!datatype)
-        return;
-
-      const col = increment
-        ? table.increments(column, { primaryKey: primary })
-        : table.specificType(column, datatype);
-
-      if(!nullable)
-        col.notNullable();
-
-      if(unique)
-        col.unique();
-
-      if(defaultTo)
-        col.defaultTo(defaultTo);
-
-      if(references)
-        col.references(references.column).inTable(references.table);
-    }
-  });
-}
-
 export async function toSchemaBuilder(
   knex: Knex<any, any[]>,
   types: Type.EntityType[],
@@ -45,31 +9,32 @@ export async function toSchemaBuilder(
 
   const builder = knex.schema;
 
-  await Promise.all(
-    Object.values(types).map(async type => {
-      const exists = await expect.call(knex, type);
-  
-      if(exists)
-        return;
-      else if(create === false)
-        throw new Error(`Table ${type.table} does not exist!`);
+  await Promise.all(types.map(async type => {
+    const exists = await expect(knex, type);
 
-      createTable.call(builder, type);
-    })
-  )
+    if(exists)
+      return;
+    else if(create === false)
+      throw new Error(`Table ${type.table} does not exist!`);
+
+    builder.createTable(type.table, (table) => {
+      for(const field of type.fields.values())
+        field.register(table);
+    });
+  }))
 
   return builder;
 }
 
-async function expect(this: Knex, type: Type.EntityType, strict?: boolean){
+async function expect(knex: Knex, type: Type.EntityType, strict?: boolean){
   const { table, fields } = type;
 
-  const exists = await this.schema.hasTable(table);
+  const exists = await knex.schema.hasTable(table);
 
   if(!exists)
     return false;
 
-  const columns = await this(table).columnInfo();
+  const columns = await knex(table).columnInfo();
 
   for (const field of fields.values()) {
     const {
@@ -100,13 +65,13 @@ async function expect(this: Knex, type: Type.EntityType, strict?: boolean){
       const foreignColumn = references.column;
 
       // Check if foreign table exists
-      const foreignTableExists = await this.schema.hasTable(foreignTable);
+      const foreignTableExists = await knex.schema.hasTable(foreignTable);
 
       if (!foreignTableExists)
         throw new Error(`Referenced table ${foreignTable} does not exist`);
 
       // Check if foreign column exists
-      const foreignColumns = await this(foreignTable).columnInfo();
+      const foreignColumns = await knex(foreignTable).columnInfo();
       const foreignColumnInfo = foreignColumns[foreignColumn];
 
       if (!foreignColumnInfo)

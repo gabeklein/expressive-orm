@@ -1,5 +1,4 @@
 import knex from "knex";
-import { createTable } from "./toSchema";
 import { Type } from "../Type";
 import { Bool, Num, One } from "../columns";
 
@@ -14,7 +13,11 @@ function toSchema(types: Type.EntityType[]) {
 
   const builder = sqlite.schema;
 
-  types.forEach(createTable, builder);
+  for (const { table, fields } of types)
+    builder.createTable(table, (table) => {
+      for(const field of fields.values())
+        field.register(table);
+    });
 
   return builder.toString();
 }

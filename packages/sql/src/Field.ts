@@ -1,3 +1,4 @@
+import { Knex } from "knex";
 import { Query } from "./Query";
 import { Type } from "./Type";
 import { underscore } from "./utils";
@@ -49,9 +50,7 @@ class BaseField {
     focusParent = undefined;
     focusProperty = undefined;
   }
-}
 
-class Field<T = unknown> extends BaseField {
   static new<T extends Field>(
     this: new (...args: any[]) => T,
     options: Field.Opts<T> = {}
@@ -81,7 +80,9 @@ class Field<T = unknown> extends BaseField {
 
     return placeholder as unknown as T;
   }
+}
 
+class Field<T = unknown> extends BaseField {
   column = underscore(this.property);
   type = "";
 
@@ -111,15 +112,47 @@ class Field<T = unknown> extends BaseField {
     return value as unknown as T;
   }
 
-  parse(value: any): T {
-    return value;
-  }
-
   input(value: T){
     if(value != null || this.nullable || this.default || this.primary)
       return
     
     throw new Error(`Column requires a value but got ${value}.`);
+  }
+
+  parse(value: any): T {
+    return value;
+  }
+
+  register(table: Knex.CreateTableBuilder){
+    const {
+      column,
+      increment,
+      datatype,
+      default: defaultTo,
+      nullable,
+      primary,
+      unique,
+      references
+    } = this;
+
+    if(!datatype)
+      return;
+
+    const col = increment
+      ? table.increments(column, { primaryKey: primary })
+      : table.specificType(column, datatype);
+
+    if(!nullable)
+      col.notNullable();
+
+    if(unique)
+      col.unique();
+
+    if(defaultTo)
+      col.defaultTo(defaultTo);
+
+    if(references)
+      col.references(references.column).inTable(references.table);
   }
 }
 
