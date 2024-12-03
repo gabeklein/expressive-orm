@@ -1,4 +1,5 @@
 import { Num, One, Query, Str, Type } from '../';
+import { SelectQuery } from '../Query';
 
 class Foo extends Type {
   name = Str();
@@ -27,7 +28,9 @@ it("will join using object", async () => {
     where(baz.color).is("blue");
   });
 
-  expect(query).toMatchInlineSnapshot(`
+  type Returns = Query<number>;
+
+  expect<Returns>(query).toMatchInlineSnapshot(`
     select
       count(*)
     from
@@ -93,7 +96,13 @@ it("will select left join", async () => {
     }
   });
 
-  expect(query).toMatchInlineSnapshot(`
+  type Returns = SelectQuery<{
+    fooValue: string;
+    barValue: string;
+    bazRating: number | undefined;
+}>
+
+  expect<Returns>(query).toMatchInlineSnapshot(`
     select
       \`foo\`.\`name\` as \`fooValue\`,
       \`bar\`.\`name\` as \`barValue\`,
@@ -129,7 +138,6 @@ it("will assert a joined property's value", () => {
 
 it("will sort by joined table", async () => {
   class Test extends Type {
-    id = Num();
     name = Str();
     rating = Num();
   }
@@ -148,7 +156,9 @@ it("will sort by joined table", async () => {
     return other.name;
   });
 
-  expect(query).toMatchInlineSnapshot(`
+  type Returns = SelectQuery<string>;
+
+  expect<Returns>(query).toMatchInlineSnapshot(`
     select
       \`other\`.\`name\` as \`name\`
     from

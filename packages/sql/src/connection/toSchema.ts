@@ -1,5 +1,6 @@
-import { Knex } from "knex";
-import { Type } from "../Type";
+import { Knex } from 'knex';
+
+import { Type } from '../Type';
 
 export function createTable(this: Knex.SchemaBuilder, type: Type.EntityType){
   this.createTable(type.table, (table) => {

@@ -1,53 +1,84 @@
 import { Field } from '../Field';
 
 declare namespace Str {
-  type Type =
-    | "char"
-    | "varchar"
-    | "nchar"
-    | "nvarchar"
-    | "text"
-    | "tinytext"
-    | "mediumtext"
-    | "longtext";
-
-  interface Specific<T extends string> extends Str {
-    oneOf: T[];
+  interface Char extends StringLike {
+    readonly type: "char";
   }
 
-  interface OrNull extends Str {
-    nullable: true;
+  interface VarChar extends StringLike {
+    readonly type: "varchar";
+  }
+
+  interface Text extends StringLike {
+    readonly type: "text";
+  }
+
+  interface TinyText extends StringLike {
+    readonly type: "tinytext";
+  }
+
+  interface MediumText extends StringLike {
+    readonly type: "mediumtext";
+  }
+
+  interface LongText extends StringLike {
+    readonly type: "longtext";
+  }
+
+  type Type = Char | VarChar | Text | TinyText | MediumText | LongText;
+
+  type Options = Partial<Type>;
+}
+
+function Str<T extends Str.Options>(opts?: T){
+  return StringLike.new(opts) as Field.Specify<T, Str.Type, Str.VarChar>;;
+}
+
+class StringLike extends Field<string> {
+  length = 255;
+  type: "varchar" | "char" | "text" | "tinytext" | "mediumtext" | "longtext" = "varchar";
+
+  get datatype(){
+    const { type, length } = this;
+
+    if(["char", "varchar", "text"].includes(type))
+      if(length)
+        return `${type}(${length})`;
+      else
+        throw `Can't determine datatype! Length is not specified for ${this.parent.name}.${this.property}.`
+
+    return type;
+  }
+
+  set(value: string){
+    super.set(value);
+
+    if(typeof value !== "string")
+      throw "Value must be a string."
+
+    if(this.length && value.length > this.length)
+      throw `Value length ${value.length} exceeds maximum of ${this.length}.`
+
+    return value;
   }
 }
 
-interface Str extends Field {
-  datatype?: Str.Type;
-  length?: number;
-  oneOf?: any[];
-  variable?: boolean;
-}
+// Str.char = (length = 255) =>
+//   StringLike.new({ length }) as Str.Char;
 
-function Str(options: Str.OrNull): Str.OrNull;
-function Str(options?: Str): Str;
-function Str(opts: Str = {}){
-  const maxLength = opts.length || 255;
+// Str.varchar = (length = 255) =>
+//   StringLike.new({ length, type: "varchar" }) as Str.VarChar;
 
-  let datatype: string = opts.datatype || "varchar";
+// Str.text = (options?: Partial<Str.Text>) =>
+//   StringLike.new(options);
 
-  if(datatype && datatype.includes("char"))
-    datatype = `${datatype}(${maxLength})`
+// Str.tiny = (opts?: Partial<Str.TinyText>) =>
+//   StringLike.new({ ...opts, type: "tinytext" }) as Str.TinyText;
 
-  return Field({
-    ...opts,
-    datatype: datatype.toLowerCase(),
-    set(value: unknown){
-      if(typeof value !== "string")
-        throw "Value must be a string."
+// Str.medium = (opts?: Partial<Str.MediumText>) =>
+//   StringLike.new({ ...opts, type: "mediumtext" }) as Str.MediumText;
 
-      if(value.length > maxLength)
-        throw `Value length ${value.length} exceeds maximum of ${maxLength}.`
-    }
-  });
-}
+// Str.long = (opts?: Partial<Str.LongText>) =>
+//   StringLike.new({ ...opts, type: "longtext" }) as Str.LongText;
 
 export { Str }

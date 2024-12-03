@@ -123,7 +123,6 @@ describe("where", () => {
 
 describe("sort", () => {
   class Test extends Type {
-    id = Num();
     name = Str();
     rating = Num();
   }

@@ -1,12 +1,13 @@
 import { Knex } from 'knex';
+
 import { Connection } from './connection/Connection';
-import { FIELD, Field } from './Field';
+import { FIELD, Field, Nullable, Optional } from './Field';
 import { Query, SelectQuery } from './Query';
 import { capitalize, isIterable, underscore } from './utils';
 
 export type InstanceOf<T> = T extends { prototype: infer U } ? U : never;
 
-const REGISTER = new Map<Type.EntityType, Map<string, Field.Ready>>();
+const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
 
 const describe = Object.getOwnPropertyDescriptor;
 const define = Object.defineProperty;
@@ -16,30 +17,19 @@ declare namespace Type {
     & (abstract new () => T)
     & typeof Type;
 
-  type List<T extends Type> = T[];
+  type Fields<T extends Type, O extends Partial<Field> = never> = {
+    [K in keyof T]: T[K] extends Field ? T[K] extends O ? never : K : never
+  }[keyof T];
 
-  type DataRecusive<T> =
-    T extends string ? string :
-    T extends number ? number :
-    T extends boolean ? boolean :
-    T extends List<infer U> ? Pure<U>[] :
-    T extends Type ? Pure<T> : T;
+  type Required<T extends Type> = Fields<T, Nullable | Optional>;
 
-  type Pure<T extends Type> = {
-    [K in Field<T>]-?: DataRecusive<T[K]>;
-  }
+  type NonNull<T extends Type> = Fields<T, Nullable>;
 
-  type Field<T extends Type> = Exclude<keyof T, "table">;
+  type Insert<T extends Type> =
+    & { [K in Fields<T>]?: Field.Assigns<T[K]> }
+    & { [K in Required<T>]: Field.Assigns<T[K]> }
 
-  namespace Insert {
-    type Property<T> = T extends Type ? T | number : T;
-  }
-
-  type Insert<T extends Type> = {
-    [K in Type.Field<T>]?: Insert.Property<T[K]>;
-  }
-
-  type QueryFunction<T extends Type, R> =
+  type Query<T extends Type, R> =
     (query: Query.From<T>, where: Query.Where) => R;
 }
 
@@ -51,14 +41,10 @@ abstract class Type {
    * Primary key of this entity.
    * May be any name in the actual database, however requred to be `id` as property of this type.
    * 
+   * TODO: Not applicable anymore. vvv
    * Setting to zero will disable this field, and ORM will not expect it to be present in the database.
    */
-  id: number | string = Field({
-    datatype: "int",
-    nullable: false,
-    increment: true,
-    primary: true
-  });
+  id = Primary.new();
 
   static schema = "";
 
@@ -92,7 +78,8 @@ abstract class Type {
     return Array.isArray(data) ? data.map(sanitize, this) : sanitize.call(this, data);  
   }
 
-  static insert<T extends Type>(this: Type.EntityType<T>, data: Type.Insert<T> | Iterable<Type.Insert<T>>): Promise<void>;
+  static insert<T extends Type>(this: Type.EntityType<T>, entry: Type.Insert<T>): Promise<void>;
+  static insert<T extends Type>(this: Type.EntityType<T>, entries: Iterable<Type.Insert<T>>): Promise<void>;
   static insert<T extends Type>(this: Type.EntityType<T>, number: number, mapper: (index: number) => Type.Insert<T>): Promise<void>;
   static insert<T extends Type>(this: Type.EntityType<T>, data: Type.Insert<T> | Iterable<Type.Insert<T>> | number, map?: (i: number) => Type.Insert<T>){
     if(typeof data == "number"){
@@ -113,9 +100,9 @@ abstract class Type {
     return table.insert(rows) as Knex.QueryBuilder;
   }
 
-  static get<T extends Type>(this: Type.EntityType<T>, query: Type.QueryFunction<T, void>): SelectQuery<T>;
-  static get<T extends Type, R>(this: Type.EntityType<T>, query: Type.QueryFunction<T, R>): SelectQuery<R>;
-  static get<T extends Type, R>(this: Type.EntityType<T>, query: Type.QueryFunction<T, R>){
+  static get<T extends Type>(this: Type.EntityType<T>, query: Type.Query<T, void>): SelectQuery<T>;
+  static get<T extends Type, R>(this: Type.EntityType<T>, query: Type.Query<T, R>): SelectQuery<R>;
+  static get<T extends Type, R>(this: Type.EntityType<T>, query: Type.Query<T, R>){
     return Query(where => {
       const self = where(this);
       return query(self, where) || self;
@@ -124,7 +111,7 @@ abstract class Type {
 }
 
 function init(type: Type.EntityType){
-  const fields = new Map<string, Field.Ready>();
+  const fields = new Map<string, Field>();
 
   REGISTER.set(type, fields);
   
@@ -153,7 +140,7 @@ function sanitize<T extends Type>(
   const values: Record<string, any> = {};
 
   this.fields.forEach((field, key) => {
-    const given = data[key as Type.Field<T>] as unknown;
+    const given = data[key as Type.Fields<T>] as unknown;
     const which = array && array.length > 1 ? ` at [${index}]` : ""
 
     if(given == null){
@@ -180,6 +167,14 @@ function sanitize<T extends Type>(
   });
 
   return values;
+}
+
+class Primary extends Field<number> {
+  readonly type = "int";
+  readonly increment = true;
+  readonly optional = true;
+  readonly nullable = false;
+  readonly primary = true;
 }
 
 export function isTypeConstructor(obj: unknown): obj is typeof Type {

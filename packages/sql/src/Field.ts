@@ -1,88 +1,134 @@
-import { Table } from './Query';
-import { Type } from './Type';
-import { underscore } from './utils';
+import { Query } from "./Query";
+import { Type } from "./Type";
+import { underscore } from "./utils";
 
 export const FIELD = new Map<symbol, Field.Init>();
 
 declare namespace Field {
-  type Ready = Readonly<Required<Field> & {
-    parent: Type.EntityType;
-    property: string;
-  }>
+  type Init<T extends Field = Field> =
+    (key: string, parent: Type.EntityType) => Partial<T> | void;
 
-  type Init<T extends Field = Field> = (key: string, parent: Type.EntityType) => T | void;
+  type Opts<T extends Field = Field> = Partial<T> | Init<T>;
 
-  type Opts<T extends Field = Field> = T | Init<T>;
+  type Modifier<T, TT extends Field> =
+    T extends { nullable: true } ? TT & Nullable :
+    T extends { default?: any, increment?: true } ? TT & Optional :
+    TT;
+
+  type Specify<T, TT extends Field, D extends Field = TT> =
+    Modifier<T, T extends { type: infer U } ? Extract<TT, { type: U }> : D>;
+
+  type Returns<T> = Field & { get(value: any): T }
+
+  type Accepts<T> = Field & { set(value: T): void }
+
+  type Updates<T> =
+    T extends Accepts<infer U> ?
+    (T extends Nullable ? U | null : U) | undefined :
+    never;
+
+  type Assigns<T> =
+    T extends Accepts<infer U> ?
+      T extends Nullable ? U | null | undefined :
+      T extends Optional ? U | undefined :
+      U :
+    never;
 }
 
-interface Field {
-  column?: string;
-  datatype?: string;
-  unique?: boolean;
-  nullable?: boolean;
-  primary?: boolean;
-  increment?: boolean;
-  default?: string | null;
-  index?: number;
+let focusParent: Type.EntityType | undefined;
+let focusProperty: string | undefined;
+
+class BaseField {
+  property: string;
+  parent: Type.EntityType;
+
+  constructor(){
+    this.parent = focusParent!;
+    this.property = focusProperty!;
+
+    focusParent = undefined;
+    focusProperty = undefined;
+  }
+}
+
+class Field<T = unknown> extends BaseField {
+  static new<T extends Field>(
+    this: new (...args: any[]) => T,
+    options: Field.Opts<T> = {}
+  ){
+    const placeholder = Symbol('field');
+    
+    FIELD.set(placeholder, (property, parent) => {
+      focusParent = parent;
+      focusProperty = property;
+
+      const field = new this();
+
+      if (typeof options === "function")
+        options = options(property, parent) || {};
+
+      Object.entries(options).forEach(([key, value]) => {
+        if (value !== undefined)
+          Object.defineProperty(field, key, {
+            enumerable: true,
+            value
+          });
+      });
+
+      Object.freeze(field);
+      parent.fields.set(property, field);
+    });
+
+    return placeholder as unknown as T;
+  }
+
+  column = underscore(this.property);
+  type = "";
+
+  primary: boolean = false;
+  unique: boolean = false;
+  nullable: boolean = false;
+  optional: boolean = false;
+  increment: boolean = false;
+  default: string | null = null;
+  index: number = 0;
 
   references?: {
     table: string;
     column: string;
   };
 
-  /** Converts acceptable values to their respective database values. */
-  set?(value: unknown): any;
+  get datatype(){
+    return this.type;
+  }
 
-  /** Converts database values to type of value in javascript. */
-  get?(value: unknown): any;
+  query(table: Query.Table){
+    const value = Object.create(this);
+    const ref = `${table.alias || table.name}.${this.column}`;
 
-  query?(table: Table, property: string): void;
-}
+    value.toString = () => ref;
 
-function Field(options: Field.Opts): any {
-  const placeholder = Symbol(`field`);
+    return value as unknown as T;
+  }
 
-  FIELD.set(placeholder, (property, parent) => {
-    const field = Object.create(Field.prototype);
+  get(value: any): T {
+    return value;
+  }
 
-    if (typeof options === "function")
-      options = options(property, parent) || {};
+  set(value: T){
+    if(value !== null)
+      return;
 
-    field.column = underscore(property);
-    field.property = property;
-    field.parent = parent;
-
-    Object.entries(options).forEach(([key, value]) => {
-      if(value !== undefined)
-        field[key] = value;
-    })
-
-    Object.freeze(field);
-    parent.fields.set(property, field);
-  });
-
-  return placeholder;
-}
-
-Field.is = (value: unknown): value is Field.Ready => value instanceof Field;
-
-Field.prototype = <Field.Ready> {
-  column: "",
-  index: 0,
-  datatype: "varchar(255)",
-  nullable: false,
-  unique: false,
-  primary: false,
-  increment: false,
-  default: null,
-  set: (x: any) => x,
-  get: (x: any) => x,
-  query({ name, proxy, alias }, property: string){
-    const field = Object.create(this);
-
-    field.toString = () => `${alias || name}.${this.column}`;
-    Object.defineProperty(proxy, property, { value: field });
+    if(this.nullable || this.default || this.primary)
+      return
+    
+    throw new Error(
+      `Column ${this.parent.name}.${this.column} is not nullable and requires a value.`
+    );
   }
 }
 
-export { Field }
+type Nullable = { nullable: true };
+type Optional = { optional: true };
+
+export { Field, Nullable, Optional };

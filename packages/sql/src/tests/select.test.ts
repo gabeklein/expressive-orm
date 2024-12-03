@@ -1,4 +1,5 @@
 import { Query, Str, Type } from '../';
+import { SelectQuery } from '../Query';
 
 class Foo extends Type {
   bar = Str();
@@ -12,8 +13,37 @@ describe("select", () => {
   
       return { bar, baz }
     })
+
+    type Returns = SelectQuery<{
+      bar: string;
+      baz: string;
+    }>
   
-    expect(query).toMatchInlineSnapshot(`
+    expect<Returns>(query).toMatchInlineSnapshot(`
+      select
+        \`foo\`.\`bar\` as \`bar\`,
+        \`foo\`.\`baz\` as \`baz\`
+      from
+        \`foo\`
+    `);
+  })
+
+  it.skip("will output nested object", () => {
+    const query = Query(where => {
+      const { bar, baz } = where(Foo);
+  
+      return {
+        bar: { value: bar },
+        baz: { value: baz }
+      }
+    })
+
+    type Returns = SelectQuery<{
+      bar: { value: string };
+      baz: { value: string };
+    }>
+  
+    expect<Returns>(query).toMatchInlineSnapshot(`
       select
         \`foo\`.\`bar\` as \`bar\`,
         \`foo\`.\`baz\` as \`baz\`
@@ -28,8 +58,10 @@ describe("select", () => {
   
       return foo.bar;
     })
+
+    type Returns = SelectQuery<string>;
   
-    expect(query).toMatchInlineSnapshot(`
+    expect<Returns>(query).toMatchInlineSnapshot(`
       select
         \`foo\`.\`bar\` as \`bar\`
       from
@@ -41,8 +73,14 @@ describe("select", () => {
     const query = Query(where => {
       return where(Foo);
     })
-  
-    expect(query).toMatchInlineSnapshot(`
+
+    type Returns = SelectQuery<{
+      id: number;
+      bar: string;
+      baz: string;
+    }>
+
+    expect<Returns>(query).toMatchInlineSnapshot(`
       select
         \`foo\`.\`id\` as \`id\`,
         \`foo\`.\`bar\` as \`bar\`,

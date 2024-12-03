@@ -1,36 +1,26 @@
 import { Field } from '../Field';
 
-declare namespace Time {
-  interface OrNull extends Time {
-    nullable: true;
+function Time(options?: Partial<DateTime>){
+  return DateTime.new(options);
+}
+
+class DateTime extends Field<Date> {
+  type = "datetime" as const;
+  default = "NOW";
+
+  get(value: string): Date {
+    return new global.Date(value.replace(/[-]/g, '/') + "Z");
   }
-}
 
-interface Time extends Field {
-  datatype?: "datetime";
-  default?: "now";
-  get?(value: string): Date;
-  set?(value: Date): string;
-}
+  set(value: string | Date){
+    if(value === "NOW")
+      return "CURRENT_TIMESTAMP";
 
-function Time<T>(options: Time.OrNull): Date | null | undefined;
-function Time(options?: Time): Date;
-function Time(options?: Time, nullable?: boolean){
-  return Field({
-    ...options,
-    datatype: 'datetime',
-    nullable,
-    get(value: string){
-      return new global.Date(value.replace(/[-]/g, '/') + "Z");
-    },
-    set(value: unknown){
-      // TODO: consider using typescript differing get/set types to accept string.
-      if(!(value instanceof Date))
-        throw "Value must be a Date object."
-
+    if(value instanceof Date)
       return value.toISOString().slice(0, 19).replace("T", " ");
-    }
-  });
+
+    throw "Value must be a Date object."
+  }
 }
 
 export { Time }
