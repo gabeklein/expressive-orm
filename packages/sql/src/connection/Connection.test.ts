@@ -30,10 +30,10 @@ it("will convert camelCase names to underscore", async () => {
   const sql = toSchema([FooBar]);
 
   expect(sql).toMatchInlineSnapshot(`
-    create table
-      \`foo_bar\` (
-        \`id\` integer not null primary key autoincrement,
-        \`foo_bar\` tinyint not null
+    CREATE TABLE
+      foo_bar (
+        id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+        foo_bar tinyint NOT NULL
       )
   `);
 });
@@ -50,17 +50,17 @@ it("will create FK constraints", async () => {
   const sql = toSchema([Foo, Bar]);
 
   expect(sql).toMatchInlineSnapshot(`
-    create table
-      \`foo\` (
-        \`id\` integer not null primary key autoincrement,
-        \`bar_id\` int not null,
-        foreign key (\`bar_id\`) references \`bar\` (\`id\`)
+    CREATE TABLE
+      foo (
+        id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+        bar_id int NOT NULL,
+        FOREIGN KEY (bar_id) REFERENCES bar (id)
       );
 
-    create table
-      \`bar\` (
-        \`id\` integer not null primary key autoincrement,
-        \`value\` int not null
+    CREATE TABLE
+      bar (
+        id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+        value int NOT NULL
       )
   `);
 });

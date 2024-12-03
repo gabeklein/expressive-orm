@@ -19,10 +19,10 @@ it("will generate query", () => {
   });
 
   expect(query).toMatchInlineSnapshot(`
-    delete from
-      \`foo\`
-    where
-      \`foo\`.\`value\` = 'Hello World!'
+    DELETE FROM
+      foo
+    WHERE
+      foo.value = 'Hello World!'
   `);
 })
 
@@ -36,11 +36,11 @@ it("will include FROM statement where JOIN exists", () => {
   });
 
   expect(query).toMatchInlineSnapshot(`
-    delete \`foo\`
-    from
-      \`foo\`
-      inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
-    where
-      \`bar\`.\`value\` = 'Hello World!'
+    DELETE foo
+    FROM
+      foo
+      INNER JOIN bar ON bar.color = foo.color
+    WHERE
+      bar.value = 'Hello World!'
   `);
 })

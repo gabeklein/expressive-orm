@@ -31,16 +31,16 @@ it("will join using object", async () => {
   type Returns = Query<number>;
 
   expect<Returns>(query).toMatchInlineSnapshot(`
-    select
+    SELECT
       count(*)
-    from
-      \`foo\`
-      inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
-      inner join \`baz\` on \`baz\`.\`rating\` = \`bar\`.\`rating\`
-    where
-      \`foo\`.\`name\` <> 'Danny'
-      and \`bar\`.\`rating\` > 50
-      and \`baz\`.\`color\` = 'blue'
+    FROM
+      foo
+      INNER JOIN bar ON bar.color = foo.color
+      INNER JOIN baz ON baz.rating = bar.rating
+    WHERE
+      foo.name <> 'Danny'
+      AND bar.rating > 50
+      AND baz.color = 'blue'
   `);
 })
 
@@ -57,15 +57,15 @@ it("will join using function", async () => {
   });
 
   expect(query).toMatchInlineSnapshot(`
-    select
+    SELECT
       count(*)
-    from
-      \`foo\`
-      inner join \`bar\` on \`bar\`.\`name\` <> \`foo\`.\`name\`
-      and \`bar\`.\`color\` = \`foo\`.\`color\`
-    where
-      \`foo\`.\`name\` <> 'Danny'
-      and \`bar\`.\`rating\` > 50
+    FROM
+      foo
+      INNER JOIN bar ON bar.name <> foo.name
+      AND bar.color = foo.color
+    WHERE
+      foo.name <> 'Danny'
+      AND bar.rating > 50
   `);
 })
 
@@ -103,17 +103,17 @@ it("will select left join", async () => {
 }>
 
   expect<Returns>(query).toMatchInlineSnapshot(`
-    select
-      \`foo\`.\`name\` as \`fooValue\`,
-      \`bar\`.\`name\` as \`barValue\`,
-      \`baz\`.\`rating\` as \`bazRating\`
-    from
-      \`foo\`
-      inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
-      left join \`baz\` on \`baz\`.\`rating\` = \`bar\`.\`rating\`
-    where
-      \`foo\`.\`name\` <> 'Danny'
-      and \`bar\`.\`rating\` > 50
+    SELECT
+      foo.name AS fooValue,
+      bar.name AS barValue,
+      baz.rating AS bazRating
+    FROM
+      foo
+      INNER JOIN bar ON bar.color = foo.color
+      LEFT JOIN baz ON baz.rating = bar.rating
+    WHERE
+      foo.name <> 'Danny'
+      AND bar.rating > 50
   `);
 })
   
@@ -126,13 +126,13 @@ it("will assert a joined property's value", () => {
   });
   
   expect(query).toMatchInlineSnapshot(`
-    select
+    SELECT
       count(*)
-    from
-      \`foo\`
-      inner join \`bar\` on \`bar\`.\`color\` = \`foo\`.\`color\`
-    where
-      \`bar\`.\`rating\` = 42
+    FROM
+      foo
+      INNER JOIN bar ON bar.color = foo.color
+    WHERE
+      bar.rating = 42
   `);
 })
 
@@ -159,13 +159,13 @@ it("will sort by joined table", async () => {
   type Returns = SelectQuery<string>;
 
   expect<Returns>(query).toMatchInlineSnapshot(`
-    select
-      \`other\`.\`name\` as \`name\`
-    from
-      \`test\`
-      inner join \`other\` on \`other\`.\`name\` = \`test\`.\`name\`
-    order by
-      \`other\`.\`rank\` asc
+    SELECT
+      other.name AS name
+    FROM
+      test
+      INNER JOIN other ON other.name = test.name
+    ORDER BY
+      other.rank ASC
   `);
 })
 

@@ -20,11 +20,11 @@ describe("select", () => {
     }>
   
     expect<Returns>(query).toMatchInlineSnapshot(`
-      select
-        \`foo\`.\`bar\` as \`bar\`,
-        \`foo\`.\`baz\` as \`baz\`
-      from
-        \`foo\`
+      SELECT
+        foo.bar AS bar,
+        foo.baz AS baz
+      FROM
+        foo
     `);
   })
 
@@ -44,11 +44,11 @@ describe("select", () => {
     }>
   
     expect<Returns>(query).toMatchInlineSnapshot(`
-      select
-        \`foo\`.\`bar\` as \`bar\`,
-        \`foo\`.\`baz\` as \`baz\`
-      from
-        \`foo\`
+      SELECT
+        foo.bar AS bar,
+        foo.baz AS baz
+      FROM
+        foo
     `);
   })
   
@@ -62,10 +62,10 @@ describe("select", () => {
     type Returns = SelectQuery<string>;
   
     expect<Returns>(query).toMatchInlineSnapshot(`
-      select
-        \`foo\`.\`bar\` as \`bar\`
-      from
-        \`foo\`
+      SELECT
+        foo.bar AS bar
+      FROM
+        foo
     `);
   })
   
@@ -81,12 +81,12 @@ describe("select", () => {
     }>
 
     expect<Returns>(query).toMatchInlineSnapshot(`
-      select
-        \`foo\`.\`id\` as \`id\`,
-        \`foo\`.\`bar\` as \`bar\`,
-        \`foo\`.\`baz\` as \`baz\`
-      from
-        \`foo\`
+      SELECT
+        foo.id AS id,
+        foo.bar AS bar,
+        foo.baz AS baz
+      FROM
+        foo
     `);
   })
 })

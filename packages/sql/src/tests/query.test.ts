@@ -16,12 +16,12 @@ it("will count query by default", () => {
   const qb = query.toString();
 
   expect(qb).toMatchInlineSnapshot(`
-    select
+    SELECT
       count(*)
-    from
-      \`foo\`
-    where
-      \`foo\`.\`color\` = 'red'
+    FROM
+      foo
+    WHERE
+      foo.color = 'red'
   `);
 })
 
@@ -44,15 +44,15 @@ describe("where", () => {
     });
   
     expect(query).toMatchInlineSnapshot(`
-      select
+      SELECT
         count(*)
-      from
-        \`test\`
-      where
-        \`test\`.\`a\` = 1
-        and \`test\`.\`b\` <> 2
-        and \`test\`.\`c\` > 3
-        and \`test\`.\`d\` < 4
+      FROM
+        test
+      WHERE
+        test.a = 1
+        AND test.b <> 2
+        AND test.c > 3
+        AND test.d < 4
     `);
   })
 
@@ -68,14 +68,14 @@ describe("where", () => {
     });
 
     expect(query.toString()).toMatchInlineSnapshot(`
-      select
+      SELECT
         count(*)
-      from
-        \`foo\`
-      where
+      FROM
+        foo
+      WHERE
         (
-          \`foo\`.\`name\` = 'Gabe'
-          or \`foo\`.\`color\` = 'purple'
+          foo.name = 'Gabe'
+          or foo.color = 'purple'
         )
     `);
   })
@@ -99,21 +99,21 @@ describe("where", () => {
     });
     
     expect(query).toMatchInlineSnapshot(`
-      select
+      SELECT
         count(*)
-      from
-        \`foo\`
-      where
-        \`foo\`.\`id\` > 1
-        and (
-          \`foo\`.\`name\` = 'Gabe'
-          and \`foo\`.\`color\` = 'red'
+      FROM
+        foo
+      WHERE
+        foo.id > 1
+        AND (
+          foo.name = 'Gabe'
+          AND foo.color = 'red'
         )
         or (
-          \`foo\`.\`name\` = 'Bob'
-          and (
-            \`foo\`.\`color\` = 'blue'
-            or \`foo\`.\`color\` = 'green'
+          foo.name = 'Bob'
+          AND (
+            foo.color = 'blue'
+            or foo.color = 'green'
           )
         )
     `);
@@ -137,12 +137,12 @@ describe("sort", () => {
     });
   
     expect(query).toMatchInlineSnapshot(`
-      select
-        \`test\`.\`name\` as \`name\`
-      from
-        \`test\`
-      order by
-        \`test\`.\`id\` asc
+      SELECT
+        test.name AS name
+      FROM
+        test
+      ORDER BY
+        test.id ASC
     `);
   })
 
@@ -159,13 +159,13 @@ describe("sort", () => {
     });
   
     expect(query).toMatchInlineSnapshot(`
-      select
-        \`test\`.\`name\` as \`name\`
-      from
-        \`test\`
-      order by
-        \`test\`.\`rating\` asc,
-        \`test\`.\`name\` asc
+      SELECT
+        test.name AS name
+      FROM
+        test
+      ORDER BY
+        test.rating ASC,
+        test.name ASC
     `);
   })  
 })
@@ -186,12 +186,12 @@ describe("schema", () => {
     })
   
     expect(query).toMatchInlineSnapshot(`
-      select
+      SELECT
         count(*)
-      from
-        \`foobar\`.\`foo\` as \`$0\`
-      where
-        \`$0\`.\`color\` = 'red'
+      FROM
+        foobar.foo AS \`$0\`
+      WHERE
+        \`$0\`.color = 'red'
     `);
   })
 })

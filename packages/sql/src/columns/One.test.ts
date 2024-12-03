@@ -21,11 +21,11 @@ it("will query via direct selection", () => {
   });
 
   expect(query).toMatchInlineSnapshot(`
-    select
-      \`b\`.\`value\` as \`value\`
-    from
-      \`a\`
-      inner join \`b\` on \`b\`.\`id\` = \`a\`.\`b_id\`
+    SELECT
+      b.value AS value
+    FROM
+      a
+      INNER JOIN b ON b.id = a.b_id
   `);
 })
 
@@ -40,13 +40,13 @@ it("will select via an object", () => {
   });
 
   expect(query).toMatchInlineSnapshot(`
-    select
-      \`a\`.\`value\` as \`aValue\`,
-      \`c\`.\`value\` as \`cValue\`
-    from
-      \`a\`
-      inner join \`b\` on \`b\`.\`id\` = \`a\`.\`b_id\`
-      inner join \`c\` on \`c\`.\`id\` = \`b\`.\`c_id\`
+    SELECT
+      a.value AS aValue,
+      c.value AS cValue
+    FROM
+      a
+      INNER JOIN b ON b.id = a.b_id
+      INNER JOIN c ON c.id = b.c_id
   `);
 })
 
@@ -60,13 +60,13 @@ it("will query nested relationships", () => {
   })
 
   expect(query).toMatchInlineSnapshot(`
-    select
-      \`c\`.\`label\` as \`label\`
-    from
-      \`a\`
-      inner join \`b\` on \`b\`.\`id\` = \`a\`.\`b_id\`
-      inner join \`c\` on \`c\`.\`id\` = \`b\`.\`c_id\`
-    where
-      \`c\`.\`value\` = 100
+    SELECT
+      c.label AS label
+    FROM
+      a
+      INNER JOIN b ON b.id = a.b_id
+      INNER JOIN c ON c.id = b.c_id
+    WHERE
+      c.value = 100
   `);
 })

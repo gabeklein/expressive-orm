@@ -17,12 +17,14 @@ it("will generate query", () => {
   });
 
   expect(query).toMatchInlineSnapshot(`
-    update
-      \`foo\`
-    set
-      \`value\` = 'new!',
-      \`color\` = 'blue'
-    where
-      \`foo\`.\`color\` = 'red'
+    UPDATE
+      foo
+    SET
+      value = 'new!',
+      color = 'blue'
+    WHERE
+      foo.color = 'red'
   `);
 })
+
+it.todo('will update multiple tables')
