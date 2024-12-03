@@ -135,6 +135,20 @@ class Field<T = unknown> extends BaseField {
 
     return col;
   }
+
+  async verify(info: Knex.ColumnInfo) {
+    const signature = info.type + (info.maxLength ? `(${info.maxLength})` : '');
+
+    if (signature.toLowerCase() !== this.datatype.toLowerCase())
+      throw new Error(
+        `Column ${this.column} in table ${this.parent.table} has type ${signature}, expected ${this.datatype}`
+      );
+
+    if (info.nullable !== this.nullable)
+      throw new Error(
+        `Column ${this.column} in table ${this.parent.table} has incorrect nullable value`
+      );
+  }
 }
 
 type Nullable = { nullable: true };

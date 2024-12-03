@@ -43,6 +43,24 @@ class JoinOne<T extends Type> extends Field<T> {
     
     return column;
   }
+
+  async verify(info: Knex.ColumnInfo) {
+    await super.verify(info);
+
+    const knex = this.parent.connection.knex;
+    const foreignTableExists = await knex.schema.hasTable(this.entity.table);
+
+    if (!foreignTableExists)
+      throw new Error(`Referenced table ${this.entity.table} does not exist`);
+
+    const foreignColumns = await knex(this.entity.table).columnInfo();
+    const foreignColumnInfo = foreignColumns[this.foreignKey];
+
+    if (!foreignColumnInfo)
+      throw new Error(
+        `Referenced column ${this.foreignKey} does not exist in table ${this.entity.table}`
+    );
+  }
 }
 
 export { One, JoinOne }

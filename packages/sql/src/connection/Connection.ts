@@ -1,8 +1,6 @@
 import knex, { Knex } from 'knex';
 
 import { Type } from '../Type';
-import { Schema } from './Schema';
-import { toSchemaBuilder } from './toSchema';
 
 namespace Connection {
   export type Entities =
@@ -30,7 +28,6 @@ class Connection {
   database?: string;
 
   managed = new Set<typeof Type>();
-  schema: { [name: string]: Schema } = {};
   knex: Knex;
 
   constructor(knexConfig?: Knex.Config) {
@@ -48,6 +45,8 @@ class Connection {
 
   async attach(types: Entities, create?: boolean){
     const { knex } = this;
+    const { schema } = knex;
+
     types = Object.values(types);
 
     for (const type of types) {
@@ -55,7 +54,34 @@ class Connection {
       this.managed.add(type);
     }
 
-    return toSchemaBuilder(knex, types, create);
+    async function ensure(type: Type.EntityType){
+      const { table, fields } = type;
+      const exists = await schema.hasTable(table);
+  
+      if(exists){
+        const columns = await knex(table).columnInfo();
+  
+        fields.forEach(field => {
+          const info = columns[field.column];
+      
+          if(field.datatype)
+            if(info)
+              field.verify(info);
+            else
+              throw new Error(`Column ${field.column} does not exist in table ${table}`);
+        });
+      }
+      else if(create === false)
+        throw new Error(`Table ${table} does not exist!`);
+  
+      schema.createTable(table, builder => {
+        fields.forEach(field => field.register(builder));
+      });
+    }
+  
+    await Promise.all(types.map(ensure));
+  
+    return schema;
   }
 
   static get default(){
