@@ -1,25 +1,17 @@
-import knex from "knex";
 import { Type } from "../Type";
 import { Bool, Num, One } from "../columns";
+import { Connection } from "./Connection";
 
 it.todo("will check FK constraints");
 
 function toSchema(types: Type.EntityType[]) {
-  const sqlite = knex({
+  const connection = new Connection({
     client: 'sqlite3',
     useNullAsDefault: true,
     connection: { filename: ':memory:' }
   });
 
-  const builder = sqlite.schema;
-
-  for (const { table, fields } of types)
-    builder.createTable(table, (table) => {
-      for(const field of fields.values())
-        field.register(table);
-    });
-
-  return builder.toString();
+  return connection.schema(types).toString();
 }
 
 it("will convert camelCase names to underscore", async () => {
