@@ -43,6 +43,27 @@ class Connection {
     return this.knex.destroy();
   }
 
+  async attach(types: Connection.Types, create?: boolean){
+    types = Object.values(types);
+
+    const pending = new Set<Type.EntityType>();
+    const validate = async (type: Type.EntityType) => {
+      const valid = await this.validate(type);
+
+      type.connection = this;
+      this.managed.add(type);
+
+      if(!valid && create === false)
+        throw new Error(`Table ${type.table} does not exist.`);
+
+      pending.add(type);
+    }
+
+    await Promise.all(types.map(validate));
+
+    return await this.schema(types);
+  }
+
   async validate(type: Type.EntityType){
     const { table } = type;
     const exists = await this.knex.schema.hasTable(table);
@@ -65,27 +86,6 @@ class Connection {
     });
 
     return true;
-  }
-
-  async attach(types: Connection.Types, create?: boolean){
-    types = Object.values(types);
-
-    const pending = new Set<Type.EntityType>();
-    const validate = async (type: Type.EntityType) => {
-      const valid = await this.validate(type);
-
-      type.connection = this;
-      this.managed.add(type);
-
-      if(!valid && create === false)
-        throw new Error(`Table ${type.table} does not exist.`);
-
-      pending.add(type);
-    }
-
-    await Promise.all(types.map(validate));
-
-    return await this.schema(types);
   }
 
   schema(types: Connection.Types){
