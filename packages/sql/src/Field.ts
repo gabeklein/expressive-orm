@@ -23,6 +23,8 @@ declare namespace Field {
 
   type Accepts<T> = Field & { input(value: T): void }
 
+  type Queries<T> = Field & { query(table: Query.Table): T }
+
   type Updates<T> =
     T extends Accepts<infer U> ?
     (T extends Nullable ? U | null : U) | undefined :
@@ -96,14 +98,7 @@ class Field<T = unknown> extends BaseField {
     return this.type;
   }
 
-  query(table: Query.Table){
-    const value = Object.create(this);
-    const ref = `${table.alias || table.name}.${this.column}`;
-
-    value.toString = () => ref;
-
-    return value as unknown as T;
-  }
+  query?(table: Query.Table): unknown;
 
   input(value: T){
     if(value != null || this.nullable || this.default || this.increment)

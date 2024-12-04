@@ -26,9 +26,9 @@ class JoinOne<T extends Type> extends Field<T> {
     return value.id;
   }
 
-  query(table: Query.Table): any {
+  query(table: Query.Table){
     return table.query.use(this.entity, {
-      id: `${table.alias || table.name}.${this.column}`
+      id: `${table}.${this.column}`
     });
   }
 

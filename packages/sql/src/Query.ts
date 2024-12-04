@@ -50,10 +50,8 @@ declare namespace Query {
 
   type FieldOrValue<T> = T extends Field<infer U> ? U : T;
 
-  type Unwrap<T> = T extends Field.Returns<infer U> ? U extends Type ? From<U> : T : T;
-
   type From<T extends Type = Type> = {
-    [K in Type.Fields<T>]: Unwrap<T[K]>;
+    [K in Type.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
   }
 
   namespace Join {
@@ -74,9 +72,7 @@ declare namespace Query {
 
     type On<T extends Type = any> = Object<T> | Function;
 
-    type Left<T extends Type> = {
-      [K in Type.Fields<T>]?: Unwrap<T[K]>;
-    } & {
+    type Left<T extends Type> = Partial<From<T>> & {
       [ENTITY]?: T
       [JOINS]?: "left"
     }
@@ -378,7 +374,17 @@ class QueryBuilder {
     fields.forEach((field, key) => {
       let value: any;
       Object.defineProperty(proxy, key, {
-        get: () => value || (value = field.query(table))
+        get(){
+          if(!value)
+            if(field.query)
+              value = field.query(table);
+            else {
+              value = Object.create(field);
+              value.toString = () => `${table}.${field.column}`;
+            }
+
+          return value;
+        }
       });
     });
 
