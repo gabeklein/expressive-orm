@@ -32,9 +32,9 @@ class JoinOne<T extends Type> extends Field<T> {
     });
   }
 
-  register(table: Knex.CreateTableBuilder){
+  create(table: Knex.CreateTableBuilder){
     const { foreignKey, entity } = this;
-    const column = super.register(table);
+    const column = super.create(table);
 
     if(!column)
       throw new Error(`Column ${this.property} has no datatype.`);

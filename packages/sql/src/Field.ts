@@ -116,7 +116,7 @@ class Field<T = unknown> extends BaseField {
     return value;
   }
 
-  register(table: Knex.CreateTableBuilder){
+  create(table: Knex.CreateTableBuilder){
     if(!this.datatype)
       return;
 
