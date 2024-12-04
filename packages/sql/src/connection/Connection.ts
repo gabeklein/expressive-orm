@@ -12,8 +12,6 @@ namespace Connection {
   export type PostgresConfig = Knex.PgConnectionConfig;
 }
 
-export type Entities = Connection.Types;
-
 let defaultConnection: Connection;
 
 const DEFAULT_CONFIG: Knex.Config = {
@@ -69,7 +67,7 @@ class Connection {
     return true;
   }
 
-  async attach(types: Entities, create?: boolean){
+  async attach(types: Connection.Types, create?: boolean){
     types = Object.values(types);
 
     const pending = new Set<Type.EntityType>();
@@ -90,7 +88,7 @@ class Connection {
     return await this.schema(types);
   }
 
-  schema(types: Entities){
+  schema(types: Connection.Types){
     const { schema } = this.knex;
 
     Object.values(types).forEach(type => {

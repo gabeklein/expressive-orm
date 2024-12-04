@@ -1,4 +1,4 @@
-export { Connection, Entities } from './connection/Connection';
+export { Connection } from './connection/Connection';
 export { Field } from './Field';
 export { Query } from './Query';
 export { Type } from './Type';

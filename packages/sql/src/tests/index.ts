@@ -1,4 +1,4 @@
-import { Entities, Connection } from "../";
+import { Connection } from "../";
 
 const reset = new Set<Function>();
 
@@ -6,7 +6,7 @@ const reset = new Set<Function>();
  * Generates a new in-memory database specific to
  * a test and attaches entities provided to it.
  **/
-export async function inMemoryDatabase(entities: Entities){
+export async function inMemoryDatabase(entities: Connection.Types){
   const db = new Connection({
     client: "sqlite3",
     useNullAsDefault: true,
