@@ -13,8 +13,8 @@ declare namespace Query {
     type: Type.EntityType<T>;
     query: QueryBuilder;
     name: string | Knex.AliasDict;
-    alias?: string;
     proxy: Query.From<T>;
+    toString(): string;
   }
 
   interface Where {
@@ -351,24 +351,31 @@ class QueryBuilder {
     return this.builder.clone().clearSelect().count();
   }
 
-  use<T extends Type>(type: Type.EntityType<T>, on: Query.Join.On<any>, joinMode?: Query.Join.Mode){
+  use<T extends Type>(
+    type: Type.EntityType<T>,
+    joinOn: Query.Join.On<any>,
+    joinMode?: Query.Join.Mode){
+
+    const { tables } = this;
     let { fields, schema } = type;
     let name: string | Knex.AliasDict = type.table
     let alias: string | undefined;
 
     if(schema){
-      alias = `$${this.tables.length}`;
+      alias = `$${tables.length}`;
       name = { [alias]: schema + '.' + name };
     }
 
-    const main = this.tables[0];
+    const main = tables[0];
     const proxy = {} as Query.From<T>;
     const table: Query.Table<T> = {
       name,
-      alias,
       type,
       proxy,
-      query: this
+      query: this,
+      toString(){
+        return alias || name as string;
+      },
     };
 
     fields.forEach((field, key) => {
@@ -388,37 +395,41 @@ class QueryBuilder {
       });
     });
 
-    this.tables.push(table);
+    tables.push(table);
     RelevantTable.set(proxy, table);
     Object.freeze(proxy);
 
     if(!main){
-      const engine = table.type.connection?.knex || knex({
+      const engine = type.connection?.knex || knex({
         client: "sqlite3",
         useNullAsDefault: true,
         pool: { max: 0 }
       });
 
-      this.builder = engine(table.name)
+      this.builder = engine(name)
     }
-    else if(typeof on == "string")
+    else if(typeof joinOn == "string")
       throw new Error("Bad parameters.");
     else if(type.connection !== main.type.connection)
       throw new Error(`Joined entity ${type} does not share a connection with main table ${main}`);
     else
-      this.join(table, on, joinMode);
+      this.join(table, joinOn, joinMode);
   
-    return table.proxy;
+    return proxy;
   }
 
-  private join(table: Query.Table, on: Query.Join.On<any>, joinMode?: Query.Join.Mode){
+  private join(
+    table: Query.Table,
+    joinOn: Query.Join.On<any>,
+    joinMode?: Query.Join.Mode){
+
     const { name, type } = table;
     let callback: Knex.JoinCallback;
 
-    if (typeof on === "function")
+    if (typeof joinOn === "function")
       callback = (table) => {
         this.pending.add(() => {
-          on(field => {
+          joinOn(field => {
             if (!(field instanceof Field))
               throw new Error("Join assertions can only apply to fields.");
 
@@ -435,19 +446,19 @@ class QueryBuilder {
           });
         })
       }
-    else if (typeof on === "object")
+    else if (typeof joinOn === "object")
       callback = (table) => {
-        for (const key in on) {
+        for (const key in joinOn) {
           const field = type.fields.get(key);
   
           if (field instanceof Field)
-            table.on(`${type.table}.${field.column}`, "=", String(on[key]));
+            table.on(`${type.table}.${field.column}`, "=", String(joinOn[key]));
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }
       }
     else
-      throw new Error(`Invalid join on: ${on}`);
+      throw new Error(`Invalid join on: ${joinOn}`);
 
     switch(joinMode){
       case undefined:

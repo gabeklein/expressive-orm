@@ -3,7 +3,7 @@ import { Query } from "./Query";
 import { Type } from "./Type";
 import { underscore } from "./utils";
 
-export const FIELD = new Map<symbol, Field.Init>();
+const FIELD = new Map<symbol, Field.Init>();
 
 declare namespace Field {
   type Init<T extends Field = Field> =
@@ -149,4 +149,4 @@ class Field<T = unknown> extends BaseField {
 type Nullable = { nullable: true };
 type Optional = { optional: true };
 
-export { Field, Nullable, Optional };
+export { FIELD, Field, Nullable, Optional };
