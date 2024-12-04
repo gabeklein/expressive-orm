@@ -3,7 +3,7 @@ import knex, { Knex } from 'knex';
 import { Type } from '../Type';
 
 namespace Connection {
-  export type Entities =
+  export type Types =
     | typeof Type[]
     | { [key: string | number]: typeof Type }
 
@@ -12,7 +12,7 @@ namespace Connection {
   export type PostgresConfig = Knex.PgConnectionConfig;
 }
 
-export type Entities = Connection.Entities;
+export type Entities = Connection.Types;
 
 let defaultConnection: Connection;
 

@@ -4,14 +4,8 @@ import { Connection } from "./Connection";
 
 it.todo("will check FK constraints");
 
-function toSchema(types: Type.EntityType[]) {
-  const connection = new Connection({
-    client: 'sqlite3',
-    useNullAsDefault: true,
-    connection: { filename: ':memory:' }
-  });
-
-  return connection.schema(types).toString();
+function toSchema(types: Connection.Types) {
+  return new Connection().schema(types).toString();
 }
 
 it("will convert camelCase names to underscore", async () => {
@@ -19,7 +13,7 @@ it("will convert camelCase names to underscore", async () => {
     fooBar = Bool();
   }
 
-  const sql = toSchema([FooBar]);
+  const sql = toSchema({ FooBar });
 
   expect(sql).toMatchInlineSnapshot(`
     CREATE TABLE
@@ -39,7 +33,7 @@ it("will create FK constraints", async () => {
     value = Num();
   }
 
-  const sql = toSchema([Foo, Bar]);
+  const sql = toSchema({ Foo, Bar });
 
   expect(sql).toMatchInlineSnapshot(`
     CREATE TABLE
