@@ -16,10 +16,10 @@ function Bool(column?: string, nullable?: boolean){
     nullable,
     column,
     type: "tinyint",
-    parse(value: unknown){
+    get(value: unknown){
       return value === TRUE;
     },
-    input(value: boolean){
+    set(value: boolean){
       super.set(value);
 
       if(typeof value != "boolean")

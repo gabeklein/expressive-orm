@@ -50,8 +50,8 @@ class StringLike extends Field<string> {
     return type;
   }
 
-  input(value: string){
-    super.input(value);
+  set(value: string){
+    super.set(value);
 
     if(typeof value !== "string")
       throw "Value must be a string."

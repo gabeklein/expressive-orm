@@ -37,8 +37,8 @@ function Num<T extends Num.Options>(options?: T){
 class Numeric extends Field<number> {
   type: Num.Type["type"] = "int";
 
-  input(value: number){
-    super.input(value);
+  set(value: number){
+    super.set(value);
 
     if(typeof value !== "number" || isNaN(value))
       throw `Got '${value}' but value must be a number.`

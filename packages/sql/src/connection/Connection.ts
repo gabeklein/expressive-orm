@@ -82,7 +82,7 @@ class Connection {
       if(!info)  
         throw new Error(`Column ${field.column} does not exist in table ${table}`);
 
-      field.verify(info);
+      field.sync(info);
     });
 
     return true;

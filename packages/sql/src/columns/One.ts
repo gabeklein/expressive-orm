@@ -17,16 +17,16 @@ class JoinOne<T extends Type> extends Field<T> {
   foreignKey = "id";
   column = underscore(this.property) + "_id";
 
-  input(value: T | number){
+  set(value: T | number){
     if(typeof value == "number")
       return value;
 
-    super.input(value);
+    super.set(value);
 
     return value.id;
   }
 
-  query(table: Query.Table){
+  proxy(table: Query.Table){
     return table.query.use(this.entity, {
       id: `${table}.${this.column}`
     });
@@ -44,8 +44,8 @@ class JoinOne<T extends Type> extends Field<T> {
     return column;
   }
 
-  async verify(info: Knex.ColumnInfo) {
-    await super.verify(info);
+  async sync(info: Knex.ColumnInfo) {
+    await super.sync(info);
 
     const knex = this.parent.connection.knex;
     const foreignTableExists = await knex.schema.hasTable(this.entity.table);

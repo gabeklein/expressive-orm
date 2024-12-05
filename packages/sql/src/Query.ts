@@ -251,7 +251,7 @@ class QueryBuilder {
   
       this.builder.select({ [name]: String(selects) });
       this.parse = raw => raw.map(({ [name]: value }) => (
-        selects.parse ? selects.parse(value) : value
+        selects.get ? selects.get(value) : value
       ));
 
       return
@@ -275,8 +275,8 @@ class QueryBuilder {
       const values = Object.create(selects as {});
     
       output.forEach((column, value) => {
-        if(value instanceof Field && value.parse)
-          value = value.parse(row[column]) as any;
+        if(value instanceof Field && value.get)
+          value = value.get(row[column]) as any;
 
         Object.defineProperty(values, column, { value });
       })
@@ -375,8 +375,8 @@ class QueryBuilder {
       Object.defineProperty(proxy, key, {
         get(){
           if(!value)
-            if(field.query)
-              value = field.query(table);
+            if(field.proxy)
+              value = field.proxy(table);
             else {
               value = Object.create(field);
               value.toString = () => `${table}.${field.column}`;

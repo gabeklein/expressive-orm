@@ -140,7 +140,7 @@ function digest<T extends Type>(
   this.fields.forEach((field, key) => {
     try {
       const given = data[key as Type.Fields<T>];
-      const value = field.input(given);
+      const value = field.set(given);
 
       values[field.column] = value === undefined ? given : value;
     }

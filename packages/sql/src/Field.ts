@@ -5,6 +5,9 @@ import { underscore } from "./utils";
 
 const FIELD = new Map<symbol, Field.Init>();
 
+type Nullable = { nullable: true };
+type Optional = { optional: true };
+
 declare namespace Field {
   type Init<T extends Field = Field> =
     (key: string, parent: Type.EntityType) => Partial<T> | void;
@@ -19,11 +22,11 @@ declare namespace Field {
   type Specify<T, TT extends Field, D extends Field = TT> =
     Modifier<T, T extends { type: infer U } ? Extract<TT, { type: U }> : D>;
 
-  type Returns<T> = Field & { parse(value: any): T }
+  type Returns<T> = Field & { get(value: any): T }
 
-  type Accepts<T> = Field & { input(value: T): void }
+  type Accepts<T> = Field & { set(value: T): void }
 
-  type Queries<T> = Field & { query(table: Query.Table): T }
+  type Queries<T> = Field & { proxy(table: Query.Table): T }
 
   type Updates<T> =
     T extends Accepts<infer U> ?
@@ -94,23 +97,47 @@ class Field<T = unknown> extends BaseField {
   increment: boolean = false;
   default?: unknown = undefined;
 
+  /** Real datatype of this field in database. */
   get datatype(){
     return this.type;
   }
 
-  query?(table: Query.Table): unknown;
+  /**
+   * Optional method generates value of property this Field is applied to when accessed inside a query.
+   * If not defined, the value will be the Field itself.
+   * 
+   * @returns {T} Value to be used in context of query, interfacing with this Field.
+  */
+  proxy?(table: Query.Table): unknown;
 
-  input(value: T){
+  /**
+   * This method dictates behavior of this field when converted from a javascript context to SQL.
+   * 
+   * Use this method to validate, sanitize or convert data before it is inserted into the database.
+   */
+  set(value: T){
     if(value != null || this.nullable || this.default || this.increment)
       return
     
     throw new Error(`Column requires a value but got ${value}.`);
   }
 
-  parse(value: any): T {
+  /**
+   * This method dictates behavior of this field when converted from a SQL context to javascript.
+   * 
+   * Use this method to parse data incoming from the database itself. For example, you might convert
+   * a TINYINT(1) field to a boolean, or a DATETIME field to a Date object.
+   */
+  get(value: any): T {
     return value;
   }
 
+  /**
+   * This method is used to generate a column in a SQL table.
+   *  
+   * @param table The table being created.
+   * @returns The column definition.
+   */
   create(table: Knex.CreateTableBuilder){
     if(!this.datatype)
       return;
@@ -131,7 +158,14 @@ class Field<T = unknown> extends BaseField {
     return col;
   }
 
-  async verify(info: Knex.ColumnInfo) {
+  /**
+   * This methods verifies that the column in the database matches the settings expected by this Field.
+   * Will throw an error if the column does not match, unless the `fix` parameter is set to true and schema is corrected.
+   * 
+   * @param info Information about the column in the database.
+   * @param fix Whether to automatically fix the column to match this Field's settings.
+   */
+  async sync(info: Knex.ColumnInfo, fix?: boolean){
     const signature = info.type + (info.maxLength ? `(${info.maxLength})` : '');
 
     if (signature.toLowerCase() !== this.datatype.toLowerCase())
@@ -145,8 +179,5 @@ class Field<T = unknown> extends BaseField {
       );
   }
 }
-
-type Nullable = { nullable: true };
-type Optional = { optional: true };
 
 export { FIELD, Field, Nullable, Optional };
