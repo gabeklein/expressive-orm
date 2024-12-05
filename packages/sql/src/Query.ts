@@ -5,9 +5,6 @@ import { digest, isTypeConstructor, Type } from './Type';
 
 const RelevantTable = new WeakMap<{}, Query.Table>();
 
-declare const ENTITY: unique symbol;
-declare const JOINS: unique symbol;
-
 declare namespace Query { 
   interface Table<T extends Type = any> {
     type: Type.EntityType<T>;
@@ -72,15 +69,10 @@ declare namespace Query {
 
     type On<T extends Type = any> = Object<T> | Function;
 
-    type Left<T extends Type> = Partial<From<T>> & {
-      [ENTITY]?: T
-      [JOINS]?: "left"
-    }
+    type Left<T extends Type> = Partial<From<T>>;
   }
 
-  type Join<T extends Type> = From<T> & {
-    [JOINS]?: "inner"
-  };
+  type Join<T extends Type> = From<T>;
 
   /** A query instruction returned by assertions which can be nested. */
   type Instruction = (or?: boolean) => void;
