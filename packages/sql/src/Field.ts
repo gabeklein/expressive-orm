@@ -44,9 +44,32 @@ declare namespace Field {
 let focusParent: Type.EntityType | undefined;
 let focusProperty: string | undefined;
 
-class BaseField {
+abstract class BaseField {
   property: string;
   parent: Type.EntityType;
+
+  /**
+   * Optional method generates value of property this Field is applied to when accessed inside a query.
+   * If not defined, the value will be the Field itself.
+   * 
+   * @returns {T} Value to be used in context of query, interfacing with this Field.
+   */
+  proxy?(table: Query.Table): unknown;
+
+  /**
+   * This method dictates behavior of this field when converted from a javascript context to SQL.
+   * 
+   * Use this method to validate, sanitize or convert data before it is inserted into the database.
+   */
+  abstract set(value: unknown): void;
+
+  /**
+   * This method dictates behavior of this field when converted from a SQL context to javascript.
+   * 
+   * Use this method to parse data incoming from the database itself. For example, you might convert
+   * a TINYINT(1) field to a boolean, or a DATETIME field to a Date object.
+   */
+  abstract get(value: any): unknown;
 
   constructor(){
     this.parent = focusParent!;
@@ -102,19 +125,6 @@ class Field<T = unknown> extends BaseField {
     return this.type;
   }
 
-  /**
-   * Optional method generates value of property this Field is applied to when accessed inside a query.
-   * If not defined, the value will be the Field itself.
-   * 
-   * @returns {T} Value to be used in context of query, interfacing with this Field.
-  */
-  proxy?(table: Query.Table): unknown;
-
-  /**
-   * This method dictates behavior of this field when converted from a javascript context to SQL.
-   * 
-   * Use this method to validate, sanitize or convert data before it is inserted into the database.
-   */
   set(value: T){
     if(value != null || this.nullable || this.default || this.increment)
       return
@@ -122,12 +132,6 @@ class Field<T = unknown> extends BaseField {
     throw new Error(`Column requires a value but got ${value}.`);
   }
 
-  /**
-   * This method dictates behavior of this field when converted from a SQL context to javascript.
-   * 
-   * Use this method to parse data incoming from the database itself. For example, you might convert
-   * a TINYINT(1) field to a boolean, or a DATETIME field to a Date object.
-   */
   get(value: any): T {
     return value;
   }
