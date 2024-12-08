@@ -53,9 +53,9 @@ it("will insert procedurally generated rows", async () => {
 
 it("will throw for bad value", async () => {
   const insert = () => (
-    // @ts-expect-error
     Foo.insert({
       name: "foobar",
+      // @ts-expect-error
       color: 3
     }) 
   )
@@ -80,10 +80,9 @@ it("will throw for no value non-nullable", async () => {
 
 it("will add index to specify error", async () => {
   const insert = () => (
-    // TODO: spread insert object instead of iterable
-    // @ts-expect-error
     Foo.insert([
       { name: "foo", color: "red" },
+      // @ts-expect-error
       { name: "bar" }
     ]) 
   )

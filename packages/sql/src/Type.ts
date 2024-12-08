@@ -76,23 +76,35 @@ abstract class Type {
     return Array.isArray(data) ? data.map(digest, this) : digest.call(this, data);  
   }
 
-  static insert<T extends Type>(this: Type.EntityType<T>, entry: Type.Insert<T>): Promise<void>;
-  static insert<T extends Type>(this: Type.EntityType<T>, entries: Iterable<Type.Insert<T>>): Promise<void>;
-  static insert<T extends Type>(this: Type.EntityType<T>, number: number, mapper: (index: number) => Type.Insert<T>): Promise<void>;
-  static insert<T extends Type>(this: Type.EntityType<T>, data: Type.Insert<T> | Iterable<Type.Insert<T>> | number, map?: (i: number) => Type.Insert<T>){
-    if(typeof data == "number"){
-      if(!map)
-        throw new Error("Cannot insert a number without a map function!");
-  
-      data = Array.from({ length: data }, (_, i) => map(i));
-    }
-    else if(!isIterable(data))
-      data = [data];
+  static insert<T extends Type>(this: Type.EntityType<T>, entries: Type.Insert<T> | Type.Insert<T>[]): Promise<void>;
+  static insert<T extends Type>(this: Type.EntityType<T>, number: number, map: (index: number) => Type.Insert<T>): Promise<void>;
+  static insert<T extends Type, I>(this: Type.EntityType<T>, inputs: Iterable<I>, map: (input: I) => Type.Insert<T>): Promise<void>;
+  static insert<T extends Type>(
+    this: Type.EntityType<T>,
+    arg1: Type.Insert<T> | Iterable<unknown> | number,
+    arg2?: Type.Insert<any> | Function,
+  ){
+    let data: Type.Insert<T>[];
 
     if(!this.connection)
       throw new Error("No connection found for type");
 
-    const rows = this.digest(Array.from(data));
+    if(typeof arg2 == "function"){
+      if(typeof arg1 == "number")
+        data = Array.from({ length: arg1 }, (_, i) => arg2(i));
+      else if(isIterable(arg1))
+        data = Array.from(arg1, arg2 as (i: unknown, k: number) => Type.Insert<T>);
+      else
+        throw new Error("Map function needs an input iterable or a number to generate data.");
+    }
+    else if(isIterable(arg1))
+      data = Array.from(arg1) as Type.Insert<T>[];
+    else if(typeof arg1 == "object")
+      data = [arg1];
+    else
+      throw new Error("Invalid input for insert method.");
+    
+    const rows = this.digest(data);
     const table = this.connection.knex(this.table);
     
     return table.insert(rows) as Knex.QueryBuilder;
