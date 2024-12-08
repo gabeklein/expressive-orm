@@ -44,8 +44,8 @@ class JoinOne<T extends Type> extends Field<T> {
     return column;
   }
 
-  async sync(info: Knex.ColumnInfo) {
-    await super.sync(info);
+  async integrity(info: Knex.ColumnInfo) {
+    await super.integrity(info);
 
     const knex = this.parent.connection.knex;
     const foreignTableExists = await knex.schema.hasTable(this.entity.table);

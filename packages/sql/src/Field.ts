@@ -169,7 +169,7 @@ class Field<T = unknown> extends BaseField {
    * @param info Information about the column in the database.
    * @param fix Whether to automatically fix the column to match this Field's settings.
    */
-  async sync(info: Knex.ColumnInfo, fix?: boolean){
+  async integrity(info: Knex.ColumnInfo, fix?: boolean){
     const signature = info.type + (info.maxLength ? `(${info.maxLength})` : '');
 
     if (signature.toLowerCase() !== this.datatype.toLowerCase())
