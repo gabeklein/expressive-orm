@@ -24,7 +24,7 @@ declare namespace Field {
 
   type Returns<T> = Field & { get(value: any): T }
 
-  type Accepts<T> = Field & { set(value: T): void }
+  type Accepts<T> = Field & { set(value: T, data: unknown): void }
 
   type Queries<T> = Field & { proxy(table: Query.Table): T }
 
@@ -39,6 +39,8 @@ declare namespace Field {
       T extends Optional ? U | undefined :
       U :
     never;
+
+  type Output = Record<string, string | number>;
 }
 
 let focusParent: Type.EntityType | undefined;
@@ -61,7 +63,7 @@ abstract class BaseField {
    * 
    * Use this method to validate, sanitize or convert data before it is inserted into the database.
    */
-  abstract set(value: unknown): void;
+  abstract set(value: unknown, data: Field.Output): void;
 
   /**
    * This method dictates behavior of this field when converted from a SQL context to javascript.
@@ -125,11 +127,13 @@ class Field<T = unknown> extends BaseField {
     return this.type;
   }
 
-  set(value: T){
-    if(value != null || this.nullable || this.default || this.increment)
-      return
-    
-    throw new Error(`Column requires a value but got ${value}.`);
+  set(value: unknown, data: Field.Output): void {
+    if(value != null)
+      data[this.column] = typeof value == "number" ? value : String(value);
+    else if(!this.nullable && !this.optional)
+      throw new Error(`Column ${this.column} requires a value but got ${value}.`);
+    else if(value === null)
+      data[this.column] = "NULL";
   }
 
   get(value: any): T {

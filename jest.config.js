@@ -34,6 +34,7 @@ const SQL_KEYWORDS = [
   "references",
   "select",
   "set",
+  "union all",
   "unique",
   "update",
   "values",

@@ -27,8 +27,16 @@ declare namespace Type {
     & { [K in Fields<T>]?: Field.Assigns<T[K]> }
     & { [K in Required<T>]: Field.Assigns<T[K]> }
 
+  type Values<T extends Type> = { "id": number } & {
+    [K in Fields<T>]: T[K] extends Field.Returns<infer U> ? U : never
+  }
+
   type Query<T extends Type, R> =
     (query: Query.From<T>, where: Query.Where) => R;
+
+  interface InsertOp extends PromiseLike<void> {
+    toString(): string;
+  }
 }
 
 abstract class Type {
@@ -39,8 +47,8 @@ abstract class Type {
    * Primary key of this entity.
    * May be any name in the actual database, however requred to be `id` as property of this type.
    * 
-   * TODO: Not applicable anymore. vvv
    * Setting to zero will disable this field, and ORM will not expect it to be present in the database.
+   * TODO: Not applicable anymore.
    */
   id = Primary.new();
 
@@ -76,9 +84,9 @@ abstract class Type {
     return Array.isArray(data) ? data.map(digest, this) : digest.call(this, data);  
   }
 
-  static insert<T extends Type>(this: Type.EntityType<T>, entries: Type.Insert<T> | Type.Insert<T>[]): Promise<void>;
-  static insert<T extends Type>(this: Type.EntityType<T>, number: number, map: (index: number) => Type.Insert<T>): Promise<void>;
-  static insert<T extends Type, I>(this: Type.EntityType<T>, inputs: Iterable<I>, map: (input: I) => Type.Insert<T>): Promise<void>;
+  static insert<T extends Type>(this: Type.EntityType<T>, entries: Type.Insert<T> | Type.Insert<T>[]): Type.InsertOp;
+  static insert<T extends Type>(this: Type.EntityType<T>, number: number, map: (index: number) => Type.Insert<T>): Type.InsertOp;
+  static insert<T extends Type, I>(this: Type.EntityType<T>, inputs: Array<I>, map: (value: I, index: number) => Type.Insert<T>): Type.InsertOp;
   static insert<T extends Type>(
     this: Type.EntityType<T>,
     arg1: Type.Insert<T> | Iterable<unknown> | number,
@@ -106,8 +114,14 @@ abstract class Type {
     
     const rows = this.digest(data);
     const table = this.connection.knex(this.table);
-    
-    return table.insert(rows) as Knex.QueryBuilder;
+    const query = table.insert(rows) as Knex.QueryBuilder;
+
+    return {
+      then(resolve: (res: any) => any, reject: (err: any) => any){
+        return query.then(x => x[0]).then<T[]>(resolve).catch(reject);
+      },
+      toString: () => query.toString()
+    }
   }
 
   static get<T extends Type>(this: Type.EntityType<T>, query: Type.Query<T, void>): SelectQuery<T>;
@@ -151,10 +165,7 @@ function digest<T extends Type>(
 
   this.fields.forEach((field, key) => {
     try {
-      const given = data[key as Type.Fields<T>];
-      const value = field.set(given);
-
-      values[field.column] = value === undefined ? given : value;
+      field.set(data[key as Type.Fields<T>], values);
     }
     catch(err: unknown){
       const which = array && array.length > 1 ? ` at [${index}]` : "";

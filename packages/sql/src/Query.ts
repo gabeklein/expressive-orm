@@ -278,7 +278,7 @@ class QueryBuilder {
         if(value instanceof Field && value.get)
           value = value.get(row[column]) as any;
 
-        Object.defineProperty(values, column, { value });
+        Object.defineProperty(values, column, { value, enumerable: true });
       })
         
       return values;

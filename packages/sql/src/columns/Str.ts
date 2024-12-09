@@ -50,8 +50,8 @@ class StringLike extends Field<string> {
     return type;
   }
 
-  set(value: string){
-    super.set(value);
+  set(value: string, data: Field.Output){
+    super.set(value, data);
 
     if(typeof value !== "string")
       throw "Value must be a string."
