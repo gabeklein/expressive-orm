@@ -1,12 +1,15 @@
 import { Connection } from "../";
 
 const reset = new Set<Function>();
+let after: Function | undefined;
 
 /**
  * Generates a new in-memory database specific to
  * a test and attaches entities provided to it.
  **/
-export async function inMemoryDatabase(entities: Connection.Types){
+export function inMemoryDatabase(
+  entities: Connection.Types, after?: () => void){
+
   const db = new Connection({
     client: "sqlite3",
     useNullAsDefault: true,
@@ -15,15 +18,27 @@ export async function inMemoryDatabase(entities: Connection.Types){
     }
   });
 
-  await db.attach(entities);
-  reset.add(() => db.close());
+  let init_db = db.attach(entities);
 
-  return db;
+  if(after)
+    init_db = init_db.then(after);
+
+  if(expect.getState().currentTestName){
+    reset.add(() => db.close());
+    return init_db;
+  }
+
+  beforeAll(() => init_db);
+  after = () => db.close();
+
+  return db
 }
 
 afterEach(async () => {
-  for(const cb of reset){
+  await Promise.all(Array.from(reset).map(cb => {
     reset.delete(cb);
-    await cb()
-  }
+    return cb();
+  }));
 });
+
+afterAll(() => after && after());
