@@ -48,7 +48,7 @@ it("will insert procedurally generated rows", async () => {
 
   await expect(insert).resolves.toBe(4);
 
-  const results = User.get((user) => user);
+  const results = User.get();
 
   await expect(results).resolves.toMatchObject([
     { "id": 1, "name": "john",  "email": "john@email.org",  "age": 25 },
