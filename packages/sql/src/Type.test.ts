@@ -31,19 +31,18 @@ describe("get method", () => {
       { number: 6 },
       { number: 7 },
       { number: 8 },
-      { number: 9 }
+      { number: 9 },
     ]);
   })
 
-  it("will limit query rows", async () => {
-    const results = await Item.get(3, (item, where) => {
+  it("will limit queried rows", async () => {
+    const results = await Item.get(2, (item, where) => {
       where(item.number).isMore(5);
     });
 
     expect(results).toMatchObject([
       { number: 6 },
       { number: 7 },
-      { number: 8 }
     ]);
   })
 })
