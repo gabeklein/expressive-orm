@@ -353,7 +353,7 @@ class QueryBuilder<T = unknown> {
     }
   }
 
-  private use<T extends Type>(
+  use<T extends Type>(
     type: Type.EntityType<T>,
     joinOn: Query.Join.On<any>,
     joinMode?: Query.Join.Mode){
