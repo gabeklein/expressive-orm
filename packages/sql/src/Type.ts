@@ -1,5 +1,3 @@
-import { Knex } from 'knex';
-
 import { Connection } from './connection/Connection';
 import { FIELD, Field, Nullable, Optional } from './Field';
 import { Query, SelectQuery } from './Query';
@@ -114,7 +112,7 @@ abstract class Type {
     
     const rows = this.digest(data);
     const table = this.connection.knex(this.table);
-    const query = table.insert(rows) as Knex.QueryBuilder;
+    const query = table.insert(rows);
 
     return {
       then(resolve: (res: any) => any, reject: (err: any) => any){
