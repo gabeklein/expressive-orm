@@ -56,8 +56,8 @@ declare namespace Query {
   interface Compare<T = any> {
     is(equalTo: T): Instruction;
     isNot(equalTo: T): Instruction;
-    isMore(than: T): Instruction;
-    isLess(than: T): Instruction;
+    isMore(than: T, orEqual?: boolean): Instruction;
+    isLess(than: T, orEqual?: boolean): Instruction;
   }
 
   interface Verbs <T extends Type> {
@@ -326,11 +326,13 @@ class QueryBuilder<T = unknown> {
   }
 
   private compare<T extends Field>(type: T): Query.Compare {
-    const using = (op: string) => (right: Field) => {
+    const ref = String(type);
+    const using = (operator: string) => (right: Field, orEqual?: boolean) => {
       const apply = (or?: boolean) => {
+        const op = orEqual ? `${operator}=` : operator;
         // TODO: this should incorperate field.set
         const r = typeof right == "number" ? right : String(right);
-        this.builder[or ? "orWhere" : "where"](String(type), op, r);
+        this.builder[or ? "orWhere" : "where"](ref, op, r);
       }
 
       this.pending.add(apply);
