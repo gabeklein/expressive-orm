@@ -32,7 +32,9 @@ declare namespace Query {
 
     type Function = (on: Where) => void;
 
-    type On<T extends Type = any> = Function | { [K in Type.Fields<T>]?: T[K] };
+    type Equal<T extends Type = any> = { [K in Type.Fields<T>]?: T[K] };
+    
+    type On<T extends Type> = Function | Equal<T>;
 
     type Left<T extends Type> = Partial<From<T>>;
   }
@@ -47,18 +49,15 @@ declare namespace Query {
 
   type CompareValue<T> = T extends { get(): infer V } ? V : T;
 
-  type Where = QueryBuilder["where"];
+  type Where = QueryBuilder["where"] & {
+    order: QueryBuilder["order"];
+  };
 
   interface Compare<T> {
     is(equalTo: T): Instruction;
     isNot(equalTo: T): Instruction;
     isMore(than: T): Instruction;
     isLess(than: T): Instruction;
-  }
-
-  interface Assert<T> extends Compare<T> {
-    isAsc(): void;
-    isDesc(): void;
   }
 
   interface Verbs <T extends Type> {
@@ -133,7 +132,11 @@ class QueryBuilder<T = unknown> {
   parse?: (raw: any[]) => any[];
 
   constructor(fn: Query.Function<T>){
-    this.commit(fn(this.where.bind(this)));
+    const context = this.where.bind(this) as Query.Where;
+
+    context.order = this.order.bind(this);
+
+    this.commit(fn(context));
   }
 
   toRunner(){
@@ -210,7 +213,7 @@ class QueryBuilder<T = unknown> {
    * Prepare comparison against a particilar field,
    * returns operations for the given type.
    */
-  private where<T>(field: T): Query.Assert<Query.FieldOrValue<T>>;
+  private where<T>(field: T): Query.Compare<Query.FieldOrValue<T>>;
 
   private where(type: any, on?: any, joinMode?: any){
     if(isTypeConstructor(type))
@@ -224,9 +227,7 @@ class QueryBuilder<T = unknown> {
         is: this.compare(type, "="),
         isNot: this.compare(type, "<>"),
         isMore: this.compare(type, ">"),
-        isLess: this.compare(type, "<"),
-        isAsc: this.orderBy(type, "asc"),
-        isDesc: this.orderBy(type, "desc"),
+        isLess: this.compare(type, "<")
       }
 
     const table = RelevantTable.get(type);
@@ -306,7 +307,7 @@ class QueryBuilder<T = unknown> {
     })
   }
 
-  andOr(...args: Query.Instructions[]){
+  private andOr(...args: Query.Instructions[]){
     for(const group of args)
       for(const fn of group)
         this.pending.delete(fn);
@@ -342,9 +343,10 @@ class QueryBuilder<T = unknown> {
     };
   }
 
-  private orderBy(field: Field, direction: "asc" | "desc"){
-    return () => {
-      this.builder.orderBy(String(field), direction);
+  private order(field: Field){
+    return {
+      asc: () => this.builder.orderBy(String(field), "asc"),
+      desc: () => this.builder.orderBy(String(field), "desc")
     }
   }
 

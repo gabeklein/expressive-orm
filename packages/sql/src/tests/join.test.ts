@@ -151,7 +151,7 @@ it("will sort by joined table", async () => {
     const test = where(Test);
     const other = where(Other, { name: test.name })
 
-    where(other.rank).isAsc()
+    where.order(other.rank).asc();
 
     return other.name;
   });

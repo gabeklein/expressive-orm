@@ -131,7 +131,7 @@ describe("sort", () => {
     const query = Query(where => {
       const test = where(Test);
   
-      where(test.id).isAsc()
+      where.order(test.id).asc()
   
       return test.name;
     });
@@ -150,8 +150,8 @@ describe("sort", () => {
     const query = Query(where => {
       const test = where(Test);
   
-      where(test.rating).isAsc()
-      where(test.name).isAsc()
+      where.order(test.rating).asc()
+      where.order(test.name).asc()
   
       return {
         name: test.name
