@@ -246,6 +246,8 @@ class QueryBuilder {
   }
 
   private select(selects: unknown){
+    const { builder } = this;
+
     if(selects instanceof Field){
       const name = selects.column;
   
@@ -260,25 +262,38 @@ class QueryBuilder {
     if(typeof selects != "object")
       throw new Error("Invalid selection.");
       
-    const output = new Map<string | Field, string | number>();
+    const output = new Map<Field, string>();
 
-    Object.getOwnPropertyNames(selects).forEach(key => {
-      const value = (selects as any)[key];
-    
-      if(value instanceof Field){
-        output.set(value, key);
-        this.builder.select({ [key]: String(value) });
+    function scan(obj: any, path?: string){
+      for(const key of Object.getOwnPropertyNames(obj)){
+        const select = obj[key];
+        const use = path ? `${path}.${key}` : key;
+
+        if(select instanceof Field){
+          output.set(select, use);
+          builder.select({ [use]: String(select) });
+        }
+        else if(typeof select == "object")
+          scan(select, use);
       }
-    })
+    }
+
+    scan(selects);
 
     this.parse = raw => raw.map(row => {
-      const values = Object.create(selects as {});
+      const values = {} as any;
     
-      output.forEach((column, value) => {
-        if(value instanceof Field && value.get)
-          value = value.get(row[column]) as any;
+      output.forEach((path, value) => {
+        let target = values;
+        const goto = path.split(".");
+        const prop = goto.pop() as string;
 
-        Object.defineProperty(values, column, { value, enumerable: true });
+        value = value.get(row[path]) as any;
+
+        for(const path of goto)
+          target = target[path] || (target[path] = {});
+
+        target[prop] = value;
       })
         
       return values;

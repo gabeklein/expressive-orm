@@ -1,3 +1,4 @@
+import { inMemoryDatabase } from '.';
 import { Query, Str, Type } from '../';
 import { SelectQuery } from '../Query';
 
@@ -6,8 +7,12 @@ class Foo extends Type {
   baz = Str();
 }
 
+inMemoryDatabase({ Foo }, async () => {
+  await Foo.insert({ bar: "hello", baz: "world" });
+});
+
 describe("select", () => {
-  it("will select via object", () => {
+  it("will select via object", async () => {
     const query = Query(where => {
       const { bar, baz } = where(Foo);
   
@@ -26,9 +31,13 @@ describe("select", () => {
       FROM
         foo
     `);
+
+    expect(await query).toEqual([
+      { bar: "hello", baz: "world" }
+    ]);
   })
 
-  it.skip("will output nested object", () => {
+  it("will output nested object", async () => {
     const query = Query(where => {
       const { bar, baz } = where(Foo);
   
@@ -45,18 +54,21 @@ describe("select", () => {
   
     expect<Returns>(query).toMatchInlineSnapshot(`
       SELECT
-        foo.bar AS bar,
-        foo.baz AS baz
+        foo.bar AS \`bar.value\`,
+        foo.baz AS \`baz.value\`
       FROM
         foo
     `);
+
+    expect(await query).toEqual([{ 
+      bar: { value: "hello" }, 
+      baz: { value: "world" }
+    }]);
   })
   
   it("will select a field directly", () => {
     const query = Query(where => {
-      const foo = where(Foo);
-  
-      return foo.bar;
+      return where(Foo).bar;
     })
 
     type Returns = SelectQuery<string>;
