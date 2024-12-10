@@ -32,11 +32,7 @@ declare namespace Query {
 
     type Function = (on: Where) => void;
 
-    type Object<T extends Type> = {
-      [K in Type.Fields<T>]?: T[K];
-    }
-
-    type On<T extends Type = any> = Object<T> | Function;
+    type On<T extends Type = any> = Function | { [K in Type.Fields<T>]?: T[K] };
 
     type Left<T extends Type> = Partial<From<T>>;
   }
@@ -120,34 +116,8 @@ function Query<T extends {}>(from: Query.Function<T>): SelectQuery<Query.Extract
  */
 function Query(from: Query.Function<void>): Query<number>;
 
-function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery {
-  const builder = new QueryBuilder();
-  const selects = builder.build(constructor);
-  const query = {
-    then(resolve: (res: any) => any, reject: (err: any) => any){
-      return builder.get().then<T[]>(resolve).catch(reject);
-    },
-    count: () => builder.count(),
-    toString: () => builder.toString()
-  }
-
-  if(selects)
-    return {
-      ...query,
-      get(limit?: number){
-        return builder.get(limit);
-      },
-      async one(orFail?: boolean){
-        const res = await builder.get(1);
-    
-        if(res.length == 0 && orFail)
-          throw new Error("Query returned no results.");
-    
-        return res[0] as T;
-      }
-    }
-
-  return query;
+function Query<T = void>(from: Query.Function<T>): Query | SelectQuery {
+  return new QueryBuilder(from).toRunner();
 }
 
 Query.one = function one<T extends {}>(
@@ -156,21 +126,59 @@ Query.one = function one<T extends {}>(
   return Query(where).one(orFail);
 }
 
-class QueryBuilder {
+class QueryBuilder<T = unknown> {
   builder!: Knex.QueryBuilder;
   tables = [] as Query.Table[];
   pending = new Set<Query.Instruction>();
   parse?: (raw: any[]) => any[];
 
-  toString(){
-    return this.builder.toString().replace(/```/g, "`");
+  constructor(fn: Query.Function<T>){
+    this.commit(fn(this.where.bind(this)));
+  }
+
+  toRunner(){
+    const get = async (limit?: number) => {
+      let execute = this.builder;
+  
+      if(limit)
+        execute = execute.clone().limit(limit);
+  
+      if(this.parse)
+        return execute.then(this.parse);
+  
+      return await execute;
+    }
+    
+    const query = {
+      then(resolve: (res: any) => any, reject: (err: any) => any){
+        return get().then<T[]>(resolve).catch(reject);
+      },
+      count: () => this.builder.clone().clearSelect().count(),
+      toString: () => this.builder.toString().replace(/```/g, "`")
+    }
+  
+    if(this.parse)
+      return {
+        ...query,
+        get,
+        async one(orFail?: boolean){
+          const res = await this.get(1);
+      
+          if(res.length == 0 && orFail)
+            throw new Error("Query returned no results.");
+      
+          return res[0] as T;
+        }
+      }
+  
+    return query;
   }
 
   /**
    * Accepts instructions for nesting in a parenthesis.
    * When only one group of instructions is provided, the statement are separated by OR.
    */
-  where(orWhere: Query.Instructions): Query.Instruction;
+  private where(orWhere: Query.Instructions): Query.Instruction;
 
   /**
    * Accepts instructions for nesting in a parenthesis.
@@ -178,37 +186,37 @@ class QueryBuilder {
    * When multiple groups of instructions are provided, the groups
    * are separated by OR and nested comparisons are separated by AND.
    */
-  where(...orWhere: Query.Instructions[]): Query.Instruction;
+  private where(...orWhere: Query.Instructions[]): Query.Instruction;
 
   /**
    * Create a reference to the primary table, returned
    * object can be used to query against that table.
    */
-  where<T extends Type>(entity: Type.EntityType<T>): Query.From<T>;
+  private where<T extends Type>(entity: Type.EntityType<T>): Query.From<T>;
 
   /**
    * Registers a type as a inner join.
    */
-  where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join?: "inner"): Query.Join<T>;
+  private where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join?: "inner"): Query.Join<T>;
 
   /**
    * Registers a type as a left join, returned object has optional
    * properties which may be undefined where the join is not present.
    */
-  where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join: Query.Join.Mode): Query.Join.Left<T>;
+  private where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join: Query.Join.Mode): Query.Join.Left<T>;
 
   /**
    * Prepares write operations for a particular table.
    */
-  where<T extends Type>(field: Query.From<T>): Query.Verbs<T>;
+  private where<T extends Type>(field: Query.From<T>): Query.Verbs<T>;
 
   /**
    * Prepare comparison against a particilar field,
    * returns operations for the given type.
    */
-  where<T>(field: T): Query.Assert<Query.FieldOrValue<T>>;
+  private where<T>(field: T): Query.Assert<Query.FieldOrValue<T>>;
 
-  where(type: any, on?: any, joinMode?: any){
+  private where(type: any, on?: any, joinMode?: any){
     if(isTypeConstructor(type))
       return this.use(type, on, joinMode);
 
@@ -241,23 +249,14 @@ class QueryBuilder {
     }
   }
 
-  build<T>(fn: Query.Function<T>){
-    const selects = fn(this.where.bind(this));
-
+  private commit(selects: unknown){
     this.pending.forEach(fn => fn());
     this.pending.clear();
 
-    if(selects){
-      this.select(selects);
-      return true;
+    if(selects === undefined){
+      this.builder.count();
+      return;
     }
-
-    this.builder.count();
-    return false;
-  }
-
-  private select(selects: unknown){
-    const { builder } = this;
 
     if(selects instanceof Field){
       const name = selects.column;
@@ -267,7 +266,7 @@ class QueryBuilder {
         selects.get ? selects.get(value) : value
       ));
 
-      return
+      return;
     }
     
     if(typeof selects != "object")
@@ -275,19 +274,19 @@ class QueryBuilder {
       
     const output = new Map<Field, string>();
 
-    function scan(obj: any, path?: string){
+    const scan = (obj: any, path?: string) => {
       for(const key of Object.getOwnPropertyNames(obj)){
         const select = obj[key];
         const use = path ? `${path}.${key}` : key;
 
         if(select instanceof Field){
           output.set(select, use);
-          builder.select({ [use]: String(select) });
+          this.builder.select({ [use]: String(select) });
         }
         else if(typeof select == "object")
           scan(select, use);
       }
-    }
+    };
 
     scan(selects);
 
@@ -334,7 +333,7 @@ class QueryBuilder {
     return apply;
   }
 
-  compare(type: Field, op: string) {
+  private compare(type: Field, op: string) {
     return (right: unknown) => {
       const apply = (or?: boolean) => {
         const r = typeof right === "number" ? right : String(right);
@@ -347,29 +346,13 @@ class QueryBuilder {
     };
   }
 
-  orderBy(field: Field, direction: "asc" | "desc"){
+  private orderBy(field: Field, direction: "asc" | "desc"){
     return () => {
       this.builder.orderBy(String(field), direction);
     }
   }
 
-  async get(limit?: number): Promise<any[]> {
-    let execute = this.builder;
-
-    if(limit)
-      execute = execute.clone().limit(limit);
-
-    if(this.parse)
-      return execute.then(this.parse);
-
-    return await execute;
-  }
-
-  async count(){
-    return this.builder.clone().clearSelect().count();
-  }
-
-  use<T extends Type>(
+  private use<T extends Type>(
     type: Type.EntityType<T>,
     joinOn: Query.Join.On<any>,
     joinMode?: Query.Join.Mode){
