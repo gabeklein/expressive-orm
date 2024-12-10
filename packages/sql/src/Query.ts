@@ -53,7 +53,7 @@ declare namespace Query {
     order: QueryBuilder["order"];
   };
 
-  interface Compare<T> {
+  interface Compare<T = any> {
     is(equalTo: T): Instruction;
     isNot(equalTo: T): Instruction;
     isMore(than: T): Instruction;
@@ -223,12 +223,7 @@ class QueryBuilder<T = unknown> {
       return this.andOr(...arguments)
 
     if(type instanceof Field)
-      return {
-        is: this.compare(type, "="),
-        isNot: this.compare(type, "<>"),
-        isMore: this.compare(type, ">"),
-        isLess: this.compare(type, "<")
-      }
+      return  this.compare(type);
 
     const table = RelevantTable.get(type);
 
@@ -330,16 +325,24 @@ class QueryBuilder<T = unknown> {
     return apply;
   }
 
-  private compare(type: Field, op: string) {
-    return (right: unknown) => {
+  private compare<T extends Field>(type: T): Query.Compare {
+    const using = (op: string) => (right: Field) => {
       const apply = (or?: boolean) => {
-        const r = typeof right === "number" ? right : String(right);
+        // TODO: this should incorperate field.set
+        const r = typeof right == "number" ? right : String(right);
         this.builder[or ? "orWhere" : "where"](String(type), op, r);
       }
 
       this.pending.add(apply);
 
       return apply;
+    };
+
+    return {
+      is: using("="),
+      isNot: using("<>"),
+      isMore: using(">"),
+      isLess: using("<")
     };
   }
 
