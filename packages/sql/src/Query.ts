@@ -148,28 +148,24 @@ class QueryBuilder<T = unknown> {
   
       return await execute;
     }
+
+    const one = async (orFail?: boolean) => {
+      const res = await get(1);
+  
+      if(res.length == 0 && orFail)
+        throw new Error("Query returned no results.");
+  
+      return res[0] as T;
+    }
     
-    const query = {
-      then(resolve: (res: any) => any, reject: (err: any) => any){
-        return get().then<T[]>(resolve).catch(reject);
-      },
+    const query: Query = {
+      then: (resolve, reject) => get().then(resolve).catch(reject),
       count: () => this.builder.clone().clearSelect().count(),
       toString: () => this.builder.toString().replace(/```/g, "`")
     }
   
     if(this.parse)
-      return {
-        ...query,
-        get,
-        async one(orFail?: boolean){
-          const res = await this.get(1);
-      
-          if(res.length == 0 && orFail)
-            throw new Error("Query returned no results.");
-      
-          return res[0] as T;
-        }
-      }
+      return { ...query, get, one } as SelectQuery;
   
     return query;
   }
