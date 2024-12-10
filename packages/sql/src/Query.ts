@@ -14,37 +14,6 @@ declare namespace Query {
     toString(): string;
   }
 
-  interface Where {
-    /**
-     * Accepts instructions for nesting in a parenthesis.
-     * When only one group of instructions is provided, the statement are separated by OR.
-     **/
-    (orWhere: Instructions): Instruction;
-
-    /**
-     * Accepts instructions for nesting in a parenthesis.
-     * 
-     * When multiple groups of instructions are provided, the groups
-     * are separated by OR and nested comparisons are separated by AND.
-     */
-    (...orWhere: Instructions[]): Instruction;
-  
-    /** Create a reference to the primary table, returned object can be used to query against that table. */
-    <T extends Type>(entity: Type.EntityType<T>): From<T>;
-  
-    /** Registers a type as a inner join. */
-    <T extends Type>(entity: Type.EntityType<T>, on: Join.On<T>, join?: "inner"): Join<T>;
-
-    /** Registers a type as a left join, returned object has optional properties which may be undefined where the join is not present. */
-    <T extends Type>(entity: Type.EntityType<T>, on: Join.On<T>, join: Join.Mode): Join.Left<T>;
-
-    /** Prepares write operations for a particular table. */
-    <T extends Type>(field: From<T>): Verbs<T>;
-    
-    /** Prepare comparison against a particilar field, returns operations for the given type. */
-    <T>(field: T): Assert<FieldOrValue<T>>;
-  }
-
   type FieldOrValue<T> = T extends Field<infer U> ? U : T;
 
   type From<T extends Type = Type> = {
@@ -81,6 +50,8 @@ declare namespace Query {
   type Instructions  = Instruction[];
 
   type CompareValue<T> = T extends { get(): infer V } ? V : T;
+
+  type Where = QueryBuilder["where"];
 
   interface Compare<T> {
     is(equalTo: T): Instruction;
@@ -151,7 +122,7 @@ function Query(from: Query.Function<void>): Query<number>;
 
 function Query<T = void>(constructor: Query.Function<T>): Query | SelectQuery {
   const builder = new QueryBuilder();
-  const selects = builder.where(constructor);
+  const selects = builder.build(constructor);
   const query = {
     then(resolve: (res: any) => any, reject: (err: any) => any){
       return builder.get().then<T[]>(resolve).catch(reject);
@@ -195,43 +166,83 @@ class QueryBuilder {
     return this.builder.toString().replace(/```/g, "`");
   }
 
-  where<T>(fn: Query.Function<T>){
-    const self = this;
+  /**
+   * Accepts instructions for nesting in a parenthesis.
+   * When only one group of instructions is provided, the statement are separated by OR.
+   */
+  where(orWhere: Query.Instructions): Query.Instruction;
 
-    function where(type: any, on?: any, joinMode?: any){
-      if(Array.isArray(type))
-        return self.andOr(...arguments)
+  /**
+   * Accepts instructions for nesting in a parenthesis.
+   * 
+   * When multiple groups of instructions are provided, the groups
+   * are separated by OR and nested comparisons are separated by AND.
+   */
+  where(...orWhere: Query.Instructions[]): Query.Instruction;
 
-      if(isTypeConstructor(type))
-        return self.use(type, on, joinMode);
-  
-      if(type instanceof Field)
-        return {
-          is: self.compare(type, "="),
-          isNot: self.compare(type, "<>"),
-          isMore: self.compare(type, ">"),
-          isLess: self.compare(type, "<"),
-          isAsc: self.orderBy(type, "asc"),
-          isDesc: self.orderBy(type, "desc"),
-        }
+  /**
+   * Create a reference to the primary table, returned
+   * object can be used to query against that table.
+   */
+  where<T extends Type>(entity: Type.EntityType<T>): Query.From<T>;
 
-      const table = RelevantTable.get(type);
-  
-      if(!table)
-        throw new Error(`Argument ${type} is not a query argument.`);
-  
-      return <Query.Verbs<Type>> {
-        delete: () => {
-          self.builder.table(table.name).delete();
-        },
-        update: (data: Query.Update<any>) => {
-          data = digest.call(table.type, data);
-          self.builder.table(table.name).update(data);
-        }
+  /**
+   * Registers a type as a inner join.
+   */
+  where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join?: "inner"): Query.Join<T>;
+
+  /**
+   * Registers a type as a left join, returned object has optional
+   * properties which may be undefined where the join is not present.
+   */
+  where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join: Query.Join.Mode): Query.Join.Left<T>;
+
+  /**
+   * Prepares write operations for a particular table.
+   */
+  where<T extends Type>(field: Query.From<T>): Query.Verbs<T>;
+
+  /**
+   * Prepare comparison against a particilar field,
+   * returns operations for the given type.
+   */
+  where<T>(field: T): Query.Assert<Query.FieldOrValue<T>>;
+
+  where(type: any, on?: any, joinMode?: any){
+    if(isTypeConstructor(type))
+      return this.use(type, on, joinMode);
+
+    if(Array.isArray(type))
+      return this.andOr(...arguments)
+
+    if(type instanceof Field)
+      return {
+        is: this.compare(type, "="),
+        isNot: this.compare(type, "<>"),
+        isMore: this.compare(type, ">"),
+        isLess: this.compare(type, "<"),
+        isAsc: this.orderBy(type, "asc"),
+        isDesc: this.orderBy(type, "desc"),
+      }
+
+    const table = RelevantTable.get(type);
+
+    if(!table)
+      throw new Error(`Argument ${type} is not a query argument.`);
+
+    return <Query.Verbs<Type>> {
+      delete: () => {
+        this.builder.table(table.name).delete();
+      },
+      update: (data: Query.Update<any>) => {
+        data = digest.call(table.type, data);
+        this.builder.table(table.name).update(data);
       }
     }
+  }
 
-    const selects = fn(where as any);
+  build<T>(fn: Query.Function<T>){
+    const selects = fn(this.where.bind(this));
 
     this.pending.forEach(fn => fn());
     this.pending.clear();
