@@ -122,6 +122,10 @@ class Field<T = unknown> extends BaseField {
   increment: boolean = false;
   default?: unknown = undefined;
 
+  toString(){
+    return this.parent.table + "." + this.column;
+  }
+
   /** Real datatype of this field in database. */
   get datatype(){
     return this.type;

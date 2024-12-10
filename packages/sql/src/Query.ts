@@ -459,7 +459,7 @@ class QueryBuilder {
           const field = type.fields.get(key);
   
           if (field instanceof Field)
-            table.on(`${type.table}.${field.column}`, "=", String(joinOn[key]));
+            table.on(String(field), "=", String(joinOn[key]));
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }
