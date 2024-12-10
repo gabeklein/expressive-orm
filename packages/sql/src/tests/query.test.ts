@@ -38,9 +38,9 @@ describe("where", () => {
       const test = where(Test);
   
       where(test.a).is(1);
-      where(test.b).isNot(2);
-      where(test.c).isMore(3);
-      where(test.d).isLess(4);
+      where(test.b).not(2);
+      where(test.c).more(3);
+      where(test.d).less(4);
     });
   
     expect(query).toMatchInlineSnapshot(`
@@ -84,7 +84,7 @@ describe("where", () => {
     const query = Query(where => {
       const foo = where(Foo);
 
-      where(foo.id).isMore(1);
+      where(foo.id).more(1);
 
       where([ 
         where(foo.name).is("Gabe"),

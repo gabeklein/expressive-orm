@@ -15,11 +15,11 @@ describe("where", () => {
       const item = where(Item);
 
       where(item.number).is(5);
-      where(item.number).isNot(0);
-      where(item.number).isMore(4);
-      where(item.number).isMore(5, true);
-      where(item.number).isLess(6);
-      where(item.number).isLess(5, true);
+      where(item.number).not(0);
+      where(item.number).more(4);
+      where(item.number).more(5, true);
+      where(item.number).less(6);
+      where(item.number).less(5, true);
     });
 
     expect(results).toMatchInlineSnapshot(`

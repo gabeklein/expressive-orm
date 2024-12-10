@@ -23,12 +23,8 @@ declare namespace Query {
   namespace Join {
     type Mode = "left" | "inner";
 
-    type Where = (field: Field) => {
-      is(equalTo: Field): void;
-      isNot(equalTo: Field): void;
-      isMore(than: Field): void;
-      isLess(than: Field): void;
-    }
+    // TODO: does not chain like actual Compare
+    type Where = (field: Field) => Compare<Field>;
 
     type Function = (on: Where) => void;
 
@@ -54,10 +50,10 @@ declare namespace Query {
   };
 
   interface Compare<T = any> {
-    is(equalTo: T): Instruction;
-    isNot(equalTo: T): Instruction;
-    isMore(than: T, orEqual?: boolean): Instruction;
-    isLess(than: T, orEqual?: boolean): Instruction;
+    is(equal: T): Instruction;
+    not(equal: T): Instruction;
+    more(than: T, orEqual?: boolean): Instruction;
+    less(than: T, orEqual?: boolean): Instruction;
   }
 
   interface Verbs <T extends Type> {
@@ -297,7 +293,7 @@ class QueryBuilder<T = unknown> {
 
         target[prop] = value;
       })
-        
+
       return values;
     })
   }
@@ -342,9 +338,9 @@ class QueryBuilder<T = unknown> {
 
     return {
       is: using("="),
-      isNot: using("<>"),
-      isMore: using(">"),
-      isLess: using("<")
+      not: using("<>"),
+      more: using(">"),
+      less: using("<")
     };
   }
 
@@ -437,15 +433,16 @@ class QueryBuilder<T = unknown> {
             if (!(field instanceof Field))
               throw new Error("Join assertions can only apply to fields.");
 
-            const on = (op: string) => (right: Field) => {
+            const on = (operator: string) => (right: Field, orEqual?: boolean): any => {
+              const op = orEqual ? `${operator}=` : operator;
               table.on(String(field), op, String(right));
             };
 
             return {
               is: on("="),
-              isNot: on("<>"),
-              isMore: on(">"),
-              isLess: on("<"),
+              not: on("<>"),
+              more: on(">"),
+              less: on("<"),
             }
           });
         })

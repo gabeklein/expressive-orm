@@ -24,7 +24,7 @@ describe("get method", () => {
 
   it("will query rows", async () => {
     const results = await Item.get((item, where) => {
-      where(item.number).isMore(5);
+      where(item.number).more(5);
     });
 
     expect(results).toMatchObject([
@@ -37,7 +37,7 @@ describe("get method", () => {
 
   it("will limit queried rows", async () => {
     const results = await Item.get(2, (item, where) => {
-      where(item.number).isMore(5);
+      where(item.number).more(5);
     });
 
     expect(results).toMatchObject([
