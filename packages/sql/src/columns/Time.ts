@@ -12,14 +12,17 @@ class DateTime extends Field<Date> {
     return new global.Date(value.replace(/[-]/g, '/') + "Z");
   }
 
-  set(value: string | Date){
+  set(value: string | Date, data: Field.Output){
     if(value === "NOW")
-      return "CURRENT_TIMESTAMP";
+      value = "CURRENT_TIMESTAMP";
 
-    if(value instanceof Date)
-      return value.toISOString().slice(0, 19).replace("T", " ");
+    else if(value instanceof Date)
+      value = value.toISOString().slice(0, 19).replace("T", " ");
 
-    throw "Value must be a Date object."
+    else
+      throw "Value must be a Date object."
+
+    super.set(value, data);
   }
 }
 
