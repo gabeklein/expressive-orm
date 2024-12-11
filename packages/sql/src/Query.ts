@@ -337,7 +337,7 @@ class QueryBuilder<T = unknown> {
     };
 
     return {
-      is: using("="),
+      equal: using("="),
       not: using("<>"),
       more: using(">"),
       less: using("<")
@@ -439,7 +439,7 @@ class QueryBuilder<T = unknown> {
             };
 
             return {
-              is: on("="),
+              equal: on("="),
               not: on("<>"),
               more: on(">"),
               less: on("<"),

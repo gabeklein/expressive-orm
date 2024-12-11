@@ -14,7 +14,7 @@ describe("where", () => {
     const results = Query(where => {
       const item = where(Item);
 
-      where(item.number).is(5);
+      where(item.number).equal(5);
       where(item.number).not(0);
       where(item.number).more(4);
       where(item.number).more(5, true);

@@ -10,7 +10,7 @@ it("will count query by default", () => {
   const query = Query(where => {
     const foo = where(Foo);
 
-    where(foo.color).is("red");
+    where(foo.color).equal("red");
   });
 
   const qb = query.toString();
@@ -37,7 +37,7 @@ describe("where", () => {
     const query = Query(where => {
       const test = where(Test);
   
-      where(test.a).is(1);
+      where(test.a).equal(1);
       where(test.b).not(2);
       where(test.c).more(3);
       where(test.d).less(4);
@@ -62,8 +62,8 @@ describe("where", () => {
 
       // @ts-ignore
       where([
-        where(foo.name).is("Gabe"),
-        where(foo.color).is("purple"),
+        where(foo.name).equal("Gabe"),
+        where(foo.color).equal("purple"),
       ])
     });
 
@@ -87,13 +87,13 @@ describe("where", () => {
       where(foo.id).more(1);
 
       where([ 
-        where(foo.name).is("Gabe"),
-        where(foo.color).is("red"),
+        where(foo.name).equal("Gabe"),
+        where(foo.color).equal("red"),
       ], [
-        where(foo.name).is("Bob"),
+        where(foo.name).equal("Bob"),
         where([
-          where(foo.color).is("blue"),
-          where(foo.color).is("green"),
+          where(foo.color).equal("blue"),
+          where(foo.color).equal("green"),
         ])
       ])
     });
@@ -182,7 +182,7 @@ describe("schema", () => {
     const query = Query(where => {
       const foo = where(Foo);
   
-      where(foo.color).is("red");
+      where(foo.color).equal("red");
     })
   
     expect(query).toMatchInlineSnapshot(`

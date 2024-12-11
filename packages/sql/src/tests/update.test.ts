@@ -9,7 +9,7 @@ it("will generate query", () => {
   const query = Query(where => {
     const foo = where(Foo);
 
-    where(foo.color).is("red");
+    where(foo.color).equal("red");
     where(foo).update({
       value: "new!",
       color: "blue"
