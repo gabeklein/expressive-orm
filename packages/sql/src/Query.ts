@@ -2,6 +2,7 @@ import knex, { Knex } from 'knex';
 
 import { Field } from './Field';
 import { digest, isTypeConstructor, Type } from './Type';
+import { Computed, math, MathOps } from './math';
 
 const RelevantTable = new WeakMap<{}, Query.Table>();
 
@@ -49,7 +50,7 @@ declare namespace Query {
 
   type Where = 
     & QueryBuilder["where"]
-    & ReturnType<QueryBuilder["math"]>
+    & MathOps
     & {
       is: QueryBuilder["where"];
       order: QueryBuilder["order"];
@@ -141,102 +142,9 @@ class QueryBuilder<T = unknown> {
     context.order = this.order.bind(this);
     context.is = this.where.bind(this);
 
-    Object.assign(context, this.math());
+    Object.assign(context, math());
 
     this.commit(fn(context));
-  }
-
-  raw(sql: string | Field | Computed<unknown>){
-    return typeof sql == "string" ? sql : this.engine.raw(sql.toString());
-  }
-
-  private math(){
-    type Value = Query.Value;
-    type ANumeric = Query.ANumeric;
-    type Numeric = Query.Numeric;
-
-    function op(op: string, rank: number, unary: true): (value: Value) => Value;
-    function op(op: string, rank: number, unary?: false): (left: Value, right: Value) => Value;
-    function op(op: string, rank: number, arg2?: boolean){
-      return (l: any, r?: any) => {
-        const input = arg2 === true ? [op, l] : [l, op, r]
-        const computed = new Computed(...input);
-
-        computed.rank = rank || 0;
-
-        return computed;
-      }
-    }
-
-    type MathOps = {
-      add(left: Numeric, right: Numeric): Numeric;
-      add(left: ANumeric, right: ANumeric): ANumeric;
-      sub(left: Numeric, right: Numeric): Numeric;
-      mul(left: Numeric, right: Numeric): Numeric;
-      div(left: Numeric, right: Numeric): Numeric;
-      mod(left: Numeric, right: Numeric): Numeric;
-      neg(value: Numeric): Numeric;
-      bit: {
-        not(value: Numeric): Numeric;
-        and(left: Numeric, right: Numeric): Numeric;
-        or(left: Numeric, right: Numeric): Numeric;
-        xor(left: Numeric, right: Numeric): Numeric;
-        left(value: Numeric, shift: Numeric): Numeric;
-        right(value: Numeric, shift: Numeric): Numeric;
-      }
-    }
-
-    return <MathOps> {
-      add: op('+', 4),
-      sub: op('-', 4),
-      mul: op('*', 5),
-      div: op('/', 5),
-      mod: op('%,', 5),
-      neg: op('-', 7, true),
-      pos: op('+', 7, true),
-      bit: {
-        not: op('~', 6, true),
-        left: op('<<', 3),
-        right: op('>>', 3),
-        and: op('&', 2),
-        or: op('|', 0),
-        xor: op('^', 1),
-      }
-    }
-  }
-
-  toRunner(){
-    const get = async (limit?: number) => {
-      let execute = this.builder;
-  
-      if(limit)
-        execute = execute.clone().limit(limit);
-  
-      if(this.parse)
-        return execute.then(this.parse);
-  
-      return await execute;
-    }
-
-    const one = async (orFail?: boolean) => {
-      const res = await get(1);
-  
-      if(res.length == 0 && orFail)
-        throw new Error("Query returned no results.");
-  
-      return res[0] as T;
-    }
-    
-    const query: Query = {
-      then: (resolve, reject) => get().then(resolve).catch(reject),
-      count: () => this.builder.clone().clearSelect().count(),
-      toString: () => this.builder.toString().replace(/```/g, "`")
-    }
-  
-    if(this.parse)
-      return { ...query, get, one } as SelectQuery;
-  
-    return query;
   }
 
   /**
@@ -419,6 +327,44 @@ class QueryBuilder<T = unknown> {
     }
   }
 
+  raw(sql: string | Field | Computed<unknown>){
+    return typeof sql == "string" ? sql : this.engine.raw(sql.toString());
+  }
+
+  toRunner(){
+    const get = async (limit?: number) => {
+      let execute = this.builder;
+  
+      if(limit)
+        execute = execute.clone().limit(limit);
+  
+      if(this.parse)
+        return execute.then(this.parse);
+  
+      return await execute;
+    }
+
+    const one = async (orFail?: boolean) => {
+      const res = await get(1);
+  
+      if(res.length == 0 && orFail)
+        throw new Error("Query returned no results.");
+  
+      return res[0] as T;
+    }
+    
+    const query: Query = {
+      then: (resolve, reject) => get().then(resolve).catch(reject),
+      count: () => this.builder.clone().clearSelect().count(),
+      toString: () => this.builder.toString().replace(/```/g, "`")
+    }
+  
+    if(this.parse)
+      return { ...query, get, one } as SelectQuery;
+  
+    return query;
+  }
+
   use<T extends Type>(
     type: Type.EntityType<T>,
     joinOn: Query.Join.On<any>,
@@ -546,26 +492,6 @@ class QueryBuilder<T = unknown> {
       default:
         throw new Error(`Invalid join type ${joinMode}.`);
     }
-  }
-}
-
-class Computed<T> extends Array<T | Field<T> | Computed<T>> {
-  rank = 0;
-
-  get(input: unknown){
-    return input as string;
-  }
-  
-  toString(): string {
-    return this.map(value => {
-      if(typeof value == "number")
-        return value;
-
-      if(value instanceof Computed)
-        return value.rank > this.rank ? value : `(${value})`;
-
-      return String(value);
-    }).join(" ");
   }
 }
 
