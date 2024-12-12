@@ -14,7 +14,7 @@ declare namespace Query {
     toString(): string;
   }
 
-  type FieldOrValue<T> = T extends Field<infer U> ? U : T;
+  type FieldOrValue<T> = T extends Value<infer U> ? U : T;
 
   type From<T extends Type = Type> = {
     [K in Type.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
@@ -43,17 +43,23 @@ declare namespace Query {
   /** A group of query instructions declared within parenthesis. */
   type Instructions  = Instruction[];
 
-  type CompareValue<T> = T extends { get(): infer V } ? V : T;
+  type Value<T = any> = T | Field<T> | Computed<T>;
+  type ANumeric = Value<string | number>;
+  type Numeric = Value<number>;
 
-  type Where = QueryBuilder["where"] & {
-    order: QueryBuilder["order"];
-  };
+  type Where = 
+    & QueryBuilder["where"]
+    & ReturnType<QueryBuilder["math"]>
+    & {
+      is: QueryBuilder["where"];
+      order: QueryBuilder["order"];
+    };
 
   interface Compare<T = any> {
-    is(equal: T): Instruction;
-    not(equal: T): Instruction;
-    more(than: T, orEqual?: boolean): Instruction;
-    less(than: T, orEqual?: boolean): Instruction;
+    equal(value: Value<T>): Instruction;
+    not(value: Value<T>): Instruction;
+    more(than: Value<T>, orEqual?: boolean): Instruction;
+    less(than: Value<T>, orEqual?: boolean): Instruction;
   }
 
   interface Verbs <T extends Type> {
@@ -123,6 +129,8 @@ Query.one = function one<T extends {}>(
 
 class QueryBuilder<T = unknown> {
   builder!: Knex.QueryBuilder;
+  engine!: knex.Knex<any, unknown[]>;
+
   tables = [] as Query.Table[];
   pending = new Set<Query.Instruction>();
   parse?: (raw: any[]) => any[];
@@ -131,8 +139,70 @@ class QueryBuilder<T = unknown> {
     const context = this.where.bind(this) as Query.Where;
 
     context.order = this.order.bind(this);
+    context.is = this.where.bind(this);
+
+    Object.assign(context, this.math());
 
     this.commit(fn(context));
+  }
+
+  raw(sql: string | Field | Computed<unknown>){
+    return typeof sql == "string" ? sql : this.engine.raw(sql.toString());
+  }
+
+  private math(){
+    type Value = Query.Value;
+    type ANumeric = Query.ANumeric;
+    type Numeric = Query.Numeric;
+
+    function op(op: string, rank: number, unary: true): (value: Value) => Value;
+    function op(op: string, rank: number, unary?: false): (left: Value, right: Value) => Value;
+    function op(op: string, rank: number, arg2?: boolean){
+      return (l: any, r?: any) => {
+        const input = arg2 === true ? [op, l] : [l, op, r]
+        const computed = new Computed(...input);
+
+        computed.rank = rank || 0;
+
+        return computed;
+      }
+    }
+
+    type MathOps = {
+      add(left: Numeric, right: Numeric): Numeric;
+      add(left: ANumeric, right: ANumeric): ANumeric;
+      sub(left: Numeric, right: Numeric): Numeric;
+      mul(left: Numeric, right: Numeric): Numeric;
+      div(left: Numeric, right: Numeric): Numeric;
+      mod(left: Numeric, right: Numeric): Numeric;
+      neg(value: Numeric): Numeric;
+      bit: {
+        not(value: Numeric): Numeric;
+        and(left: Numeric, right: Numeric): Numeric;
+        or(left: Numeric, right: Numeric): Numeric;
+        xor(left: Numeric, right: Numeric): Numeric;
+        left(value: Numeric, shift: Numeric): Numeric;
+        right(value: Numeric, shift: Numeric): Numeric;
+      }
+    }
+
+    return <MathOps> {
+      add: op('+', 4),
+      sub: op('-', 4),
+      mul: op('*', 5),
+      div: op('/', 5),
+      mod: op('%,', 5),
+      neg: op('-', 7, true),
+      pos: op('+', 7, true),
+      bit: {
+        not: op('~', 6, true),
+        left: op('<<', 3),
+        right: op('>>', 3),
+        and: op('&', 2),
+        or: op('|', 0),
+        xor: op('^', 1),
+      }
+    }
   }
 
   toRunner(){
@@ -260,16 +330,16 @@ class QueryBuilder<T = unknown> {
     if(typeof selects != "object")
       throw new Error("Invalid selection.");
       
-    const output = new Map<Field, string>();
+    const output = new Map<(data: any) => any, string>();
 
     const scan = (obj: any, path?: string) => {
       for(const key of Object.getOwnPropertyNames(obj)){
-        const select = obj[key];
         const use = path ? `${path}.${key}` : key;
+        const select = obj[key];
 
-        if(select instanceof Field){
-          output.set(select, use);
-          this.builder.select({ [use]: String(select) });
+        if(select instanceof Field || select instanceof Computed){
+          output.set(raw => select.get(raw), use);
+          this.builder.select({ [use]: this.raw(select) });
         }
         else if(typeof select == "object")
           scan(select, use);
@@ -281,17 +351,15 @@ class QueryBuilder<T = unknown> {
     this.parse = raw => raw.map(row => {
       const values = {} as any;
     
-      output.forEach((path, value) => {
-        let target = values;
-        const goto = path.split(".");
+      output.forEach((column, value) => {
+        const goto = column.split(".");
         const prop = goto.pop() as string;
-
-        value = value.get(row[path]) as any;
+        let target = values;
 
         for(const path of goto)
           target = target[path] || (target[path] = {});
 
-        target[prop] = value;
+        target[prop] = value(row[column]);
       })
 
       return values;
@@ -323,11 +391,11 @@ class QueryBuilder<T = unknown> {
 
   private compare<T extends Field>(type: T): Query.Compare {
     const ref = String(type);
-    const using = (operator: string) => (right: Field, orEqual?: boolean) => {
+    const using = (operator: string) => (right: Query.Value<any>, orEqual?: boolean) => {
       const apply = (or?: boolean) => {
         const op = orEqual ? `${operator}=` : operator;
         // TODO: this should incorperate field.set
-        const r = typeof right == "number" ? right : String(right);
+        const r = typeof right == "number" ? right : this.raw(right);
         this.builder[or ? "orWhere" : "where"](ref, op, r);
       }
 
@@ -400,7 +468,7 @@ class QueryBuilder<T = unknown> {
     Object.freeze(proxy);
 
     if(!main){
-      const engine = type.connection?.knex || knex({
+      const engine = this.engine = type.connection?.knex || knex({
         client: "sqlite3",
         useNullAsDefault: true,
         pool: { max: 0 }
@@ -478,6 +546,26 @@ class QueryBuilder<T = unknown> {
       default:
         throw new Error(`Invalid join type ${joinMode}.`);
     }
+  }
+}
+
+class Computed<T> extends Array<T | Field<T> | Computed<T>> {
+  rank = 0;
+
+  get(input: unknown){
+    return input as string;
+  }
+  
+  toString(): string {
+    return this.map(value => {
+      if(typeof value == "number")
+        return value;
+
+      if(value instanceof Computed)
+        return value.rank > this.rank ? value : `(${value})`;
+
+      return String(value);
+    }).join(" ");
   }
 }
 
