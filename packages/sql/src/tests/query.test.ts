@@ -1,3 +1,4 @@
+import { inMemoryDatabase } from '.';
 import { Num, Query, Str, Table, Time, Type } from '../';
 
 class Foo extends Type {
@@ -127,11 +128,22 @@ describe("sort", () => {
     rating = Num();
   }
 
+  inMemoryDatabase({ Test }, async () => {
+    await Test.insert([
+      { name: "A", rating: 1 },
+      { name: "B", rating: 2 },
+      { name: "C", rating: 3 },
+      { name: "D", rating: 1 },
+      { name: "E", rating: 2 },
+      { name: "F", rating: 3 },
+    ])
+  });
+
   it("will add order clause", async () => {
     const query = Query(where => {
       const test = where(Test);
   
-      where.order(test.id).asc()
+      where.order(test.id).desc()
   
       return test.name;
     });
@@ -142,16 +154,18 @@ describe("sort", () => {
       FROM
         test
       ORDER BY
-        test.id ASC
+        test.id DESC
     `);
+
+    expect(await query).toEqual(["F", "E", "D", "C", "B", "A"]);
   })
 
-  it("will add multiple clauses", async () => {
+  it("will sort multiple columns", async () => {
     const query = Query(where => {
       const test = where(Test);
   
       where.order(test.rating).asc()
-      where.order(test.name).asc()
+      where.order(test.name).desc()
   
       return test.name;
     });
@@ -163,8 +177,10 @@ describe("sort", () => {
         test
       ORDER BY
         test.rating ASC,
-        test.name ASC
+        test.name DESC
     `);
+
+    // SQLite may not support multiple column sorting
   })  
 })
 
