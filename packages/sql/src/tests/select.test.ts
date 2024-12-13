@@ -75,7 +75,7 @@ describe("select", () => {
   
     expect<Returns>(query).toMatchInlineSnapshot(`
       SELECT
-        foo.bar AS bar
+        foo.bar
       FROM
         foo
     `);

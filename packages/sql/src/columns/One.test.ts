@@ -22,7 +22,7 @@ it("will query via direct selection", () => {
 
   expect(query).toMatchInlineSnapshot(`
     SELECT
-      b.value AS value
+      b.value
     FROM
       a
       INNER JOIN b ON b.id = a.b_id
@@ -61,7 +61,7 @@ it("will query nested relationships", () => {
 
   expect(query).toMatchInlineSnapshot(`
     SELECT
-      c.label AS label
+      c.label
     FROM
       a
       INNER JOIN b ON b.id = a.b_id

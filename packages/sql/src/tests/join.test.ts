@@ -160,7 +160,7 @@ it("will sort by joined table", async () => {
 
   expect<Returns>(query).toMatchInlineSnapshot(`
     SELECT
-      other.name AS name
+      other.name
     FROM
       test
       INNER JOIN other ON other.name = test.name

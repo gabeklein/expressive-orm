@@ -138,7 +138,7 @@ describe("sort", () => {
   
     expect(query).toMatchInlineSnapshot(`
       SELECT
-        test.name AS name
+        test.name
       FROM
         test
       ORDER BY
@@ -153,14 +153,12 @@ describe("sort", () => {
       where.order(test.rating).asc()
       where.order(test.name).asc()
   
-      return {
-        name: test.name
-      }
+      return test.name;
     });
   
     expect(query).toMatchInlineSnapshot(`
       SELECT
-        test.name AS name
+        test.name
       FROM
         test
       ORDER BY

@@ -199,7 +199,7 @@ class QueryBuilder<T = unknown> {
       return this.andOr(...arguments)
 
     if(type instanceof Field)
-      return  this.compare(type);
+      return this.compare(type);
 
     const table = RelevantTable.get(type);
 
@@ -227,12 +227,8 @@ class QueryBuilder<T = unknown> {
     }
 
     if(selects instanceof Field){
-      const name = selects.column;
-  
-      this.builder.select({ [name]: String(selects) });
-      this.parse = raw => raw.map(({ [name]: value }) => (
-        selects.get ? selects.get(value) : value
-      ));
+      this.builder.select(String(selects));
+      this.parse = raw => raw.map(row => selects.get(row[selects.column]));
 
       return;
     }
