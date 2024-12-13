@@ -327,7 +327,7 @@ class QueryBuilder<T = unknown> {
     }
   }
 
-  raw(sql: string | Field | Computed<unknown>){
+  private raw(sql: string | Field | Computed<unknown>){
     return typeof sql == "string" ? sql : this.engine.raw(sql.toString());
   }
 
@@ -437,7 +437,7 @@ class QueryBuilder<T = unknown> {
     joinOn: Query.Join.On<any>,
     joinMode?: Query.Join.Mode){
 
-    const { name, type } = table;
+    const { name, type, proxy } = table;
     let callback: Knex.JoinCallback;
 
     if (typeof joinOn === "function")
@@ -464,7 +464,7 @@ class QueryBuilder<T = unknown> {
     else if (typeof joinOn === "object")
       callback = (table) => {
         for (const key in joinOn) {
-          const field = type.fields.get(key);
+          const field = proxy[key];
   
           if (field instanceof Field)
             table.on(String(field), "=", String(joinOn[key]));

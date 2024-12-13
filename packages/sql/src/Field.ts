@@ -122,8 +122,8 @@ class Field<T = unknown> extends BaseField {
   increment: boolean = false;
   default?: unknown = undefined;
 
-  toString(){
-    return this.parent.table + "." + this.column;
+  toString(): string {
+    throw new Error("Field.toString() must be overridden.");
   }
 
   /** Real datatype of this field in database. */
