@@ -54,6 +54,7 @@ declare namespace Query {
     & {
       is: QueryBuilder["where"];
       order: QueryBuilder["order"];
+      limit: QueryBuilder["limit"];
     };
 
   interface Compare<T = any> {
@@ -141,6 +142,7 @@ class QueryBuilder<T = unknown> {
 
     context.order = this.order.bind(this);
     context.is = this.where.bind(this);
+    context.limit = this.limit.bind(this);
 
     Object.assign(context, math());
 
@@ -329,6 +331,10 @@ class QueryBuilder<T = unknown> {
 
   private raw(sql: string | Field | Computed<unknown>){
     return typeof sql == "string" ? sql : this.engine.raw(sql.toString());
+  }
+
+  limit(limit: number){
+    this.builder.limit(limit);
   }
 
   toRunner(){

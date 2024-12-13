@@ -10,6 +10,7 @@ const SQL_KEYWORDS = [
   "column",
   "constraint",
   "create table",
+  "desc",
   "delete",
   "delete from",
   "drop",

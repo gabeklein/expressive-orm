@@ -10,6 +10,30 @@ inMemoryDatabase([Item], async () => {
 });
 
 describe("where", () => {
+  it("will limit results", async () => {
+    const results = Query(where => {
+      const item = where(Item);
+
+      where(item.number).more(3);
+      where.limit(5);
+
+      return item.number;
+    });
+
+    expect(results).toMatchInlineSnapshot(`
+      SELECT
+        item.number
+      FROM
+        item
+      WHERE
+        item.number > 3
+      LIMIT
+        5
+    `);
+
+    expect(await results).toEqual([4, 5, 6, 7, 8]);
+  });
+
   it("will add operator clauses", () => {
     const results = Query(where => {
       const item = where(Item);
