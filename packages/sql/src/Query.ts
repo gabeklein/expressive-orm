@@ -1,7 +1,7 @@
 import knex, { Knex } from 'knex';
 
 import { Field } from './Field';
-import { digest, isTypeConstructor, Type } from './Type';
+import { isTypeConstructor, Type } from './Type';
 import { Computed, math, MathOps } from './math';
 
 const RelevantTable = new WeakMap<{}, Query.Table>();
@@ -211,8 +211,7 @@ class QueryBuilder<T = unknown> {
         this.builder.table(table.name).delete();
       },
       update: (data: Query.Update<any>) => {
-        data = digest.call(table.type, data);
-        this.builder.table(table.name).update(data);
+        this.builder.table(table.name).update(table.type.digest(data));
       }
     }
   }
@@ -229,7 +228,6 @@ class QueryBuilder<T = unknown> {
     if(selects instanceof Field){
       this.builder.select(String(selects));
       this.parse = raw => raw.map(row => selects.get(row[selects.column]));
-
       return;
     }
     
@@ -256,7 +254,7 @@ class QueryBuilder<T = unknown> {
 
     this.parse = raw => raw.map(row => {
       const values = {} as any;
-    
+     
       output.forEach((column, value) => {
         const goto = column.split(".");
         const prop = goto.pop() as string;
@@ -295,19 +293,25 @@ class QueryBuilder<T = unknown> {
     return apply;
   }
 
-  private compare<T extends Field>(type: T): Query.Compare {
-    const ref = String(type);
-    const using = (operator: string) => (right: Query.Value<any>, orEqual?: boolean) => {
-      const apply = (or?: boolean) => {
-        const op = orEqual ? `${operator}=` : operator;
-        // TODO: this should incorperate field.set
-        const r = typeof right == "number" ? right : this.raw(right);
-        this.builder[or ? "orWhere" : "where"](ref, op, r);
+  private compare<T extends Field>(left: T): Query.Compare {
+    const using = (operator: string) => {
+      return (right: Query.Value<any>, orEqual?: boolean) => {
+
+        const apply = (or?: boolean) => {
+          const l = String(left);
+          const op = orEqual ? `${operator}=` : operator;
+          const r = 
+            right instanceof Field || right instanceof Computed
+              ? this.raw(right)
+              : left.set(right);  
+
+          this.builder[or ? "orWhere" : "where"](l, op, r);
+        }
+  
+        this.pending.add(apply);
+  
+        return apply;
       }
-
-      this.pending.add(apply);
-
-      return apply;
     };
 
     return {
