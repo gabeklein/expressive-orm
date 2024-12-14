@@ -145,10 +145,7 @@ class QueryBuilder<T = unknown> {
 
     context.is = this.where.bind(this);
     context.order = this.order.bind(this);
-    context.limit = (to: number ): void => {
-      this.builder.limit(to);
-      this.limit = to;
-    }
+    context.limit = (to: number) => { this.limit = to };
 
     Object.assign(context, math());
 
@@ -229,6 +226,9 @@ class QueryBuilder<T = unknown> {
     this.orderBy.forEach((order, field) => {
       this.builder.orderBy(String(field), order);
     });
+
+    if(this.limit)
+      this.builder.limit(this.limit);
 
     if(selects === undefined){
       this.builder.count();
