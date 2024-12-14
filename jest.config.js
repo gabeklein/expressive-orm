@@ -42,19 +42,23 @@ const SQL_KEYWORDS = [
   "where",
 ]
 
+const escapable = new RegExp(`(?:[^\`]|^)(${SQL_KEYWORDS.join("|")})(?<![\`])`, "g");
+
 module.exports = {
   test: (x) => true,
   serialize: (query) => {
-    const regex = new RegExp(`(?:[^\`]|^)(${SQL_KEYWORDS.join("|")})(?<![\`])`, "g");
-
     try {
-      return format(String(query))
-        .replace(regex, x => x.toUpperCase())
+      
+      return format(query.toString())
+        .replace(escapable, x => x.toUpperCase())
         .replace(/^/gm, "")
         .replace(/`([a-zA-Z][a-zA-Z0-9_]*)`/g, "$1");
     }
-    catch (e) {
-      return query;
+    catch(e) {
+      if(typeof query === "string")
+        return query;
+      else
+        throw e;
     }
   }
 }
