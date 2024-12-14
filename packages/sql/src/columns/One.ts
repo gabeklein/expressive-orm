@@ -17,14 +17,11 @@ class JoinOne<T extends Type> extends Field<T> {
   foreignKey = "id";
   column = underscore(this.property) + "_id";
 
-  set(
-    value: Type.Values<T> | number,
-    data: Field.Output
-  ){
-    if(typeof value == "object")
+  set(value: Type.Values<T> | number){
+    if(value && typeof value == "object")
       value = value.id;
 
-    super.set(value, data);
+    return super.set(value);
   }
 
   proxy(table: Query.Table){

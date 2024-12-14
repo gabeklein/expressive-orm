@@ -37,14 +37,15 @@ function Num<T extends Num.Options>(options?: T){
 class Numeric extends Field<number> {
   type: Num.Type["type"] = "int";
 
-  set(value: number, data: Field.Output){
-    super.set(value, data);
-
+  set(value: number){
+    const output = super.set(value);
     if(typeof value !== "number" || isNaN(value))
       throw `Got '${value}' but value must be a number.`
 
     if(this.type === "int" && value !== Math.floor(value))
       throw `Got '${value}' but datatype is integer.`
+
+    return output;
   }
 }
 

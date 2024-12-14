@@ -169,7 +169,10 @@ function digest<T extends Type>(
 
   this.fields.forEach((field, key) => {
     try {
-      field.set(data[key as Type.Fields<T>], values);
+      const value = field.set(data[key as Type.Fields<T>]);
+
+      if(value !== undefined)
+        values[field.column] = value;
     }
     catch(err: unknown){
       const which = array && array.length > 1 ? ` at [${index}]` : "";
@@ -179,7 +182,7 @@ function digest<T extends Type>(
         err.message = message + "\n" + err.message;
         throw err;
       }
-      
+
       if(typeof err == "string")
         message += `\n${err}`;
 

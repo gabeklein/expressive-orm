@@ -131,13 +131,14 @@ class Field<T = unknown> extends BaseField {
     return this.type;
   }
 
-  set(value: unknown, data: Field.Output): void {
+  set(value: unknown): any {
     if(value != null)
-      data[this.column] = typeof value == "number" ? value : String(value);
-    else if(!this.nullable && !this.optional)
-      throw new Error(`Column ${this.column} requires a value but got ${value}.`);
-    else if(value === null)
-      data[this.column] = "NULL";
+      return typeof value == "number" ? value : String(value);
+      
+    if(this.nullable || this.optional)
+      return value === null ? "NULL" : undefined;
+
+    throw new Error(`Column ${this.column} requires a value but got ${value}.`);
   }
 
   get(value: any): T {

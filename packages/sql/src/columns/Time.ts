@@ -12,7 +12,7 @@ class DateTime extends Field<Date> {
     return new global.Date(value.replace(/[-]/g, '/') + "Z");
   }
 
-  set(value: string | Date, data: Field.Output){
+  set(value: string | Date){
     if(value === "NOW")
       value = "CURRENT_TIMESTAMP";
 
@@ -22,7 +22,7 @@ class DateTime extends Field<Date> {
     else
       throw "Value must be a Date object."
 
-    super.set(value, data);
+    return super.set(value);
   }
 }
 

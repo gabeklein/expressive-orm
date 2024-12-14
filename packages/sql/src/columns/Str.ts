@@ -50,35 +50,18 @@ class StringLike extends Field<string> {
     return type;
   }
 
-  set(value: string, data: Field.Output){
-    super.set(value, data);
+  set(value: string){
+    const output = super.set(value);
 
     if(typeof value !== "string")
       throw "Value must be a string."
 
-    if(this.length && value.length > this.length)
+    // TODO: escape characters may add to length
+    if(this.length && output.length > this.length)
       throw `Value length ${value.length} exceeds maximum of ${this.length}.`
 
-    return value;
+    return output;
   }
 }
-
-// Str.char = (length = 255) =>
-//   StringLike.new({ length }) as Str.Char;
-
-// Str.varchar = (length = 255) =>
-//   StringLike.new({ length, type: "varchar" }) as Str.VarChar;
-
-// Str.text = (options?: Partial<Str.Text>) =>
-//   StringLike.new(options);
-
-// Str.tiny = (opts?: Partial<Str.TinyText>) =>
-//   StringLike.new({ ...opts, type: "tinytext" }) as Str.TinyText;
-
-// Str.medium = (opts?: Partial<Str.MediumText>) =>
-//   StringLike.new({ ...opts, type: "mediumtext" }) as Str.MediumText;
-
-// Str.long = (opts?: Partial<Str.LongText>) =>
-//   StringLike.new({ ...opts, type: "longtext" }) as Str.LongText;
 
 export { Str }
