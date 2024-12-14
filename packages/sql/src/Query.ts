@@ -54,7 +54,7 @@ declare namespace Query {
     & {
       is: QueryBuilder["where"];
       order: QueryBuilder["order"];
-      limit: QueryBuilder["limit"];
+      limit: (to: number ) => void
     };
 
   interface Compare<T = any> {
@@ -137,12 +137,18 @@ class QueryBuilder<T = unknown> {
   pending = new Set<Query.Instruction>();
   parse?: (raw: any[]) => any[];
 
+  limit?: number;
+  orderBy = new Map<Field, "asc" | "desc">();
+
   constructor(fn: Query.Function<T>){
     const context = this.where.bind(this) as Query.Where;
 
-    context.order = this.order.bind(this);
     context.is = this.where.bind(this);
-    context.limit = this.limit.bind(this);
+    context.order = this.order.bind(this);
+    context.limit = (to: number ): void => {
+      this.builder.limit(to);
+      this.limit = to;
+    }
 
     Object.assign(context, math());
 
@@ -219,6 +225,10 @@ class QueryBuilder<T = unknown> {
   private commit(selects: unknown){
     this.pending.forEach(fn => fn());
     this.pending.clear();
+
+    this.orderBy.forEach((order, field) => {
+      this.builder.orderBy(String(field), order);
+    });
 
     if(selects === undefined){
       this.builder.count();
@@ -324,17 +334,13 @@ class QueryBuilder<T = unknown> {
 
   private order(field: Field){
     return {
-      asc: () => this.builder.orderBy(String(field), "asc"),
-      desc: () => this.builder.orderBy(String(field), "desc")
+      asc: () => { this.orderBy.set(field, "asc") },
+      desc: () => { this.orderBy.set(field, "desc") }
     }
   }
 
   private raw(sql: string | Field | Computed<unknown>){
-    return typeof sql == "string" ? sql : this.engine.raw(sql.toString());
-  }
-
-  limit(limit: number){
-    this.builder.limit(limit);
+    return typeof sql == "object" ? this.engine.raw(sql.toString()) : sql;
   }
 
   toRunner(){
