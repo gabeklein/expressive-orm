@@ -1,7 +1,9 @@
-import { Knex } from "knex";
-import { Query } from "./Query";
-import { Type } from "./Type";
-import { underscore } from "./utils";
+import { Knex } from 'knex';
+
+import { Computed } from './math';
+import { Query } from './Query';
+import { Type } from './Type';
+import { underscore } from './utils';
 
 const FIELD = new Map<symbol, Field.Init>();
 
@@ -145,6 +147,17 @@ class Field<T = unknown> extends BaseField {
 
   get(value: any): T {
     return value;
+  }
+
+  compare(op: string, value: any){
+    if(!(value instanceof Field) && !(value instanceof Computed)){
+      value = this.set(value);
+
+      if(typeof value == "string")
+        value = `'${value}'`;
+    }
+
+    return new Computed(this.toString(), op, value);
   }
 
   /**

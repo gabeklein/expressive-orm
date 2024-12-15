@@ -224,7 +224,7 @@ class QueryBuilder<T = unknown> {
     this.pending.clear();
 
     this.orderBy.forEach((order, field) => {
-      this.builder.orderBy(String(field), order);
+      this.builder.orderBy(`${field.table}.${field.column}`, order);
     });
 
     if(this.limit)
@@ -236,7 +236,7 @@ class QueryBuilder<T = unknown> {
     }
 
     if(selects instanceof Field){
-      this.builder.select(String(selects));
+      this.builder.select(this.raw(selects));
       this.parse = raw => raw.map(row => selects.get(row[selects.column]));
       return;
     }
@@ -306,16 +306,13 @@ class QueryBuilder<T = unknown> {
   private compare<T extends Field>(left: T): Query.Compare {
     const using = (operator: string) => {
       return (right: Query.Value<any>, orEqual?: boolean) => {
-
         const apply = (or?: boolean) => {
-          const l = String(left);
           const op = orEqual ? `${operator}=` : operator;
-          const r = 
-            right instanceof Field || right instanceof Computed
-              ? this.raw(right)
-              : left.set(right);  
 
-          this.builder[or ? "orWhere" : "where"](l, op, r);
+
+          this.builder[or ? "orWhere" : "where"](
+            this.raw(left.compare(op, right))
+          );
         }
   
         this.pending.add(apply);
