@@ -230,6 +230,61 @@ class QueryBuilder<T = unknown> {
     }
   }
 
+  private andOr(...args: Query.Instructions[]){
+    for(const group of args)
+      for(const fn of group)
+        this.pending.delete(fn);
+
+    const apply = () => {
+      const orGroup = args.length > 1;
+      const current = this.builder;
+
+      args.forEach((group, i) => {
+        this.builder[i > 0 ? "orWhere" : "where"](context => {
+          this.builder = context;
+          group.forEach(fn => fn(!orGroup));
+          this.builder = current;
+        })
+      });
+    }
+
+    this.pending.add(apply);
+
+    return apply;
+  }
+
+  private compare<T extends Field>(left: T): Query.Compare {
+    const using = (operator: string) => {
+      return (right: Query.Value<any>, orEqual?: boolean) => {
+        const apply = (or?: boolean) => {
+          const op = orEqual ? `${operator}=` : operator;
+
+          this.builder[or ? "orWhere" : "where"](
+            this.raw(left.compare(op, right))
+          );
+        }
+  
+        this.pending.add(apply);
+  
+        return apply;
+      }
+    };
+
+    return {
+      equal: using("="),
+      not: using("<>"),
+      more: using(">"),
+      less: using("<")
+    };
+  }
+
+  private order(field: Field){
+    return {
+      asc: () => { this.orderBy.set(field, "asc") },
+      desc: () => { this.orderBy.set(field, "desc") }
+    }
+  }
+
   private commit(selects: unknown){
     this.pending.forEach(fn => fn());
     this.pending.clear();
@@ -289,61 +344,6 @@ class QueryBuilder<T = unknown> {
 
       return values;
     })
-  }
-
-  private andOr(...args: Query.Instructions[]){
-    for(const group of args)
-      for(const fn of group)
-        this.pending.delete(fn);
-
-    const apply = () => {
-      const orGroup = args.length > 1;
-      const current = this.builder;
-
-      args.forEach((group, i) => {
-        this.builder[i > 0 ? "orWhere" : "where"](context => {
-          this.builder = context;
-          group.forEach(fn => fn(!orGroup));
-          this.builder = current;
-        })
-      });
-    }
-
-    this.pending.add(apply);
-
-    return apply;
-  }
-
-  private compare<T extends Field>(left: T): Query.Compare {
-    const using = (operator: string) => {
-      return (right: Query.Value<any>, orEqual?: boolean) => {
-        const apply = (or?: boolean) => {
-          const op = orEqual ? `${operator}=` : operator;
-
-          this.builder[or ? "orWhere" : "where"](
-            this.raw(left.compare(op, right))
-          );
-        }
-  
-        this.pending.add(apply);
-  
-        return apply;
-      }
-    };
-
-    return {
-      equal: using("="),
-      not: using("<>"),
-      more: using(">"),
-      less: using("<")
-    };
-  }
-
-  private order(field: Field){
-    return {
-      asc: () => { this.orderBy.set(field, "asc") },
-      desc: () => { this.orderBy.set(field, "desc") }
-    }
   }
 
   private raw(sql: string | number | Field | Computed<unknown>){
