@@ -320,7 +320,6 @@ class QueryBuilder<T = unknown> {
         const apply = (or?: boolean) => {
           const op = orEqual ? `${operator}=` : operator;
 
-
           this.builder[or ? "orWhere" : "where"](
             this.raw(left.compare(op, right))
           );
@@ -347,8 +346,12 @@ class QueryBuilder<T = unknown> {
     }
   }
 
-  private raw(sql: string | Field | Computed<unknown>){
-    return typeof sql == "object" ? this.engine.raw(sql.toString()) : sql;
+  private raw(sql: string | number | Field | Computed<unknown>){
+    return this.engine.raw(
+      typeof sql == "object" ? sql.toString() :
+      typeof sql == "string" ? sql.replace(/'/g, "\\'") :
+      sql
+    );
   }
 
   toRunner(){
@@ -462,7 +465,7 @@ class QueryBuilder<T = unknown> {
 
             const on = (operator: string) => (right: Field, orEqual?: boolean): any => {
               const op = orEqual ? `${operator}=` : operator;
-              table.on(String(field), op, String(right));
+              table.on(this.raw(field.compare(op, right)));
             };
 
             return {
