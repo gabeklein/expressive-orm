@@ -98,10 +98,7 @@ abstract class BaseField {
 
       Object.entries(options).forEach(([key, value]) => {
         if (value !== undefined)
-          Object.defineProperty(field, key, {
-            enumerable: true,
-            value
-          });
+          Object.defineProperty(field, key, { enumerable: true, value });
       });
 
       Object.freeze(field);
@@ -122,8 +119,13 @@ class Field<T = unknown> extends BaseField {
   increment: boolean = false;
   default?: unknown = undefined;
 
+  table?: Query.Table;
+
   toString(): string {
-    throw new Error("Field.toString() must be overridden.");
+    if(this.table)
+      return `\`${this.table}\`.\`${this.column}\``;
+
+    throw new Error("This requires a table to be set.");
   }
 
   /** Real datatype of this field in database. */

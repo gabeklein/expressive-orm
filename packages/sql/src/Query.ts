@@ -384,7 +384,7 @@ class QueryBuilder<T = unknown> {
 
     const { tables } = this;
     let { fields, schema } = type;
-    let name: string | Knex.AliasDict = type.table
+    let name: string | Knex.AliasDict = type.table;
     let alias: string | undefined;
 
     if(schema){
@@ -413,7 +413,7 @@ class QueryBuilder<T = unknown> {
               value = field.proxy(table);
             else {
               value = Object.create(field);
-              value.toString = () => `${table}.${field.column}`;
+              value.table = table;
             }
 
           return value;

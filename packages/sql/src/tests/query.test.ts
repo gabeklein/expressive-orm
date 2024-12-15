@@ -198,7 +198,7 @@ describe("schema", () => {
   
       where(foo.color).equal("red");
     })
-  
+
     expect(query).toMatchInlineSnapshot(`
       SELECT
         count(*)
