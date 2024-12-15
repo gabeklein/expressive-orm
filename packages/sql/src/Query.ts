@@ -152,6 +152,17 @@ class QueryBuilder<T = unknown> {
     this.commit(fn(context));
   }
 
+  private init(main: Query.Table){
+    const engine = this.engine = 
+      main.type.connection?.knex || knex({
+        client: "sqlite3",
+        useNullAsDefault: true,
+        pool: { max: 0 }
+      });
+
+    this.builder = engine(main.name);
+  }
+
   /**
    * Accepts instructions for nesting in a parenthesis.
    * When only one group of instructions is provided, the statement are separated by OR.
@@ -422,15 +433,8 @@ class QueryBuilder<T = unknown> {
     RelevantTable.set(proxy, table);
     Object.freeze(proxy);
 
-    if(!main){
-      const engine = this.engine = type.connection?.knex || knex({
-        client: "sqlite3",
-        useNullAsDefault: true,
-        pool: { max: 0 }
-      });
-
-      this.builder = engine(name)
-    }
+    if(!main)
+      this.init(table);
     else if(typeof joinOn == "string")
       throw new Error("Bad parameters.");
     else if(type.connection !== main.type.connection)
