@@ -18,7 +18,7 @@ it("will convert camelCase names to underscore", async () => {
   expect(sql).toMatchInlineSnapshot(`
     CREATE TABLE
       foo_bar (
-        id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+        id INTEGER NOT NULL PRIMARY key autoincrement,
         foo_bar tinyint NOT NULL
       )
   `);
@@ -38,15 +38,15 @@ it("will create FK constraints", async () => {
   expect(sql).toMatchInlineSnapshot(`
     CREATE TABLE
       foo (
-        id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
-        bar_id int NOT NULL,
-        FOREIGN KEY (bar_id) REFERENCES bar (id)
+        id INTEGER NOT NULL PRIMARY key autoincrement,
+        bar_id INT NOT NULL,
+        FOREIGN key (bar_id) REFERENCES bar (id)
       );
 
     CREATE TABLE
       bar (
-        id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
-        value int NOT NULL
+        id INTEGER NOT NULL PRIMARY key autoincrement,
+        value INT NOT NULL
       )
   `);
 });

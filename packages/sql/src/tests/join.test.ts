@@ -32,7 +32,7 @@ it("will join using object", async () => {
 
   expect<Returns>(query).toMatchInlineSnapshot(`
     SELECT
-      count(*)
+      COUNT(*)
     FROM
       foo
       INNER JOIN bar ON bar.color = foo.color
@@ -58,7 +58,7 @@ it("will join using function", async () => {
 
   expect(query).toMatchInlineSnapshot(`
     SELECT
-      count(*)
+      COUNT(*)
     FROM
       foo
       INNER JOIN bar ON bar.name <> foo.name
@@ -127,7 +127,7 @@ it("will assert a joined property's value", () => {
   
   expect(query).toMatchInlineSnapshot(`
     SELECT
-      count(*)
+      COUNT(*)
     FROM
       foo
       INNER JOIN bar ON bar.color = foo.color
@@ -165,7 +165,7 @@ it("will sort by joined table", async () => {
       test
       INNER JOIN other ON other.name = test.name
     ORDER BY
-      other.rank ASC
+      other.rank asc
   `);
 })
 

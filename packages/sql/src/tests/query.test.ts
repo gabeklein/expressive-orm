@@ -18,7 +18,7 @@ it("will count query by default", () => {
 
   expect(qb).toMatchInlineSnapshot(`
     SELECT
-      count(*)
+      COUNT(*)
     FROM
       foo
     WHERE
@@ -46,7 +46,7 @@ describe("where", () => {
   
     expect(query).toMatchInlineSnapshot(`
       SELECT
-        count(*)
+        COUNT(*)
       FROM
         test
       WHERE
@@ -61,7 +61,6 @@ describe("where", () => {
     const query = Query(where => {
       const foo = where(Foo);
 
-      // @ts-ignore
       where([
         where(foo.name).equal("Gabe"),
         where(foo.color).equal("purple"),
@@ -70,13 +69,13 @@ describe("where", () => {
 
     expect(query.toString()).toMatchInlineSnapshot(`
       SELECT
-        count(*)
+        COUNT(*)
       FROM
         foo
       WHERE
         (
           foo.name = 'Gabe'
-          or foo.color = 'purple'
+          OR foo.color = 'purple'
         )
     `);
   })
@@ -101,7 +100,7 @@ describe("where", () => {
     
     expect(query).toMatchInlineSnapshot(`
       SELECT
-        count(*)
+        COUNT(*)
       FROM
         foo
       WHERE
@@ -110,11 +109,11 @@ describe("where", () => {
           foo.name = 'Gabe'
           AND foo.color = 'red'
         )
-        or (
+        OR (
           foo.name = 'Bob'
           AND (
             foo.color = 'blue'
-            or foo.color = 'green'
+            OR foo.color = 'green'
           )
         )
     `);
@@ -154,7 +153,7 @@ describe("sort", () => {
       FROM
         test
       ORDER BY
-        test.id DESC
+        test.id desc
     `);
 
     expect(await query).toEqual(["F", "E", "D", "C", "B", "A"]);
@@ -176,8 +175,8 @@ describe("sort", () => {
       FROM
         test
       ORDER BY
-        test.rating ASC,
-        test.name DESC
+        test.rating asc,
+        test.name desc
     `);
 
     // SQLite may not support multiple column sorting
@@ -201,7 +200,7 @@ describe("schema", () => {
 
     expect(query).toMatchInlineSnapshot(`
       SELECT
-        count(*)
+        COUNT(*)
       FROM
         foobar.foo AS \`$0\`
       WHERE

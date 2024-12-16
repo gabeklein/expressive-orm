@@ -48,7 +48,7 @@ describe("where", () => {
 
     expect(results).toMatchInlineSnapshot(`
       SELECT
-        count(*)
+        COUNT(*)
       FROM
         item
       WHERE
