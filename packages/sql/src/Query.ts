@@ -236,6 +236,25 @@ class QueryBuilder<T = unknown> {
     }
   }
 
+  private compare<T extends Field>(left: T): Query.Compare {
+    const using = (operator: string) => {
+      return (right: Query.Value<any>, orEqual?: boolean) => {
+        const op = orEqual ? `${operator}=` : operator;
+        
+        const symbol = Symbol();
+        this.wheres.set(symbol, { left, op, right });
+        return symbol;
+      }
+    };
+
+    return {
+      equal: using("="),
+      not: using("<>"),
+      more: using(">"),
+      less: using("<")
+    };
+  }
+
   private andOr(...args: symbol[][]){
     const symbol = Symbol();
     const wheres = [] as Compare.Recursive[];
@@ -256,26 +275,6 @@ class QueryBuilder<T = unknown> {
     this.wheres.set(symbol, wheres);
 
     return symbol;
-  }
-
-  private compare<T extends Field>(left: T): Query.Compare {
-    const using = (operator: string) => {
-      return (right: Query.Value<any>, orEqual?: boolean) => {
-        const op = orEqual ? `${operator}=` : operator;
-        const symbol = Symbol();
-        
-        this.wheres.set(symbol, { left, op, right });
-  
-        return symbol;
-      }
-    };
-
-    return {
-      equal: using("="),
-      not: using("<>"),
-      more: using(">"),
-      less: using("<")
-    };
   }
 
   private order(field: Field){
@@ -456,72 +455,64 @@ class QueryBuilder<T = unknown> {
       throw new Error("Bad parameters.");
     else if(type.connection !== main.type.connection)
       throw new Error(`Joined entity ${type} does not share a connection with main table ${main}`);
-    else
-      this.join(table, joinOn, joinMode);
+    else {
+      let callback: Knex.JoinCallback;
+
+      if (typeof joinOn == "object")
+        callback = (table) => {
+          for (const key in joinOn) {
+            const field = (proxy as any)[key];
+    
+            if (field instanceof Field)
+              table.on(String(field), "=", String(joinOn[key]));
+            else
+              throw new Error(`${key} is not a valid column in ${type}.`);
+          }
+        }
+      else if (typeof joinOn == "function")
+        callback = (table) => {
+          this.pending.add(() => {
+            joinOn(field => {
+              if (!(field instanceof Field))
+                throw new Error("Join assertions can only apply to fields.");
+
+              const on = (operator: string) => (right: Field, orEqual?: boolean): any => {
+                const op = orEqual ? `${operator}=` : operator;
+                table.on(this.raw(field.compare(op, right)));
+              };
+
+              return {
+                equal: on("="),
+                not: on("<>"),
+                more: on(">"),
+                less: on("<"),
+              }
+            });
+          })
+        }
+      else
+        throw new Error(`Invalid join on: ${joinOn}`);
+
+      switch(joinMode){
+        case undefined:
+        case "inner":
+          this.builder.join(name, callback);
+          break;
+
+        case "left":
+          this.builder.leftJoin(name, callback);
+          break;
+
+        case "right" as unknown:
+        case "full" as unknown:
+          throw new Error(`Cannot ${joinMode} join because that would affect ${this.tables[0]} which is already defined.`);
+
+        default:
+          throw new Error(`Invalid join type ${joinMode}.`);
+      }
+    }
   
     return proxy;
-  }
-
-  private join(
-    table: Query.Table,
-    joinOn: Query.Join.On<any>,
-    joinMode?: Query.Join.Mode){
-
-    const { name, type, proxy } = table;
-    let callback: Knex.JoinCallback;
-
-    if (typeof joinOn === "function")
-      callback = (table) => {
-        this.pending.add(() => {
-          joinOn(field => {
-            if (!(field instanceof Field))
-              throw new Error("Join assertions can only apply to fields.");
-
-            const on = (operator: string) => (right: Field, orEqual?: boolean): any => {
-              const op = orEqual ? `${operator}=` : operator;
-              table.on(this.raw(field.compare(op, right)));
-            };
-
-            return {
-              equal: on("="),
-              not: on("<>"),
-              more: on(">"),
-              less: on("<"),
-            }
-          });
-        })
-      }
-    else if (typeof joinOn === "object")
-      callback = (table) => {
-        for (const key in joinOn) {
-          const field = proxy[key];
-  
-          if (field instanceof Field)
-            table.on(String(field), "=", String(joinOn[key]));
-          else
-            throw new Error(`${key} is not a valid column in ${type}.`);
-        }
-      }
-    else
-      throw new Error(`Invalid join on: ${joinOn}`);
-
-    switch(joinMode){
-      case undefined:
-      case "inner":
-        this.builder.join(name, callback);
-        break;
-
-      case "left":
-        this.builder.leftJoin(name, callback);
-        break;
-
-      case "right" as unknown:
-      case "full" as unknown:
-        throw new Error(`Cannot ${joinMode} join because that would affect ${this.tables[0]} which is already defined.`);
-
-      default:
-        throw new Error(`Invalid join type ${joinMode}.`);
-    }
   }
 }
 
