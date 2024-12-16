@@ -106,14 +106,16 @@ describe("where", () => {
       WHERE
         foo.id > 1
         AND (
-          foo.name = 'Gabe'
-          AND foo.color = 'red'
-        )
-        OR (
-          foo.name = 'Bob'
-          AND (
-            foo.color = 'blue'
-            OR foo.color = 'green'
+          (
+            foo.name = 'Gabe'
+            AND foo.color = 'red'
+          )
+          OR (
+            foo.name = 'Bob'
+            AND (
+              foo.color = 'blue'
+              OR foo.color = 'green'
+            )
           )
         )
     `);

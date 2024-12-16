@@ -58,10 +58,10 @@ declare namespace Query {
     };
 
   interface Compare<T = any> {
-    equal(value: Value<T>): Instruction;
-    not(value: Value<T>): Instruction;
-    more(than: Value<T>, orEqual?: boolean): Instruction;
-    less(than: Value<T>, orEqual?: boolean): Instruction;
+    equal(value: Value<T>): symbol;
+    not(value: Value<T>): symbol;
+    more(than: Value<T>, orEqual?: boolean): symbol;
+    less(than: Value<T>, orEqual?: boolean): symbol;
   }
 
   interface Verbs <T extends Type> {
@@ -129,6 +129,11 @@ Query.one = function one<T extends {}>(
   return Query(where).one(orFail);
 }
 
+declare namespace Compare {
+  type Op = { left: Field, op: string, right: unknown };
+  type Recursive = Op | Recursive[] | undefined;
+}
+
 class QueryBuilder<T = unknown> {
   builder!: Knex.QueryBuilder;
   engine!: knex.Knex<any, unknown[]>;
@@ -139,6 +144,7 @@ class QueryBuilder<T = unknown> {
 
   limit?: number;
   orderBy = new Map<Field, "asc" | "desc">();
+  wheres = new Map<symbol, Compare.Recursive>();
 
   constructor(fn: Query.Function<T>){
     const context = this.where.bind(this) as Query.Where;
@@ -167,7 +173,7 @@ class QueryBuilder<T = unknown> {
    * Accepts instructions for nesting in a parenthesis.
    * When only one group of instructions is provided, the statement are separated by OR.
    */
-  private where(orWhere: Query.Instructions): Query.Instruction;
+  private where(orWhere: symbol[]): symbol;
 
   /**
    * Accepts instructions for nesting in a parenthesis.
@@ -175,7 +181,7 @@ class QueryBuilder<T = unknown> {
    * When multiple groups of instructions are provided, the groups
    * are separated by OR and nested comparisons are separated by AND.
    */
-  private where(...orWhere: Query.Instructions[]): Query.Instruction;
+  private where(...orWhere: symbol[][]): symbol;
 
   /**
    * Create a reference to the primary table, returned
@@ -205,20 +211,20 @@ class QueryBuilder<T = unknown> {
    */
   private where<T>(field: T): Query.Compare<Query.FieldOrValue<T>>;
 
-  private where(type: any, on?: any, joinMode?: any){
-    if(isTypeConstructor(type))
-      return this.use(type, on, joinMode);
+  private where(arg1: any, arg2?: any, arg3?: any): any {
+    if(isTypeConstructor(arg1))
+      return this.use(arg1, arg2, arg3);
 
-    if(Array.isArray(type))
+    if(arg1 instanceof Field)
+      return this.compare(arg1);
+
+    if(Array.isArray(arg1))
       return this.andOr(...arguments)
 
-    if(type instanceof Field)
-      return this.compare(type);
-
-    const table = RelevantTable.get(type);
+    const table = RelevantTable.get(arg1);
 
     if(!table)
-      throw new Error(`Argument ${type} is not a query argument.`);
+      throw new Error(`Argument ${arg1} is not a query argument.`);
 
     return <Query.Verbs<Type>> {
       delete: () => {
@@ -230,43 +236,37 @@ class QueryBuilder<T = unknown> {
     }
   }
 
-  private andOr(...args: Query.Instructions[]){
-    for(const group of args)
-      for(const fn of group)
-        this.pending.delete(fn);
+  private andOr(...args: symbol[][]){
+    const symbol = Symbol();
+    const wheres = [] as Compare.Recursive[];
 
-    const apply = () => {
-      const orGroup = args.length > 1;
-      const current = this.builder;
-
-      args.forEach((group, i) => {
-        this.builder[i > 0 ? "orWhere" : "where"](context => {
-          this.builder = context;
-          group.forEach(fn => fn(!orGroup));
-          this.builder = current;
-        })
+    for(const group of args){
+      const resolved = group.map(symbol => {
+        const actual = this.wheres.get(symbol);
+        this.wheres.delete(symbol);
+        return actual;
       });
+
+      if(args.length > 1)
+        wheres.push(resolved);
+      else
+        wheres.push(...resolved);
     }
 
-    this.pending.add(apply);
+    this.wheres.set(symbol, wheres);
 
-    return apply;
+    return symbol;
   }
 
   private compare<T extends Field>(left: T): Query.Compare {
     const using = (operator: string) => {
       return (right: Query.Value<any>, orEqual?: boolean) => {
-        const apply = (or?: boolean) => {
-          const op = orEqual ? `${operator}=` : operator;
-
-          this.builder[or ? "orWhere" : "where"](
-            this.raw(left.compare(op, right))
-          );
-        }
+        const op = orEqual ? `${operator}=` : operator;
+        const symbol = Symbol();
+        
+        this.wheres.set(symbol, { left, op, right });
   
-        this.pending.add(apply);
-  
-        return apply;
+        return symbol;
       }
     };
 
@@ -286,6 +286,22 @@ class QueryBuilder<T = unknown> {
   }
 
   private commit(selects: unknown){
+    const apply = (
+      compare: Iterable<Compare.Recursive>,
+      builder: Knex.QueryBuilder<any, any>,
+      or?: boolean) => {
+
+      for(const clause of compare)
+        if(clause)
+          builder[or ? "orWhere" : "where"](
+            Array.isArray(clause)
+              ? (builder) => apply(clause, builder, !or)
+              : this.raw(clause.left.compare(clause.op, clause.right))
+          );
+    }
+
+    apply(this.wheres.values(), this.builder);
+
     this.pending.forEach(fn => fn());
     this.pending.clear();
 
@@ -410,9 +426,7 @@ class QueryBuilder<T = unknown> {
       type,
       proxy,
       query: this,
-      toString(){
-        return alias || name as string;
-      },
+      toString: () => alias || name as string
     };
 
     fields.forEach((field, key) => {
@@ -424,7 +438,7 @@ class QueryBuilder<T = unknown> {
               value = field.proxy(table);
             else {
               value = Object.create(field);
-              value.table = table;
+              value.table = alias || name as string;
             }
 
           return value;
