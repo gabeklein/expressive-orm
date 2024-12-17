@@ -363,6 +363,10 @@ class QueryBuilder<T = unknown> {
     );
   }
 
+  toString(){
+    return this.builder.toString().replace(/```/g, "`");
+  }
+
   toRunner(){
     const get = async (limit?: number) => {
       let execute = this.builder;
@@ -388,7 +392,7 @@ class QueryBuilder<T = unknown> {
     const query: Query = {
       then: (resolve, reject) => get().then(resolve).catch(reject),
       count: () => this.builder.clone().clearSelect().count(),
-      toString: () => this.builder.toString().replace(/```/g, "`")
+      toString: () => this.toString()
     }
   
     if(this.parse)
