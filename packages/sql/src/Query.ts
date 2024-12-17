@@ -38,12 +38,6 @@ declare namespace Query {
 
   type Join<T extends Type> = From<T>;
 
-  /** A query instruction returned by assertions which can be nested. */
-  type Instruction = (or?: boolean) => void;
-
-  /** A group of query instructions declared within parenthesis. */
-  type Instructions  = Instruction[];
-
   type Value<T = any> = T | Field<T> | Computed<T>;
   type ANumeric = Value<string | number>;
   type Numeric = Value<number>;
@@ -139,7 +133,7 @@ class QueryBuilder<T = unknown> {
   engine!: knex.Knex<any, unknown[]>;
 
   tables = [] as Query.Table[];
-  pending = new Set<Query.Instruction>();
+  pending = new Set<() => void>();
   parse?: (raw: any[]) => any[];
 
   limit?: number;
