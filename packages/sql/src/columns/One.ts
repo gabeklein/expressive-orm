@@ -24,10 +24,8 @@ class JoinOne<T extends Type> extends Field<T> {
     return super.set(value);
   }
 
-  proxy(table: Query.Table){
-    return table.query.use(this.entity, {
-      id: `${table}.${this.column}`
-    });
+  proxy(table: Query.Table): Query.Join<T> {
+    return table.query.where<any>(this.entity, { id: this });
   }
 
   create(table: Knex.CreateTableBuilder){

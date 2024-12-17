@@ -29,7 +29,7 @@ declare namespace Query {
 
     type Function = (on: Where) => void;
 
-    type Equal<T extends Type = any> = { [K in Type.Fields<T>]?: T[K] };
+    type Equal<T extends Type = any> = { [K in Type.Fields<T>]?: Field };
     
     type On<T extends Type> = Function | Equal<T>;
 
@@ -156,7 +156,7 @@ class QueryBuilder<T = unknown> {
    * Accepts instructions for nesting in a parenthesis.
    * When only one group of instructions is provided, the statement are separated by OR.
    */
-  private where(orWhere: symbol[]): symbol;
+  where(orWhere: symbol[]): symbol;
 
   /**
    * Accepts instructions for nesting in a parenthesis.
@@ -164,37 +164,37 @@ class QueryBuilder<T = unknown> {
    * When multiple groups of instructions are provided, the groups
    * are separated by OR and nested comparisons are separated by AND.
    */
-  private where(...orWhere: symbol[][]): symbol;
+  where(...orWhere: symbol[][]): symbol;
 
   /**
    * Create a reference to the primary table, returned
    * object can be used to query against that table.
    */
-  private where<T extends Type>(entity: Type.EntityType<T>): Query.From<T>;
+  where<T extends Type>(entity: Type.EntityType<T>): Query.From<T>;
 
   /**
    * Registers a type as a inner join.
    */
-  private where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join?: "inner"): Query.Join<T>;
+  where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join?: "inner"): Query.Join<T>;
 
   /**
    * Registers a type as a left join, returned object has optional
    * properties which may be undefined where the join is not present.
    */
-  private where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join: Query.Join.Mode): Query.Join.Left<T>;
+  where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join: Query.Join.Mode): Query.Join.Left<T>;
 
   /**
    * Prepares write operations for a particular table.
    */
-  private where<T extends Type>(field: Query.From<T>): Query.Verbs<T>;
+  where<T extends Type>(field: Query.From<T>): Query.Verbs<T>;
 
   /**
    * Prepare comparison against a particilar field,
    * returns operations for the given type.
    */
-  private where<T>(field: T): Query.Compare<Query.FieldOrValue<T>>;
+  where<T>(field: T): Query.Compare<Query.FieldOrValue<T>>;
 
-  private where(arg1: any, arg2?: any, arg3?: any): any {
+  where(arg1: any, arg2?: any, arg3?: any): any {
     if(isTypeConstructor(arg1))
       return this.use(arg1, arg2, arg3);
 
@@ -347,7 +347,7 @@ class QueryBuilder<T = unknown> {
     );
   }
 
-  use<T extends Type>(
+  private use<T extends Type>(
     type: Type.EntityType<T>,
     joinOn: Query.Join.On<any>,
     joinMode?: Query.Join.Mode){
@@ -415,10 +415,11 @@ class QueryBuilder<T = unknown> {
     if (typeof joinOn == "object")
       callback = (table) => {
         for (const key in joinOn) {
-          const field = (proxy as any)[key];
+          const left = (proxy as any)[key];
+          const right = (joinOn as any)[key];
   
-          if (field instanceof Field)
-            table.on(String(field), "=", String(joinOn[key]));
+          if (left instanceof Field)
+            table.on(String(left), "=", String(right));
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }
