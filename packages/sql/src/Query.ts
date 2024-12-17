@@ -152,17 +152,6 @@ class QueryBuilder<T = unknown> {
     this.commit(fn(context));
   }
 
-  private init(main: Query.Table){
-    const engine = this.engine = 
-      main.type.connection?.knex || knex({
-        client: "sqlite3",
-        useNullAsDefault: true,
-        pool: { max: 0 }
-      });
-
-    this.builder = engine(main.name);
-  }
-
   /**
    * Accepts instructions for nesting in a parenthesis.
    * When only one group of instructions is provided, the statement are separated by OR.
@@ -209,11 +198,47 @@ class QueryBuilder<T = unknown> {
     if(isTypeConstructor(arg1))
       return this.use(arg1, arg2, arg3);
 
-    if(arg1 instanceof Field)
-      return this.compare(arg1);
+    if(arg1 instanceof Field){
+      const using = (operator: string) => {
+        return (right: Query.Value<any>, orEqual?: boolean) => {
+          const op = orEqual ? `${operator}=` : operator;
+          
+          const symbol = Symbol();
+          this.wheres.set(symbol, { left: arg1, op, right });
+          return symbol;
+        }
+      };
+  
+      return {
+        equal: using("="),
+        not: using("<>"),
+        more: using(">"),
+        less: using("<")
+      };
+    }
 
-    if(Array.isArray(arg1))
-      return this.andOr(...arguments)
+    if(Array.isArray(arg1)){
+      const symbol = Symbol();
+      const wheres = [] as Compare.Recursive[];
+      const args = Array.from(arguments) as symbol[][];
+
+      for(const group of args){
+        const resolved = group.map(symbol => {
+          const actual = this.wheres.get(symbol);
+          this.wheres.delete(symbol);
+          return actual;
+        });
+
+        if(arguments.length > 1)
+          wheres.push(resolved);
+        else
+          wheres.push(...resolved);
+      }
+
+      this.wheres.set(symbol, wheres);
+
+      return symbol;
+    }
 
     const table = RelevantTable.get(arg1);
 
@@ -228,47 +253,6 @@ class QueryBuilder<T = unknown> {
         this.builder.table(table.name).update(table.type.digest(data));
       }
     }
-  }
-
-  private compare<T extends Field>(left: T): Query.Compare {
-    const using = (operator: string) => {
-      return (right: Query.Value<any>, orEqual?: boolean) => {
-        const op = orEqual ? `${operator}=` : operator;
-        
-        const symbol = Symbol();
-        this.wheres.set(symbol, { left, op, right });
-        return symbol;
-      }
-    };
-
-    return {
-      equal: using("="),
-      not: using("<>"),
-      more: using(">"),
-      less: using("<")
-    };
-  }
-
-  private andOr(...args: symbol[][]){
-    const symbol = Symbol();
-    const wheres = [] as Compare.Recursive[];
-
-    for(const group of args){
-      const resolved = group.map(symbol => {
-        const actual = this.wheres.get(symbol);
-        this.wheres.delete(symbol);
-        return actual;
-      });
-
-      if(args.length > 1)
-        wheres.push(resolved);
-      else
-        wheres.push(...resolved);
-    }
-
-    this.wheres.set(symbol, wheres);
-
-    return symbol;
   }
 
   private order(field: Field){
@@ -363,6 +347,127 @@ class QueryBuilder<T = unknown> {
     );
   }
 
+  use<T extends Type>(
+    type: Type.EntityType<T>,
+    joinOn: Query.Join.On<any>,
+    joinMode?: Query.Join.Mode){
+
+    const { tables } = this;
+    let { fields, schema } = type;
+    let name: string | Knex.AliasDict = type.table;
+    let alias: string | undefined;
+
+    if(schema){
+      alias = `$${tables.length}`;
+      name = { [alias]: schema + '.' + name };
+    }
+
+    const main = tables[0];
+    const proxy = {} as Query.From<T>;
+    const table: Query.Table<T> = {
+      name,
+      type,
+      proxy,
+      query: this,
+      toString: () => alias || name as string
+    };
+
+    fields.forEach((field, key) => {
+      let value: any;
+      Object.defineProperty(proxy, key, {
+        get(){
+          if(!value){
+            const local = Object.create(field) as typeof field;
+            local.table = table;
+            value = local.proxy ? local.proxy(table) : local; 
+          }
+
+          return value;
+        }
+      });
+    });
+
+    tables.push(table);
+    RelevantTable.set(proxy, table);
+    Object.freeze(proxy);
+
+    if(!main){
+      const engine = this.engine = 
+        table.type.connection?.knex || knex({
+          client: "sqlite3",
+          useNullAsDefault: true,
+          pool: { max: 0 }
+        });
+
+      this.builder = engine(table.name);
+
+      return proxy;
+    }
+
+    if(typeof joinOn == "string")
+      throw new Error("Bad parameters.");
+
+    if(type.connection !== main.type.connection)
+      throw new Error(`Joined entity ${type} does not share a connection with main table ${main}`);
+    
+    let callback: Knex.JoinCallback;
+
+    if (typeof joinOn == "object")
+      callback = (table) => {
+        for (const key in joinOn) {
+          const field = (proxy as any)[key];
+  
+          if (field instanceof Field)
+            table.on(String(field), "=", String(joinOn[key]));
+          else
+            throw new Error(`${key} is not a valid column in ${type}.`);
+        }
+      }
+    else if (typeof joinOn == "function")
+      callback = (table) => {
+        this.pending.add(() => {
+          joinOn(field => {
+            if (!(field instanceof Field))
+              throw new Error("Join assertions can only apply to fields.");
+
+            const on = (operator: string) => (right: Field, orEqual?: boolean): any => {
+              const op = orEqual ? `${operator}=` : operator;
+              table.on(this.raw(field.compare(op, right)));
+            };
+
+            return {
+              equal: on("="),
+              not: on("<>"),
+              more: on(">"),
+              less: on("<"),
+            }
+          });
+        })
+      }
+    else
+      throw new Error(`Invalid join on: ${joinOn}`);
+
+    switch(joinMode){
+      case undefined:
+      case "inner":
+        this.builder.join(name, callback);
+        break;
+
+      case "left":
+        this.builder.leftJoin(name, callback);
+        break;
+
+      case "right" as unknown:
+      case "full" as unknown:
+        throw new Error(`Cannot ${joinMode} join because that would affect ${this.tables[0]} which is already defined.`);
+
+      default:
+        throw new Error(`Invalid join type ${joinMode}.`);
+    }
+  
+    return proxy;
+  }
+
   toString(){
     return this.builder.toString().replace(/```/g, "`");
   }
@@ -399,118 +504,6 @@ class QueryBuilder<T = unknown> {
       return { ...query, get, one } as SelectQuery;
   
     return query;
-  }
-
-  use<T extends Type>(
-    type: Type.EntityType<T>,
-    joinOn: Query.Join.On<any>,
-    joinMode?: Query.Join.Mode){
-
-    const { tables } = this;
-    let { fields, schema } = type;
-    let name: string | Knex.AliasDict = type.table;
-    let alias: string | undefined;
-
-    if(schema){
-      alias = `$${tables.length}`;
-      name = { [alias]: schema + '.' + name };
-    }
-
-    const main = tables[0];
-    const proxy = {} as Query.From<T>;
-    const table: Query.Table<T> = {
-      name,
-      type,
-      proxy,
-      query: this,
-      toString: () => alias || name as string
-    };
-
-    fields.forEach((field, key) => {
-      let value: any;
-      Object.defineProperty(proxy, key, {
-        get(){
-          if(!value)
-            if(field.proxy)
-              value = field.proxy(table);
-            else {
-              value = Object.create(field);
-              value.table = alias || name as string;
-            }
-
-          return value;
-        }
-      });
-    });
-
-    tables.push(table);
-    RelevantTable.set(proxy, table);
-    Object.freeze(proxy);
-
-    if(!main)
-      this.init(table);
-    else if(typeof joinOn == "string")
-      throw new Error("Bad parameters.");
-    else if(type.connection !== main.type.connection)
-      throw new Error(`Joined entity ${type} does not share a connection with main table ${main}`);
-    else {
-      let callback: Knex.JoinCallback;
-
-      if (typeof joinOn == "object")
-        callback = (table) => {
-          for (const key in joinOn) {
-            const field = (proxy as any)[key];
-    
-            if (field instanceof Field)
-              table.on(String(field), "=", String(joinOn[key]));
-            else
-              throw new Error(`${key} is not a valid column in ${type}.`);
-          }
-        }
-      else if (typeof joinOn == "function")
-        callback = (table) => {
-          this.pending.add(() => {
-            joinOn(field => {
-              if (!(field instanceof Field))
-                throw new Error("Join assertions can only apply to fields.");
-
-              const on = (operator: string) => (right: Field, orEqual?: boolean): any => {
-                const op = orEqual ? `${operator}=` : operator;
-                table.on(this.raw(field.compare(op, right)));
-              };
-
-              return {
-                equal: on("="),
-                not: on("<>"),
-                more: on(">"),
-                less: on("<"),
-              }
-            });
-          })
-        }
-      else
-        throw new Error(`Invalid join on: ${joinOn}`);
-
-      switch(joinMode){
-        case undefined:
-        case "inner":
-          this.builder.join(name, callback);
-          break;
-
-        case "left":
-          this.builder.leftJoin(name, callback);
-          break;
-
-        case "right" as unknown:
-        case "full" as unknown:
-          throw new Error(`Cannot ${joinMode} join because that would affect ${this.tables[0]} which is already defined.`);
-
-        default:
-          throw new Error(`Invalid join type ${joinMode}.`);
-      }
-    }
-  
-    return proxy;
   }
 }
 

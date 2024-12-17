@@ -121,7 +121,7 @@ class Field<T = unknown> extends BaseField {
   increment: boolean = false;
   default?: unknown = undefined;
 
-  table?: string;
+  table?: Query.Table;
 
   toString(): string {
     if(this.table)
