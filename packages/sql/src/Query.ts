@@ -195,6 +195,8 @@ class QueryBuilder<T = unknown> {
   where<T>(field: T): Query.Compare<Query.FieldOrValue<T>>;
 
   where(arg1: any, arg2?: any, arg3?: any): any {
+    const { wheres } = this;
+
     if(isTypeConstructor(arg1))
       return this.use(arg1, arg2, arg3);
 
@@ -204,7 +206,7 @@ class QueryBuilder<T = unknown> {
           const op = orEqual ? `${operator}=` : operator;
           
           const symbol = Symbol();
-          this.wheres.set(symbol, { left: arg1, op, right });
+          wheres.set(symbol, { left: arg1, op, right });
           return symbol;
         }
       };
@@ -219,23 +221,23 @@ class QueryBuilder<T = unknown> {
 
     if(Array.isArray(arg1)){
       const symbol = Symbol();
-      const wheres = [] as Compare.Recursive[];
+      const local = [] as Compare.Recursive[];
       const args = Array.from(arguments) as symbol[][];
 
       for(const group of args){
         const resolved = group.map(symbol => {
-          const actual = this.wheres.get(symbol);
-          this.wheres.delete(symbol);
+          const actual = wheres.get(symbol);
+          wheres.delete(symbol);
           return actual;
         });
 
         if(arguments.length > 1)
-          wheres.push(resolved);
+          local.push(resolved);
         else
-          wheres.push(...resolved);
+          local.push(...resolved);
       }
 
-      this.wheres.set(symbol, wheres);
+      wheres.set(symbol, local);
 
       return symbol;
     }
