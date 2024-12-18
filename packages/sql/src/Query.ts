@@ -274,7 +274,7 @@ class QueryBuilder<T = unknown> {
   private use<T extends Type>(
     type: Type.EntityType<T>,
     joinOn: Query.Join.On<any>,
-    joinMode?: Query.Join.Mode){
+    joinAs?: Query.Join.Mode){
 
     const { tables } = this;
     const { fields, schema } = type;
@@ -329,9 +329,9 @@ class QueryBuilder<T = unknown> {
     if(type.connection !== main.type.connection)
       throw new Error(`Joined entity ${type} does not share a connection with main table ${main}`);
 
-    switch(joinMode){
+    switch(joinAs){
       case undefined:
-        joinMode = "inner";
+        joinAs = "inner";
 
       case "inner":
       case "left":
@@ -339,10 +339,10 @@ class QueryBuilder<T = unknown> {
 
       case "right" as unknown:
       case "full" as unknown:
-        throw new Error(`Cannot ${joinMode} join because that would affect ${main} which is already defined.`);
+        throw new Error(`Cannot ${joinAs} join because that would affect ${main} which is already defined.`);
 
       default:
-        throw new Error(`Invalid join type ${joinMode}.`);
+        throw new Error(`Invalid join type ${joinAs}.`);
     }
     
     const joinsOn: Query.Compare.Op[] = [];
@@ -386,7 +386,7 @@ class QueryBuilder<T = unknown> {
     }
 
     table.join = {
-      as: joinMode,
+      as: joinAs,
       on: joinsOn
     }
   
