@@ -10,9 +10,19 @@ declare namespace Query {
   interface Table<T extends Type = any> {
     type: Type.EntityType<T>;
     query: QueryBuilder;
-    name: string | Knex.AliasDict;
+    name: string;
     proxy: Query.From<T>;
+    alias?: string;
+    join?: {
+      as: Query.Join.Mode;
+      on: Compare.Op[];
+    }
     toString(): string;
+  }
+
+  namespace Compare {
+    type Op = { left: Field, op: string, right: unknown };
+    type Recursive = Op | Recursive[] | undefined;
   }
 
   type FieldOrValue<T> = T extends Value<infer U> ? U : T;
@@ -123,22 +133,19 @@ Query.one = function one<T extends {}>(
   return Query(where).one(orFail);
 }
 
-declare namespace Compare {
-  type Op = { left: Field, op: string, right: unknown };
-  type Recursive = Op | Recursive[] | undefined;
-}
-
 class QueryBuilder<T = unknown> {
   builder!: Knex.QueryBuilder;
-  engine!: knex.Knex<any, unknown[]>;
 
   tables = [] as Query.Table[];
   pending = new Set<() => void>();
   parse?: (raw: any[]) => any[];
 
+  delete?: Query.Table;
+  update?: Readonly<[Query.Table, Query.Update<any>]>;
+
   limit?: number;
   orderBy = new Map<Field, "asc" | "desc">();
-  wheres = new Map<symbol, Compare.Recursive>();
+  wheres = new Map<symbol, Query.Compare.Recursive>();
 
   constructor(fn: Query.Function<T>){
     const context = this.where.bind(this) as Query.Where;
@@ -221,7 +228,7 @@ class QueryBuilder<T = unknown> {
 
     if(Array.isArray(arg1)){
       const symbol = Symbol();
-      const local = [] as Compare.Recursive[];
+      const local = [] as Query.Compare.Recursive[];
       const args = Array.from(arguments) as symbol[][];
 
       for(const group of args){
@@ -249,10 +256,10 @@ class QueryBuilder<T = unknown> {
 
     return <Query.Verbs<Type>> {
       delete: () => {
-        this.builder.table(table.name).delete();
+        this.delete = table;
       },
       update: (data: Query.Update<any>) => {
-        this.builder.table(table.name).update(table.type.digest(data));
+        this.update = [table, data];
       }
     }
   }
@@ -271,15 +278,16 @@ class QueryBuilder<T = unknown> {
 
     const { tables } = this;
     const { fields, schema } = type;
-    let name: string | Knex.AliasDict = type.table;
+
+    let name: string = type.table;
     let alias: string | undefined;
 
     if(schema){
       alias = `$${tables.length}`;
-      name = { [alias]: schema + '.' + name };
+      name = schema + '.' + name;
     }
 
-    const main = tables[0];
+    const main = tables[0]
     const proxy = {} as Query.From<T>;
 
     fields.forEach((field, key) => {
@@ -298,62 +306,71 @@ class QueryBuilder<T = unknown> {
     });
 
     const table: Query.Table<T> = {
+      alias,
       name,
       type,
       proxy,
       query: this,
-      toString: () => alias || name as string
+      toString(){
+        return alias || name
+      }
     };
 
     tables.push(table);
     RelevantTable.set(proxy, table);
     Object.freeze(proxy);
 
-    if(!main){
-      const engine = this.engine = 
-        table.type.connection?.knex || knex({
-          client: "sqlite3",
-          useNullAsDefault: true,
-          pool: { max: 0 }
-        });
-
-      this.builder = engine(table.name);
-
+    if(!main)
       return proxy;
-    }
 
     if(typeof joinOn == "string")
       throw new Error("Bad parameters.");
 
     if(type.connection !== main.type.connection)
       throw new Error(`Joined entity ${type} does not share a connection with main table ${main}`);
-    
-    let callback: Knex.JoinCallback;
 
-    if (typeof joinOn == "object")
-      callback = (table) => {
+    switch(joinMode){
+      case undefined:
+        joinMode = "inner";
+
+      case "inner":
+      case "left":
+        break;
+
+      case "right" as unknown:
+      case "full" as unknown:
+        throw new Error(`Cannot ${joinMode} join because that would affect ${main} which is already defined.`);
+
+      default:
+        throw new Error(`Invalid join type ${joinMode}.`);
+    }
+    
+    const joinsOn: Query.Compare.Op[] = [];
+
+    switch(typeof joinOn){
+      case "object":
         for (const key in joinOn) {
           const left = (proxy as any)[key];
           const right = (joinOn as any)[key];
   
           if (left instanceof Field)
-            table.on(String(left), "=", String(right));
+            joinsOn.push({ left, op: "=", right });
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }
-      }
-    else if (typeof joinOn == "function")
-      callback = (table) => {
-        this.pending.add(() => {
-          joinOn(field => {
-            if (!(field instanceof Field))
-              throw new Error("Join assertions can only apply to fields.");
+      break;
 
+      case "function":
+        this.pending.add(() => {
+          joinOn(left => {
+            if (!(left instanceof Field))
+              throw new Error("Join assertions can only apply to fields.");
+    
             const on = (operator: string) => (right: Field, orEqual?: boolean): any => {
               const op = orEqual ? `${operator}=` : operator;
-              table.on(this.raw(field.compare(op, right)));
+              joinsOn.push({ left, op, right });
             };
-
+    
             return {
               equal: on("="),
               not: on("<>"),
@@ -362,34 +379,59 @@ class QueryBuilder<T = unknown> {
             }
           });
         })
-      }
-    else
-      throw new Error(`Invalid join on: ${joinOn}`);
-
-    switch(joinMode){
-      case undefined:
-      case "inner":
-        this.builder.join(name, callback);
-        break;
-
-      case "left":
-        this.builder.leftJoin(name, callback);
-        break;
-
-      case "right" as unknown:
-      case "full" as unknown:
-        throw new Error(`Cannot ${joinMode} join because that would affect ${this.tables[0]} which is already defined.`);
+      break;
 
       default:
-        throw new Error(`Invalid join type ${joinMode}.`);
+        throw new Error(`Invalid join on: ${joinOn}`);
+    }
+
+    table.join = {
+      as: joinMode,
+      on: joinsOn
     }
   
     return proxy;
   }
 
   private commit(selects: unknown){
+    let engine: Knex<any, unknown[]>;
+    let builder!: Knex.QueryBuilder<any, any>;
+
+    const raw = (sql: string | number | Field | Computed<unknown>) =>
+      engine.raw(
+        typeof sql == "object" ? sql.toString() :
+        typeof sql == "string" ? sql.replace(/'/g, "\\'") :
+        sql
+      )
+    
+    this.pending.forEach(fn => fn());
+    this.pending.clear();
+
+    for(const table of this.tables){
+      const { join, alias, name, type: { connection } } = table;
+      const ref = alias ? { [alias]: name } : name;
+
+      if(join){
+        const mode = join.as == "left" ? "leftJoin" : "innerJoin";
+
+        builder[mode](ref, builder => {
+          for(const { left, op, right } of join.on)
+            builder.on(raw(left.compare(op, right)));
+        });
+      }
+      else {
+        engine = connection?.knex || knex({
+          client: "sqlite3",
+          useNullAsDefault: true,
+          pool: { max: 0 }
+        });
+  
+        builder = this.builder = engine(ref);
+      }
+    }
+
     const apply = (
-      compare: Iterable<Compare.Recursive>,
+      compare: Iterable<Query.Compare.Recursive>,
       builder: Knex.QueryBuilder<any, any>,
       or?: boolean) => {
 
@@ -398,29 +440,34 @@ class QueryBuilder<T = unknown> {
           builder[or ? "orWhere" : "where"](
             Array.isArray(clause)
               ? (builder) => apply(clause, builder, !or)
-              : this.raw(clause.left.compare(clause.op, clause.right))
+              : raw(clause.left.compare(clause.op, clause.right))
           );
     }
 
-    apply(this.wheres.values(), this.builder);
-
-    this.pending.forEach(fn => fn());
-    this.pending.clear();
+    apply(this.wheres.values(), builder);
 
     this.orderBy.forEach((order, field) => {
-      this.builder.orderBy(`${field.table}.${field.column}`, order);
+      builder.orderBy(`${field.table}.${field.column}`, order);
     });
 
     if(this.limit)
-      this.builder.limit(this.limit);
+      builder.limit(this.limit);
 
     if(selects === undefined){
-      this.builder.count();
+      if(this.delete)
+        builder.table(this.delete.name).delete();
+      else if(this.update){
+        const [{ name, type }, data] = this.update;
+        builder.table(name).update(type.digest(data));
+      }
+      else
+        builder.count();
+
       return;
     }
 
     if(selects instanceof Field){
-      this.builder.select(this.raw(selects));
+      builder.select(raw(selects));
       this.parse = raw => raw.map(row => selects.get(row[selects.column]));
       return;
     }
@@ -437,7 +484,7 @@ class QueryBuilder<T = unknown> {
 
         if(select instanceof Field || select instanceof Computed){
           output.set(raw => select.get(raw), use);
-          this.builder.select({ [use]: this.raw(select) });
+          builder.select({ [use]: raw(select) });
         }
         else if(typeof select == "object")
           scan(select, use);
@@ -462,18 +509,6 @@ class QueryBuilder<T = unknown> {
 
       return values;
     })
-  }
-
-  private raw(sql: string | number | Field | Computed<unknown>){
-    return this.engine.raw(
-      typeof sql == "object" ? sql.toString() :
-      typeof sql == "string" ? sql.replace(/'/g, "\\'") :
-      sql
-    );
-  }
-
-  toString(){
-    return this.builder.toString().replace(/```/g, "`");
   }
 
   toRunner(){
@@ -501,7 +536,7 @@ class QueryBuilder<T = unknown> {
     const query: Query = {
       then: (resolve, reject) => get().then(resolve).catch(reject),
       count: () => this.builder.clone().clearSelect().count(),
-      toString: () => this.toString()
+      toString: () => this.builder.toString().replace(/```/g, "`")
     }
   
     if(this.parse)
