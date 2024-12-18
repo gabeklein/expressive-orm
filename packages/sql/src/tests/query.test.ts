@@ -204,9 +204,9 @@ describe("schema", () => {
       SELECT
         COUNT(*)
       FROM
-        foobar.foo AS \`$0\`
+        foobar.foo AS T0
       WHERE
-        \`$0\`.color = 'red'
+        T0.color = 'red'
     `);
   })
 })

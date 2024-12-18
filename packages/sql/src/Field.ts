@@ -112,8 +112,6 @@ abstract class BaseField {
 }
 
 class Field<T = unknown> extends BaseField {
-  column = underscore(this.property);
-  
   type: string = "";
   unique: boolean = false;
   nullable: boolean = false;
@@ -121,11 +119,13 @@ class Field<T = unknown> extends BaseField {
   increment: boolean = false;
   default?: unknown = undefined;
 
+  column = underscore(this.property);
+
   table?: Query.Table;
 
   toString(): string {
     if(this.table)
-      return `\`${this.table}\`.\`${this.column}\``;
+      return `${this.table}.${this.column}`;
 
     throw new Error("This requires a table to be set.");
   }
@@ -194,16 +194,17 @@ class Field<T = unknown> extends BaseField {
    * @param fix Whether to automatically fix the column to match this Field's settings.
    */
   async integrity(info: Knex.ColumnInfo, fix?: boolean){
+    const { column, datatype, nullable, parent } = this;
     const signature = info.type + (info.maxLength ? `(${info.maxLength})` : '');
 
-    if (signature.toLowerCase() !== this.datatype.toLowerCase())
+    if (signature.toLowerCase() !== datatype.toLowerCase())
       throw new Error(
-        `Column ${this.column} in table ${this.parent.table} has type ${signature}, expected ${this.datatype}`
+        `Column ${column} in table ${parent.table} has type ${signature}, expected ${datatype}`
       );
 
-    if (info.nullable !== this.nullable)
+    if (info.nullable !== nullable)
       throw new Error(
-        `Column ${this.column} in table ${this.parent.table} has incorrect nullable value`
+        `Column ${column} in table ${parent.table} has incorrect nullable value`
       );
   }
 }

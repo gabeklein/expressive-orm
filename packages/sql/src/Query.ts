@@ -283,7 +283,7 @@ class QueryBuilder<T = unknown> {
     let alias: string | undefined;
 
     if(schema){
-      alias = `$${tables.length}`;
+      alias = `T${tables.length}`;
       name = schema + '.' + name;
     }
 
@@ -447,7 +447,7 @@ class QueryBuilder<T = unknown> {
     apply(this.wheres.values(), builder);
 
     this.orderBy.forEach((order, field) => {
-      builder.orderBy(`${field.table}.${field.column}`, order);
+      builder.orderBy(field.toString(), order);
     });
 
     if(this.limit)
