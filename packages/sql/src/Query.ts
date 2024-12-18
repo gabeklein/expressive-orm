@@ -283,7 +283,7 @@ class QueryBuilder<T = unknown> {
     let alias: string | undefined;
 
     if(schema){
-      alias = `T${tables.length}`;
+      alias = 'T' + tables.length;
       name = schema + '.' + name;
     }
 
