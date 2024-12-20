@@ -1,5 +1,3 @@
-import { Knex } from 'knex';
-
 import { sql, Syntax } from './generate/query';
 import { Query } from './Query';
 import { Type } from './Type';
@@ -129,6 +127,11 @@ class Field<T = unknown> extends BaseField {
   column = underscore(this.property);
 
   table?: Query.Table;
+  foreignKey?: string;
+
+  get foreignTable(): string | undefined {
+    return;
+  }
 
   toString(): string {
     if(this.table)
@@ -171,54 +174,6 @@ class Field<T = unknown> extends BaseField {
       more: on(">"),
       less: on("<"),
     };
-  }
-
-  /**
-   * This method is used to generate a column in a SQL table.
-   *  
-   * @param table The table being created.
-   * @returns The column definition.
-   */
-  create(table: Knex.CreateTableBuilder){
-    if(!this.datatype)
-      return;
-
-    const col = this.increment
-      ? table.increments(this.column)
-      : table.specificType(this.column, this.datatype);
-
-    if(!this.nullable)
-      col.notNullable();
-
-    if(this.unique)
-      col.unique();
-
-    if(this.fallback)
-      col.defaultTo(this.fallback);
-
-    return col;
-  }
-
-  /**
-   * This methods verifies that the column in the database matches the settings expected by this Field.
-   * Will throw an error if the column does not match, unless the `fix` parameter is set to true and schema is corrected.
-   * 
-   * @param info Information about the column in the database.
-   * @param fix Whether to automatically fix the column to match this Field's settings.
-   */
-  async integrity(info: Knex.ColumnInfo, fix?: boolean){
-    const { column, datatype, nullable, parent } = this;
-    const signature = info.type + (info.maxLength ? `(${info.maxLength})` : '');
-
-    if (signature.toLowerCase() !== datatype.toLowerCase())
-      throw new Error(
-        `Column ${column} in table ${parent.table} has type ${signature}, expected ${datatype}`
-      );
-
-    if (info.nullable !== nullable)
-      throw new Error(
-        `Column ${column} in table ${parent.table} has incorrect nullable value`
-      );
   }
 }
 

@@ -1,4 +1,3 @@
-import { Knex } from 'knex';
 import { Field, Nullable } from '../Field';
 import { Query } from '../Query';
 import { Type } from '../Type';
@@ -15,6 +14,11 @@ class JoinOne<T extends Type> extends Field<T> {
 
   type = "int";
   foreignKey = "id";
+
+  get foreignTable(){
+    return this.entity.table;
+  }
+
   column = underscore(this.property) + "_id";
 
   set(value: Type.Values<T> | number){
@@ -26,36 +30,6 @@ class JoinOne<T extends Type> extends Field<T> {
 
   proxy(table: Query.Table): Query.Join<T> {
     return table.query.where<any>(this.entity, { id: this });
-  }
-
-  create(table: Knex.CreateTableBuilder){
-    const { foreignKey, entity } = this;
-    const column = super.create(table);
-
-    if(!column)
-      throw new Error(`Column ${this.property} has no datatype.`);
-
-    column.references(foreignKey).inTable(entity.table);
-    
-    return column;
-  }
-
-  async integrity(info: Knex.ColumnInfo) {
-    await super.integrity(info);
-
-    const knex = this.parent.connection.knex;
-    const foreignTableExists = await knex.schema.hasTable(this.entity.table);
-
-    if (!foreignTableExists)
-      throw new Error(`Referenced table ${this.entity.table} does not exist`);
-
-    const foreignColumns = await knex(this.entity.table).columnInfo();
-    const foreignColumnInfo = foreignColumns[this.foreignKey];
-
-    if (!foreignColumnInfo)
-      throw new Error(
-        `Referenced column ${this.foreignKey} does not exist in table ${this.entity.table}`
-    );
   }
 }
 
