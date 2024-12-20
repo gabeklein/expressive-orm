@@ -19,14 +19,13 @@ declare namespace Query {
     alias?: string;
     join?: {
       as: Query.Join.Mode;
-      on: Compare.Op[];
+      on: Syntax[];
     }
     toString(): string;
   }
 
   namespace Compare {
-    type Op = { left: Field, op: string, right: unknown };
-    type Recursive = Op | Recursive[] | undefined;
+    type Recursive = Syntax | Recursive[] | undefined;
   }
 
   type FieldOrValue<T> = T extends Value<infer U> ? U : T;
@@ -145,7 +144,7 @@ class QueryBuilder<T = unknown> {
 
   limit?: number;
   orderBy = new Map<Field, "asc" | "desc">();
-  wheres = new Map<symbol, Query.Compare.Recursive>();
+  wheres = new Set<Query.Compare.Recursive>();
 
   constructor(fn: Query.Function<T>){
     const context = this.where.bind(this) as Query.Where;
@@ -216,10 +215,9 @@ class QueryBuilder<T = unknown> {
       const using = (operator: string) => {
         return (right: Query.Value<any>, orEqual?: boolean) => {
           const op = orEqual ? `${operator}=` : operator;
-          
-          const symbol = Symbol();
-          wheres.set(symbol, { left: arg1, op, right });
-          return symbol;
+          const eq = sql(arg1, op, right);
+          wheres.add(eq);
+          return eq;
         }
       };
   
@@ -232,26 +230,21 @@ class QueryBuilder<T = unknown> {
     }
 
     if(Array.isArray(arg1)){
-      const symbol = Symbol();
       const local = [] as Query.Compare.Recursive[];
-      const args = Array.from(arguments) as symbol[][];
+      const args = Array.from(arguments) as Syntax[][];
 
       for(const group of args){
-        const resolved = group.map(symbol => {
-          const actual = wheres.get(symbol);
-          wheres.delete(symbol);
-          return actual;
-        });
+        group.forEach(eq => wheres.delete(eq));
 
         if(arguments.length > 1)
-          local.push(resolved);
+          local.push(group);
         else
-          local.push(...resolved);
+          local.push(...group);
       }
 
-      wheres.set(symbol, local);
+      wheres.add(local);
 
-      return symbol;
+      return local;
     }
 
     const table = RelevantTable.get(arg1);
@@ -352,7 +345,7 @@ class QueryBuilder<T = unknown> {
         throw new Error(`Invalid join type ${joinAs}.`);
     }
     
-    const joinsOn: Query.Compare.Op[] = [];
+    const joinsOn: Syntax[] = [];
 
     switch(typeof joinOn){
       case "object":
@@ -361,7 +354,7 @@ class QueryBuilder<T = unknown> {
           const right = (joinOn as any)[key];
   
           if (left instanceof Field)
-            joinsOn.push({ left, op: "=", right });
+            joinsOn.push(sql(left, "=", right));
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }
@@ -375,7 +368,7 @@ class QueryBuilder<T = unknown> {
     
             const on = (operator: string) => (right: Field, orEqual?: boolean): any => {
               const op = orEqual ? `${operator}=` : operator;
-              joinsOn.push({ left, op, right });
+              joinsOn.push(sql(left, op, right));
             };
     
             return {
@@ -479,15 +472,9 @@ class QueryBuilder<T = unknown> {
         continue;
 
       const { as, on } = table.join;
-      const joinType = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
+      const kind = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
 
-      sql += ` ${joinType} ${table} ON `;
-      sql += on.map(({ left, op, right }) => {
-        if(typeof right === "string")
-          right = `'${right}'`;
-
-        return `${left} ${op} ${right}`;
-      }).join(' AND ');
+      sql += ` ${kind} ${table} ON ${on.join(' AND ')}`;
     }
 
     if (this.wheres.size) {
@@ -495,15 +482,14 @@ class QueryBuilder<T = unknown> {
       
       function buildWhere(conditions: Query.Compare.Recursive[], or?: boolean): string {
         return conditions.map(cond => {
-          if (!cond) return '';
+          if(cond instanceof Syntax)
+            return cond;
+
 
           if (Array.isArray(cond))
             return `(${buildWhere(cond, !or)})`;
 
-          const { right } = cond;
-          const r = typeof right === 'string' ? `'${right}'` : right;
-
-          return `${cond.left} ${cond.op} ${r}`;
+          return "";
         }).filter(Boolean).join(or ? ' OR ' : ' AND ');
       }
   
@@ -521,7 +507,7 @@ class QueryBuilder<T = unknown> {
     if (limit)
       sql += ` LIMIT ${limit}`;
   
-    return sql.replace(/```/g, "`");
+    return sql;
   }
 
   extend(){
@@ -571,6 +557,43 @@ class QueryBuilder<T = unknown> {
   
     return query;
   }
+}
+
+class Syntax extends Array<any> {
+  constructor(strings: any[]);
+  constructor(strings: TemplateStringsArray, values: any[]);
+  constructor(strings: any, values?: any[]){
+    super();
+
+    if(!values){
+      this.push(...Array.from(strings));
+      return;
+    }
+
+    const length = strings.length;
+  
+    for (let i = 0; i < length; i++) {
+      this.push(strings[i]);
+  
+      if (i < values.length)
+        this.push(values[i]);
+    }
+  }
+
+  toString(){
+    return this.map((item, i) => i % 2 ? item : this.stringify(item)).join(" ");
+  }
+
+  stringify(value: unknown){
+    if(typeof value == "string")
+      return `'${value.replace(/'/g, `\\'`)}'`;
+
+    return String(value);
+  }
+}
+
+function sql(...strings: any[]){
+  return new Syntax(strings);
 }
 
 export { Query, SelectQuery };
