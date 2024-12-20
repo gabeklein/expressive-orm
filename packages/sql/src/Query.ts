@@ -362,63 +362,44 @@ class QueryBuilder<T = unknown> {
     return proxy;
   }
 
-  private toString() {
-    const { limit, selects } = this;
-    let sql = '';
+  private toSelect(): {
+    template: string;
+    parse: (raw: any[]) => any[];
+  } {
+    const { selects } = this;
+    const main = this.tables[0];
+
+    if (selects instanceof Field)
+      return {
+        template: `SELECT ${selects} FROM ${main}`,
+        parse: raw => raw.map(row => {
+          return selects.get(row[selects.column])
+        })
+      }
+
+    const columns = new Map<string, Field | Computed<unknown>>();
     
-    if (selects === undefined) {
-      if (this.delete) {
-        sql = `DELETE FROM ${this.delete}`;
-      }
-      else if (this.update) {
-        const [table, data] = this.update;
-        const updates = table.type.digest(data);
-        const sets = Object
-          .entries(updates)
-          .map(([col, val]) => `\`${col}\` = ${typeof val === 'string' ? `'${val}'` : val}`)
-          .join(', ');
+    function scan(obj: any, path?: string) {
+      for (const key of Object.getOwnPropertyNames(obj)) {
+        const use = path ? `${path}.${key}` : key;
+        const select = obj[key];
 
-        sql = `UPDATE ${table} SET ${sets}`;
+        if (select instanceof Field || select instanceof Computed)
+          columns.set(use, select);
+        else if (typeof select === 'object')
+          scan(select, use);
       }
-      else {
-        let { alias, name } = this.tables[0];
+    }
 
-        if(alias)
-          name = `${name} AS ${alias}`;
+    scan(selects);
 
-        sql = `SELECT COUNT(*) FROM ${name}`;
-      }
-    } 
-    else if (selects instanceof Field) {
-      sql = `SELECT ${selects} FROM ${this.tables[0]}`;
-      this.parse = raw => raw.map(row => {
-        return selects.get(row[selects.column])
-      });
-    } 
-    else if (typeof selects === 'object') {
-      const columns = new Map<string, Field | Computed<unknown>>();
-      
-      function scan(obj: any, path?: string) {
-        for (const key of Object.getOwnPropertyNames(obj)) {
-          const use = path ? `${path}.${key}` : key;
-          const select = obj[key];
+    const selectClauses = Array.from(columns.entries())
+      .map(([alias, field]) => `${field} AS \`${alias}\``)
+      .join(', ');
 
-          if (select instanceof Field || select instanceof Computed)
-            columns.set(use, select);
-          else if (typeof select === 'object')
-            scan(select, use);
-        }
-      }
-  
-      scan(selects);
-  
-      const selectClauses = Array.from(columns.entries())
-        .map(([alias, field]) => `${field} AS \`${alias}\``)
-        .join(', ');
-  
-      sql = `SELECT ${selectClauses} FROM ${this.tables[0]}`;
-  
-      this.parse = raw => raw.map(row => {
+    return {
+      template: `SELECT ${selectClauses} FROM ${main}`,
+      parse: raw => raw.map(row => {
         const values = {} as any;
         
         columns.forEach((field, column) => {
@@ -433,7 +414,39 @@ class QueryBuilder<T = unknown> {
         });
   
         return values;
-      });
+      })
+    }
+  }
+
+  private toString() {
+    const { limit, selects } = this;
+    let sql = '';
+
+    if (this.delete) {
+      sql = `DELETE FROM ${this.delete}`;
+    }
+    else if (this.update) {
+      const [table, data] = this.update;
+      const updates = table.type.digest(data);
+      const sets = Object
+        .entries(updates)
+        .map(([col, val]) => `\`${col}\` = ${typeof val === 'string' ? `'${val}'` : val}`)
+        .join(', ');
+
+      sql = `UPDATE ${table} SET ${sets}`;
+    }
+    else if(selects){
+      const { template, parse } = this.toSelect();
+      this.parse = parse;
+      sql = template;
+    }
+    else {
+      let { alias, name } = this.tables[0];
+
+      if(alias)
+        name = `${name} AS ${alias}`;
+
+      sql = `SELECT COUNT(*) FROM ${name}`;
     }
 
     for (const table of this.tables) {
@@ -447,8 +460,6 @@ class QueryBuilder<T = unknown> {
     }
 
     if (this.wheres.size) {
-      sql += ' WHERE ';
-      
       function buildWhere(conditions: Query.Compare.Recursive[], or?: boolean): string {
         return conditions.map(cond => {
           if(cond instanceof Syntax)
@@ -462,7 +473,7 @@ class QueryBuilder<T = unknown> {
         }).filter(Boolean).join(or ? ' OR ' : ' AND ');
       }
   
-      sql += buildWhere(Array.from(this.wheres.values()));
+      sql += ' WHERE ' + buildWhere(Array.from(this.wheres.values()));
     }
   
     if (this.orderBy.size) {
