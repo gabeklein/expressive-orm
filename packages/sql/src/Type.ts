@@ -136,6 +136,15 @@ abstract class Type {
     
     return typeof arg1 === "number" ? query.get(arg1) : query;
   }
+
+  static one<T extends Type, R extends {}>(this: Type.EntityType<T>, query: Type.Query<T, R>): Promise<Query.Extract<R>>;
+  static one<T extends Type>(this: Type.EntityType<T>, query: Type.Query<T, void>): Promise<Type.Values<T>>;
+  static one<T extends Type, R extends {}>(this: Type.EntityType<T>, query: Type.Query<T, R>){
+    return Query(where => {
+      const self = where(this);
+      return where ? query(self, where) : self;
+    }).one();
+  }
 }
 
 function init(type: Type.EntityType){

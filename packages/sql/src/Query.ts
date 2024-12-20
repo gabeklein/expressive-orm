@@ -131,12 +131,6 @@ function Query<T = void>(from: Query.Function<T>): Query | SelectQuery {
   return new QueryBuilder(from).toRunner();
 }
 
-Query.one = function one<T extends {}>(
-  where: Query.Function<T>, orFail?: boolean){
-
-  return Query(where).one(orFail);
-}
-
 class QueryBuilder<T = unknown> {
   connection!: Connection;
 

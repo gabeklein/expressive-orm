@@ -1,4 +1,4 @@
-import { Query, Time, Type } from '../..';
+import { Time, Type } from '../..';
 import { inMemoryDatabase } from '../tests';
 
 class Foo extends Type {
@@ -15,9 +15,7 @@ it("will insert and retrieve a Date", async () => {
 
   await Foo.insert({ date: now })
 
-  const date = await Query.one(where => {
-    const foo = where(Foo);
-
+  const date = await Foo.one((foo, where) => {
     where(foo.id).equal(1);
 
     return foo.date;
