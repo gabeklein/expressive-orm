@@ -161,7 +161,7 @@ class QueryBuilder<T = unknown> {
    * Accepts instructions for nesting in a parenthesis.
    * When only one group of instructions is provided, the statement are separated by OR.
    */
-  where(orWhere: symbol[]): symbol;
+  where(orWhere: Syntax[]): Syntax;
 
   /**
    * Accepts instructions for nesting in a parenthesis.
@@ -169,7 +169,7 @@ class QueryBuilder<T = unknown> {
    * When multiple groups of instructions are provided, the groups
    * are separated by OR and nested comparisons are separated by AND.
    */
-  where(...orWhere: symbol[][]): symbol;
+  where(...orWhere: Syntax[][]): Syntax;
 
   /**
    * Create a reference to the primary table, returned
