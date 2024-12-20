@@ -288,9 +288,7 @@ class QueryBuilder<T = unknown> {
       type,
       proxy,
       query: this,
-      toString(){
-        return alias || name
-      }
+      toString: () => alias || name
     };
 
     tables.push(table);
@@ -300,7 +298,7 @@ class QueryBuilder<T = unknown> {
     if(!this.connection)
       this.connection = type.connection || INERT;
     else if(type.connection !== this.connection)
-      throw new Error(`Joined entity ${type} does not share a connection with main table ${this.tables[0]}.`);
+      throw new Error(`Joined entity ${type} does not share a connection with main table ${tables[0]}.`);
 
     if(!main)
       return proxy;
@@ -419,7 +417,7 @@ class QueryBuilder<T = unknown> {
   }
 
   private toString() {
-    const { limit, selects } = this;
+    const { limit, selects, tables } = this;
     let sql = '';
 
     if (this.delete) {
@@ -441,7 +439,7 @@ class QueryBuilder<T = unknown> {
       sql = template;
     }
     else {
-      let { alias, name } = this.tables[0];
+      let { alias, name } = tables[0];
 
       if(alias)
         name = `${name} AS ${alias}`;
@@ -449,22 +447,19 @@ class QueryBuilder<T = unknown> {
       sql = `SELECT COUNT(*) FROM ${name}`;
     }
 
-    for (const table of this.tables) {
-      if (!table.join)
-        continue;
+    for (const table of tables)
+      if (table.join) {
+        const { as, on } = table.join;
+        const kind = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
 
-      const { as, on } = table.join;
-      const kind = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
-
-      sql += ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
-    }
+        sql += ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
+      }
 
     if (this.wheres.size) {
       function buildWhere(conditions: Query.Compare.Recursive[], or?: boolean): string {
         return conditions.map(cond => {
           if(cond instanceof Syntax)
             return cond;
-
 
           if (Array.isArray(cond))
             return `(${buildWhere(cond, !or)})`;
@@ -473,7 +468,7 @@ class QueryBuilder<T = unknown> {
         }).filter(Boolean).join(or ? ' OR ' : ' AND ');
       }
   
-      sql += ' WHERE ' + buildWhere(Array.from(this.wheres.values()));
+      sql += ` WHERE ` + buildWhere(Array.from(this.wheres.values()));
     }
   
     if (this.orderBy.size) {
@@ -491,8 +486,8 @@ class QueryBuilder<T = unknown> {
     return sql;
   }
 
-  extend(){
-   return Object.create(this) as QueryBuilder;
+  extend(apply?: Partial<QueryBuilder>){
+   return Object.assign(Object.create(this), apply) as QueryBuilder;
   }
 
   send(){
@@ -525,12 +520,7 @@ class QueryBuilder<T = unknown> {
     
     const query: Query = {
       then: (resolve, reject) => get().then(resolve).catch(reject),
-      count: async () => {
-        const self = this.extend();
-        self.selects = undefined;
-        self.parse = undefined;
-        return self.send();
-      },
+      count: () => this.extend({ selects: undefined, parse: undefined }).send(),
       toString: () => this.toString()
     }
   
