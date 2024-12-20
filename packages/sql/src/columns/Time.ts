@@ -6,7 +6,7 @@ function Time(options?: Partial<DateTime>){
 
 class DateTime extends Field<Date> {
   type = "datetime" as const;
-  default = "NOW";
+  fallback = "NOW";
 
   get(value: string): Date {
     return new global.Date(value.replace(/[-]/g, '/') + "Z");

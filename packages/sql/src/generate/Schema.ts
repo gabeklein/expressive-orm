@@ -5,7 +5,7 @@ declare namespace Schema {
     // type: string;
     argument?: (string | number)[];
     comment?: string;
-    default?: string | number;
+    fallback?: string | number;
     increment?: boolean;
     onUpdate?: string;
     nullable?: boolean;

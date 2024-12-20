@@ -18,7 +18,7 @@ declare namespace Field {
 
   type Modifier<T, TT extends Field> =
     T extends { nullable: true } ? TT & Nullable :
-    T extends { default?: any, increment?: true } ? TT & Optional :
+    T extends { fallback?: any, increment?: true } ? TT & Optional :
     TT;
 
   type Specify<T, TT extends Field, D extends Field = TT> =
@@ -124,7 +124,7 @@ class Field<T = unknown> extends BaseField {
   nullable: boolean = false;
   optional: boolean = false;
   increment: boolean = false;
-  default?: unknown = undefined;
+  fallback?: unknown = undefined;
 
   column = underscore(this.property);
 
@@ -193,8 +193,8 @@ class Field<T = unknown> extends BaseField {
     if(this.unique)
       col.unique();
 
-    if(this.default)
-      col.defaultTo(this.default);
+    if(this.fallback)
+      col.defaultTo(this.fallback);
 
     return col;
   }
