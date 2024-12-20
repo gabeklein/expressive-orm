@@ -35,7 +35,7 @@ class Connection {
     this.knex = knex(knexConfig || DEFAULT_CONFIG);
   }
 
-  async query(qs: string){
+  async send(qs: string){
     return this.knex.raw(qs);
   }
 

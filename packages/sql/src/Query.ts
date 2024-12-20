@@ -497,7 +497,8 @@ class QueryBuilder<T = unknown> {
     }
   
     if (this.orderBy.size) {
-      const orders = Array.from(this.orderBy.entries())
+      const orders = Array
+        .from(this.orderBy)
         .map(([field, dir]) => `${field} ${dir}`)
         .join(', ');
 
@@ -514,6 +515,10 @@ class QueryBuilder<T = unknown> {
    return Object.create(this) as QueryBuilder;
   }
 
+  send(){
+    return this.connection.send(this.toString());
+  }
+
   toRunner(){
     const get = async (limit?: number) => {
       const self = this.extend();
@@ -521,14 +526,12 @@ class QueryBuilder<T = unknown> {
       if(limit)
         self.limit = limit;
       
-      const sql = self.toString();
-      const execute = self.connection.knex.raw(sql);
-      const result = await execute;
+      const res = await self.send();
 
       if(self.parse) 
-        return self.parse(result);
+        return self.parse(res);
   
-      return result;
+      return res;
     }
 
     const one = async (orFail?: boolean) => {
@@ -544,10 +547,9 @@ class QueryBuilder<T = unknown> {
       then: (resolve, reject) => get().then(resolve).catch(reject),
       count: async () => {
         const self = this.extend();
-
         self.selects = undefined;
-
-        return this.connection.knex.raw(self.toString());
+        self.parse = undefined;
+        return self.send();
       },
       toString: () => this.toString()
     }
