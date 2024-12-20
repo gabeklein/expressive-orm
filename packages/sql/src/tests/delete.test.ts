@@ -36,8 +36,7 @@ it("will include FROM statement where JOIN exists", () => {
   });
 
   expect(query).toMatchInlineSnapshot(`
-    DELETE foo
-    FROM
+    DELETE FROM
       foo
       INNER JOIN bar ON bar.color = foo.color
     WHERE

@@ -1,10 +1,14 @@
-import knex, { Knex } from 'knex';
-
+import { Connection } from './connection/Connection';
 import { Field } from './Field';
-import { isTypeConstructor, Type } from './Type';
 import { Computed, math, MathOps } from './math';
+import { isTypeConstructor, Type } from './Type';
 
 const RelevantTable = new WeakMap<{}, Query.Table>();
+const INERT = new Connection({
+  client: "sqlite3",
+  useNullAsDefault: true,
+  pool: { max: 0 }
+})
 
 declare namespace Query { 
   interface Table<T extends Type = any> {
@@ -134,14 +138,16 @@ Query.one = function one<T extends {}>(
 }
 
 class QueryBuilder<T = unknown> {
-  builder!: Knex.QueryBuilder;
+  connection!: Connection;
 
   tables = [] as Query.Table[];
   pending = new Set<() => void>();
   parse?: (raw: any[]) => any[];
+  template = "";
 
   delete?: Query.Table;
   update?: Readonly<[Query.Table, Query.Update<any>]>;
+  selects: T;
 
   limit?: number;
   orderBy = new Map<Field, "asc" | "desc">();
@@ -156,7 +162,12 @@ class QueryBuilder<T = unknown> {
 
     Object.assign(context, math());
 
-    this.commit(fn(context));
+    this.selects = fn(context);
+
+    for (const fn of this.pending){
+      this.pending.delete(fn);
+      fn();
+    }
   }
 
   /**
@@ -320,14 +331,16 @@ class QueryBuilder<T = unknown> {
     RelevantTable.set(proxy, table);
     Object.freeze(proxy);
 
+    if(!this.connection)
+      this.connection = type.connection || INERT;
+    else if(type.connection !== this.connection)
+      throw new Error(`Joined entity ${type} does not share a connection with main table ${this.tables[0]}.`);
+
     if(!main)
       return proxy;
 
     if(typeof joinOn == "string")
       throw new Error("Bad parameters.");
-
-    if(type.connection !== main.type.connection)
-      throw new Error(`Joined entity ${type} does not share a connection with main table ${main}`);
 
     switch(joinAs){
       case undefined:
@@ -393,135 +406,148 @@ class QueryBuilder<T = unknown> {
     return proxy;
   }
 
-  private commit(selects: unknown){
-    let engine: Knex<any, unknown[]>;
-    let builder!: Knex.QueryBuilder<any, any>;
-
-    const raw = (sql: string | number | Field | Computed<unknown>) =>
-      engine.raw(
-        typeof sql == "object" ? sql.toString() :
-        typeof sql == "string" ? sql.replace(/'/g, "\\'") :
-        sql
-      )
+  private toString() {
+    const { limit, selects } = this;
+    let sql = '';
     
-    this.pending.forEach(fn => fn());
-    this.pending.clear();
+    // Build SELECT clause
+    if (selects === undefined) {
+      if (this.delete) {
+        sql = `DELETE FROM ${this.delete.toString()}`;
+      }
+      else if (this.update) {
+        const [table, data] = this.update;
+        const updates = table.type.digest(data);
+        const sets = Object
+          .entries(updates)
+          .map(([col, val]) => `\`${col}\` = ${typeof val === 'string' ? `'${val}'` : val}`)
+          .join(', ');
 
-    for(const table of this.tables){
-      const { join, alias, name, type: { connection } } = table;
-      const ref = alias ? { [alias]: name } : name;
-
-      if(join){
-        const mode = join.as == "left" ? "leftJoin" : "innerJoin";
-
-        builder[mode](ref, builder => {
-          for(const { left, op, right } of join.on)
-            builder.on(raw(left.compare(op, right)));
-        });
+        sql = `UPDATE ${table.toString()} SET ${sets}`;
       }
       else {
-        engine = connection?.knex || knex({
-          client: "sqlite3",
-          useNullAsDefault: true,
-          pool: { max: 0 }
+        let { alias, name } = this.tables[0];
+
+        if(alias)
+          name = `${name} AS ${alias}`;
+
+        sql = `SELECT COUNT(*) FROM ${name}`;
+      }
+    } 
+    else if (selects instanceof Field) {
+      sql = `SELECT ${selects.toString()} FROM ${this.tables[0].toString()}`;
+      this.parse = raw => raw.map(row => {
+        return selects.get(row[selects.column])
+      });
+    } 
+    else if (typeof selects === 'object') {
+      const columns = new Map<string, Field | Computed<unknown>>();
+      
+      function scan(obj: any, path?: string) {
+        for (const key of Object.getOwnPropertyNames(obj)) {
+          const use = path ? `${path}.${key}` : key;
+          const select = obj[key];
+
+          if (select instanceof Field || select instanceof Computed)
+            columns.set(use, select);
+          else if (typeof select === 'object')
+            scan(select, use);
+        }
+      }
+  
+      scan(selects);
+  
+      const selectClauses = Array.from(columns.entries())
+        .map(([alias, field]) => `${field.toString()} AS \`${alias}\``)
+        .join(', ');
+  
+      sql = `SELECT ${selectClauses} FROM ${this.tables[0].toString()}`;
+  
+      this.parse = raw => raw.map(row => {
+        const values = {} as any;
+        
+        columns.forEach((field, column) => {
+          const path = column.split('.');
+          const prop = path.pop()!;
+          let target = values;
+  
+          for (const step of path) {
+            target = target[step] || (target[step] = {});
+          }
+  
+          target[prop] = field.get(row[column]);
         });
   
-        builder = this.builder = engine(ref);
+        return values;
+      });
+    }
+
+    for (const table of this.tables.slice(1))
+      if (table.join) {
+        const { as, on } = table.join;
+        const joinType = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
+        sql += ` ${joinType} ${table.toString()} ON ` + on.map(({ left, op, right }) => {
+          const rightValue = right instanceof Field ? right.toString() : 
+            typeof right === 'string' ? `'${right}'` : right;
+
+          return `${left.toString()} ${op} ${rightValue}`;
+        }).join(' AND ');
       }
-    }
-
-    const apply = (
-      compare: Iterable<Query.Compare.Recursive>,
-      builder: Knex.QueryBuilder<any, any>,
-      or?: boolean) => {
-
-      for(const clause of compare)
-        if(clause)
-          builder[or ? "orWhere" : "where"](
-            Array.isArray(clause)
-              ? (builder) => apply(clause, builder, !or)
-              : raw(clause.left.compare(clause.op, clause.right))
-          );
-    }
-
-    apply(this.wheres.values(), builder);
-
-    this.orderBy.forEach((order, field) => {
-      builder.orderBy(field.toString(), order);
-    });
-
-    if(this.limit)
-      builder.limit(this.limit);
-
-    if(selects === undefined){
-      if(this.delete)
-        builder.table(this.delete.name).delete();
-      else if(this.update){
-        const [{ name, type }, data] = this.update;
-        builder.table(name).update(type.digest(data));
-      }
-      else
-        builder.count();
-
-      return;
-    }
-
-    if(selects instanceof Field){
-      builder.select(raw(selects));
-      this.parse = raw => raw.map(row => selects.get(row[selects.column]));
-      return;
-    }
-    
-    if(typeof selects != "object")
-      throw new Error("Invalid selection.");
+  
+    if (this.wheres.size) {
+      sql += ' WHERE ';
       
-    const output = new Map<(data: any) => any, string>();
+      const buildWhere = (conditions: Query.Compare.Recursive[], or?: boolean): string => {
+        return conditions.map(condition => {
+          if (!condition) return '';
 
-    const scan = (obj: any, path?: string) => {
-      for(const key of Object.getOwnPropertyNames(obj)){
-        const use = path ? `${path}.${key}` : key;
-        const select = obj[key];
+          if (Array.isArray(condition))
+            return `(${buildWhere(condition, !or)})`;
 
-        if(select instanceof Field || select instanceof Computed){
-          output.set(raw => select.get(raw), use);
-          builder.select({ [use]: raw(select) });
-        }
-        else if(typeof select == "object")
-          scan(select, use);
-      }
-    };
+          const { left, op, right } = condition;
+          const rightValue = right instanceof Field ? right.toString() :
+            typeof right === 'string' ? `'${right}'` : right;
 
-    scan(selects);
+          return `${left.toString()} ${op} ${rightValue}`;
+        }).filter(Boolean).join(or ? ' OR ' : ' AND ');
+      };
+  
+      sql += buildWhere(Array.from(this.wheres.values()));
+    }
+  
+    if (this.orderBy.size) {
+      const orders = Array.from(this.orderBy.entries())
+        .map(([field, dir]) => `${field.toString()} ${dir}`)
+        .join(', ');
 
-    this.parse = raw => raw.map(row => {
-      const values = {} as any;
-     
-      output.forEach((column, value) => {
-        const goto = column.split(".");
-        const prop = goto.pop() as string;
-        let target = values;
+      sql += ` ORDER BY ${orders}`;
+    }
+  
+    if (limit)
+      sql += ` LIMIT ${limit}`;
+  
+    return sql.replace(/```/g, "`");
+  }
 
-        for(const path of goto)
-          target = target[path] || (target[path] = {});
-
-        target[prop] = value(row[column]);
-      })
-
-      return values;
-    })
+  extend(){
+   return Object.create(this) as QueryBuilder;
   }
 
   toRunner(){
     const get = async (limit?: number) => {
-      let execute = this.builder;
-  
+      const self = this.extend();
+
       if(limit)
-        execute = execute.clone().limit(limit);
+        self.limit = limit;
+      
+      const sql = self.toString();
+      const execute = self.connection.knex.raw(sql);
+      const result = await execute;
+
+      if(self.parse) 
+        return self.parse(result);
   
-      if(this.parse)
-        return execute.then(this.parse);
-  
-      return await execute;
+      return result;
     }
 
     const one = async (orFail?: boolean) => {
@@ -535,11 +561,17 @@ class QueryBuilder<T = unknown> {
     
     const query: Query = {
       then: (resolve, reject) => get().then(resolve).catch(reject),
-      count: () => this.builder.clone().clearSelect().count(),
-      toString: () => this.builder.toString().replace(/```/g, "`")
+      count: async () => {
+        const self = this.extend();
+
+        self.selects = undefined;
+
+        return this.connection.knex.raw(self.toString());
+      },
+      toString: () => this.toString()
     }
   
-    if(this.parse)
+    if(this.selects)
       return { ...query, get, one } as SelectQuery;
   
     return query;
