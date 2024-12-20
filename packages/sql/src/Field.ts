@@ -1,6 +1,6 @@
 import { Knex } from 'knex';
 
-import { Computed } from './math';
+import { sql, Syntax } from './generate/query';
 import { Query } from './Query';
 import { Type } from './Type';
 import { underscore } from './utils';
@@ -43,6 +43,13 @@ declare namespace Field {
     never;
 
   type Output = Record<string, string | number>;
+
+  type Compare<T> = {
+    equal(value: Query.Value<T>): Syntax;
+    not(value: Query.Value<T>): Syntax;
+    more(than: Query.Value<T>, orEqual?: boolean): Syntax;
+    less(than: Query.Value<T>, orEqual?: boolean): Syntax;
+  }
 }
 
 let focusParent: Type.EntityType | undefined;
@@ -149,15 +156,21 @@ class Field<T = unknown> extends BaseField {
     return value;
   }
 
-  compare(op: string, value: any){
-    if(!(value instanceof Field) && !(value instanceof Computed)){
-      value = this.set(value);
+  public compare(accumulate: Set<Query.Compare.Recursive>): Field.Compare<T> {
+    const on = (operator: string) =>
+      (right: Query.Value<T>, orEqual?: boolean) => {
+        const op = orEqual ? `${operator}=` : operator;
+          const eq = sql(this, op, right);
+          accumulate.add(eq);
+          return eq;
+      };
 
-      if(typeof value == "string")
-        value = `'${value}'`;
-    }
-
-    return new Computed(this.toString(), op, value);
+    return {
+      equal: on("="),
+      not: on("<>"),
+      more: on(">"),
+      less: on("<"),
+    };
   }
 
   /**

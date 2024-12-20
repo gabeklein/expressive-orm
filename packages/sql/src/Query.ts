@@ -20,7 +20,7 @@ declare namespace Query {
     alias?: string;
     join?: {
       as: Query.Join.Mode;
-      on: Syntax[];
+      on: Set<Syntax>;
     }
     toString(): string;
   }
@@ -39,7 +39,7 @@ declare namespace Query {
     type Mode = "left" | "inner";
 
     // TODO: does not chain like actual Compare
-    type Where = (field: Field) => Compare<Field>;
+    type Where = <T extends Field>(field: T) => Field.Compare<FieldOrValue<T>>;
 
     type Function = (on: Where) => void;
 
@@ -64,13 +64,6 @@ declare namespace Query {
       order: QueryBuilder["order"];
       limit: (to: number ) => void
     };
-
-  interface Compare<T = any> {
-    equal(value: Value<T>): symbol;
-    not(value: Value<T>): symbol;
-    more(than: Value<T>, orEqual?: boolean): symbol;
-    less(than: Value<T>, orEqual?: boolean): symbol;
-  }
 
   interface Verbs <T extends Type> {
     delete(): void;
@@ -204,7 +197,7 @@ class QueryBuilder<T = unknown> {
    * Prepare comparison against a particilar field,
    * returns operations for the given type.
    */
-  where<T>(field: T): Query.Compare<Query.FieldOrValue<T>>;
+  where<T extends Field>(field: T): ReturnType<T["compare"]>;
 
   where(arg1: any, arg2?: any, arg3?: any): any {
     const { wheres } = this;
@@ -212,23 +205,8 @@ class QueryBuilder<T = unknown> {
     if(isTypeConstructor(arg1))
       return this.use(arg1, arg2, arg3);
 
-    if(arg1 instanceof Field){
-      const using = (operator: string) => {
-        return (right: Query.Value<any>, orEqual?: boolean) => {
-          const op = orEqual ? `${operator}=` : operator;
-          const eq = sql(arg1, op, right);
-          wheres.add(eq);
-          return eq;
-        }
-      };
-  
-      return {
-        equal: using("="),
-        not: using("<>"),
-        more: using(">"),
-        less: using("<")
-      };
-    }
+    if(arg1 instanceof Field)
+      return arg1.compare(this.wheres);
 
     if(Array.isArray(arg1)){
       const local = [] as Query.Compare.Recursive[];
@@ -346,7 +324,7 @@ class QueryBuilder<T = unknown> {
         throw new Error(`Invalid join type ${joinAs}.`);
     }
     
-    const joinsOn: Syntax[] = [];
+    const joinsOn = new Set<Syntax>();
 
     switch(typeof joinOn){
       case "object":
@@ -355,7 +333,7 @@ class QueryBuilder<T = unknown> {
           const right = (joinOn as any)[key];
   
           if (left instanceof Field)
-            joinsOn.push(sql(left, "=", right));
+            joinsOn.add(sql(left, "=", right));
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }
@@ -364,20 +342,10 @@ class QueryBuilder<T = unknown> {
       case "function":
         this.pending.add(() => {
           joinOn(left => {
-            if (!(left instanceof Field))
-              throw new Error("Join assertions can only apply to fields.");
-    
-            const on = (operator: string) => (right: Field, orEqual?: boolean): any => {
-              const op = orEqual ? `${operator}=` : operator;
-              joinsOn.push(sql(left, op, right));
-            };
-    
-            return {
-              equal: on("="),
-              not: on("<>"),
-              more: on(">"),
-              less: on("<"),
-            }
+            if(left instanceof Field)
+              return left.compare(joinsOn);
+
+            throw new Error("Join assertions can only apply to fields.");
           });
         })
       break;
@@ -475,7 +443,7 @@ class QueryBuilder<T = unknown> {
       const { as, on } = table.join;
       const kind = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
 
-      sql += ` ${kind} ${table} ON ${on.join(' AND ')}`;
+      sql += ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
     }
 
     if (this.wheres.size) {
