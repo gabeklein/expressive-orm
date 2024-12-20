@@ -404,10 +404,9 @@ class QueryBuilder<T = unknown> {
     const { limit, selects } = this;
     let sql = '';
     
-    // Build SELECT clause
     if (selects === undefined) {
       if (this.delete) {
-        sql = `DELETE FROM ${this.delete.toString()}`;
+        sql = `DELETE FROM ${this.delete}`;
       }
       else if (this.update) {
         const [table, data] = this.update;
@@ -417,7 +416,7 @@ class QueryBuilder<T = unknown> {
           .map(([col, val]) => `\`${col}\` = ${typeof val === 'string' ? `'${val}'` : val}`)
           .join(', ');
 
-        sql = `UPDATE ${table.toString()} SET ${sets}`;
+        sql = `UPDATE ${table} SET ${sets}`;
       }
       else {
         let { alias, name } = this.tables[0];
@@ -429,7 +428,7 @@ class QueryBuilder<T = unknown> {
       }
     } 
     else if (selects instanceof Field) {
-      sql = `SELECT ${selects.toString()} FROM ${this.tables[0].toString()}`;
+      sql = `SELECT ${selects} FROM ${this.tables[0]}`;
       this.parse = raw => raw.map(row => {
         return selects.get(row[selects.column])
       });
@@ -452,10 +451,10 @@ class QueryBuilder<T = unknown> {
       scan(selects);
   
       const selectClauses = Array.from(columns.entries())
-        .map(([alias, field]) => `${field.toString()} AS \`${alias}\``)
+        .map(([alias, field]) => `${field} AS \`${alias}\``)
         .join(', ');
   
-      sql = `SELECT ${selectClauses} FROM ${this.tables[0].toString()}`;
+      sql = `SELECT ${selectClauses} FROM ${this.tables[0]}`;
   
       this.parse = raw => raw.map(row => {
         const values = {} as any;
@@ -465,9 +464,8 @@ class QueryBuilder<T = unknown> {
           const prop = path.pop()!;
           let target = values;
   
-          for (const step of path) {
+          for (const step of path)
             target = target[step] || (target[step] = {});
-          }
   
           target[prop] = field.get(row[column]);
         });
@@ -476,42 +474,45 @@ class QueryBuilder<T = unknown> {
       });
     }
 
-    for (const table of this.tables.slice(1))
-      if (table.join) {
-        const { as, on } = table.join;
-        const joinType = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
-        sql += ` ${joinType} ${table.toString()} ON ` + on.map(({ left, op, right }) => {
-          const rightValue = right instanceof Field ? right.toString() : 
-            typeof right === 'string' ? `'${right}'` : right;
+    for (const table of this.tables) {
+      if (!table.join)
+        continue;
 
-          return `${left.toString()} ${op} ${rightValue}`;
-        }).join(' AND ');
-      }
-  
+      const { as, on } = table.join;
+      const joinType = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
+
+      sql += ` ${joinType} ${table} ON `;
+      sql += on.map(({ left, op, right }) => {
+        if(typeof right === "string")
+          right = `'${right}'`;
+
+        return `${left} ${op} ${right}`;
+      }).join(' AND ');
+    }
+
     if (this.wheres.size) {
       sql += ' WHERE ';
       
-      const buildWhere = (conditions: Query.Compare.Recursive[], or?: boolean): string => {
-        return conditions.map(condition => {
-          if (!condition) return '';
+      function buildWhere(conditions: Query.Compare.Recursive[], or?: boolean): string {
+        return conditions.map(cond => {
+          if (!cond) return '';
 
-          if (Array.isArray(condition))
-            return `(${buildWhere(condition, !or)})`;
+          if (Array.isArray(cond))
+            return `(${buildWhere(cond, !or)})`;
 
-          const { left, op, right } = condition;
-          const rightValue = right instanceof Field ? right.toString() :
-            typeof right === 'string' ? `'${right}'` : right;
+          const { right } = cond;
+          const r = typeof right === 'string' ? `'${right}'` : right;
 
-          return `${left.toString()} ${op} ${rightValue}`;
+          return `${cond.left} ${cond.op} ${r}`;
         }).filter(Boolean).join(or ? ' OR ' : ' AND ');
-      };
+      }
   
       sql += buildWhere(Array.from(this.wheres.values()));
     }
   
     if (this.orderBy.size) {
       const orders = Array.from(this.orderBy.entries())
-        .map(([field, dir]) => `${field.toString()} ${dir}`)
+        .map(([field, dir]) => `${field} ${dir}`)
         .join(', ');
 
       sql += ` ORDER BY ${orders}`;
