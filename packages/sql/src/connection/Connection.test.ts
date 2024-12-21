@@ -1,12 +1,27 @@
-import { Type } from "../Type";
-import { Bool, Num, One } from "../columns";
-import { Connection } from "./Connection";
+import { Bool, Num, One, Str, Type, Connection } from '..';
+import { inMemoryDatabase } from '../tests';
 
 it.todo("will check FK constraints");
 
 function toSchema(types: Connection.Types) {
   return new Connection().schema(types);
 }
+
+it("will create a table", async () => {
+  class User extends Type {
+    name = Str();
+    email = Str();
+    age = Num();
+  }
+
+  await inMemoryDatabase([ User ]);
+
+  await User.insert({
+    name: "Gabe",
+    email: "gabe@email.org",
+    age: 25
+  });
+})
 
 it("will convert camelCase names to underscore", async () => {
   class FooBar extends Type {
