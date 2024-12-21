@@ -144,7 +144,7 @@ class Connection {
   protected create(type: Type.EntityType, builder: Knex.CreateTableBuilder){
     type.fields.forEach(field => {
       if(!field.datatype)
-        return;
+        throw new Error(`Column ${field.property} has no datatype.`);
 
       const {
         column,
