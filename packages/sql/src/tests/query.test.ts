@@ -14,9 +14,7 @@ it("will count query by default", () => {
     where(foo.color).equal("red");
   });
 
-  const qb = query.toString();
-
-  expect(qb).toMatchInlineSnapshot(`
+  expect(query).toMatchInlineSnapshot(`
     SELECT
       COUNT(*)
     FROM
@@ -67,7 +65,7 @@ describe("where", () => {
       ])
     });
 
-    expect(query.toString()).toMatchInlineSnapshot(`
+    expect(query).toMatchInlineSnapshot(`
       SELECT
         COUNT(*)
       FROM

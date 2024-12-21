@@ -5,7 +5,7 @@ import { Connection } from "./Connection";
 it.todo("will check FK constraints");
 
 function toSchema(types: Connection.Types) {
-  return new Connection().schema(types).toString();
+  return new Connection().schema(types);
 }
 
 it("will convert camelCase names to underscore", async () => {

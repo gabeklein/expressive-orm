@@ -54,7 +54,7 @@ it("will insert procedurally generated rows", async () => {
     { "id": 1, "name": "john",  "email": "john@email.org",  "age": 25 },
     { "id": 2, "name": "jane",  "email": "jane@email.org",  "age": 26 },
     { "id": 3, "name": "bob",   "email": "bob@email.org",   "age": 27 },
-    { "id": 4, "name": "alice", "email": "alice@email.org", "age": 28  }
+    { "id": 4, "name": "alice", "email": "alice@email.org", "age": 28 }
   ]);
 })
 
