@@ -202,7 +202,7 @@ describe("sort", () => {
     const query = Query(where => {
       const test = where(Test);
   
-      where.order(test.id).desc()
+      where(test.id).desc()
   
       return test.name;
     });
@@ -223,8 +223,8 @@ describe("sort", () => {
     const query = Query(where => {
       const test = where(Test);
   
-      where.order(test.rating).asc()
-      where.order(test.name).desc()
+      where(test.rating).asc()
+      where(test.name).desc()
   
       return test.name;
     });

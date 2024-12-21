@@ -61,7 +61,6 @@ declare namespace Query {
     & MathOps
     & {
       is: QueryBuilder["where"];
-      order: QueryBuilder["order"];
       limit: (to: number ) => void
     };
 
@@ -84,6 +83,11 @@ declare namespace Query {
     T extends From<infer U> ? { [J in Type.Fields<U>]: Extract<U[J]> } :
     T extends {} ? { [K in keyof T]: Extract<T[K]> } :
     T;
+
+  type Asserts<T extends Field> = ReturnType<T["compare"]> & {
+    asc(): void;
+    desc(): void;
+  };
 }
 
 interface Query<T = unknown> extends PromiseLike<T> {
@@ -144,7 +148,6 @@ class QueryBuilder<T = unknown> {
     const context = this.where.bind(this) as Query.Where;
 
     context.is = this.where.bind(this);
-    context.order = this.order.bind(this);
     context.limit = (to: number) => { this.limit = to };
 
     Object.assign(context, math());
@@ -197,7 +200,7 @@ class QueryBuilder<T = unknown> {
    * Prepare comparison against a particilar field,
    * returns operations for the given type.
    */
-  where<T extends Field>(field: T): ReturnType<T["compare"]>;
+  where<T extends Field>(field: T): Query.Asserts<T>;
 
   where(arg1: any, arg2?: any, arg3?: any): any {
     const { wheres } = this;
@@ -206,7 +209,10 @@ class QueryBuilder<T = unknown> {
       return this.use(arg1, arg2, arg3);
 
     if(arg1 instanceof Field)
-      return arg1.compare(this.wheres);
+      return Object.assign(
+        arg1.compare(wheres),
+        this.order(arg1)
+      );
 
     if(Array.isArray(arg1)){
       const local = [] as Query.Compare.Recursive[];
