@@ -1,27 +1,29 @@
 import { Field } from '../Field';
 
+const VARIABLE_TYPE = new Set(["char", "varchar", "text"]);
+
 declare namespace Str {
-  interface Char extends StringLike {
+  interface Char extends Str {
     readonly type: "char";
   }
 
-  interface VarChar extends StringLike {
+  interface VarChar extends Str {
     readonly type: "varchar";
   }
 
-  interface Text extends StringLike {
+  interface Text extends Str {
     readonly type: "text";
   }
 
-  interface TinyText extends StringLike {
+  interface TinyText extends Str {
     readonly type: "tinytext";
   }
 
-  interface MediumText extends StringLike {
+  interface MediumText extends Str {
     readonly type: "mediumtext";
   }
 
-  interface LongText extends StringLike {
+  interface LongText extends Str {
     readonly type: "longtext";
   }
 
@@ -30,38 +32,44 @@ declare namespace Str {
   type Options = Partial<Type>;
 }
 
-function Str<T extends Str.Options>(opts?: T){
-  return StringLike.new(opts) as Field.Specify<T, Str.Type, Str.VarChar>;;
+interface Str extends Field<string> {
+  type: "char" | "varchar" | "text" | "tinytext" | "mediumtext" | "longtext";
+  length: number;
 }
 
-class StringLike extends Field<string> {
-  length = 255;
-  type: "varchar" | "char" | "text" | "tinytext" | "mediumtext" | "longtext" = "varchar";
+function Str<T extends Str.Options>(opts?: T){
+  type Spec = Field.Specify<T, Str.Type, Str.VarChar>;
 
-  get datatype(){
-    const { type, length } = this;
+  let { type = "varchar", length = 255, datatype } = opts || {};
 
-    if(["char", "varchar", "text"].includes(type))
+  return Field<Str.Type>(self => {
+    const { set } = self;
+
+    if(VARIABLE_TYPE.has(type!))
       if(length)
-        return `${type}(${length})`;
+        datatype = `${datatype || type}(${length})`;
       else
-        throw `Can't determine datatype! Length is not specified for ${this.parent.name}.${this.property}.`
+        throw `Can't determine datatype! Length is not specified for ${self.parent.name}.${self.property}.`
 
-    return type;
-  }
-
-  set(value: string){
-    const output = super.set(value);
-
-    if(typeof value !== "string")
-      throw "Value must be a string."
-
-    // TODO: escape characters may add to length
-    if(this.length && output.length > this.length)
-      throw `Value length ${value.length} exceeds maximum of ${this.length}.`
-
-    return output;
-  }
+    return {
+      type,
+      length,
+      datatype,
+      ...opts,
+      set(value: string){
+        const output = set.call(self, value);
+  
+        if(typeof value !== "string")
+          throw "Value must be a string."
+  
+        // TODO: escape characters may add to length
+        if(this.length && output.length > this.length)
+          throw `Value length ${value.length} exceeds maximum of ${this.length}.`
+  
+        return output;
+      }
+    }
+  }) as Spec; 
 }
 
 export { Str }

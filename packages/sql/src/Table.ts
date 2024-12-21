@@ -11,8 +11,7 @@ namespace Table {
 function Table(name: string, opts?: Table.Options): Type.EntityType;
 function Table(opts: Table.Options): Type.EntityType;
 function Table(arg1: string | Table.Options, arg2?: Table.Options){
-  // TODO: this needs to be refactored
-  return Field.new((_key, parent) => {
+  return Field(({ parent }) => {
     if(typeof arg1 == "string"){
       const [name, schema] = arg1.split(".").reverse();
 

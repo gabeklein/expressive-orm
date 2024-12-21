@@ -1,7 +1,7 @@
 import { Field, Nullable } from '../Field';
 
 declare namespace Bool {
-  interface TinyInt extends Field {
+  interface TinyInt extends Field<boolean> {
     readonly type: "tinyint"; 
   }
 }
@@ -9,7 +9,7 @@ declare namespace Bool {
 function Bool(column: string, nullable: boolean): Bool.TinyInt;
 function Bool(column?: string, nullable?: true): Bool.TinyInt & Nullable;
 function Bool(column?: string, nullable?: boolean){
-  return Field.new({
+  return Field({
     nullable,
     column,
     type: "tinyint",

@@ -1,29 +1,34 @@
 import { Field } from '../Field';
 
-function Time(options?: Partial<DateTime>){
-  return DateTime.new(options);
+interface Time extends Field<Date> {
+  type: "datetime";
+  fallback: "NOW" | Date | undefined;
 }
 
-class DateTime extends Field<Date> {
-  type = "datetime" as const;
-  fallback = "NOW";
+function Time(options?: Partial<Time>){
+  return Field<Time>(self => {
+    const { set } = self;
 
-  get(value: string): Date {
-    return new global.Date(value.replace(/[-]/g, '/') + "Z");
-  }
-
-  set(value: string | Date){
-    if(value === "NOW")
-      value = "CURRENT_TIMESTAMP";
-
-    else if(value instanceof Date)
-      value = value.toISOString().slice(0, 19).replace("T", " ");
-
-    else
-      throw "Value must be a Date object."
-
-    return super.set(value);
-  }
+    return {
+      type: "datetime",
+      ...options,
+      get(value: string){
+        return new global.Date(value.replace(/[-]/g, '/') + "Z");
+      },
+      set(value: string | Date){
+        if(value === "NOW")
+          value = "CURRENT_TIMESTAMP";
+  
+        else if(value instanceof Date)
+          value = value.toISOString().slice(0, 19).replace("T", " ");
+  
+        else
+          throw "Value must be a Date object."
+  
+        return set.call(self, value as any);
+      }
+    }
+  });
 }
 
 export { Time }

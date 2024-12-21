@@ -3,14 +3,13 @@ import { Query } from './Query';
 import { Type } from './Type';
 import { underscore } from './utils';
 
-const FIELD = new Map<symbol, Field.Init>();
+const FIELD = new Map<symbol, (key: string, parent: Type.EntityType) => Partial<Field> | void>();
 
 type Nullable = { nullable: true };
 type Optional = { optional: true };
 
 declare namespace Field {
-  type Init<T extends Field = Field> =
-    (key: string, parent: Type.EntityType) => Partial<T> | void;
+  type Init<T extends Field = Field> = (self: T) => Partial<T> | void;
 
   type Opts<T extends Field = Field> = Partial<T> | Init<T>;
 
@@ -50,12 +49,26 @@ declare namespace Field {
   }
 }
 
-let focusParent: Type.EntityType | undefined;
-let focusProperty: string | undefined;
+interface Field<T = unknown> {
+  type: string;
+  unique: boolean;
+  nullable: boolean;
+  optional: boolean;
+  increment: boolean;
+  fallback?: unknown;
 
-abstract class BaseField {
   property: string;
   parent: Type.EntityType;
+
+  table?: Query.Table;
+
+  foreignKey?: string;
+  foreignTable?: string;
+
+  /** Real datatype of this field in database. */
+  datatype: string;
+
+  column: string;
 
   /**
    * Optional method generates value of property this Field is applied to when accessed inside a query.
@@ -70,7 +83,7 @@ abstract class BaseField {
    * 
    * Use this method to validate, sanitize or convert data before it is inserted into the database.
    */
-  abstract set(value: unknown, data: Field.Output): void;
+  set(value: T): any;
 
   /**
    * This method dictates behavior of this field when converted from a SQL context to javascript.
@@ -78,90 +91,74 @@ abstract class BaseField {
    * Use this method to parse data incoming from the database itself. For example, you might convert
    * a TINYINT(1) field to a boolean, or a DATETIME field to a Date object.
    */
-  abstract get(value: any): unknown;
+  get(value: any): T;
 
-  constructor(){
-    this.parent = focusParent!;
-    this.property = focusProperty!;
-
-    focusParent = undefined;
-    focusProperty = undefined;
-  }
-
-  static new<T extends Field>(
-    this: new (...args: any[]) => T,
-    options: Field.Opts<T> = {}
-  ){
-    const placeholder = Symbol('field');
-    
-    FIELD.set(placeholder, (property, parent) => {
-      focusParent = parent;
-      focusProperty = property;
-
-      const field = new this();
-
-      if (typeof options === "function")
-        options = options(property, parent) || {};
-
-      Object.entries(options).forEach(([key, value]) => {
-        if (value !== undefined)
-          Object.defineProperty(field, key, { enumerable: true, value });
-      });
-
-      Object.freeze(field);
-      parent.fields.set(property, field);
-    });
-
-    return placeholder as unknown as T;
-  }
+  compare(accumulate: Set<Query.Compare.Recursive>): Field.Compare<T>;
 }
 
-class Field<T = unknown> extends BaseField {
-  type: string = "";
-  unique: boolean = false;
-  nullable: boolean = false;
-  optional: boolean = false;
-  increment: boolean = false;
-  fallback?: unknown = undefined;
+function Field<T extends Field>(options?: Field.Init<T>): T
+function Field<T extends Field>(options?: Partial<T> ): T
+function Field<T extends Field>(options?: Field.Opts<T>){
+  const placeholder = Symbol('field');
+  
+  FIELD.set(placeholder, (property, parent) => {
+    const field = Object.create(Field.prototype) as T;
 
-  column = underscore(this.property);
+    field.parent = parent;
+    field.property = property;
+    field.column = underscore(property);
 
-  table?: Query.Table;
-  foreignKey?: string;
+    if (typeof options === "function")
+      options = options(field) || {};
 
-  get foreignTable(): string | undefined {
-    return;
-  }
+    for(const key in options){
+      const value = (options as any)[key];
 
-  toString(): string {
+      if(value !== undefined)
+        (field as any)[key] = value;
+    }
+
+    if(!field.datatype)
+      field.datatype = field.type;
+
+    Object.freeze(field);
+    parent.fields.set(property, field);
+  });
+
+  return placeholder as unknown as T;
+}
+
+Field.prototype = <Field> {
+  type: "",
+  unique: false,
+  nullable: false,
+  optional: false,
+  increment: false,
+  fallback: undefined,
+  toString(){ 
     if(this.table)
       return `${this.table}.${this.column}`;
 
     throw new Error("This requires a table to be set.");
-  }
-
-  /** Real datatype of this field in database. */
-  get datatype(){
-    return this.type;
-  }
-
-  set(value: unknown): any {
+  },
+  set(value: unknown){
     if(value != null)
       return typeof value == "number" ? value : String(value);
       
     if(this.nullable || this.optional)
       return value === null ? "NULL" : undefined;
 
+    if(this.increment)
+      return undefined;
+
     throw new Error(`Column ${this.column} requires a value but got ${value}.`);
-  }
-
-  get(value: any): T {
+  },
+  get(value: any){
     return value;
-  }
-
-  public compare(accumulate: Set<Query.Compare.Recursive>): Field.Compare<T> {
+  },
+  compare(accumulate: Set<Query.Compare.Recursive>){
     const on = (operator: string) =>
-      (right: Query.Value<T>, orEqual?: boolean) => {
+      (right: Query.Value, orEqual?: boolean) => {
         const op = orEqual ? `${operator}=` : operator;
           const eq = sql(this, op, right);
           accumulate.add(eq);

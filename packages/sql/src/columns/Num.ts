@@ -1,27 +1,27 @@
 import { Field } from '../Field';
 
 declare namespace Num {
-  interface Int extends Numeric {
+  interface Int extends Num {
     readonly type: "int";
   }
   
-  interface TinyInt extends Numeric {
+  interface TinyInt extends Num {
     readonly type: "tinyint";
   }
   
-  interface SmallInt extends Numeric {
+  interface SmallInt extends Num {
     readonly type: "smallint";
   }
   
-  interface BigInt extends Numeric {
+  interface BigInt extends Num {
     readonly type: "bigint";
   }
   
-  interface Float extends Numeric {
+  interface Float extends Num {
     readonly type: "float";
   }
   
-  interface Double extends Numeric {
+  interface Double extends Num {
     readonly type: "double";
   }
 
@@ -30,23 +30,30 @@ declare namespace Num {
   type Options = Partial<Type>;
 }
 
-function Num<T extends Num.Options>(options?: T){
-  return Numeric.new(options) as Field.Specify<T, Num.Type, Num.Int>;
+interface Num extends Field<number> {}
+
+function Num<T extends Num.Options>(opts?: T){
+  type Spec = Field.Specify<T, Num.Type, Num.Int>;
+
+  return Field<Num.Type>(self => {
+    const { set } = self;
+
+    return {
+      type: "int",
+      ...opts,
+      set(value: number){
+        const output = set.call(self, value);
+  
+        if(typeof value !== "number" || isNaN(value))
+          throw `Got '${value}' but value must be a number.`
+    
+        if(this.type === "int" && value !== Math.floor(value))
+          throw `Got '${value}' but datatype is integer.`
+    
+        return output;
+      }
+    }
+  }) as Spec;
 }
 
-class Numeric extends Field<number> {
-  type: Num.Type["type"] = "int";
-
-  set(value: number){
-    const output = super.set(value);
-    if(typeof value !== "number" || isNaN(value))
-      throw `Got '${value}' but value must be a number.`
-
-    if(this.type === "int" && value !== Math.floor(value))
-      throw `Got '${value}' but datatype is integer.`
-
-    return output;
-  }
-}
-
-export { Num, Numeric };
+export { Num };

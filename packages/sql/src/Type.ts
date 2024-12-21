@@ -48,7 +48,7 @@ abstract class Type {
    * Setting to zero will disable this field, and ORM will not expect it to be present in the database.
    * TODO: Not applicable anymore.
    */
-  id = Primary.new();
+  id = Primary();
 
   static schema = "";
 
@@ -193,7 +193,7 @@ function digest<T extends Type>(
       }
 
       if(typeof err == "string")
-        message += `\n${err}`;
+        message += "\n" + err;
 
       throw new Error(message);
     }
@@ -202,12 +202,20 @@ function digest<T extends Type>(
   return values;
 }
 
-class Primary extends Field<number> {
-  readonly type = "int";
-  readonly increment = true;
-  readonly optional = true;
-  readonly nullable = false;
-  readonly primary = true;
+interface Primary extends Field<number> {
+  readonly increment: true;
+  readonly optional: true;
+  readonly nullable: false;
+  readonly primary: true;
+}
+
+function Primary() {
+  return Field<Primary>({
+    type: "int",
+    increment: true,
+    primary: true,
+    unique: true,
+  });
 }
 
 export function isTypeConstructor(obj: unknown): obj is typeof Type {

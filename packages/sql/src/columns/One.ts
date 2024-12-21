@@ -3,34 +3,36 @@ import { Query } from '../Query';
 import { Type } from '../Type';
 import { underscore } from '../utils';
 
-function One<T extends Type>(type: Type.EntityType<T>, nullable?: false): JoinOne<T>;
-function One<T extends Type>(type: Type.EntityType<T>, nullable: boolean): JoinOne<T> & Nullable;
+interface One<T extends Type> extends Field<Type.Values<T>> {
+  entity: Type.EntityType<T>;
+  proxy(table: Query.Table): Query.Join<T>;
+  set(value: Type.Values<T> | number): void;
+}
+
+function One<T extends Type>(type: Type.EntityType<T>, nullable?: false): One<T>;
+function One<T extends Type>(type: Type.EntityType<T>, nullable: boolean): One<T> & Nullable;
 function One<T extends Type>(type: Type.EntityType<T>, nullable?: boolean){
-  return JoinOne.new({ entity: type, nullable });
+  return Field<One<T>>(self => {
+    const { set } = self;
+
+    return {
+      nullable,
+      entity: type,
+      column: underscore(self.property) + "_id",
+      type: "int",
+      foreignKey: "id",
+      foreignTable: type.table,
+      set(value: Type.Values<T> | number){
+        if(value && typeof value == "object")
+          value = value.id;
+  
+        return set.call(self, value);
+      },
+      proxy(this: One<T>, table: Query.Table){
+        return table.query.where<any>(type, { id: this });
+      }
+    }
+  });
 }
 
-class JoinOne<T extends Type> extends Field<T> {
-  entity!: Type.EntityType<T>;
-
-  type = "int";
-  foreignKey = "id";
-
-  get foreignTable(){
-    return this.entity.table;
-  }
-
-  column = underscore(this.property) + "_id";
-
-  set(value: Type.Values<T> | number){
-    if(value && typeof value == "object")
-      value = value.id;
-
-    return super.set(value);
-  }
-
-  proxy(table: Query.Table): Query.Join<T> {
-    return table.query.where<any>(this.entity, { id: this });
-  }
-}
-
-export { One, JoinOne }
+export { One }
