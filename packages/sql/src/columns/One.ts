@@ -21,7 +21,7 @@ function One<T extends Type>(type: Type.EntityType<T>, nullable?: boolean){
       return value && typeof value == "object" ? value.id : value;
     },
     proxy(this: One<T>, table: Query.Table){
-      return table.query.where<any>(type, { id: this });
+      return table.query.use(type, { id: this });
     }
   }));
 }

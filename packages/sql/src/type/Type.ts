@@ -136,7 +136,7 @@ abstract class Type {
   static one<T extends Type>(this: Type.EntityType<T>, id: number): Promise<Type.Values<T>>;
   static one(this: Type.EntityType, query?: Type.Query<Type, any> | number){
     return Query(where => {
-      const self = where<Type>(this);
+      const self = where(this);
 
       if(typeof query == "function")
         return query(self, where);
