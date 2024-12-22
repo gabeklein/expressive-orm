@@ -206,7 +206,9 @@ function where(this: QueryBuilder, arg1: any, arg2?: any, arg3?: any): any {
   }
 
   if(Type.is(arg1))
-    return this.use(arg1, arg2, arg3);
+    return arg2
+      ? this.join(arg1, arg2, arg3)
+      : this.use(arg1).proxy;
 
   if(arg1 instanceof Field)
     return {
@@ -277,13 +279,7 @@ class QueryBuilder<T = unknown> {
     }
   }
 
-  public use<T extends Type>(type: Type.EntityType<T>): Query.From<T>
-  public use<T extends Type>(type: Type.EntityType<T>, joinOn: Query.Join.On<T>, joinAs?: Query.Join.Mode): Query.Join<T>
-  public use<T extends Type>(
-    type: Type.EntityType<T>,
-    joinOn?: Query.Join.On<T>,
-    joinAs?: Query.Join.Mode){
-
+  public use<T extends Type>(type: Type.EntityType<T>){
     const { tables } = this;
     const { fields, schema } = type;
 
@@ -330,18 +326,15 @@ class QueryBuilder<T = unknown> {
     else if(type.connection !== this.connection)
       throw new Error(`Joined entity ${type} does not share a connection with main table ${tables[0]}.`);
 
-    if(joinOn)
-      this.join(table, joinOn, joinAs);
-  
-    return proxy;
+    return table;
   }
 
   public join<T extends Type>(
-    table: Query.Table<T>,
+    type: Type.EntityType<T>,
     joinOn: Query.Join.On<T>,
     joinAs?: Query.Join.Mode){
 
-    const { proxy, type } = table;
+    const table = this.use(type);
     const main = this.tables[0];
     
     if(typeof joinOn == "string")
@@ -368,7 +361,7 @@ class QueryBuilder<T = unknown> {
     switch(typeof joinOn){
       case "object":
         for (const key in joinOn) {
-          const left = (proxy as any)[key];
+          const left = (table.proxy as any)[key];
           const right = (joinOn as any)[key];
   
           if (left instanceof Field)
@@ -397,6 +390,8 @@ class QueryBuilder<T = unknown> {
       as: joinAs,
       on: joinsOn
     }
+
+    return table.proxy as Query.Join<T>;
   }
 
   private toSelect(): {
