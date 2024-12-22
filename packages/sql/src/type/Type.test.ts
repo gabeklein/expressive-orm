@@ -1,5 +1,5 @@
 import { Type, Num } from '..';
-import { inMemoryDatabase } from './tests';
+import { inMemoryDatabase } from '../tests';
 
 class Item extends Type  {
   number = Num();

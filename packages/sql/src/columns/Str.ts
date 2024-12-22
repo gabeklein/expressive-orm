@@ -1,4 +1,4 @@
-import { Field } from '../Field';
+import { Field } from '..';
 
 const VARIABLE_TYPE = new Set(["char", "varchar", "text"]);
 

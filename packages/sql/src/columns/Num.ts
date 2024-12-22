@@ -1,4 +1,4 @@
-import { Field } from '../Field';
+import { Field } from '..';
 
 declare namespace Num {
   interface Int extends Num {

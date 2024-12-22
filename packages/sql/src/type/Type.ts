@@ -1,7 +1,6 @@
-import { Query, SelectQuery } from '.';
-import { Connection } from './connection/Connection';
+import { Connection, Query, SelectQuery } from '..';
+import { define, isIterable, underscore } from '../utils';
 import { Field, fields, Nullable, Optional } from './Field';
-import { define, isIterable, underscore } from './utils';
 
 declare namespace Type {
   type EntityType<T extends Type = Type> =

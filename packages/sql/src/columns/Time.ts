@@ -1,4 +1,4 @@
-import { Field } from '../Field';
+import { Field } from '..';
 
 interface Time extends Field<Date> {
   type: "datetime";

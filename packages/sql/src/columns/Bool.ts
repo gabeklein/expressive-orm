@@ -1,4 +1,4 @@
-import { Field, Nullable } from '../Field';
+import { Field, Nullable } from '..';
 
 declare namespace Bool {
   interface TinyInt extends Field<boolean> {

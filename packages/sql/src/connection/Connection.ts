@@ -1,7 +1,6 @@
 import knex, { Knex } from 'knex';
 
-import { Type } from '../Type';
-import { Field } from '../Field';
+import { Field, Type } from '..';
 
 namespace Connection {
   export type Types =

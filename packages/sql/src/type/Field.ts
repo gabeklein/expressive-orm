@@ -1,6 +1,7 @@
-import { Query, Type } from '.';
-import { sql, Syntax } from './query/syntax';
-import { capitalize, underscore } from './utils';
+import { Query } from '..';
+import { sql, Syntax } from '../query/syntax';
+import { capitalize, underscore } from '../utils';
+import { Type } from './Type';
 
 const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
 const FIELD = new Map<symbol, (key: string, parent: Type.EntityType) => Partial<Field> | void>();
