@@ -1,5 +1,6 @@
-import { Schema } from "@expressive/sql";
-import { Scanner } from "@expressive/sql-import";
+import { Scanner } from '@expressive/sql-import';
+
+import { Schema } from './Schema';
 
 type BunchOf<T = any> = { [key: string]: T }
 
@@ -166,7 +167,7 @@ class Parser extends Scanner {
         break;
 
         case "DEFAULT":
-          info.default = this.expect(["string", "number", "word"])
+          info.fallback = this.expect(["string", "number", "word"])
           break;
 
         case "ON": {

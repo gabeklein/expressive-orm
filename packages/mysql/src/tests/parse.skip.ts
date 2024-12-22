@@ -1,4 +1,4 @@
-import { Parser } from "../parse/Parser"
+import { Parser } from "@expressive/sql-import"
 
 it("will parse sql schema", () => {
   const SQL = `

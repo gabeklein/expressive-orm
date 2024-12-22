@@ -2,14 +2,16 @@ import knex, { Knex } from 'knex';
 
 import { Field, Type } from '..';
 
-namespace Connection {
-  export type Types =
+declare namespace Connection {
+  type Types =
     | typeof Type[]
     | { [key: string | number]: typeof Type }
 
-  export type MySQLConfig = Knex.MySqlConnectionConfig;
-  export type SQLiteConfig = Knex.Sqlite3ConnectionConfig;
-  export type PostgresConfig = Knex.PgConnectionConfig;
+  type MySQLConfig = Knex.MySqlConnectionConfig;
+  type SQLiteConfig = Knex.Sqlite3ConnectionConfig;
+  type PostgresConfig = Knex.PgConnectionConfig;
+
+  type Entities = { [key: string | number]: typeof Type };
 }
 
 let defaultConnection: Connection;

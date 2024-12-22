@@ -1,12 +1,5 @@
 import * as t from '@expressive/estree';
 
-export function entity(
-  name: string,
-  properties: t.Class.Property){
-
-  
-}
-
 export function field(
   property: string,
   instruction: string,

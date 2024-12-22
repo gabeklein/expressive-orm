@@ -5,6 +5,8 @@
   "private": true,
   "module": "src",
   "dependencies": {
+    "@expressive/estree": "^0.1.2",
+    "astring": "^1.9.0",
     "moo": "^0.5.2"
   },
   "devDependencies": {

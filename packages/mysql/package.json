@@ -10,7 +10,6 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@expressive/estree": "^0.1.2",
     "@expressive/sql": "^0.0.1",
     "@expressive/sql-import": "^0.0.1"
   },
