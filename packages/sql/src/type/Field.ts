@@ -119,7 +119,7 @@ interface Field<T = unknown> {
    */
   get(value: any): T;
 
-  compare(accumulate: Set<Query.Compare.Recursive>): Field.Compare<T>;
+  compare(accumulate: Set<Query.Compare>): Field.Compare<T>;
 }
 
 function Field<T extends Field>(options?: Field.Init<T>): T
@@ -170,7 +170,7 @@ Field.prototype = <Field> {
   get(value: any){
     return value;
   },
-  compare(accumulate: Set<Query.Compare.Recursive>){
+  compare(accumulate: Set<Query.Compare>){
     const on = (operator: string) =>
       (right: Query.Value, orEqual?: boolean) => {
         const op = orEqual ? `${operator}=` : operator;

@@ -24,9 +24,7 @@ declare namespace Query {
     toString(): string;
   }
 
-  namespace Compare {
-    type Recursive = Syntax | Recursive[] | undefined;
-  }
+  type Compare = Syntax | Compare[] | undefined;
 
   type FieldOrValue<T> = T extends Value<infer U> ? U : T;
 
@@ -141,7 +139,7 @@ class QueryBuilder<T = unknown> {
 
   limit?: number;
   orderBy = new Map<Field, "asc" | "desc">();
-  wheres = new Set<Query.Compare.Recursive>();
+  wheres = new Set<Query.Compare>();
 
   constructor(fn: Query.Function<T>){
     const context = this.where.bind(this) as Query.Where;
@@ -202,23 +200,22 @@ class QueryBuilder<T = unknown> {
   where<T extends Field>(field: T): Query.Asserts<T>;
 
   where(arg1: any, arg2?: any, arg3?: any): any {
-    const { wheres } = this;
-
     if(Type.is(arg1))
       return this.use(arg1, arg2, arg3);
 
     if(arg1 instanceof Field)
-      return assign(
-        arg1.compare(wheres),
-        this.order(arg1)
-      );
-
+      return {
+        ...arg1.compare(this.wheres),
+        asc: () => { this.orderBy.set(arg1, "asc") },
+        desc: () => { this.orderBy.set(arg1, "desc") }
+      }
+    
     if(Array.isArray(arg1)){
-      const local = [] as Query.Compare.Recursive[];
+      const local = [] as Query.Compare[];
       const args = Array.from(arguments) as Syntax[][];
 
       for(const group of args){
-        group.forEach(eq => wheres.delete(eq));
+        group.forEach(eq => this.wheres.delete(eq));
 
         if(arguments.length > 1)
           local.push(group);
@@ -226,7 +223,7 @@ class QueryBuilder<T = unknown> {
           local.push(...group);
       }
 
-      wheres.add(local);
+      this.wheres.add(local);
 
       return local;
     }
@@ -243,13 +240,6 @@ class QueryBuilder<T = unknown> {
       update: (data: Query.Update<any>) => {
         this.update = [table, data];
       }
-    }
-  }
-
-  private order(field: Field){
-    return {
-      asc: () => { this.orderBy.set(field, "asc") },
-      desc: () => { this.orderBy.set(field, "desc") }
     }
   }
 
