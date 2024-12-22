@@ -472,17 +472,14 @@ class QueryBuilder<T = unknown> {
         }).filter(Boolean).join(or ? ' OR ' : ' AND ');
       }
   
-      sql += ` WHERE ` + buildWhere(Array.from(this.wheres.values()));
+      sql += ' WHERE ' + buildWhere(Array.from(this.wheres.values()));
     }
   
-    if (this.orderBy.size) {
-      const orders = Array
+    if (this.orderBy.size)
+      sql += ' ORDER BY ' + Array
         .from(this.orderBy)
         .map(([field, dir]) => `${field} ${dir}`)
-        .join(', ');
-
-      sql += ` ORDER BY ${orders}`;
-    }
+        .join(', ')
   
     if (limit)
       sql += ` LIMIT ${limit}`;
