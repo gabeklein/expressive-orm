@@ -18,10 +18,10 @@ export function inMemoryDatabase(
     }
   });
 
-  let init_db = db.attach(entities);
+  let init_db = db.attach(entities).then(() => db);
 
   if(after)
-    init_db = init_db.then(after);
+    init_db = init_db.then(after).then(() => db);
 
   if(expect.getState().currentTestName){
     reset.add(() => db.close());
