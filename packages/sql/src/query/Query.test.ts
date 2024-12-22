@@ -38,7 +38,7 @@ describe("where", () => {
       const item = where(Item);
 
       where(item.number).more(3);
-      where.limit(5);
+      where(5);
 
       return item.number;
     });

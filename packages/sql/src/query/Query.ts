@@ -53,13 +53,7 @@ declare namespace Query {
   type ANumeric = Value<string | number>;
   type Numeric = Value<number>;
 
-  type Where = 
-    & typeof where
-    & MathOps
-    & {
-      is: typeof where;
-      limit: (to: number ) => void
-    };
+  type Where = typeof where & MathOps;
 
   interface Verbs <T extends Type> {
     delete(): void;
@@ -160,6 +154,9 @@ function Query<T = void>(from: Query.Function<T>): Query | SelectQuery {
   return runner;
 }
 
+/** Specify the limit of results returned. */
+function where(limit: number): void;
+
 /**
    * Accepts instructions for nesting in a parenthesis.
    * When only one group of instructions is provided, the statement are separated by OR.
@@ -203,6 +200,11 @@ function where<T extends Type>(field: Query.From<T>): Query.Verbs<T>;
 function where<T extends Field>(field: T): Query.Asserts<T>;
 
 function where(this: QueryBuilder, arg1: any, arg2?: any, arg3?: any): any {
+  if(typeof arg1 == "number"){
+    this.limit = arg1;
+    return
+  }
+
   if(Type.is(arg1))
     return this.use(arg1, arg2, arg3);
 
@@ -265,9 +267,6 @@ class QueryBuilder<T = unknown> {
   constructor(fn: Query.Function<T>){
     const context = where.bind(this) as Query.Where;
 
-    context.is = where.bind(this);
-    context.limit = (to: number) => { this.limit = to };
-
     assign(context, math());
 
     this.selects = fn(context);
@@ -303,7 +302,7 @@ class QueryBuilder<T = unknown> {
       defineProperty(proxy, key, {
         get(){
           if(!value){
-            const local = create(field) as typeof field;
+            const local: typeof field = create(field);
             local.table = table;
             value = local.proxy ? local.proxy(table) : local; 
           }

@@ -29,8 +29,9 @@ describe("arithmetic", () => {
   });
 
   it("will properly nest", async () => {
-    const results = Query(({ is, add, mul, neg }) => {
-      const item = is(Item);
+    const results = Query((where) => {
+      const { add, mul, neg } = where;
+      const item = where(Item);
 
       return {
         a: mul(item.number, add(item.number, 5)),
