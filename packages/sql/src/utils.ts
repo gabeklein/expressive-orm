@@ -14,4 +14,24 @@ export function underscore(str: string){
   return str.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
 }
 
-export const define = Object.defineProperty;
+const {
+  assign,
+  create,
+  defineProperty,
+  entries,
+  freeze,
+  getOwnPropertyDescriptor,
+  getOwnPropertyNames,
+  values,
+} = Object;
+
+export {
+  assign,
+  create,
+  defineProperty,
+  entries,
+  freeze,
+  getOwnPropertyDescriptor,
+  getOwnPropertyNames,
+  values,
+}

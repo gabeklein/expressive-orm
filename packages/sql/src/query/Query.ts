@@ -1,4 +1,5 @@
 import { Connection, Field, Type } from '..';
+import { assign, create, defineProperty, freeze, getOwnPropertyNames } from '../utils';
 import { Computed, math, MathOps } from './math';
 import { sql, Syntax } from './syntax';
 
@@ -148,7 +149,7 @@ class QueryBuilder<T = unknown> {
     context.is = this.where.bind(this);
     context.limit = (to: number) => { this.limit = to };
 
-    Object.assign(context, math());
+    assign(context, math());
 
     this.selects = fn(context);
 
@@ -207,7 +208,7 @@ class QueryBuilder<T = unknown> {
       return this.use(arg1, arg2, arg3);
 
     if(arg1 instanceof Field)
-      return Object.assign(
+      return assign(
         arg1.compare(wheres),
         this.order(arg1)
       );
@@ -273,10 +274,10 @@ class QueryBuilder<T = unknown> {
 
     fields.forEach((field, key) => {
       let value: any;
-      Object.defineProperty(proxy, key, {
+      defineProperty(proxy, key, {
         get(){
           if(!value){
-            const local = Object.create(field) as typeof field;
+            const local = create(field) as typeof field;
             local.table = table;
             value = local.proxy ? local.proxy(table) : local; 
           }
@@ -297,7 +298,7 @@ class QueryBuilder<T = unknown> {
 
     tables.push(table);
     RelevantTable.set(proxy, table);
-    Object.freeze(proxy);
+    freeze(proxy);
 
     if(!this.connection)
       this.connection = type.connection || INERT;
@@ -382,7 +383,7 @@ class QueryBuilder<T = unknown> {
     const columns = new Map<string, Field | Computed<unknown>>();
     
     function scan(obj: any, path?: string) {
-      for (const key of Object.getOwnPropertyNames(obj)) {
+      for (const key of getOwnPropertyNames(obj)) {
         const use = path ? `${path}.${key}` : key;
         const select = obj[key];
 
@@ -488,7 +489,7 @@ class QueryBuilder<T = unknown> {
   }
 
   extend(apply?: Partial<QueryBuilder>){
-   return Object.assign(Object.create(this), apply) as QueryBuilder;
+   return assign(create(this), apply) as QueryBuilder;
   }
 
   send(){

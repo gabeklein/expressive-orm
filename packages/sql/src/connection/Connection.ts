@@ -1,6 +1,7 @@
 import knex, { Knex } from 'knex';
 
 import { Field, Type } from '..';
+import { assign, freeze, values } from '../utils';
 
 declare namespace Connection {
   type Types =
@@ -46,7 +47,7 @@ class Connection {
   }
 
   async attach(types: Connection.Types, create?: boolean){
-    types = Object.values(types);
+    types = values(types);
 
     const include = async (type: Type.EntityType) => {
       const valid = await this.validate(type);
@@ -90,7 +91,7 @@ class Connection {
   schema(types: Connection.Types){
     const { schema } = this.knex;
 
-    Object.values(types).forEach(type => {
+    values(types).forEach(type => {
       schema.createTable(type.table, this.create.bind(this, type));
     });
   

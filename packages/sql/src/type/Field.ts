@@ -1,6 +1,6 @@
 import { Query } from '..';
 import { sql, Syntax } from '../query/syntax';
-import { capitalize, underscore } from '../utils';
+import { capitalize, create, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
 import { Type } from './Type';
 
 const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
@@ -17,7 +17,7 @@ function fields(from: Type.EntityType){
     const reference = new (from as any)();
     
     for(const key in reference){
-      const { value } = Object.getOwnPropertyDescriptor(reference, key)!;
+      const { value } = getOwnPropertyDescriptor(reference, key)!;
       const instruction = FIELD.get(value);    
   
       if(!instruction)
@@ -128,7 +128,7 @@ function Field<T extends Field>(options?: Field.Opts<T>){
   const placeholder = Symbol('field');
   
   FIELD.set(placeholder, (property, parent) => {
-    const field = Object.create(Field.prototype) as T;
+    const field = create(Field.prototype) as T;
 
     field.parent = parent;
     field.property = property;
@@ -147,7 +147,7 @@ function Field<T extends Field>(options?: Field.Opts<T>){
     if(!field.datatype)
       field.datatype = field.type;
 
-    Object.freeze(field);
+    freeze(field);
     parent.fields.set(property, field);
   });
 

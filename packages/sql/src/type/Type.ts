@@ -1,5 +1,5 @@
 import { Connection, Query, SelectQuery } from '..';
-import { define, isIterable, underscore } from '../utils';
+import { defineProperty, isIterable, underscore } from '../utils';
 import { Field, fields, Nullable, Optional } from './Field';
 
 declare namespace Type {
@@ -51,7 +51,7 @@ abstract class Type {
   }
 
   static set connection(value: Connection){
-    define(this, "connection", { value });
+    defineProperty(this, "connection", { value });
   }
 
   static get table(){
@@ -59,7 +59,7 @@ abstract class Type {
   }
 
   static set table(value: string){
-    define(this, "table", { value });
+    defineProperty(this, "table", { value });
   }
 
   static toString(){
