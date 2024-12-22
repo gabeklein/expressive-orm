@@ -122,7 +122,42 @@ function Query<T extends {}>(from: Query.Function<T>): SelectQuery<Query.Extract
 function Query(from: Query.Function<void>): Query<number>;
 
 function Query<T = void>(from: Query.Function<T>): Query | SelectQuery {
-  return new QueryBuilder(from).toRunner();
+  const qb = new QueryBuilder(from);
+  const send = (qb: QueryBuilder) => qb.connection.send(String(qb));
+
+  async function get(limit?: number) {
+    const self = qb.extend();
+
+    if (limit)
+      self.limit = limit;
+
+    const res = await send(self);
+
+    if (self.parse)
+      return self.parse(res);
+
+    return res;
+  }
+
+  async function one(orFail?: boolean) {
+    const res = await get(1);
+
+    if (res.length == 0 && orFail)
+      throw new Error("Query returned no results.");
+
+    return res[0] as T;
+  }
+  
+  const runner: Query = {
+    then: (resolve, reject) => get().then(resolve).catch(reject),
+    count: () => send(qb.extend({ selects: undefined, parse: undefined })),
+    toString: () => String(qb)
+  }
+
+  if(qb.selects)
+    return { ...runner, get, one } as SelectQuery;
+
+  return runner;
 }
 
 class QueryBuilder<T = unknown> {
@@ -411,7 +446,7 @@ class QueryBuilder<T = unknown> {
     }
   }
 
-  private toString() {
+  public toString() {
     const { limit, selects, tables } = this;
     let sql = '';
 
@@ -451,7 +486,7 @@ class QueryBuilder<T = unknown> {
       }
 
     if (this.wheres.size) {
-      function buildWhere(conditions: Query.Compare.Recursive[], or?: boolean): string {
+      function buildWhere(conditions: Query.Compare[], or?: boolean): string {
         return conditions.map(cond => {
           if(cond instanceof Syntax)
             return cond;
@@ -480,46 +515,6 @@ class QueryBuilder<T = unknown> {
 
   extend(apply?: Partial<QueryBuilder>){
    return assign(create(this), apply) as QueryBuilder;
-  }
-
-  send(){
-    return this.connection.send(this.toString());
-  }
-
-  toRunner(){
-    const get = async (limit?: number) => {
-      const self = this.extend();
-
-      if(limit)
-        self.limit = limit;
-      
-      const res = await self.send();
-
-      if(self.parse) 
-        return self.parse(res);
-  
-      return res;
-    }
-
-    const one = async (orFail?: boolean) => {
-      const res = await get(1);
-  
-      if(res.length == 0 && orFail)
-        throw new Error("Query returned no results.");
-  
-      return res[0] as T;
-    }
-    
-    const query: Query = {
-      then: (resolve, reject) => get().then(resolve).catch(reject),
-      count: () => this.extend({ selects: undefined, parse: undefined }).send(),
-      toString: () => this.toString()
-    }
-  
-    if(this.selects)
-      return { ...query, get, one } as SelectQuery;
-  
-    return query;
   }
 }
 
