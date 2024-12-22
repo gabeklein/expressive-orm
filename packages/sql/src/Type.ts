@@ -1,12 +1,7 @@
+import { Query, SelectQuery } from '.';
 import { Connection } from './connection/Connection';
-import { FIELD, Field, Nullable, Optional } from './Field';
-import { Query, SelectQuery } from './Query';
-import { capitalize, isIterable, underscore } from './utils';
-
-const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
-
-const describe = Object.getOwnPropertyDescriptor;
-const define = Object.defineProperty;
+import { Field, fields, Nullable, Optional } from './Field';
+import { define, isIterable, underscore } from './utils';
 
 declare namespace Type {
   type EntityType<T extends Type = Type> =
@@ -72,8 +67,12 @@ abstract class Type {
     return this.name;
   }
 
+  static is(obj: unknown): obj is Type.EntityType {
+    return typeof obj === 'function' && obj.prototype instanceof Type;
+  }
+
   static get fields(){
-    return REGISTER.get(this) || init(this);
+    return fields(this);
   }
 
   static digest<T extends Type>(data: Type.Insert<T>): Record<string, unknown>;
@@ -147,27 +146,6 @@ abstract class Type {
   }
 }
 
-function init(type: Type.EntityType){
-  const fields = new Map<string, Field>();
-
-  REGISTER.set(type, fields);
-  
-  const reference = new (type as any)();
-  
-  for(const key in reference){
-    const { value } = describe(reference, key)!;
-    const instruction = FIELD.get(value);    
-
-    if(!instruction)
-      throw new Error(`Entities do not support normal values, only fields. Did you forget to import \`${capitalize(typeof value)}\`?`);
-
-    FIELD.delete(value);
-    instruction(key, type);
-  }
-
-  return fields;
-}
-
 function digest<T extends Type>(
   this: Type.EntityType<T>,
   data: Type.Insert<T>,
@@ -216,10 +194,6 @@ function Primary() {
     primary: true,
     unique: true,
   });
-}
-
-export function isTypeConstructor(obj: unknown): obj is typeof Type {
-  return typeof obj === 'function' && obj.prototype instanceof Type;
 }
 
 export { Type, digest }

@@ -13,3 +13,5 @@ export function isIterable(obj: unknown): obj is Iterable<unknown> {
 export function underscore(str: string){
   return str.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
 }
+
+export const define = Object.defineProperty;

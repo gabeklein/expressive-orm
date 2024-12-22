@@ -1,9 +1,34 @@
+import { Query, Type } from '.';
 import { sql, Syntax } from './generate/query';
-import { Query } from './Query';
-import { Type } from './Type';
-import { underscore } from './utils';
+import { capitalize, underscore } from './utils';
 
+const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
 const FIELD = new Map<symbol, (key: string, parent: Type.EntityType) => Partial<Field> | void>();
+
+function fields(from: Type.EntityType){
+  let fields = REGISTER.get(from);
+
+  if(!fields){
+    fields = new Map<string, Field>();
+
+    REGISTER.set(from, fields);
+    
+    const reference = new (from as any)();
+    
+    for(const key in reference){
+      const { value } = Object.getOwnPropertyDescriptor(reference, key)!;
+      const instruction = FIELD.get(value);    
+  
+      if(!instruction)
+        throw new Error(`Entities do not support normal values, only fields. Did you forget to import \`${capitalize(typeof value)}\`?`);
+  
+      FIELD.delete(value);
+      instruction(key, from);
+    }
+  }
+
+  return fields;
+}
 
 type Nullable = { nullable: true };
 type Optional = { optional: true };
@@ -174,4 +199,9 @@ Field.prototype = <Field> {
   }
 }
 
-export { FIELD, Field, Nullable, Optional };
+export {
+  fields,
+  Field,
+  Nullable,
+  Optional,
+};

@@ -1,8 +1,6 @@
-import { Connection } from './connection/Connection';
-import { Field } from './Field';
 import { sql, Syntax } from './generate/query';
+import { Connection, Field, Type } from '..';
 import { Computed, math, MathOps } from './math';
-import { isTypeConstructor, Type } from './Type';
 
 const RelevantTable = new WeakMap<{}, Query.Table>();
 const INERT = new Connection({
@@ -205,7 +203,7 @@ class QueryBuilder<T = unknown> {
   where(arg1: any, arg2?: any, arg3?: any): any {
     const { wheres } = this;
 
-    if(isTypeConstructor(arg1))
+    if(Type.is(arg1))
       return this.use(arg1, arg2, arg3);
 
     if(arg1 instanceof Field)
