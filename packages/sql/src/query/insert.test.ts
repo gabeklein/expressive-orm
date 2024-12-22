@@ -1,5 +1,5 @@
-import { Type, Num, Str } from '..';
-import { inMemoryDatabase } from '../tests';
+import { Num, Str, Type } from '..';
+import { TestConnection } from '../tests';
 
 class Foo extends Type {
   name = Str();
@@ -13,7 +13,7 @@ class User extends Type  {
 }
 
 it("will insert procedurally generated rows", async () => {
-  await inMemoryDatabase([User]);
+  await new TestConnection([User]);
 
   const names = ["john", "jane", "bob", "alice"];
   const insert = User.insert(names, (name, i) => ({

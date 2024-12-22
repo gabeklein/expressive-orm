@@ -1,12 +1,12 @@
 import { Query, SelectQuery, Str, Type } from '..';
-import { inMemoryDatabase } from '../tests';
+import { TestConnection } from '../tests';
 
 class Foo extends Type {
   bar = Str();
   baz = Str();
 }
 
-inMemoryDatabase({ Foo }, async () => {
+new TestConnection({ Foo }, async () => {
   await Foo.insert({ bar: "hello", baz: "world" });
 });
 

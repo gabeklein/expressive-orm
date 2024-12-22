@@ -1,8 +1,7 @@
-import { Bool, Connection, Type } from '..';
+import { Bool, Type } from '..';
+import { TestConnection } from '../tests';
 
 it("will insert and retrieve a tinyint", async () => {
-  const conn = new Connection();
-
   class Test extends Type {
     value1 = Bool();
     value2 = Bool({
@@ -11,7 +10,9 @@ it("will insert and retrieve a tinyint", async () => {
     });
   }
 
-  expect(conn.schema({ Test })).toMatchInlineSnapshot(`
+  const connect = new TestConnection([Test]);
+
+  expect(connect).toMatchInlineSnapshot(`
     CREATE TABLE
       test (
         id INTEGER NOT NULL PRIMARY key autoincrement,
@@ -20,7 +21,7 @@ it("will insert and retrieve a tinyint", async () => {
       )
   `);
 
-  await conn.attach({ Test });
+  await connect;
 
   const insert = Test.insert({
     value1: true, value2: true

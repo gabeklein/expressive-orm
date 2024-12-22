@@ -1,11 +1,7 @@
-import { Bool, Num, One, Str, Type, Connection } from '..';
-import { inMemoryDatabase } from '../tests';
+import { Bool, Num, One, Str, Type } from '..';
+import { TestConnection } from '../tests';
 
 it.todo("will check FK constraints");
-
-function toSchema(types: Connection.Types) {
-  return new Connection().schema(types);
-}
 
 it("will create a table", async () => {
   class User extends Type {
@@ -14,7 +10,7 @@ it("will create a table", async () => {
     age = Num();
   }
 
-  await inMemoryDatabase([ User ]);
+  await new TestConnection([ User ]);
 
   await User.insert({
     name: "Gabe",
@@ -28,7 +24,7 @@ it("will convert camelCase names to underscore", async () => {
     fooBar = Bool();
   }
 
-  const sql = toSchema({ FooBar });
+  const sql = new TestConnection({ FooBar });
 
   expect(sql).toMatchInlineSnapshot(`
     CREATE TABLE
@@ -48,7 +44,7 @@ it("will create FK constraints", async () => {
     value = Num();
   }
 
-  const sql = toSchema({ Foo, Bar });
+  const sql = new TestConnection({ Foo, Bar });
 
   expect(sql).toMatchInlineSnapshot(`
     CREATE TABLE

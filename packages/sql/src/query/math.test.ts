@@ -1,13 +1,8 @@
 import { Num, Query, Type } from '..';
-import { inMemoryDatabase } from '../tests';
 
 class Item extends Type  {
   number = Num();
 }
-
-inMemoryDatabase([Item], async () => {
-  await Item.insert(10, i => ({ number: i }));
-});
 
 describe("arithmetic", () => {
   it("will select", () => {

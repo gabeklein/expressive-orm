@@ -1,44 +1,52 @@
 import { Connection } from ".";
 
 const reset = new Set<Function>();
-let after: Function | undefined;
+let cleanup: Function | undefined;
 
-/**
- * Generates a new in-memory database specific to
- * a test and attaches entities provided to it.
- **/
-export function inMemoryDatabase(
-  entities: Connection.Types, after?: () => void){
-
-  const db = new Connection({
-    client: "sqlite3",
-    useNullAsDefault: true,
-    connection: {
-      filename: ":memory:"
-    }
-  });
-
-  let init_db = db.attach(entities).then(() => db);
-
-  if(after)
-    init_db = init_db.then(after).then(() => db);
-
-  if(expect.getState().currentTestName){
-    reset.add(() => db.close());
-    return init_db;
-  }
-
-  beforeAll(() => init_db);
-  after = () => db.close();
-
-  return db
-}
-
-afterEach(async () => {
-  await Promise.all(Array.from(reset).map(cb => {
+afterEach(() => {
+  return Promise.all(Array.from(reset).map(cb => {
     reset.delete(cb);
     return cb();
   }));
 });
 
-afterAll(() => after && after());
+afterAll(() => cleanup && cleanup());
+
+/**
+ * An in-memory database specific to a
+ * test and attaches entities provided to it.
+ **/
+export class TestConnection extends Connection {
+  constructor(
+    public using: Connection.Types,
+    private after?: () => void){
+
+    super({
+      client: "sqlite3",
+      useNullAsDefault: true,
+      connection: {
+        filename: ":memory:"
+      }
+    });
+
+    if(expect.getState().currentTestName)
+      reset.add(() => this.close());
+    else {
+      beforeAll(async () => {
+        await this.attach(using).then(after)
+      });
+      cleanup = () => this.close();
+    }
+  }
+
+  toString(){
+    return this.schema(this.using).toString();
+  }
+
+  then(onfulfilled?: (value: void) => any) {
+    this.attach(this.using).then(() => {
+      if(this.after) this.after();
+      if(onfulfilled) onfulfilled();
+    });
+  }
+}

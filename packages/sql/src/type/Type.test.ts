@@ -1,11 +1,11 @@
 import { Type, Num } from '..';
-import { inMemoryDatabase } from '../tests';
+import { TestConnection } from '../tests';
 
 class Item extends Type  {
   number = Num();
 }
 
-inMemoryDatabase([Item], async () => {
+new TestConnection([Item], async () => {
   await Item.insert(10, i => ({ number: i }));
 });
 

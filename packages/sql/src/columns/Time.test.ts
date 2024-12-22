@@ -1,12 +1,12 @@
 import { Time, Type } from '../..';
-import { inMemoryDatabase } from '../tests';
+import { TestConnection } from '../tests';
 
 class Foo extends Type {
   date = Time();
 }
 
 it("will insert and retrieve a Date", async () => {
-  await inMemoryDatabase([Foo]);
+  await new TestConnection({ Foo });
 
   const now = new Date();
 
