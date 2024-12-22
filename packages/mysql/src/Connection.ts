@@ -10,7 +10,7 @@ declare namespace MySQLConnection {
     maxConnections?: number;
     sync?: boolean;
     nuke?: boolean;
-    use?: Connection.Entities
+    use?: Connection.Using
   }
 }
 
@@ -18,8 +18,11 @@ class MySQLConnection extends Connection {
   options: MySQLConnection.Config;
   database?: string;
 
-  constructor(opts: Connection.MySQLConfig = {}){
-    super({
+  constructor(
+    using: Connection.Types,
+    opts: Connection.MySQLConfig = {}){
+
+    super(using, {
       client: 'mysql',
       connection: opts,
       useNullAsDefault: true

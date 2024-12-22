@@ -4,7 +4,7 @@ import { Computed, math, MathOps } from './math';
 import { sql, Syntax } from './syntax';
 
 const RelevantTable = new WeakMap<{}, Query.Table>();
-const INERT = new Connection({
+const INERT = new Connection([], {
   client: "sqlite3",
   useNullAsDefault: true,
   pool: { max: 0 }

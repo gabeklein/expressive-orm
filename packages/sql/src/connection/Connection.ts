@@ -12,7 +12,7 @@ declare namespace Connection {
   type SQLiteConfig = Knex.Sqlite3ConnectionConfig;
   type PostgresConfig = Knex.PgConnectionConfig;
 
-  type Entities = { [key: string | number]: typeof Type };
+  type Using = { [key: string | number]: typeof Type };
 }
 
 let defaultConnection: Connection;
@@ -27,15 +27,26 @@ const DEFAULT_CONFIG: Knex.Config = {
 
 class Connection {
   database?: string;
+  using: Readonly<Connection.Types>;
+  ready = false;
 
   managed = new Set<typeof Type>();
   knex: Knex;
 
-  constructor(knexConfig?: Knex.Config) {
+  constructor(
+    using: Connection.Types,
+    knexConfig?: Knex.Config) {
+
+    this.using = freeze(assign({}, using));
+
     if(!defaultConnection)
       defaultConnection = this;
 
     this.knex = knex(knexConfig || DEFAULT_CONFIG);
+  }
+
+  toString(){
+    return this.schema(this.using).toString();
   }
 
   async send(qs: string){
@@ -46,8 +57,11 @@ class Connection {
     return this.knex.destroy();
   }
 
-  async attach(types: Connection.Types, create?: boolean){
-    types = values(types);
+  async sync(readonly?: boolean){
+    if(this.ready)
+      throw new Error("Connection is already active.");
+
+    const types = values(this.using);
 
     const include = async (type: Type.EntityType) => {
       const valid = await this.validate(type);
@@ -55,13 +69,15 @@ class Connection {
       type.connection = this;
       this.managed.add(type);
 
-      if(!valid && create === false)
+      if(!valid && readonly === true)
         throw new Error(`Table ${type.table} does not exist.`);
     }
 
     await Promise.all(types.map(include));
 
-    return await this.schema(types);
+    await this.schema(types);
+
+    this.ready = true;
   }
 
   async validate(type: Type.EntityType){
@@ -88,11 +104,13 @@ class Connection {
     return true;
   }
 
-  schema(types: Connection.Types){
+  schema(types: Readonly<Connection.Types>){
     const { schema } = this.knex;
 
     values(types).forEach(type => {
-      schema.createTable(type.table, this.create.bind(this, type));
+      schema.createTable(type.table, builder => {
+        this.create(type, builder);
+      });
     });
   
     return schema;

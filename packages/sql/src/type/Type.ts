@@ -32,15 +32,11 @@ declare namespace Type {
 }
 
 abstract class Type {
-  // why is this non-nullable?
   this!: Type.EntityType;
 
   /**
    * Primary key of this entity.
    * May be any name in the actual database, however requred to be `id` as property of this type.
-   * 
-   * Setting to zero will disable this field, and ORM will not expect it to be present in the database.
-   * TODO: Not applicable anymore.
    */
   id = Primary();
 
@@ -212,4 +208,4 @@ function Primary() {
   });
 }
 
-export { Type, digest }
+export { Type }

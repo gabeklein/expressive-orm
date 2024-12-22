@@ -21,7 +21,7 @@ export class TestConnection extends Connection {
     public using: Connection.Types,
     private after?: () => void){
 
-    super({
+    super(using, {
       client: "sqlite3",
       useNullAsDefault: true,
       connection: {
@@ -32,19 +32,13 @@ export class TestConnection extends Connection {
     if(expect.getState().currentTestName)
       reset.add(() => this.close());
     else {
-      beforeAll(async () => {
-        await this.attach(using).then(after)
-      });
+      beforeAll(async () => this);
       cleanup = () => this.close();
     }
   }
 
-  toString(){
-    return this.schema(this.using).toString();
-  }
-
   then(onfulfilled?: (value: void) => any) {
-    this.attach(this.using).then(() => {
+    this.sync().then(() => {
       if(this.after) this.after();
       if(onfulfilled) onfulfilled();
     });
