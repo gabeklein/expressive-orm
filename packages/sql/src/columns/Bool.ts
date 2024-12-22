@@ -28,23 +28,18 @@ function Bool<T extends Bool.Options>(opts = {} as T){
     datatype = `varchar(${Math.max(YES.length, NO.length)})`;
   }
 
-  return Field(self => {
-    const { set } = self;
-    return {
-      type,
-      datatype,
-      ...opts,
-      get(value: unknown){
-        return String(value) === YES;
-      },
-      set(value: boolean){
-        const output = set.call(self, value);
-  
-        if(typeof value != "boolean")
-          throw "Value must be a boolean."
-  
-        return output ? YES : NO;
-      }
+  return Field({
+    type,
+    datatype,
+    ...opts as any,
+    get(value: unknown){
+      return String(value) === YES;
+    },
+    set(value: boolean){
+      if(typeof value != "boolean")
+        throw "Value must be a boolean."
+
+      return value ? YES : NO;
     }
   });
 }

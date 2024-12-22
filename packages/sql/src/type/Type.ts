@@ -165,10 +165,17 @@ function digest<T extends Type>(
 
   this.fields.forEach((field, key) => {
     try {
-      const value = field.set(data[key as Type.Fields<T>]);
+      let value = data[key as Type.Fields<T>];
+      
+      if (value != null)
+        value = field.set(value);
+      else if (!field.nullable && !field.optional && !field.increment)
+        throw new Error(`Column ${field.column} requires a value but got ${value}.`);
+    
+      if (value === undefined)
+        return;
 
-      if(value !== undefined)
-        values[field.column] = value;
+      values[field.column] = value;
     }
     catch(err: unknown){
       const which = array && array.length > 1 ? ` at [${index}]` : "";

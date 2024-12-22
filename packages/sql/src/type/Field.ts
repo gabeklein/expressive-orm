@@ -167,18 +167,6 @@ Field.prototype = <Field> {
 
     throw new Error("This requires a table to be set.");
   },
-  set(value: unknown){
-    if(value != null)
-      return typeof value == "number" ? value : String(value);
-      
-    if(this.nullable || this.optional)
-      return value === null ? "NULL" : undefined;
-
-    if(this.increment)
-      return undefined;
-
-    throw new Error(`Column ${this.column} requires a value but got ${value}.`);
-  },
   get(value: any){
     return value;
   },

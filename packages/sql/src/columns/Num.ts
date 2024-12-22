@@ -32,28 +32,21 @@ declare namespace Num {
 
 interface Num extends Field<number> {}
 
+function Num<T extends Num.Options>(opts?: T): Field.Specify<T, Num.Type, Num.Int>;
 function Num<T extends Num.Options>(opts?: T){
-  type Spec = Field.Specify<T, Num.Type, Num.Int>;
-
-  return Field<Num.Type>(self => {
-    const { set } = self;
-
-    return {
-      type: "int",
-      ...opts,
-      set(value: number){
-        const output = set.call(self, value);
+  return Field<Num.Type>({
+    type: "int",
+    ...opts,
+    set(value: number){
+      if(typeof value !== "number" || isNaN(value))
+        throw `Got '${value}' but value must be a number.`
   
-        if(typeof value !== "number" || isNaN(value))
-          throw `Got '${value}' but value must be a number.`
-    
-        if(this.type === "int" && value !== Math.floor(value))
-          throw `Got '${value}' but datatype is integer.`
-    
-        return output;
-      }
+      if(this.type === "int" && value !== Math.floor(value))
+        throw `Got '${value}' but datatype is integer.`
+  
+      return value;
     }
-  }) as Spec;
+  });
 }
 
 export { Num };

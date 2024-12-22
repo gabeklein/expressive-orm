@@ -37,19 +37,16 @@ interface Str extends Field<string> {
   length: number;
 }
 
+function Str<T extends Str.Options>(opts?: T): Field.Specify<T, Str.Type, Str.VarChar>;
 function Str<T extends Str.Options>(opts?: T){
-  type Spec = Field.Specify<T, Str.Type, Str.VarChar>;
-
   let { type = "varchar", length = 255, datatype } = opts || {};
 
-  return Field<Str.Type>(self => {
-    const { set } = self;
-
+  return Field<Str.Type>(({ parent, property }) => {
     if(VARIABLE_TYPE.has(type!))
       if(length)
         datatype = `${datatype || type}(${length})`;
       else
-        throw `Can't determine datatype! Length is not specified for ${self.parent.name}.${self.property}.`
+        throw `Can't determine datatype! Length is not specified for ${parent.name}.${property}.`
 
     return {
       type,
@@ -57,19 +54,17 @@ function Str<T extends Str.Options>(opts?: T){
       datatype,
       ...opts,
       set(value: string){
-        const output = set.call(self, value);
-  
         if(typeof value !== "string")
           throw "Value must be a string."
   
-        // TODO: escape characters may add to length
-        if(this.length && output.length > this.length)
+        // escape characters may add to length
+        if(this.length && value.length > this.length)
           throw `Value length ${value.length} exceeds maximum of ${this.length}.`
   
-        return output;
+        return value;
       }
     }
-  }) as Spec; 
+  }); 
 }
 
 export { Str }
