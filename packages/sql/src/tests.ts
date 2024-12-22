@@ -1,4 +1,4 @@
-import { Connection } from "../";
+import { Connection } from ".";
 
 const reset = new Set<Function>();
 let after: Function | undefined;

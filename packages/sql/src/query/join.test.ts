@@ -1,5 +1,4 @@
-import { Num, One, Query, Str, Type } from '../';
-import { SelectQuery } from '../Query';
+import { Num, One, Query, Str, Type, SelectQuery } from '..';
 
 class Foo extends Type {
   name = Str();

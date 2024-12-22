@@ -1,6 +1,5 @@
-import { inMemoryDatabase } from '.';
-import { Query, Str, Type } from '../';
-import { SelectQuery } from '../Query';
+import { Query, SelectQuery, Str, Type } from '..';
+import { inMemoryDatabase } from '../tests';
 
 class Foo extends Type {
   bar = Str();

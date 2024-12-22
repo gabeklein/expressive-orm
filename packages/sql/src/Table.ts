@@ -1,5 +1,4 @@
-import { Field } from './Field';
-import { Type } from './Type';
+import { Field, Type } from '.';
 
 namespace Table {
   export interface Options {

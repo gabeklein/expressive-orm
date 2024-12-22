@@ -1,7 +1,5 @@
-import { Num } from "./columns";
-import { Query } from "./Query";
-import { inMemoryDatabase } from "./tests";
-import { Type } from "./Type";
+import { Num, Query, Type } from '..';
+import { inMemoryDatabase } from '../tests';
 
 class Item extends Type  {
   number = Num();

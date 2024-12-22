@@ -1,5 +1,5 @@
 import { Type, Num, Query, Str, Time, Table } from '..';
-import { inMemoryDatabase } from './tests';
+import { inMemoryDatabase } from '../tests';
 
 class Item extends Type  {
   number = Num();

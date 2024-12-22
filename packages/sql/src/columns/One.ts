@@ -1,6 +1,4 @@
-import { Field, Nullable } from '../Field';
-import { Query } from '../Query';
-import { Type } from '../Type';
+import { Query, Field, Nullable, Type } from '..';
 import { underscore } from '../utils';
 
 interface One<T extends Type> extends Field<Type.Values<T>> {

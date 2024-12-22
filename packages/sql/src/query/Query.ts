@@ -1,6 +1,6 @@
-import { sql, Syntax } from './generate/query';
 import { Connection, Field, Type } from '..';
 import { Computed, math, MathOps } from './math';
+import { sql, Syntax } from './syntax';
 
 const RelevantTable = new WeakMap<{}, Query.Table>();
 const INERT = new Connection({

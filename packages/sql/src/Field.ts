@@ -1,5 +1,5 @@
 import { Query, Type } from '.';
-import { sql, Syntax } from './generate/query';
+import { sql, Syntax } from './query/syntax';
 import { capitalize, underscore } from './utils';
 
 const REGISTER = new Map<Type.EntityType, Map<string, Field>>();

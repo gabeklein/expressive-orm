@@ -1,5 +1,4 @@
-import { Field } from "./Field";
-import { Query } from "./Query";
+import { Query, Field } from "..";
 
 type Value = Query.Value;
 type ANumeric = Query.ANumeric;
