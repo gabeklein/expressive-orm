@@ -296,7 +296,6 @@ class QueryBuilder<T = unknown> {
       name = schema + '.' + name;
     }
 
-    const main = tables[0]
     const proxy = {} as Query.From<T>;
 
     fields.forEach((field, key) => {
@@ -332,9 +331,20 @@ class QueryBuilder<T = unknown> {
     else if(type.connection !== this.connection)
       throw new Error(`Joined entity ${type} does not share a connection with main table ${tables[0]}.`);
 
-    if(!main)
-      return proxy;
+    if(joinOn)
+      this.join(table, joinOn, joinAs);
+  
+    return proxy;
+  }
 
+  public join<T extends Type>(
+    table: Query.Table<T>,
+    joinOn: Query.Join.On<T>,
+    joinAs?: Query.Join.Mode){
+
+    const { proxy, type } = table;
+    const main = this.tables[0];
+    
     if(typeof joinOn == "string")
       throw new Error("Bad parameters.");
 
@@ -388,8 +398,6 @@ class QueryBuilder<T = unknown> {
       as: joinAs,
       on: joinsOn
     }
-  
-    return proxy;
   }
 
   private toSelect(): {
