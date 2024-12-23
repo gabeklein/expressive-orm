@@ -116,8 +116,12 @@ function Query<T extends {}>(from: Query.Function<T>): SelectQuery<Query.Extract
 function Query(from: Query.Function<void>): Query<number>;
 
 function Query<T = void>(from: Query.Function<T>): Query | SelectQuery {
-  const qb = new QueryBuilder(from);
-  const send = (qb: QueryBuilder) => qb.connection.send(String(qb));
+  const qb = new QueryBuilder();
+  const context = where.bind(qb) as Query.Where;
+
+  assign(context, math());
+
+  qb.selects = from(context);
 
   async function get(limit?: number) {
     const self = qb.extend();
@@ -125,12 +129,9 @@ function Query<T = void>(from: Query.Function<T>): Query | SelectQuery {
     if (limit)
       self.limit = limit;
 
-    const res = await send(self);
+    const res = await self.send();
 
-    if (self.parse)
-      return self.parse(res);
-
-    return res;
+    return self.parse ? self.parse(res) : res;
   }
 
   async function one(orFail?: boolean) {
@@ -144,7 +145,7 @@ function Query<T = void>(from: Query.Function<T>): Query | SelectQuery {
   
   const runner: Query = {
     then: (resolve, reject) => get().then(resolve).catch(reject),
-    count: () => send(qb.extend({ selects: undefined, parse: undefined })),
+    count: () => qb.extend({ selects: undefined, parse: undefined }).send(),
     toString: () => String(qb)
   }
 
@@ -260,28 +261,20 @@ class QueryBuilder<T = unknown> {
 
   delete?: Query.Table;
   update?: Readonly<[Query.Table, Query.Update<any>]>;
-  selects: T;
+  selects?: T;
 
   limit?: number;
   orderBy = new Map<Field, "asc" | "desc">();
   wheres = new Set<Query.Compare>();
 
-  constructor(fn: Query.Function<T>){
-    const context = where.bind(this) as Query.Where;
-
-    assign(context, math());
-
-    this.selects = fn(context);
-
-    for (const fn of this.pending){
-      this.pending.delete(fn);
-      fn();
-    }
-  }
-
   public use<T extends Type>(type: Type.EntityType<T>){
     const { tables } = this;
     const { fields, schema } = type;
+
+    if(!this.connection)
+      this.connection = type.connection || INERT;
+    else if(type.connection !== this.connection)
+      throw new Error(`Joined entity ${type} does not share a connection with main table ${this.tables[0]}.`);
 
     let name: string = type.table;
     let alias: string | undefined;
@@ -320,11 +313,6 @@ class QueryBuilder<T = unknown> {
     tables.push(table);
     RelevantTable.set(proxy, table);
     freeze(proxy);
-
-    if(!this.connection)
-      this.connection = type.connection || INERT;
-    else if(type.connection !== this.connection)
-      throw new Error(`Joined entity ${type} does not share a connection with main table ${tables[0]}.`);
 
     return table;
   }
@@ -451,6 +439,11 @@ class QueryBuilder<T = unknown> {
   }
 
   public toString() {
+    for (const fn of this.pending){
+      this.pending.delete(fn);
+      fn();
+    }
+
     const { limit, selects, tables } = this;
     let sql = '';
 
@@ -519,6 +512,10 @@ class QueryBuilder<T = unknown> {
 
   extend(apply?: Partial<QueryBuilder>){
    return assign(create(this), apply) as QueryBuilder;
+  }
+
+  async send(){
+    return this.connection.send(String(this));
   }
 }
 
