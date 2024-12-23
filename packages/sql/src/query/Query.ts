@@ -13,7 +13,7 @@ const INERT = new Connection([], {
 declare namespace Query { 
   interface Table<T extends Type = any> {
     type: Type.EntityType<T>;
-    query: QueryBuilder;
+    query: Builder;
     name: string;
     proxy: Query.From<T>;
     alias?: string;
@@ -115,16 +115,16 @@ function Query<T extends {}>(from: Query.Function<T>): SelectQuery<Query.Extract
  */
 function Query(from: Query.Function<void>): Query<number>;
 
-function Query<T = void>(from: Query.Function<T>): Query | SelectQuery {
-  const qb = new QueryBuilder();
-  const context = where.bind(qb) as Query.Where;
+function Query<T = void>(factory: Query.Function<T>): Query | SelectQuery {
+  const builder = new Builder();
+  const context = where.bind(builder) as Query.Where;
 
   assign(context, math());
 
-  qb.selects = from(context);
+  builder.selects = factory(context);
 
   async function get(limit?: number) {
-    const self = qb.extend();
+    const self = builder.extend();
 
     if (limit)
       self.limit = limit;
@@ -145,11 +145,11 @@ function Query<T = void>(from: Query.Function<T>): Query | SelectQuery {
   
   const runner: Query = {
     then: (resolve, reject) => get().then(resolve).catch(reject),
-    count: () => qb.extend({ selects: undefined, parse: undefined }).send(),
-    toString: () => String(qb)
+    count: () => builder.extend({ selects: undefined, parse: undefined }).send(),
+    toString: () => String(builder)
   }
 
-  if(qb.selects)
+  if(builder.selects)
     return { ...runner, get, one } as SelectQuery;
 
   return runner;
@@ -200,10 +200,10 @@ function where<T extends Type>(field: Query.From<T>): Query.Verbs<T>;
  */
 function where<T extends Field>(field: T): Query.Asserts<T>;
 
-function where(this: QueryBuilder, arg1: any, arg2?: any, arg3?: any): any {
+function where(this: Builder, arg1: any, arg2?: any, arg3?: any): any {
   if(typeof arg1 == "number"){
     this.limit = arg1;
-    return
+    return;
   }
 
   if(Type.is(arg1))
@@ -251,7 +251,7 @@ function where(this: QueryBuilder, arg1: any, arg2?: any, arg3?: any): any {
   }
 }
 
-class QueryBuilder<T = unknown> {
+class Builder<T = unknown> {
   connection!: Connection;
 
   tables = [] as Query.Table[];
@@ -510,8 +510,8 @@ class QueryBuilder<T = unknown> {
     return sql;
   }
 
-  extend(apply?: Partial<QueryBuilder>){
-   return assign(create(this), apply) as QueryBuilder;
+  extend(apply?: Partial<Builder>){
+   return assign(create(this), apply) as Builder;
   }
 
   async send(){
