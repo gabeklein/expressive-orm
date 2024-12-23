@@ -3,7 +3,6 @@ import { assign, create, defineProperty, freeze, getOwnPropertyNames } from '../
 import { Computed, math, MathOps } from './math';
 import { sql, Syntax } from './syntax';
 
-const RelevantTable = new WeakMap<{}, Query.Table>();
 const INERT = new Connection([], {
   client: "sqlite3",
   useNullAsDefault: true,
@@ -236,7 +235,7 @@ function where(this: Builder, arg1: any, arg2?: any, arg3?: any): any {
     return local;
   }
 
-  const table = RelevantTable.get(arg1);
+  const table = this.tables.get(arg1);
 
   if(!table)
     throw new Error(`Argument ${arg1} is not a query argument.`);
@@ -254,7 +253,7 @@ function where(this: Builder, arg1: any, arg2?: any, arg3?: any): any {
 class Builder<T = unknown> {
   connection!: Connection;
 
-  tables = [] as Query.Table[];
+  tables = new Map<{}, Query.Table>();
   pending = new Set<() => void>();
   parse?: (raw: any[]) => any[];
   template = "";
@@ -270,17 +269,18 @@ class Builder<T = unknown> {
   public use<T extends Type>(type: Type.EntityType<T>){
     const { tables } = this;
     const { fields, schema } = type;
+    const [ main ] = tables.values();
 
     if(!this.connection)
       this.connection = type.connection || INERT;
     else if(type.connection !== this.connection)
-      throw new Error(`Joined entity ${type} does not share a connection with main table ${this.tables[0]}.`);
+      throw new Error(`Joined entity ${type} does not share a connection with main table ${main}.`);
 
     let name: string = type.table;
     let alias: string | undefined;
 
     if(schema){
-      alias = 'T' + tables.length;
+      alias = 'T' + tables.size;
       name = schema + '.' + name;
     }
 
@@ -310,8 +310,7 @@ class Builder<T = unknown> {
       toString: () => alias || name
     };
 
-    tables.push(table);
-    RelevantTable.set(proxy, table);
+    tables.set(proxy, table);
     freeze(proxy);
 
     return table;
@@ -323,7 +322,6 @@ class Builder<T = unknown> {
     joinAs?: Query.Join.Mode){
 
     const table = this.use(type);
-    const main = this.tables[0];
     
     if(typeof joinOn == "string")
       throw new Error("Bad parameters.");
@@ -338,6 +336,7 @@ class Builder<T = unknown> {
 
       case "right" as unknown:
       case "full" as unknown:
+        const [ main ] = this.tables.values();
         throw new Error(`Cannot ${joinAs} join because that would affect ${main} which is already defined.`);
 
       default:
@@ -387,7 +386,7 @@ class Builder<T = unknown> {
     parse: (raw: any[]) => any[];
   } {
     const { selects } = this;
-    const main = this.tables[0];
+    const [ main ] = this.tables.values();
 
     if (selects instanceof Field)
       return {
@@ -413,12 +412,12 @@ class Builder<T = unknown> {
 
     scan(selects);
 
-    const selectClauses = Array.from(columns.entries())
+    const clauses = Array.from(columns.entries())
       .map(([alias, field]) => `${field} AS \`${alias}\``)
       .join(', ');
 
     return {
-      template: `SELECT ${selectClauses} FROM ${main}`,
+      template: `SELECT ${clauses} FROM ${main}`,
       parse: raw => raw.map(row => {
         const values = {} as any;
         
@@ -444,7 +443,8 @@ class Builder<T = unknown> {
       fn();
     }
 
-    const { limit, selects, tables } = this;
+    const { limit, selects } = this;
+    const tables = this.tables.values();
     let sql = '';
 
     if (this.delete) {
@@ -466,7 +466,7 @@ class Builder<T = unknown> {
       sql = template;
     }
     else {
-      let { alias, name } = tables[0];
+      let [{ alias, name }] = tables;
 
       if(alias)
         name = `${name} AS ${alias}`;
