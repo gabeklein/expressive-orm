@@ -267,14 +267,16 @@ class Builder<T = unknown> {
   wheres = new Set<Query.Compare>();
 
   public use<T extends Type>(type: Type.EntityType<T>){
-    const { tables } = this;
     const { fields, schema } = type;
-    const [ main ] = tables.values();
+    const { tables } = this;
 
-    if(!this.connection)
+    if(!this.connection){
       this.connection = type.connection || INERT;
-    else if(type.connection !== this.connection)
+    }
+    else if(type.connection !== this.connection){
+      const [ main ] = tables.values();
       throw new Error(`Joined entity ${type} does not share a connection with main table ${main}.`);
+    }
 
     let name: string = type.table;
     let alias: string | undefined;
@@ -310,8 +312,8 @@ class Builder<T = unknown> {
       toString: () => alias || name
     };
 
-    tables.set(proxy, table);
     freeze(proxy);
+    tables.set(proxy, table);
 
     return table;
   }
@@ -381,44 +383,37 @@ class Builder<T = unknown> {
     return table.proxy as Query.Join<T>;
   }
 
-  private toSelect(): {
-    template: string;
-    parse: (raw: any[]) => any[];
-  } {
-    const { selects } = this;
+  private toSelect(){
     const [ main ] = this.tables.values();
 
-    if (selects instanceof Field)
-      return {
-        template: `SELECT ${selects} FROM ${main}`,
-        parse: raw => raw.map(row => {
-          return selects.get(row[selects.column])
-        })
-      }
+    let parse: (raw: any[]) => any[];
+    let selects: any = this.selects;
 
-    const columns = new Map<string, Field | Computed<unknown>>();
-    
-    function scan(obj: any, path?: string) {
-      for (const key of getOwnPropertyNames(obj)) {
-        const use = path ? `${path}.${key}` : key;
-        const select = obj[key];
-
-        if (select instanceof Field || select instanceof Computed)
-          columns.set(use, select);
-        else if (typeof select === 'object')
-          scan(select, use);
-      }
+    if (selects instanceof Field){
+      parse = raw => raw.map(row => selects.get(row[selects.column]));
     }
+    else {
+      const columns = new Map<string, Field | Computed<unknown>>();
+      
+      function scan(obj: any, path?: string) {
+        for (const key of getOwnPropertyNames(obj)) {
+          const use = path ? `${path}.${key}` : key;
+          const select = obj[key];
+  
+          if (select instanceof Field || select instanceof Computed)
+            columns.set(use, select);
+          else if (typeof select === 'object')
+            scan(select, use);
+        }
+      }
+  
+      scan(selects);
+  
+      selects = Array.from(columns.entries())
+        .map(([alias, field]) => `${field} AS \`${alias}\``)
+        .join(', ');
 
-    scan(selects);
-
-    const clauses = Array.from(columns.entries())
-      .map(([alias, field]) => `${field} AS \`${alias}\``)
-      .join(', ');
-
-    return {
-      template: `SELECT ${clauses} FROM ${main}`,
-      parse: raw => raw.map(row => {
+      parse = raw => raw.map(row => {
         const values = {} as any;
         
         columns.forEach((field, column) => {
@@ -434,6 +429,11 @@ class Builder<T = unknown> {
   
         return values;
       })
+    }
+
+    return {
+      template: `SELECT ${selects} FROM ${main}`,
+      parse
     }
   }
 
