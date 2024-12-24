@@ -13,17 +13,16 @@ const INERT = new Connection([], {
   pool: { max: 0 }
 })
 
-export class QueryBuilder<T = unknown> {
+export class QueryBuilder {
   connection!: Connection;
 
   tables = new Map<{}, Query.Table>();
   pending = new Set<() => void>();
   parse?: (raw: any[]) => any[];
-  template = "";
 
   delete?: Query.Table;
   update?: Readonly<[Query.Table, Query.Update<any>]>;
-  selects?: T;
+  selects?: unknown;
 
   limit?: number;
   orderBy = new Map<Field, "asc" | "desc">();
@@ -60,9 +59,9 @@ export class QueryBuilder<T = unknown> {
     const local = new Map<string, Field>();
     const proxy = {
       toString: () => alias || name
-    } as Query.From<T>;
+    } as Query.From;
     
-    const table: Query.Table<T> = {
+    const table: Query.Table = {
       alias,
       name,
       proxy,
