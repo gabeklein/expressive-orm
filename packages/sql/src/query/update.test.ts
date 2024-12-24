@@ -38,9 +38,7 @@ it("will update with joins", () => {
     const bar = where(Bar, { color: foo.color });
 
     where(foo.color).equal("red");
-    where(foo).update({
-      value: bar.value
-    })
+    where(foo).update({ value: bar.value });
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -52,6 +50,35 @@ it("will update with joins", () => {
     WHERE
       foo.color = 'red'
   `);
+})
+
+it("will complain about nullable mismatch", () => {
+  class Baz extends Type {
+    nullable = Str({ nullable: true });
+    nonNullable = Str();
+  }
+  
+  let query = Query(where => {
+    const baz = where(Baz);
+    where(baz).update({ nullable: null });
+  });
+
+  expect(query).toMatchInlineSnapshot(`
+    UPDATE
+      baz
+    SET
+      nullable = NULL
+  `);
+
+  query = Query(where => {
+    const baz = where(Baz);
+    // @ts-expect-error
+    where(baz).update({ nonNullable: null });
+  })
+
+  expect(() => String(query)).toThrowErrorMatchingInlineSnapshot(
+    `Column baz.non_nullable is not nullable.`
+  );
 })
 
 it.todo('will update multiple tables')

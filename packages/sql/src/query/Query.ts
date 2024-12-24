@@ -51,9 +51,10 @@ declare namespace Query {
     update(values: Query.Update<T>): void;
   }
 
-  // TODO: test new nullable awareness
+  type Updates<T> = Field.Updates<T> | T;
+
   type Update<T extends Type> = {
-    [K in Type.Fields<T>]?: Field.Updates<T[K]>;
+    [K in Type.Fields<T>]?: Updates<T[K]>;
   }
 
   type Function<R> = (where: Where) => R;

@@ -250,7 +250,7 @@ export class QueryBuilder<T = unknown> {
           if(field.nullable)
             value = 'NULL';
           else
-            throw new Error(`Column ${field} does not allow NULL values.`);
+            throw new Error(`Column ${field} is not nullable.`);
         }
         else if(value instanceof Field || value instanceof Computed)
           value = value.toString();
