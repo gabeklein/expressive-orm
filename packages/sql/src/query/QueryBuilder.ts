@@ -220,16 +220,8 @@ export class QueryBuilder<T = unknown> {
         ? `DELETE ${main} FROM ${main}`
         : `DELETE FROM ${main}`;
     }
-    else if (this.update) {
-      const [table, data] = this.update;
-      const updates = table.type.digest(data);
-      const sets = Object
-        .entries(updates)
-        .map(([col, val]) => `\`${col}\` = ${typeof val === 'string' ? `'${val}'` : val}`)
-        .join(', ');
-
-      sql = `UPDATE ${table} SET ${sets}`;
-    }
+    else if(this.update)
+      sql = `UPDATE ${main}`;
     else {
       let { alias, name } = main;
 
@@ -246,6 +238,34 @@ export class QueryBuilder<T = unknown> {
 
         sql += ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
       }
+
+    if (this.update) {
+      const [table, data] = this.update;
+      const sets: string[] = [];
+      
+      Object.entries(data).forEach(([col, value]) => {
+        const field = table.proxy[col] as Field; 
+
+        if(value === null){
+          if(field.nullable)
+            value = 'NULL';
+          else
+            throw new Error(`Column ${field} does not allow NULL values.`);
+        }
+        else if(value instanceof Field || value instanceof Computed)
+          value = value.toString();
+        else if(value !== undefined){
+          value = field.set(value);
+          value = typeof value === 'string' ? `'${value}'` : value;
+        }
+        else
+          return;
+
+        sets.push(`\`${field.column}\` = ${value}`);
+      })
+
+      sql += `\nSET ${sets.join(', ')}`;
+    }
 
     if (this.wheres.size) {
       function buildWhere(conditions: Query.Compare[], or?: boolean): string {

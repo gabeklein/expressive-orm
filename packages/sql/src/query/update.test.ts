@@ -5,6 +5,11 @@ class Foo extends Type {
   color = Str();
 }
 
+class Bar extends Type {
+  value = Str();
+  color = Str();
+}
+
 it("will generate query", () => {
   const query = Query(where => {
     const foo = where(Foo);
@@ -22,6 +27,28 @@ it("will generate query", () => {
     SET
       value = 'new!',
       color = 'blue'
+    WHERE
+      foo.color = 'red'
+  `);
+})
+
+it("will update with joins", () => {
+  const query = Query(where => {
+    const foo = where(Foo);
+    const bar = where(Bar, { color: foo.color });
+
+    where(foo.color).equal("red");
+    where(foo).update({
+      value: bar.value
+    })
+  });
+
+  expect(query).toMatchInlineSnapshot(`
+    UPDATE
+      foo
+      INNER JOIN bar ON bar.color = foo.color
+    SET
+      value = bar.value
     WHERE
       foo.color = 'red'
   `);
