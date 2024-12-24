@@ -1,18 +1,13 @@
-import { Connection, Field, Type } from '..';
-import { assign, create, defineProperty, freeze, getOwnPropertyNames } from '../utils';
+import { Field, Type } from '..';
+import { assign } from '../utils';
 import { Computed, math, MathOps } from './math';
-import { sql, Syntax } from './syntax';
-
-const INERT = new Connection([], {
-  client: "sqlite3",
-  useNullAsDefault: true,
-  pool: { max: 0 }
-})
+import { QueryBuilder } from './QueryBuilder';
+import { Syntax } from './syntax';
 
 declare namespace Query { 
   interface Table<T extends Type = any> {
     type: Type.EntityType<T>;
-    query: Builder;
+    query: QueryBuilder;
     name: string;
     proxy: Query.From<T>;
     alias?: string;
@@ -80,7 +75,7 @@ declare namespace Query {
   };
 }
 
-interface Query<T = unknown> extends PromiseLike<T> {
+interface Query<T> extends PromiseLike<T> {
   /** Counts the number of rows that would be selected. */
   count(): Promise<number>;
 
@@ -88,7 +83,7 @@ interface Query<T = unknown> extends PromiseLike<T> {
   toString(): string;
 }
 
-interface SelectQuery<T = unknown> extends Query<T[]> {
+interface SelectQuery<T> extends Query<T[]> {
   /**
    * Returns the first rows which match creteria.
    * 
@@ -114,8 +109,8 @@ function Query<T extends {}>(from: Query.Function<T>): SelectQuery<Query.Extract
  */
 function Query(from: Query.Function<void>): Query<number>;
 
-function Query<T = void>(factory: Query.Function<T>): Query | SelectQuery {
-  const builder = new Builder();
+function Query<T = void>(factory: Query.Function<T>): Query<T> | SelectQuery<T> {
+  const builder = new QueryBuilder();
   const context = where.bind(builder) as Query.Where;
 
   assign(context, math());
@@ -142,14 +137,14 @@ function Query<T = void>(factory: Query.Function<T>): Query | SelectQuery {
     return res[0] as T;
   }
   
-  const runner: Query = {
+  const runner: Query<T> = {
     then: (resolve, reject) => get().then(resolve).catch(reject),
     count: () => builder.extend({ selects: undefined, parse: undefined }).send(),
     toString: () => String(builder)
   }
 
   if(builder.selects)
-    return { ...runner, get, one } as SelectQuery;
+    return { ...runner, get, one } as SelectQuery<T>;
 
   return runner;
 }
@@ -199,7 +194,7 @@ function where<T extends Type>(field: Query.From<T>): Query.Verbs<T>;
  */
 function where<T extends Field>(field: T): Query.Asserts<T>;
 
-function where(this: Builder, arg1: any, arg2?: any, arg3?: any): any {
+function where(this: QueryBuilder, arg1: any, arg2?: any, arg3?: any): any {
   if(typeof arg1 == "number"){
     this.limit = arg1;
     return;
@@ -247,275 +242,6 @@ function where(this: Builder, arg1: any, arg2?: any, arg3?: any): any {
     update: (data: Query.Update<any>) => {
       this.update = [table, data];
     }
-  }
-}
-
-class Builder<T = unknown> {
-  connection!: Connection;
-
-  tables = new Map<{}, Query.Table>();
-  pending = new Set<() => void>();
-  parse?: (raw: any[]) => any[];
-  template = "";
-
-  delete?: Query.Table;
-  update?: Readonly<[Query.Table, Query.Update<any>]>;
-  selects?: T;
-
-  limit?: number;
-  orderBy = new Map<Field, "asc" | "desc">();
-  wheres = new Set<Query.Compare>();
-
-  public use<T extends Type>(type: Type.EntityType<T>){
-    const { fields, schema } = type;
-    const { tables } = this;
-
-    if(!this.connection){
-      this.connection = type.connection || INERT;
-    }
-    else if(type.connection !== this.connection){
-      const [ main ] = tables.values();
-      throw new Error(`Joined entity ${type} does not share a connection with main table ${main}.`);
-    }
-
-    let name: string = type.table;
-    let alias: string | undefined;
-
-    if(schema){
-      alias = 'T' + tables.size;
-      name = schema + '.' + name;
-    }
-
-    const proxy = {} as Query.From<T>;
-
-    fields.forEach((field, key) => {
-      let value: any;
-      defineProperty(proxy, key, {
-        get(){
-          if(!value){
-            const local: typeof field = create(field);
-            local.table = table;
-            value = local.proxy ? local.proxy(table) : local; 
-          }
-
-          return value;
-        }
-      });
-    });
-
-    const table: Query.Table<T> = {
-      alias,
-      name,
-      type,
-      proxy,
-      query: this,
-      toString: () => alias || name
-    };
-
-    freeze(proxy);
-    tables.set(proxy, table);
-
-    return table;
-  }
-
-  public join<T extends Type>(
-    type: Type.EntityType<T>,
-    joinOn: Query.Join.On<T>,
-    joinAs?: Query.Join.Mode){
-
-    const table = this.use(type);
-    
-    if(typeof joinOn == "string")
-      throw new Error("Bad parameters.");
-
-    switch(joinAs){
-      case undefined:
-        joinAs = "inner";
-
-      case "inner":
-      case "left":
-        break;
-
-      case "right" as unknown:
-      case "full" as unknown:
-        const [ main ] = this.tables.values();
-        throw new Error(`Cannot ${joinAs} join because that would affect ${main} which is already defined.`);
-
-      default:
-        throw new Error(`Invalid join type ${joinAs}.`);
-    }
-    
-    const joinsOn = new Set<Syntax>();
-
-    switch(typeof joinOn){
-      case "object":
-        for (const key in joinOn) {
-          const left = (table.proxy as any)[key];
-          const right = (joinOn as any)[key];
-  
-          if (left instanceof Field)
-            joinsOn.add(sql(left, "=", right));
-          else
-            throw new Error(`${key} is not a valid column in ${type}.`);
-        }
-      break;
-
-      case "function":
-        this.pending.add(() => {
-          joinOn(left => {
-            if(left instanceof Field)
-              return left.compare(joinsOn);
-
-            throw new Error("Join assertions can only apply to fields.");
-          });
-        })
-      break;
-
-      default:
-        throw new Error(`Invalid join on: ${joinOn}`);
-    }
-
-    table.join = {
-      as: joinAs,
-      on: joinsOn
-    }
-
-    return table.proxy as Query.Join<T>;
-  }
-
-  private toSelect(){
-    const [ main ] = this.tables.values();
-
-    let parse: (raw: any[]) => any[];
-    let selects: any = this.selects;
-
-    if (selects instanceof Field){
-      parse = raw => raw.map(row => selects.get(row[selects.column]));
-    }
-    else {
-      const columns = new Map<string, Field | Computed<unknown>>();
-      
-      function scan(obj: any, path?: string) {
-        for (const key of getOwnPropertyNames(obj)) {
-          const use = path ? `${path}.${key}` : key;
-          const select = obj[key];
-  
-          if (select instanceof Field || select instanceof Computed)
-            columns.set(use, select);
-          else if (typeof select === 'object')
-            scan(select, use);
-        }
-      }
-  
-      scan(selects);
-  
-      selects = Array.from(columns.entries())
-        .map(([alias, field]) => `${field} AS \`${alias}\``)
-        .join(', ');
-
-      parse = raw => raw.map(row => {
-        const values = {} as any;
-        
-        columns.forEach((field, column) => {
-          const path = column.split('.');
-          const prop = path.pop()!;
-          let target = values;
-  
-          for (const step of path)
-            target = target[step] || (target[step] = {});
-  
-          target[prop] = field.get(row[column]);
-        });
-  
-        return values;
-      })
-    }
-
-    return {
-      template: `SELECT ${selects} FROM ${main}`,
-      parse
-    }
-  }
-
-  public toString() {
-    for (const fn of this.pending){
-      this.pending.delete(fn);
-      fn();
-    }
-
-    const { limit, selects } = this;
-    const tables = this.tables.values();
-    let sql = '';
-
-    if (this.delete) {
-      sql = `DELETE FROM ${this.delete}`;
-    }
-    else if (this.update) {
-      const [table, data] = this.update;
-      const updates = table.type.digest(data);
-      const sets = Object
-        .entries(updates)
-        .map(([col, val]) => `\`${col}\` = ${typeof val === 'string' ? `'${val}'` : val}`)
-        .join(', ');
-
-      sql = `UPDATE ${table} SET ${sets}`;
-    }
-    else if(selects){
-      const { template, parse } = this.toSelect();
-      this.parse = parse;
-      sql = template;
-    }
-    else {
-      let [{ alias, name }] = tables;
-
-      if(alias)
-        name = `${name} AS ${alias}`;
-
-      sql = `SELECT COUNT(*) FROM ${name}`;
-    }
-
-    for (const table of tables)
-      if (table.join) {
-        const { as, on } = table.join;
-        const kind = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
-
-        sql += ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
-      }
-
-    if (this.wheres.size) {
-      function buildWhere(conditions: Query.Compare[], or?: boolean): string {
-        return conditions.map(cond => {
-          if(cond instanceof Syntax)
-            return cond;
-
-          if (Array.isArray(cond))
-            return `(${buildWhere(cond, !or)})`;
-
-          return "";
-        }).filter(Boolean).join(or ? ' OR ' : ' AND ');
-      }
-  
-      sql += ' WHERE ' + buildWhere(Array.from(this.wheres.values()));
-    }
-  
-    if (this.orderBy.size)
-      sql += ' ORDER BY ' + Array
-        .from(this.orderBy)
-        .map(([field, dir]) => `${field} ${dir}`)
-        .join(', ')
-  
-    if (limit)
-      sql += ` LIMIT ${limit}`;
-  
-    return sql;
-  }
-
-  extend(apply?: Partial<Builder>){
-   return assign(create(this), apply) as Builder;
-  }
-
-  async send(){
-    return this.connection.send(String(this));
   }
 }
 
