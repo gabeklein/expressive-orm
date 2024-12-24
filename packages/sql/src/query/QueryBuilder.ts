@@ -216,7 +216,9 @@ export class QueryBuilder<T = unknown> {
       sql = `SELECT ${selects} FROM ${main}`;
     }
     else if (this.delete) {
-      sql = `DELETE FROM ${this.delete}`;
+      sql = this.tables.size > 1
+        ? `DELETE ${main} FROM ${main}`
+        : `DELETE FROM ${main}`;
     }
     else if (this.update) {
       const [table, data] = this.update;
