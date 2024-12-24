@@ -4,10 +4,18 @@ import { QueryBuilder } from './QueryBuilder';
 import { Syntax } from './syntax';
 
 declare namespace Query { 
+  namespace Table {
+    interface Ref {
+      alias?: string;
+      name: string;
+      as: string;
+      toString(): string;
+    }
+  }
+  
   interface Table<T extends Type = any> {
-    name: string;
+    name: Table.Ref;
     proxy: Query.From<T>;
-    alias?: string;
     local: Map<string, Field>;
     join?: {
       as: Query.Join.Mode;

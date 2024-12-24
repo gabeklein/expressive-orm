@@ -48,25 +48,31 @@ export class QueryBuilder {
       throw new Error(`Joined entity ${type} does not share a connection with main table ${main}.`);
     }
 
-    let name: string = type.table;
-    let alias: string | undefined;
+    const ref: Query.Table.Ref = {
+      name: type.table,
+      get as(){
+        return this.alias || this.name;
+      },
+      toString(){
+        return this.alias ? `${this.name} ${this.alias}` : this.name;
+      }
+    }
 
-    if(schema){
-      alias = 'T' + tables.size;
-      name = schema + '.' + name;
+    if (schema){
+      ref.alias = 'T' + tables.size;
+      ref.name = schema + '.' + ref.name;
     }
 
     const local = new Map<string, Field>();
     const proxy = {
-      toString: () => alias || name
+      toString: () => String(ref)
     } as Query.From;
     
     const table: Query.Table = {
-      alias,
-      name,
+      name: ref,
       proxy,
       local,
-      toString: () => alias || name
+      toString: () => ref.as
     };
 
     tables.set(proxy, table);
@@ -216,8 +222,7 @@ export class QueryBuilder {
       wheres
     } = this;
 
-    const [{ alias, name }, ...joins] = tables.values();
-    const main = alias ? `${name} ${alias}` : name;
+    const [{ name: main }, ...joins] = tables.values();
 
     let query;
 
@@ -226,10 +231,10 @@ export class QueryBuilder {
     else if(updates)
       query = `UPDATE ${main}`;
     else if(deletes){
-      const { alias, name } = this.tables.get(deletes)!;
+      const { name } = this.tables.get(deletes)!;
 
-      query = joins.length || alias
-        ? `DELETE ${alias || name} FROM ${main}`
+      query = joins.length || name.alias
+        ? `DELETE ${name} FROM ${main}`
         : `DELETE FROM ${main}`;
     }
     else
