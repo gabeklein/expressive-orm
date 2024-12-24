@@ -37,7 +37,7 @@ export class QueryBuilder<T = unknown> {
     return this.connection.send(String(this));
   }
 
-  public use<T extends Type>(type: Type.EntityType<T>){
+  use<T extends Type>(type: Type.EntityType<T>){
     const { fields, schema } = type;
     const { tables } = this;
 
@@ -90,7 +90,7 @@ export class QueryBuilder<T = unknown> {
     return table;
   }
 
-  public join<T extends Type>(
+  join<T extends Type>(
     type: Type.EntityType<T>,
     joinOn: Query.Join.On<T>,
     joinAs?: Query.Join.Mode){
@@ -157,7 +157,7 @@ export class QueryBuilder<T = unknown> {
     return table.proxy as Query.Join<T>;
   }
 
-  private toSelect(){
+  toSelect(){
     const { selects } = this;
 
     if (selects instanceof Field){
@@ -203,7 +203,7 @@ export class QueryBuilder<T = unknown> {
       .join(', ');
   }
 
-  public toString() {
+  toString() {
     this.pending.forEach(fn => fn());
     this.pending.clear();
 
