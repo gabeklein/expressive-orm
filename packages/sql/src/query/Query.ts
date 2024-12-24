@@ -5,8 +5,6 @@ import { Syntax } from './syntax';
 
 declare namespace Query { 
   interface Table<T extends Type = any> {
-    type: Type.EntityType<T>;
-    query: QueryBuilder;
     name: string;
     proxy: Query.From<T>;
     alias?: string;
@@ -17,6 +15,8 @@ declare namespace Query {
     }
     toString(): string;
   }
+
+  type Builder = QueryBuilder;
 
   type Compare = Syntax | Compare[] | undefined;
 

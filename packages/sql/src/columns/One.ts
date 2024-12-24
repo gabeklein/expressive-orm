@@ -3,7 +3,7 @@ import { underscore } from '../utils';
 
 interface One<T extends Type> extends Field<Type.Values<T>> {
   entity: Type.EntityType<T>;
-  proxy(table: Query.Table): Query.Join<T>;
+  use(this: One<T>, query: Query.Builder): Query.Join<T>;
   set(value: Type.Values<T> | number): void;
 }
 
@@ -20,8 +20,8 @@ function One<T extends Type>(type: Type.EntityType<T>, nullable?: boolean){
     set(value: Type.Values<T> | number){
       return value && typeof value == "object" ? value.id : value;
     },
-    proxy(this: One<T>, table: Query.Table){
-      return table.query.join(type, { id: this });
+    use(query){
+      return query.join(type, { id: this });
     }
   }));
 }

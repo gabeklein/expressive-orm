@@ -102,7 +102,7 @@ interface Field<T = unknown> {
    * 
    * @returns {T} Value to be used in context of query, interfacing with this Field.
    */
-  proxy?(table: Query.Table): unknown;
+  use?(query: Query.Builder): unknown;
 
   /**
    * This method dictates behavior of this field when converted from a javascript context to SQL.

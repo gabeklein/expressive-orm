@@ -65,9 +65,7 @@ export class QueryBuilder<T = unknown> {
     const table: Query.Table<T> = {
       alias,
       name,
-      type,
       proxy,
-      query: this,
       local,
       toString: () => alias || name
     };
@@ -82,7 +80,7 @@ export class QueryBuilder<T = unknown> {
 
       defineProperty(proxy, key, {
         get: () => value || (
-          value = field.proxy ? field.proxy(table) : field
+          value = field.use ? field.use(this) : field
         )
       });
     });
