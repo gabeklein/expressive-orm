@@ -20,8 +20,8 @@ export class QueryBuilder {
   pending = new Set<() => void>();
   parse?: (raw: any[]) => any[];
 
-  delete?: Query.Table;
-  update?: Readonly<[Query.Table, Query.Update<any>]>;
+  deletes?: Query.From<any>;
+  updates?: Readonly<[Query.From<any>, Query.Update<any>]>;
   selects?: unknown;
 
   limit?: number;
@@ -206,18 +206,34 @@ export class QueryBuilder {
     this.pending.forEach(fn => fn());
     this.pending.clear();
 
-    const { limit, selects, tables } = this;
+    const {
+      limit,
+      selects,
+      tables,
+      updates,
+      deletes,
+      orderBy,
+      wheres
+    } = this;
+
     const [{ alias, name }, ...joins] = tables.values();
     const main = alias ? `${name} ${alias}` : name;
 
-    let query =
-      selects ? `SELECT ${this.toSelect()} FROM ${main}` :
-      this.update ? `UPDATE ${main}` :
-      this.delete ? 
-        tables.size > 1 ?
-          `DELETE ${alias || name} FROM ${main}` :
-          `DELETE FROM ${main}` :
-      `SELECT COUNT(*) FROM ${main}`;
+    let query;
+
+    if(selects)
+      query = `SELECT ${this.toSelect()} FROM ${main}`;
+    else if(updates)
+      query = `UPDATE ${main}`;
+    else if(deletes){
+      const { alias, name } = this.tables.get(deletes)!;
+
+      query = joins.length || alias
+        ? `DELETE ${alias || name} FROM ${main}`
+        : `DELETE FROM ${main}`;
+    }
+    else
+      query = `SELECT COUNT(*) FROM ${main}`;
 
     for (const table of joins){
       const { as, on } = table.join!;
@@ -226,12 +242,12 @@ export class QueryBuilder {
       query += ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
     }
 
-    if (this.update) {
-      const [table, data] = this.update;
+    if (updates) {
+      const [table, data] = updates;
       const sets: string[] = [];
       
       Object.entries(data).forEach(([col, value]) => {
-        const field = table.proxy[col] as Field; 
+        const field = table[col] as Field; 
 
         if(value === null){
           if(field.nullable)
@@ -254,7 +270,7 @@ export class QueryBuilder {
       query += `\nSET ${sets.join(', ')}`;
     }
 
-    if (this.wheres.size) {
+    if (wheres.size) {
       function buildWhere(conditions: Query.Compare[], or?: boolean): string {
         return conditions.map(cond => {
           if(cond instanceof Syntax)
@@ -267,12 +283,12 @@ export class QueryBuilder {
         }).filter(Boolean).join(or ? ' OR ' : ' AND ');
       }
   
-      query += ' WHERE ' + buildWhere(Array.from(this.wheres.values()));
+      query += ' WHERE ' + buildWhere(Array.from(wheres.values()));
     }
   
-    if (this.orderBy.size)
+    if (orderBy.size)
       query += ' ORDER BY ' + Array
-        .from(this.orderBy)
+        .from(orderBy)
         .map(([field, dir]) => `${field} ${dir}`)
         .join(', ')
   

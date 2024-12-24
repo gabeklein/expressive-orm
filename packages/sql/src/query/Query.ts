@@ -227,19 +227,17 @@ function where(this: QueryBuilder, arg1: any, arg2?: any, arg3?: any): any {
     return local;
   }
 
-  const table = this.tables.get(arg1);
-
-  if(!table)
-    throw new Error(`Argument ${arg1} is not a query argument.`);
-
-  return <Query.Verbs<Type>> {
-    delete: () => {
-      this.delete = table;
-    },
-    update: (data: Query.Update<any>) => {
-      this.update = [table, data];
+  if(this.tables.has(arg1))
+    return <Query.Verbs<Type>> {
+      delete: () => {
+        this.deletes = arg1;
+      },
+      update: (data: Query.Update<any>) => {
+        this.updates = [arg1, data];
+      }
     }
-  }
+
+  throw new Error(`Argument ${arg1} is not a query argument.`);
 }
 
 export { Query, SelectQuery };
