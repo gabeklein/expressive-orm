@@ -57,34 +57,37 @@ export class QueryBuilder<T = unknown> {
       name = schema + '.' + name;
     }
 
-    const proxy = {} as Query.From<T>;
-
-    fields.forEach((field, key) => {
-      let value: any;
-      defineProperty(proxy, key, {
-        get(){
-          if(!value){
-            const local: typeof field = create(field);
-            local.table = table;
-            value = local.proxy ? local.proxy(table) : local; 
-          }
-
-          return value;
-        }
-      });
-    });
-
+    const local = new Map<string, Field>();
+    const proxy = {
+      toString: () => alias || name
+    } as Query.From<T>;
+    
     const table: Query.Table<T> = {
       alias,
       name,
       type,
       proxy,
       query: this,
+      local,
       toString: () => alias || name
     };
 
-    freeze(proxy);
     tables.set(proxy, table);
+    fields.forEach((field, key) => {
+      field = create(field);
+      field.table = table;
+      local.set(key, field);
+
+      let value: any;
+
+      defineProperty(proxy, key, {
+        get: () => value || (
+          value = field.proxy ? field.proxy(table) : field
+        )
+      });
+    });
+
+    freeze(proxy);
 
     return table;
   }
@@ -121,11 +124,13 @@ export class QueryBuilder<T = unknown> {
     switch(typeof joinOn){
       case "object":
         for (const key in joinOn) {
-          const left = (table.proxy as any)[key];
+          const left = table.local.get(key)!;
           const right = (joinOn as any)[key];
-  
+
           if (left instanceof Field)
-            joinsOn.add(sql(left, "=", right));
+            joinsOn.add(
+              sql(left, "=", this.tables.has(right) ? right.id : right)
+            );
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }

@@ -43,6 +43,36 @@ it("will join using object", async () => {
   `);
 })
 
+it("will join on id if type is passed", async () => {
+  class Foo extends Type {
+    name = Str();
+  }
+
+  class Bar extends Type {
+    foo = One(Foo);
+    rating = Num();
+  }
+
+  const query = Query(where => {
+    const foo = where(Foo);
+    const bar = where(Bar, { foo });
+
+    where(bar.rating).more(50);
+
+    return foo.name;
+  });
+
+  expect(query).toMatchInlineSnapshot(`
+    SELECT
+      foo.name
+    FROM
+      foo
+      INNER JOIN bar ON bar.foo_id = foo.id
+    WHERE
+      bar.rating > 50
+  `);
+});
+
 it("will join using function", async () => {
   const query = Query(where => {
     const foo = where(Foo);

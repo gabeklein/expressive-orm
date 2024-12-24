@@ -10,6 +10,7 @@ declare namespace Query {
     name: string;
     proxy: Query.From<T>;
     alias?: string;
+    local: Map<string, Field>;
     join?: {
       as: Query.Join.Mode;
       on: Set<Syntax>;
@@ -33,7 +34,7 @@ declare namespace Query {
 
     type Function = (on: Where) => void;
 
-    type Equal<T extends Type = any> = { [K in keyof T]?: Field };
+    type Equal<T extends Type = any> = { [K in keyof T]?: Field | Query.From };
     
     type On<T extends Type> = Function | Equal<T>;
 
