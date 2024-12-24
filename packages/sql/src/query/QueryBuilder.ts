@@ -155,57 +155,49 @@ export class QueryBuilder<T = unknown> {
   }
 
   private toSelect(){
-    const [ main ] = this.tables.values();
-
-    let parse: (raw: any[]) => any[];
-    let selects: any = this.selects;
+    const { selects } = this;
 
     if (selects instanceof Field){
-      parse = raw => raw.map(row => selects.get(row[selects.column]));
+      this.parse = raw => raw.map(row => selects.get(row[selects.column]));
+      return selects;
     }
-    else {
-      const columns = new Map<string, Field | Computed<unknown>>();
-      
-      function scan(obj: any, path?: string) {
-        for (const key of getOwnPropertyNames(obj)) {
-          const use = path ? `${path}.${key}` : key;
-          const select = obj[key];
-  
-          if (select instanceof Field || select instanceof Computed)
-            columns.set(use, select);
-          else if (typeof select === 'object')
-            scan(select, use);
-        }
-      }
-  
-      scan(selects);
-  
-      selects = Array.from(columns.entries())
-        .map(([alias, field]) => `${field} AS \`${alias}\``)
-        .join(', ');
 
-      parse = raw => raw.map(row => {
-        const values = {} as any;
-        
-        columns.forEach((field, column) => {
-          const path = column.split('.');
-          const prop = path.pop()!;
-          let target = values;
-  
-          for (const step of path)
-            target = target[step] || (target[step] = {});
-  
-          target[prop] = field.get(row[column]);
-        });
-  
-        return values;
+    const columns = new Map<string, Field | Computed<unknown>>();
+      
+    function scan(obj: any, path?: string) {
+      getOwnPropertyNames(obj).forEach(key => {
+        const select = obj[key];
+        const use = path ? `${path}.${key}` : key;
+
+        if (select instanceof Field || select instanceof Computed)
+          columns.set(use, select);
+        else if (typeof select === 'object')
+          scan(select, use);
       })
     }
 
-    return {
-      template: `SELECT ${selects} FROM ${main}`,
-      parse
-    }
+    scan(selects);
+
+    this.parse = raw => raw.map(row => {
+      const values = {} as any;
+      
+      columns.forEach((field, column) => {
+        const path = column.split('.');
+        const prop = path.pop()!;
+        let target = values;
+
+        for (const step of path)
+          target = target[step] || (target[step] = {});
+
+        target[prop] = field.get(row[column]);
+      });
+
+      return values;
+    })
+
+    return Array.from(columns.entries())
+      .map(([alias, field]) => `${field} AS \`${alias}\``)
+      .join(', ');
   }
 
   public toString() {
@@ -216,9 +208,14 @@ export class QueryBuilder<T = unknown> {
 
     const { limit, selects } = this;
     const tables = this.tables.values();
+    const [ main ] = tables;
     let sql = '';
 
-    if (this.delete) {
+    if(selects){
+      const selects = this.toSelect();
+      sql = `SELECT ${selects} FROM ${main}`;
+    }
+    else if (this.delete) {
       sql = `DELETE FROM ${this.delete}`;
     }
     else if (this.update) {
@@ -231,13 +228,8 @@ export class QueryBuilder<T = unknown> {
 
       sql = `UPDATE ${table} SET ${sets}`;
     }
-    else if(selects){
-      const { template, parse } = this.toSelect();
-      this.parse = parse;
-      sql = template;
-    }
     else {
-      let [{ alias, name }] = tables;
+      let { alias, name } = main;
 
       if(alias)
         name = `${name} AS ${alias}`;
