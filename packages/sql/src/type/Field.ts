@@ -51,7 +51,7 @@ declare namespace Field {
 
   type Accepts<T> = Field & { set(value: T, data: unknown): void }
 
-  type Queries<T> = Field & { proxy(table: Query.Table): T }
+  type Queries<T> = Field & { use(table: Query.Builder): T }
 
   type Updates<T> =
     T extends Accepts<infer U> ?
