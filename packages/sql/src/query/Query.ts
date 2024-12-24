@@ -1,6 +1,5 @@
 import { Field, Type } from '..';
-import { assign } from '../utils';
-import { Computed, math, MathOps } from './math';
+import { Computed } from './math';
 import { QueryBuilder } from './QueryBuilder';
 import { Syntax } from './syntax';
 
@@ -44,10 +43,8 @@ declare namespace Query {
   type Join<T extends Type> = From<T>;
 
   type Value<T = any> = T | Field<T> | Computed<T>;
-  type ANumeric = Value<string | number>;
-  type Numeric = Value<number>;
 
-  type Where = typeof where & MathOps;
+  type Where = typeof where;
 
   interface Verbs <T extends Type> {
     delete(): void;
@@ -112,8 +109,6 @@ function Query(from: Query.Function<void>): Query<number>;
 function Query<T = void>(factory: Query.Function<T>): Query<T> | SelectQuery<T> {
   const builder = new QueryBuilder();
   const context = where.bind(builder) as Query.Where;
-
-  assign(context, math());
 
   builder.selects = factory(context);
 

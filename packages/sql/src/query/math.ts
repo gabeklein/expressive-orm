@@ -1,8 +1,8 @@
 import { Query, Field } from "..";
 
 type Value = Query.Value;
-type ANumeric = Query.ANumeric;
-type Numeric = Query.Numeric;
+type ANumeric = Query.Value<string | number>;
+type Numeric = Query.Value<number>;
 
 export interface Bitwise {
   not(value: Numeric): Numeric;
@@ -22,40 +22,38 @@ export interface MathOps {
   mod(left: Numeric, right: Numeric): Numeric;
   neg(value: Numeric): Numeric;
   pos(value: Numeric): Numeric;
-  bit: Bitwise
 }
 
-export function math(): MathOps {
-  function op(op: string, rank: number, unary: true): (value: Value) => Value;
-  function op(op: string, rank: number, unary?: false): (left: Value, right: Value) => Value;
-  function op(op: string, rank: number, arg2?: boolean){
-    return (l: any, r?: any) => {
-      const input = arg2 === true ? [op, l] : [l, op, r]
-      const computed = new Computed(...input);
+function op(op: string, rank: number, unary: true): (value: Value) => Value;
+function op(op: string, rank: number, unary?: false): (left: Value, right: Value) => Value;
+function op(op: string, rank: number, arg2?: boolean){
+  return (l: any, r?: any) => {
+    const input = arg2 === true ? [op, l] : [l, op, r]
+    const computed = new Computed(...input);
 
-      computed.rank = rank || 0;
+    computed.rank = rank || 0;
 
-      return computed;
-    }
+    return computed;
   }
+}
 
-  return {
-    add: op('+', 4),
-    sub: op('-', 4),
-    mul: op('*', 5),
-    div: op('/', 5),
-    mod: op('%,', 5),
-    neg: op('-', 7, true),
-    pos: op('+', 7, true),
-    bit: {
-      not: op('~', 6, true),
-      left: op('<<', 3),
-      right: op('>>', 3),
-      and: op('&', 2),
-      or: op('|', 0),
-      xor: op('^', 1),
-    }
-  }
+export const math: MathOps = {
+  add: op('+', 4),
+  sub: op('-', 4),
+  mul: op('*', 5),
+  div: op('/', 5),
+  mod: op('%,', 5),
+  neg: op('-', 7, true),
+  pos: op('+', 7, true),
+}
+
+export const bit: Bitwise = {
+  not: op('~', 6, true),
+  left: op('<<', 3),
+  right: op('>>', 3),
+  and: op('&', 2),
+  or: op('|', 0),
+  xor: op('^', 1),
 }
 
 export class Computed<T> extends Array<T | Field<T> | Computed<T>> {
