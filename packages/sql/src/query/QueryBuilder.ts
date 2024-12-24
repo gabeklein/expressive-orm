@@ -204,43 +204,28 @@ export class QueryBuilder<T = unknown> {
   }
 
   public toString() {
-    for (const fn of this.pending){
-      this.pending.delete(fn);
-      fn();
+    this.pending.forEach(fn => fn());
+    this.pending.clear();
+
+    const { limit, selects, tables } = this;
+    const [{ alias, name }, ...joins] = tables.values();
+    const main = alias ? `${name} ${alias}` : name;
+
+    let query =
+      selects ? `SELECT ${this.toSelect()} FROM ${main}` :
+      this.update ? `UPDATE ${main}` :
+      this.delete ? 
+        tables.size > 1 ?
+          `DELETE ${alias || name} FROM ${main}` :
+          `DELETE FROM ${main}` :
+      `SELECT COUNT(*) FROM ${main}`;
+
+    for (const table of joins){
+      const { as, on } = table.join!;
+      const kind = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
+
+      query += ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
     }
-
-    const { limit, selects } = this;
-    const tables = this.tables.values();
-    const [ main ] = tables;
-    let sql = '';
-
-    if(selects){
-      const selects = this.toSelect();
-      sql = `SELECT ${selects} FROM ${main}`;
-    }
-    else if (this.delete) {
-      sql = this.tables.size > 1
-        ? `DELETE ${main} FROM ${main}`
-        : `DELETE FROM ${main}`;
-    }
-    else if(this.update)
-      sql = `UPDATE ${main}`;
-    else {
-      let { alias, name } = main;
-
-      if(alias)
-        name = `${name} AS ${alias}`;
-
-      sql = `SELECT COUNT(*) FROM ${name}`;
-    }
-
-    for (const table of tables)
-      if (table.join) {
-        const { as, on } = table.join;
-        const kind = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
-
-        sql += ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
-      }
 
     if (this.update) {
       const [table, data] = this.update;
@@ -267,7 +252,7 @@ export class QueryBuilder<T = unknown> {
         sets.push(`\`${field.column}\` = ${value}`);
       })
 
-      sql += `\nSET ${sets.join(', ')}`;
+      query += `\nSET ${sets.join(', ')}`;
     }
 
     if (this.wheres.size) {
@@ -283,18 +268,18 @@ export class QueryBuilder<T = unknown> {
         }).filter(Boolean).join(or ? ' OR ' : ' AND ');
       }
   
-      sql += ' WHERE ' + buildWhere(Array.from(this.wheres.values()));
+      query += ' WHERE ' + buildWhere(Array.from(this.wheres.values()));
     }
   
     if (this.orderBy.size)
-      sql += ' ORDER BY ' + Array
+      query += ' ORDER BY ' + Array
         .from(this.orderBy)
         .map(([field, dir]) => `${field} ${dir}`)
         .join(', ')
   
     if (limit)
-      sql += ` LIMIT ${limit}`;
+      query += ` LIMIT ${limit}`;
   
-    return sql;
+    return query;
   }
 }

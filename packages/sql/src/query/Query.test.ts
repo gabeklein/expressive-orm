@@ -262,7 +262,7 @@ describe("schema", () => {
       SELECT
         COUNT(*)
       FROM
-        foobar.foo AS T0
+        foobar.foo T0
       WHERE
         T0.color = 'red'
     `);
