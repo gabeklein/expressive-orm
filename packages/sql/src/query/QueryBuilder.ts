@@ -122,11 +122,11 @@ export class QueryBuilder {
     switch(typeof joinOn){
       case "object":
         for (const key in joinOn) {
-          const left = table.local.get(key)!;
+          const left = table.local.get(key);
           const right = (joinOn as any)[key];
 
           if (left instanceof Field)
-            joinsOn.add(sql(left, "=", left.set(right)));
+            joinsOn.add(sql(left, "=", right instanceof Field ? right : left.set(right)));
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }
