@@ -48,31 +48,25 @@ export class QueryBuilder {
       throw new Error(`Joined entity ${type} does not share a connection with main table ${main}.`);
     }
 
-    const ref: Query.Table.Ref = {
-      name: type.table,
-      get as(){
-        return this.alias || this.name;
-      },
+    const name: Query.Table.Ref = {
+      id: type.table,
       toString(){
-        return this.alias ? `${this.name} ${this.alias}` : this.name;
+        return this.alias ? this.id + " " + this.alias : this.id;
       }
     }
 
-    if (schema){
-      ref.alias = 'T' + tables.size;
-      ref.name = schema + '.' + ref.name;
+    if(schema){
+      name.alias = 'T' + tables.size;
+      name.id = schema + '.' + name.id;
     }
 
     const local = new Map<string, Field>();
-    const proxy = {
-      toString: () => String(ref)
-    } as Query.From;
-    
+    const proxy = {} as Query.From;
     const table: Query.Table = {
-      name: ref,
+      name,
       proxy,
       local,
-      toString: () => ref.as
+      toString: () => name.alias || name.id
     };
 
     tables.set(proxy, table);

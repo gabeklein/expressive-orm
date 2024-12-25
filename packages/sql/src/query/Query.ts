@@ -7,8 +7,7 @@ declare namespace Query {
   namespace Table {
     interface Ref {
       alias?: string;
-      name: string;
-      as: string;
+      id: string;
       toString(): string;
     }
   }
