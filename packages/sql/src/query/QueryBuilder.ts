@@ -256,10 +256,8 @@ export class QueryBuilder {
         }
         else if(value instanceof Field || value instanceof Computed)
           value = value.toString();
-        else if(value !== undefined){
+        else if(value !== undefined)
           value = field.set(value);
-          value = typeof value === 'string' ? `'${value}'` : value;
-        }
         else
           return;
 

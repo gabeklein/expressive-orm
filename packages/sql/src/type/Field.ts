@@ -170,6 +170,9 @@ Field.prototype = <Field> {
   get(value: any){
     return value;
   },
+  set(value: any){
+    return value;
+  },
   compare(accumulate: Set<Query.Compare>){
     const on = (operator: string) =>
       (right: Query.Value, orEqual?: boolean) => {

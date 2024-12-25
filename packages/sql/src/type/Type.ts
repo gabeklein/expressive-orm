@@ -70,12 +70,6 @@ abstract class Type {
     return fields(this);
   }
 
-  static digest<T extends Type>(data: Type.Insert<T>): Record<string, unknown>;
-  static digest<T extends Type>(data: Type.Insert<T>[]): Record<string, unknown>[];
-  static digest<T extends Type>(data: Type.Insert<T> | Type.Insert<T>[]){
-    return Array.isArray(data) ? data.map(digest, this) : digest.call(this, data);  
-  }
-
   static insert<T extends Type>(this: Type.EntityType<T>, entries: Type.Insert<T> | Type.Insert<T>[]): Type.InsertOp;
   static insert<T extends Type>(this: Type.EntityType<T>, number: number, map: (index: number) => Type.Insert<T>): Type.InsertOp;
   static insert<T extends Type, I>(this: Type.EntityType<T>, inputs: Array<I>, map: (value: I, index: number) => Type.Insert<T>): Type.InsertOp;
@@ -104,15 +98,18 @@ abstract class Type {
     else
       throw new Error("Invalid input for insert method.");
     
-    const rows = this.digest(data);
-    const table = this.connection.knex(this.table);
-    const query = table.insert(rows);
+    const rows = data.map(digest, this);
+    const { connection } = this;
+
+    const query = 
+      `INSERT INTO ${this.table} (${Object.keys(rows[0]).join(", ")}) ` +
+      `VALUES ${rows.map(row => `(${Object.values(row).join(", ")})`).join(", ")}`;
 
     return {
       then(resolve: (res: any) => any, reject: (err: any) => any){
-        return query.then(x => x[0]).then<T[]>(resolve).catch(reject);
+        return connection.send(query).then(resolve).catch(reject);
       },
-      toString: () => query.toString()
+      toString: () => query
     }
   }
 

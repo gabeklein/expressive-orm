@@ -16,7 +16,7 @@ function Time(options?: Partial<Time>){
       if(value === "NOW")
         return "CURRENT_TIMESTAMP";
       else if(value instanceof Date)
-        return value.toISOString().slice(0, 19).replace("T", " ");
+        return `'${value.toISOString().slice(0, 19).replace("T", " ")}'`;
       else
         throw "Value must be a Date object."
     }

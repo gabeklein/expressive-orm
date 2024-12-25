@@ -31,10 +31,10 @@ it("will insert and retrieve a tinyint", async () => {
     INSERT INTO
       test (value1, value2)
     VALUES
-      ('1', 'YES')
+      (1, 'YES')
   `);
   
-  await expect(insert).resolves.toBe(1);
+  await insert;
   await expect(Test.one()).resolves.toEqual({
     id: 1, value1: true, value2: true
   });

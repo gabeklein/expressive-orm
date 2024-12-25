@@ -24,29 +24,15 @@ it("will insert procedurally generated rows", async () => {
 
   expect(insert).toMatchInlineSnapshot(`
     INSERT INTO
-      user (age, email, name)
-    SELECT
-      25 AS age,
-      'john@email.org' AS email,
-      'john' AS name
-    UNION ALL
-    SELECT
-      26 AS age,
-      'jane@email.org' AS email,
-      'jane' AS name
-    UNION ALL
-    SELECT
-      27 AS age,
-      'bob@email.org' AS email,
-      'bob' AS name
-    UNION ALL
-    SELECT
-      28 AS age,
-      'alice@email.org' AS email,
-      'alice' AS name
+      USER (name, email, age)
+    VALUES
+      ('john', 'john@email.org', 25),
+      ('jane', 'jane@email.org', 26),
+      ('bob', 'bob@email.org', 27),
+      ('alice', 'alice@email.org', 28)
   `);
 
-  await expect(insert).resolves.toBe(4);
+  await insert;
 
   const results = User.get();
 

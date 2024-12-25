@@ -19,8 +19,8 @@ function Bool<T extends Bool.Options>(opts?: T): Field.Specify<T, Bool.Type>;
 function Bool<T extends Bool.Options>(opts = {} as T){
   let type = "tinyint";
   let datatype = "tinyint";
-  let YES = "1";
-  let NO = "0";
+  let YES: string | number = 1;
+  let NO: string | number = 0;
 
   if("either" in opts && opts.either){
     [ YES, NO ] = opts.either;
@@ -33,13 +33,15 @@ function Bool<T extends Bool.Options>(opts = {} as T){
     datatype,
     ...opts as any,
     get(value: unknown){
-      return String(value) === YES;
+      return value === YES;
     },
     set(value: boolean){
       if(typeof value != "boolean")
         throw "Value must be a boolean."
 
-      return value ? YES : NO;
+      const apply = value ? YES : NO;
+
+      return typeof apply == "string" ? `'${apply}'` : apply;
     }
   });
 }
