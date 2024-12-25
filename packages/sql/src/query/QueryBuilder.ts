@@ -7,12 +7,6 @@ import { Computed } from './math';
 import { Query } from './Query';
 import { sql, Syntax } from './syntax';
 
-const INERT = new Connection([], {
-  client: "sqlite3",
-  useNullAsDefault: true,
-  pool: { max: 0 }
-})
-
 export class QueryBuilder {
   connection!: Connection;
 
@@ -41,7 +35,7 @@ export class QueryBuilder {
     const { tables } = this;
 
     if(!this.connection){
-      this.connection = type.connection || INERT;
+      this.connection = type.connection;
     }
     else if(type.connection !== this.connection){
       const [ main ] = tables.values();
