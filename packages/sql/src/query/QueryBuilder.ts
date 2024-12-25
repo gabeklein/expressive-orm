@@ -10,20 +10,20 @@ import { sql, Syntax } from './syntax';
 export class QueryBuilder {
   connection!: Connection;
 
-  tables = new Map<{}, Query.Table>();
+  wheres = new Set<Query.Compare>();
   pending = new Set<() => void>();
-  parse?: (raw: any[]) => any[];
+  orderBy = new Map<Field, "asc" | "desc">();
+  tables = new Map<{}, Query.Table>();
 
   deletes?: Query.From<any>;
   updates?: Readonly<[Query.From<any>, Query.Update<any>]>;
   selects?: unknown;
 
+  parse?: (raw: any[]) => any[];
   limit?: number;
-  orderBy = new Map<Field, "asc" | "desc">();
-  wheres = new Set<Query.Compare>();
 
   extend(apply?: Partial<QueryBuilder>){
-   return assign(create(this), apply) as QueryBuilder;
+    return assign(create(this), apply) as QueryBuilder;
   }
 
   async send(){
