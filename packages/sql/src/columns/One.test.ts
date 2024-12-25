@@ -70,3 +70,53 @@ it("will query nested relationships", () => {
       c.value = 100
   `);
 })
+
+it("will join on id if type is passed", async () => {
+  class Foo extends Type {
+    name = Str();
+  }
+
+  class Bar extends Type {
+    foo = One(Foo);
+    rating = Num();
+  }
+
+  const query = Query(where => {
+    const foo = where(Foo);
+    const bar = where(Bar, { foo });
+
+    where(bar.rating).more(50);
+
+    return foo.name;
+  });
+
+  expect(query).toMatchInlineSnapshot(`
+    SELECT
+      foo.name
+    FROM
+      foo
+      INNER JOIN bar ON bar.foo_id = foo.id
+    WHERE
+      bar.rating > 50
+  `);
+});
+
+it.skip("will assert a property-joined value", () => {
+  class Foo extends Type {
+    name = Str();
+    color = Str();
+  }
+
+  class Bar extends Type {
+    foo = One(Foo);
+    greeting = "Hello World";
+  }
+
+  const query = Query(where => {
+    const bar = where(Bar);
+
+    where(bar.foo.color).equal("blue");
+  });
+  
+  expect(query).toMatchInlineSnapshot();
+})
