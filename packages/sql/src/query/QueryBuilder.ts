@@ -73,6 +73,7 @@ export class QueryBuilder {
     fields.forEach((field, key) => {
       field = create(field);
       field.table = table;
+      field.query = this;
       local.set(key, field);
 
       let value: any;
@@ -125,9 +126,7 @@ export class QueryBuilder {
           const right = (joinOn as any)[key];
 
           if (left instanceof Field)
-            joinsOn.add(
-              sql(left, "=", this.tables.has(right) ? right.id : right)
-            );
+            joinsOn.add(sql(left, "=", left.set(right)));
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }

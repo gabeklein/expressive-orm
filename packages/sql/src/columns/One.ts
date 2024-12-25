@@ -4,7 +4,7 @@ import { underscore } from '../utils';
 interface One<T extends Type> extends Field<Type.Values<T>> {
   entity: Type.EntityType<T>;
   use(this: One<T>, query: Query.Builder): Query.Join<T>;
-  set(value: Type.Values<T> | number): void;
+  set(this: One<T>, value: Type.Values<T> | number): void;
 }
 
 function One<T extends Type>(type: Type.EntityType<T>, nullable?: false): One<T>;
@@ -18,7 +18,10 @@ function One<T extends Type>(type: Type.EntityType<T>, nullable?: boolean){
     foreignKey: "id",
     foreignTable: type.table,
     set(value: Type.Values<T> | number){
-      return value && typeof value == "object" ? value.id : value;
+      if(this.query?.tables.has(value))
+        return (value as any)[this.foreignKey || "id"];
+      
+      return value;
     },
     use(query){
       return query.join(type, { id: this });

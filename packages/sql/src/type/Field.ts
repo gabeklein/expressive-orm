@@ -87,6 +87,7 @@ interface Field<T = unknown> {
   parent: Type.EntityType;
 
   table?: Query.Table;
+  query?: Query.Builder;
 
   foreignKey?: string;
   foreignTable?: string;
