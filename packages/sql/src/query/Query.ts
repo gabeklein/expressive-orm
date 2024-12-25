@@ -237,10 +237,10 @@ function where(this: QueryBuilder, arg1: any, arg2?: any, arg3?: any): any {
   if(this.tables.has(arg1))
     return <Query.Verbs<Type>> {
       delete: () => {
-        this.deletes = arg1;
+        this.deletes.add(arg1);
       },
       update: (data: Query.Update<any>) => {
-        this.updates = [arg1, data];
+        this.updates.set(arg1, data);
       }
     }
 

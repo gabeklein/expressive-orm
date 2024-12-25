@@ -15,8 +15,8 @@ export class QueryBuilder {
   orderBy = new Map<Field, "asc" | "desc">();
   tables = new Map<{}, Query.Table>();
 
-  deletes?: Query.From<any>;
-  updates?: Readonly<[Query.From<any>, Query.Update<any>]>;
+  deletes = new Set<Query.From<any>>();
+  updates = new Map<Query.From<any>, Query.Update<any>>();
   selects?: unknown;
 
   parse?: (raw: any[]) => any[];
@@ -195,6 +195,35 @@ export class QueryBuilder {
       .join(', ');
   }
 
+  toUpdate(multiTableAllowed = false){
+    const sets: string[] = [];
+
+    if(this.updates.size > 1 && !multiTableAllowed)
+      throw new Error('Engine does not support multi-table updates.');
+
+    for(const [table, data] of this.updates)
+      for(let [col, value] of Object.entries(data)){
+        const field = table[col] as Field; 
+
+        if(value === null){
+          if(field.nullable)
+            value = 'NULL';
+          else
+            throw new Error(`Column ${field} is not nullable.`);
+        }
+        else if(value instanceof Field || value instanceof Computed)
+          value = value.toString();
+        else if(value !== undefined)
+          value = field.set(value);
+        else
+          continue;
+
+        sets.push(`\`${field.column}\` = ${value}`);
+      }
+
+    return sets.length ? ` SET ` + sets.join(', ') : "";
+  }
+
   toString() {
     this.pending.forEach(fn => fn());
     this.pending.clear();
@@ -215,10 +244,11 @@ export class QueryBuilder {
 
     if(selects)
       query = `SELECT ${this.toSelect()} FROM ${main}`;
-    else if(updates)
+    else if(updates.size)
       query = `UPDATE ${main}`;
-    else if(deletes){
-      const { name } = this.tables.get(deletes)!;
+    else if(deletes.size){
+      const [ target ] = deletes;
+      const { name } = this.tables.get(target)!;
 
       query = joins.length || name.alias
         ? `DELETE ${name} FROM ${main}`
@@ -234,31 +264,7 @@ export class QueryBuilder {
       query += ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
     }
 
-    if (updates) {
-      const [table, data] = updates;
-      const sets: string[] = [];
-      
-      Object.entries(data).forEach(([col, value]) => {
-        const field = table[col] as Field; 
-
-        if(value === null){
-          if(field.nullable)
-            value = 'NULL';
-          else
-            throw new Error(`Column ${field} is not nullable.`);
-        }
-        else if(value instanceof Field || value instanceof Computed)
-          value = value.toString();
-        else if(value !== undefined)
-          value = field.set(value);
-        else
-          return;
-
-        sets.push(`\`${field.column}\` = ${value}`);
-      })
-
-      query += ` SET ${sets.join(', ')}`;
-    }
+    query += this.toUpdate();
 
     if (wheres.size) {
       function buildWhere(conditions: Query.Compare[], or?: boolean): string {
@@ -268,8 +274,6 @@ export class QueryBuilder {
 
           if (Array.isArray(cond))
             return `(${buildWhere(cond, !or)})`;
-
-          return "";
         }).filter(Boolean).join(or ? ' OR ' : ' AND ');
       }
   
