@@ -257,7 +257,7 @@ export class QueryBuilder {
         sets.push(`\`${field.column}\` = ${value}`);
       })
 
-      query += `\nSET ${sets.join(', ')}`;
+      query += ` SET ${sets.join(', ')}`;
     }
 
     if (wheres.size) {
