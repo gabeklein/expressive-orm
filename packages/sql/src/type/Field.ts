@@ -178,9 +178,9 @@ Field.prototype = <Field> {
     const on = (operator: string) =>
       (right: Query.Value, orEqual?: boolean) => {
         const op = orEqual ? `${operator}=` : operator;
-          const eq = sql(this, op, right);
-          accumulate.add(eq);
-          return eq;
+        const eq = sql(this, op, right);
+        accumulate.add(eq);
+        return eq;
       };
 
     return {

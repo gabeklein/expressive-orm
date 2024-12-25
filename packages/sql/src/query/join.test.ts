@@ -99,7 +99,7 @@ it("will select left join", async () => {
     fooValue: string;
     barValue: string;
     bazRating: number | undefined;
-}>
+  }>
 
   expect<Returns>(query).toMatchInlineSnapshot(`
     SELECT
