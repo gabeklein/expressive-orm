@@ -1,24 +1,4 @@
 class Syntax extends Array<any> {
-  constructor(strings: any[]);
-  constructor(strings: TemplateStringsArray, values: any[]);
-  constructor(strings: any, values?: any[]){
-    super();
-
-    if(!values){
-      this.push(...Array.from(strings));
-      return;
-    }
-
-    const length = strings.length;
-  
-    for (let i = 0; i < length; i++) {
-      this.push(strings[i]);
-  
-      if (i < values.length)
-        this.push(values[i]);
-    }
-  }
-
   toString(){
     return this.map((item, i) => i % 2 ? item : this.stringify(item)).join(" ");
   }
@@ -32,7 +12,20 @@ class Syntax extends Array<any> {
 }
 
 function sql(...strings: any[]){
-  return new Syntax(strings);
+  return new Syntax(...strings);
 }
 
-export { sql, Syntax };
+class Template extends Syntax {
+  constructor(strings: TemplateStringsArray, values: any[]){
+    super();
+  
+    for (let i = 0; i < strings.length; i++) {
+      this.push(strings[i]);
+  
+      if (i < values.length)
+        this.push(values[i]);
+    }    
+  }
+}
+
+export { sql, Syntax, Template };
