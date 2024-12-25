@@ -1,5 +1,5 @@
 import { Bool, Type } from '..';
-import { TestConnection } from '../tests';
+import { TestConnection } from '../connection/TestConnection';
 
 it("will insert and retrieve a tinyint", async () => {
   class Test extends Type {

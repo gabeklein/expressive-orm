@@ -1,5 +1,5 @@
 import { Type, Num } from '..';
-import { TestConnection } from '../tests';
+import { TestConnection } from '../connection/TestConnection';
 
 class Item extends Type  {
   number = Num();

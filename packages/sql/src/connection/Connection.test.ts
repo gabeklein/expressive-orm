@@ -1,5 +1,5 @@
 import { Bool, Num, One, Str, Type } from '..';
-import { TestConnection } from '../tests';
+import { TestConnection } from './TestConnection';
 
 it.todo("will check FK constraints");
 

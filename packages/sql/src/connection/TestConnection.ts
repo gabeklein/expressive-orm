@@ -1,4 +1,5 @@
-import { Connection } from ".";
+import { Connection } from "..";
+import { KnexConnection } from "./KnexConnection";
 
 const reset = new Set<Function>();
 let cleanup: Function | undefined;
@@ -16,9 +17,9 @@ afterAll(() => cleanup && cleanup());
  * An in-memory database specific to a
  * test and attaches entities provided to it.
  **/
-export class TestConnection extends Connection {
+export class TestConnection extends KnexConnection {
   constructor(
-    public using: Connection.Types,
+    using: Connection.Types,
     private after?: () => void){
 
     super(using, {
@@ -38,7 +39,7 @@ export class TestConnection extends Connection {
   }
 
   then(onfulfilled?: (value: void) => any) {
-    this.sync().then(() => {
+    this.sync(true).then(() => {
       if(this.after) this.after();
       if(onfulfilled) onfulfilled();
     });

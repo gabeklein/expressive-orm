@@ -1,4 +1,3 @@
-
 import { Connection } from '../connection/Connection';
 import { Field } from '../type/Field';
 import { Type } from '../type/Type';

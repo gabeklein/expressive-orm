@@ -1,5 +1,5 @@
-import { Time, Type } from '../..';
-import { TestConnection } from '../tests';
+import { Time, Type } from '..';
+import { TestConnection } from '../connection/TestConnection';
 
 class Foo extends Type {
   date = Time();

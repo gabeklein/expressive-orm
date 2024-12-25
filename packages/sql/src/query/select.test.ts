@@ -1,5 +1,5 @@
 import { Query, SelectQuery, Str, Type } from '..';
-import { TestConnection } from '../tests';
+import { TestConnection } from '../connection/TestConnection';
 
 class Foo extends Type {
   bar = Str();
