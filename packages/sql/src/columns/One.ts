@@ -3,6 +3,8 @@ import { underscore } from '../utils';
 
 interface One<T extends Type> extends Field<Type.Values<T>> {
   entity: Type.EntityType<T>;
+  foreignKey: string;
+  foreignTable: string;
   use(this: One<T>, query: Query.Builder): Query.Join<T>;
   set(this: One<T>, value: Type.Values<T> | number): void;
 }
@@ -19,7 +21,7 @@ function One<T extends Type>(type: Type.EntityType<T>, nullable?: boolean){
     foreignTable: type.table,
     set(value: Type.Values<T> | number){
       if(this.query?.tables.has(value))
-        return (value as any)[this.foreignKey || "id"];
+        return (value as any)[this.foreignKey];
       
       return value;
     },
