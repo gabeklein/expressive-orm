@@ -15,10 +15,10 @@ it("will insert and retrieve a tinyint", async () => {
   expect(connect).toMatchInlineSnapshot(`
     CREATE TABLE
       test (
-        id INTEGER NOT NULL PRIMARY key autoincrement,
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
         value1 tinyint NOT NULL,
-        value2 VARCHAR(3) NOT NULL
-      )
+        value2 TEXT NOT NULL
+      );
   `);
 
   await connect;

@@ -1,5 +1,5 @@
 import { Connection } from "..";
-import { KnexConnection } from "./KnexConnection";
+import { SQLiteConnection } from "./SQLiteConnection";
 
 const reset = new Set<Function>();
 let cleanup: Function | undefined;
@@ -17,18 +17,12 @@ afterAll(() => cleanup && cleanup());
  * An in-memory database specific to a
  * test and attaches entities provided to it.
  **/
-export class TestConnection extends KnexConnection {
+export class TestConnection extends SQLiteConnection {
   constructor(
     using: Connection.Types,
     private after?: () => void){
 
-    super(using, {
-      client: "sqlite3",
-      useNullAsDefault: true,
-      connection: {
-        filename: ":memory:"
-      }
-    });
+    super(using);
 
     if(expect.getState().currentTestName)
       reset.add(() => this.close());
