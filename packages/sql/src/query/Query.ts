@@ -52,7 +52,7 @@ declare namespace Query {
 
   type Value<T = any> = T | Field<T> | Computed<T>;
 
-  type Where = Builder["where"];
+  type Where = Builder["where"] & { name: string };
 
   type Updates<T> = Field.Updates<T> | T;
 
