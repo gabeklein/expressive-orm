@@ -207,9 +207,6 @@ export class QueryBuilder {
   toSelect(){
     const { selects } = this;
 
-    if (!selects)
-      return 'COUNT(*)';
-
     if(selects instanceof Map)
       return Array.from(selects)
         .map(([alias, field]) => `${field} AS \`${alias}\``)
@@ -254,16 +251,7 @@ export class QueryBuilder {
   }
 
   toString() {
-    const {
-      limit,
-      selects,
-      tables,
-      updates,
-      deletes,
-      orderBy,
-      wheres
-    } = this;
-
+    const { deletes, limit, orderBy, selects, tables, updates, wheres } = this;
     const [{ name: main }, ...joins] = tables.values();
 
     let query;
@@ -307,10 +295,8 @@ export class QueryBuilder {
     }
   
     if (orderBy.size)
-      query += ' ORDER BY ' + Array
-        .from(orderBy)
-        .map(([field, dir]) => `${field} ${dir}`)
-        .join(', ')
+      query += ' ORDER BY ' +
+        Array.from(orderBy).map(x => x.join(' ')).join(', ')
   
     if (limit)
       query += ` LIMIT ${limit}`;
