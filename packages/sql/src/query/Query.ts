@@ -119,7 +119,7 @@ function Query<T = void>(factory: Query.Function<T>): Query<T> | SelectQuery<T> 
   const builder = new QueryBuilder();
   const context = where.bind(builder) as Query.Where;
 
-  builder.selects = factory(context);
+  builder.select(factory(context))
 
   async function get(limit?: number) {
     const self = builder.extend();

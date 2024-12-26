@@ -59,6 +59,10 @@ export const bit: Bitwise = {
 export class Computed<T> extends Array<T | Field<T> | Computed<T>> {
   rank = 0;
 
+  get column(){
+    return "result";
+  }
+
   get(input: unknown){
     return input as string;
   }

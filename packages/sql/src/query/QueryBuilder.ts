@@ -16,13 +16,42 @@ export class QueryBuilder {
 
   deletes = new Set<Query.From<any>>();
   updates = new Map<Query.From<any>, Query.Update<any>>();
-  selects?: unknown;
-
-  parse?: (raw: any[]) => any[];
+  selects?: Map<string, Field | Computed<unknown>> | Field | Computed<unknown>;
   limit?: number;
 
   extend(apply?: Partial<QueryBuilder>){
     return assign(create(this), apply) as QueryBuilder;
+  }
+
+  select(result: unknown){
+    this.pending.forEach(fn => fn());
+    this.pending.clear();
+
+    if(!result)
+      return;
+
+    if(result instanceof Field || result instanceof Computed){
+      this.selects = result;
+      return;
+    }
+
+    const columns = new Map<string, Field | Computed<unknown>>();
+      
+    function scan(obj: any, path?: string) {
+      getOwnPropertyNames(obj).forEach(key => {
+        const select = obj[key];
+        const use = path ? `${path}.${key}` : key;
+
+        if (select instanceof Field || select instanceof Computed)
+          columns.set(use, select);
+        else if (typeof select === 'object')
+          scan(select, use);
+      })
+    }
+
+    scan(result);
+
+    this.selects = columns;
   }
 
   async send(){
@@ -148,50 +177,51 @@ export class QueryBuilder {
     return table.proxy as Query.Join<T>;
   }
 
+  parse(raw: any[]){
+    const { selects } = this;
+
+    if(!selects)
+      return raw;
+
+    if(selects instanceof Map)
+      return raw.map(row => {
+        const values = {} as any;
+        
+        selects.forEach((field, column) => {
+          const path = column.split('.');
+          const property = path.pop()!;
+          let target = values;
+
+          for (const step of path)
+            target = target[step] || (target[step] = {});
+
+          target[property] = field.get(row[column]);
+        });
+
+        return values;
+      });
+
+    return raw.map(row => selects.get(row[selects.column]));
+  }
+
   toSelect(){
     const { selects } = this;
 
-    if (selects instanceof Field){
-      this.parse = raw => raw.map(row => selects.get(row[selects.column]));
-      return selects;
-    }
+    if (!selects)
+      return 'COUNT(*)';
 
-    const columns = new Map<string, Field | Computed<unknown>>();
-      
-    function scan(obj: any, path?: string) {
-      getOwnPropertyNames(obj).forEach(key => {
-        const select = obj[key];
-        const use = path ? `${path}.${key}` : key;
+    if(selects instanceof Map)
+      return Array.from(selects)
+        .map(([alias, field]) => `${field} AS \`${alias}\``)
+        .join(', ');
 
-        if (select instanceof Field || select instanceof Computed)
-          columns.set(use, select);
-        else if (typeof select === 'object')
-          scan(select, use);
-      })
-    }
+    if (selects instanceof Field)
+      return selects.toString();
 
-    scan(selects);
+    if (selects instanceof Computed)
+      return selects.toString() + ' AS ' + selects.column;
 
-    this.parse = raw => raw.map(row => {
-      const values = {} as any;
-      
-      columns.forEach((field, column) => {
-        const path = column.split('.');
-        const prop = path.pop()!;
-        let target = values;
-
-        for (const step of path)
-          target = target[step] || (target[step] = {});
-
-        target[prop] = field.get(row[column]);
-      });
-
-      return values;
-    })
-
-    return Array.from(columns.entries())
-      .map(([alias, field]) => `${field} AS \`${alias}\``)
-      .join(', ');
+    throw new Error('Invalid select statement.');
   }
 
   toUpdate(multiTableAllowed = false){
@@ -224,9 +254,6 @@ export class QueryBuilder {
   }
 
   toString() {
-    this.pending.forEach(fn => fn());
-    this.pending.clear();
-
     const {
       limit,
       selects,
