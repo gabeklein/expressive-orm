@@ -50,7 +50,7 @@ declare namespace Query {
 
   type Join<T extends Type> = From<T>;
 
-  type Value<T = any> = T | Field<T> | Computed<T>;
+  type Value<T = any> = T | Field<T> | Computed<T>
 
   type Where = Builder["where"] & { name: string };
 
@@ -118,36 +118,26 @@ function Query(from: Query.Function<void>): Query<number>;
 function Query<T = void>(factory: Query.Function<T>): Query<T> | SelectQuery<T> {
   const builder = new QB(factory);
 
-  async function get(limit?: number) {
-    const self = builder.extend();
+  const get = (limit?: number) => limit
+    ? builder.extend({ limit }).execute()
+    : builder.execute();
 
-    if (limit)
-      self.limit = limit;
-
-    const res = await self.send();
-
-    return self.parse ? self.parse(res) : res;
-  }
-
-  async function one(orFail?: boolean) {
-    const res = await get(1);
-
+  const one = (orFail?: boolean) => get(1).then(res => {
     if (res.length == 0 && orFail)
       throw new Error("Query returned no results.");
 
     return res[0] as T;
-  }
-  
+  });
+
   const runner: Query<T> = {
     then: (resolve, reject) => get().then(resolve).catch(reject),
-    count: () => builder.extend({ selects: undefined, parse: undefined }).send(),
+    count: () => builder.extend({ selects: undefined, parse: undefined }).execute(),
     toString: () => String(builder)
   }
 
-  if(builder.selects)
-    return { ...runner, get, one } as SelectQuery<T>;
-
-  return runner;
+  return builder.selects
+    ? { ...runner, get, one }
+    : runner;
 }
 
 

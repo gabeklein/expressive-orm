@@ -23,6 +23,14 @@ export class Builder<T> {
     this.select(factory(this.where.bind(this)));
   }
 
+  extend(apply?: Partial<this>){
+    return assign(create(this), apply) as this;
+  }
+
+  async execute(): Promise<any> {
+    return this.parse(await this.connection.send(String(this)));
+  }
+
   /** Specify the limit of results returned. */
   private where(limit: number): void;
 
@@ -47,7 +55,7 @@ export class Builder<T> {
   private where<T extends Type>(entity: Type.EntityType<T>): Query.From<T>;
 
   /**
-   * Registers a type as a inner join.
+   * Registers a type as inner join.
    */
   private where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join?: "inner"): Query.Join<T>;
 
@@ -117,10 +125,6 @@ export class Builder<T> {
     throw new Error(`Argument ${arg1} is not a query argument.`);
   }
 
-  extend(apply?: Partial<this>){
-    return assign(create(this), apply) as this;
-  }
-
   select(result: unknown){
     this.pending.forEach(fn => fn());
     this.pending.clear();
@@ -150,10 +154,6 @@ export class Builder<T> {
     scan(result);
 
     this.selects = columns;
-  }
-
-  async send(){
-    return this.connection.send(String(this));
   }
 
   use<T extends Type>(type: Type.EntityType<T>){
