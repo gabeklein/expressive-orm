@@ -302,55 +302,6 @@ export class Builder<T> {
     return raw.map(row => selects.get(row[selects.column]));
   }
 
-  toSelect(){
-    const { selects } = this;
-
-    if(selects instanceof Map)
-      return Array.from(selects)
-        .map(([alias, field]) => `${field} AS \`${alias}\``)
-        .join(', ');
-
-    if (selects instanceof Field)
-      return selects.toString();
-
-    if (selects instanceof Computed)
-      return selects.toString() + ' AS ' + selects.column;
-
-    if (selects)
-      throw new Error('Invalid select statement.');
-
-    return 'COUNT(*)';
-  }
-
-  toUpdate(multiTableAllowed = false){
-    const sets: string[] = [];
-
-    if(this.updates.size > 1 && !multiTableAllowed)
-      throw new Error('Engine does not support multi-table updates.');
-
-    for(const [table, data] of this.updates)
-      for(let [col, value] of Object.entries(data)){
-        const field = table[col] as Field; 
-
-        if(value === null){
-          if(field.nullable)
-            value = 'NULL';
-          else
-            throw new Error(`Column ${field} is not nullable.`);
-        }
-        else if(value instanceof Field || value instanceof Computed)
-          value = value.toString();
-        else if(value !== undefined)
-          value = field.set(value);
-        else
-          continue;
-
-        sets.push(`\`${field.column}\` = ${value}`);
-      }
-
-    return sets.length ? ` SET ` + sets.join(', ') : "";
-  }
-
   toString() {
     const { deletes, limit, orderBy, tables, updates, wheres } = this;
     const [{ name: main }, ...joins] = tables.values();
@@ -401,5 +352,54 @@ export class Builder<T> {
       query += ` LIMIT ${limit}`;
   
     return query;
+  }
+
+  toSelect(){
+    const { selects } = this;
+
+    if(selects instanceof Map)
+      return Array.from(selects)
+        .map(([alias, field]) => `${field} AS \`${alias}\``)
+        .join(', ');
+
+    if (selects instanceof Field)
+      return selects.toString();
+
+    if (selects instanceof Computed)
+      return selects.toString() + ' AS ' + selects.column;
+
+    if (selects)
+      throw new Error('Invalid select.');
+
+    return 'COUNT(*)';
+  }
+
+  toUpdate(multiTableAllowed = false){
+    const sets: string[] = [];
+
+    if(this.updates.size > 1 && !multiTableAllowed)
+      throw new Error('Engine does not support multi-table updates.');
+
+    for(const [table, data] of this.updates)
+      for(let [col, value] of Object.entries(data)){
+        const field = table[col] as Field; 
+
+        if(value === null){
+          if(field.nullable)
+            value = 'NULL';
+          else
+            throw new Error(`Column ${field} is not nullable.`);
+        }
+        else if(value instanceof Field || value instanceof Computed)
+          value = value.toString();
+        else if(value !== undefined)
+          value = field.set(value);
+        else
+          continue;
+
+        sets.push(`\`${field.column}\` = ${value}`);
+      }
+
+    return sets.length ? ` SET ` + sets.join(', ') : "";
   }
 }
