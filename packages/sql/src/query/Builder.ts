@@ -316,7 +316,10 @@ export class Builder<T> {
     if (selects instanceof Computed)
       return selects.toString() + ' AS ' + selects.column;
 
-    throw new Error('Invalid select statement.');
+    if (selects)
+      throw new Error('Invalid select statement.');
+
+    return 'COUNT(*)';
   }
 
   toUpdate(multiTableAllowed = false){
@@ -349,14 +352,12 @@ export class Builder<T> {
   }
 
   toString() {
-    const { deletes, limit, orderBy, selects, tables, updates, wheres } = this;
+    const { deletes, limit, orderBy, tables, updates, wheres } = this;
     const [{ name: main }, ...joins] = tables.values();
 
     let query;
 
-    if(selects)
-      query = `SELECT ${this.toSelect()} FROM ${main}`;
-    else if(updates.size)
+    if(updates.size)
       query = `UPDATE ${main}`;
     else if(deletes.size){
       const [ target ] = deletes;
@@ -367,7 +368,7 @@ export class Builder<T> {
         : `DELETE FROM ${main}`;
     }
     else
-      query = `SELECT COUNT(*) FROM ${main}`;
+      query = `SELECT ${this.toSelect()} FROM ${main}`;
 
     for (const table of joins){
       const { as, on } = table.join!;
