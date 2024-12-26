@@ -6,7 +6,7 @@ import { Computed } from './math';
 import { Query } from './Query';
 import { sql, Syntax } from './syntax';
 
-export class Builder {
+export class Builder<T> {
   connection!: Connection;
 
   wheres = new Set<Query.Compare>();
@@ -19,8 +19,107 @@ export class Builder {
   selects?: Map<string, Field | Computed<unknown>> | Field | Computed<unknown>;
   limit?: number;
 
-  extend(apply?: Partial<Builder>){
-    return assign(create(this), apply) as Builder;
+  constructor(factory: Query.Function<T>){
+    // this.connection = factory.connection;
+    this.select(factory(this.where.bind(this)));
+  }
+
+  /** Specify the limit of results returned. */
+  private where(limit: number): void;
+
+  /**
+     * Accepts instructions for nesting in a parenthesis.
+     * When only one group of instructions is provided, the statement are separated by OR.
+     */
+  private where(orWhere: Syntax[]): Syntax;
+
+  /**
+   * Accepts instructions for nesting in a parenthesis.
+   * 
+   * When multiple groups of instructions are provided, the groups
+   * are separated by OR and nested comparisons are separated by AND.
+   */
+  private where(...orWhere: Syntax[][]): Syntax;
+
+  /**
+   * Create a reference to the primary table, returned
+   * object can be used to query against that table.
+   */
+  private where<T extends Type>(entity: Type.EntityType<T>): Query.From<T>;
+
+  /**
+   * Registers a type as a inner join.
+   */
+  private where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join?: "inner"): Query.Join<T>;
+
+  /**
+   * Registers a type as a left join, returned object has optional
+   * properties which may be undefined where the join is not present.
+   */
+  private where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join: Query.Join.Mode): Query.Join.Left<T>;
+
+  /**
+   * Prepares write operations for a particular table.
+   */
+  private where<T extends Type>(field: Query.From<T>): Query.Verbs<T>;
+
+  /**
+   * Prepare comparison against a particilar field,
+   * returns operations for the given type.
+   */
+  private where<T extends Field>(field: T): Query.Asserts<T>;
+
+  private where(arg1: any, arg2?: any, arg3?: any): any {
+    if(arg1 instanceof Field)
+      return {
+        ...arg1.compare(this.wheres),
+        asc: () => { this.orderBy.set(arg1, "asc") },
+        desc: () => { this.orderBy.set(arg1, "desc") }
+      }
+
+    if(typeof arg1 == "number"){
+      this.limit = arg1;
+      return;
+    }
+
+    if(Type.is(arg1))
+      return arg2
+        ? this.join(arg1, arg2, arg3)
+        : this.use(arg1).proxy;
+    
+    if(Array.isArray(arg1)){
+      const local = [] as Query.Compare[];
+      const args = Array.from(arguments) as Syntax[][];
+
+      for(const group of args){
+        group.forEach(eq => this.wheres.delete(eq));
+
+        if(arguments.length > 1)
+          local.push(group);
+        else
+          local.push(...group);
+      }
+
+      this.wheres.add(local);
+
+      return local;
+    }
+
+    if(this.tables.has(arg1))
+      return <Query.Verbs<Type>> {
+        delete: () => {
+          this.deletes.add(arg1);
+        },
+        update: (data: Query.Update<any>) => {
+          this.updates.set(arg1, data);
+        }
+      }
+
+    throw new Error(`Argument ${arg1} is not a query argument.`);
+  }
+
+  extend(apply?: Partial<this>){
+    return assign(create(this), apply) as this;
   }
 
   select(result: unknown){

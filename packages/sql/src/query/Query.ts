@@ -23,7 +23,7 @@ declare namespace Query {
     toString(): string;
   }
 
-  type Builder = QB;
+  type Builder<T = any> = QB<T>;
   
   type Compare = Syntax | Compare[] | undefined;
 
@@ -52,7 +52,7 @@ declare namespace Query {
 
   type Value<T = any> = T | Field<T> | Computed<T>;
 
-  type Where = typeof where;
+  type Where = Builder["where"];
 
   type Updates<T> = Field.Updates<T> | T;
 
@@ -116,10 +116,7 @@ function Query<T extends {}>(from: Query.Function<T>): SelectQuery<Query.Extract
 function Query(from: Query.Function<void>): Query<number>;
 
 function Query<T = void>(factory: Query.Function<T>): Query<T> | SelectQuery<T> {
-  const builder = new QB();
-  const context = where.bind(builder) as Query.Where;
-
-  builder.select(factory(context))
+  const builder = new QB(factory);
 
   async function get(limit?: number) {
     const self = builder.extend();
@@ -153,98 +150,5 @@ function Query<T = void>(factory: Query.Function<T>): Query<T> | SelectQuery<T> 
   return runner;
 }
 
-/** Specify the limit of results returned. */
-function where(limit: number): void;
-
-/**
-   * Accepts instructions for nesting in a parenthesis.
-   * When only one group of instructions is provided, the statement are separated by OR.
-   */
-function where(orWhere: Syntax[]): Syntax;
-
-/**
- * Accepts instructions for nesting in a parenthesis.
- * 
- * When multiple groups of instructions are provided, the groups
- * are separated by OR and nested comparisons are separated by AND.
- */
-function where(...orWhere: Syntax[][]): Syntax;
-
-/**
- * Create a reference to the primary table, returned
- * object can be used to query against that table.
- */
-function where<T extends Type>(entity: Type.EntityType<T>): Query.From<T>;
-
-/**
- * Registers a type as a inner join.
- */
-function where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join?: "inner"): Query.Join<T>;
-
-/**
- * Registers a type as a left join, returned object has optional
- * properties which may be undefined where the join is not present.
- */
-function where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join: Query.Join.Mode): Query.Join.Left<T>;
-
-/**
- * Prepares write operations for a particular table.
- */
-function where<T extends Type>(field: Query.From<T>): Query.Verbs<T>;
-
-/**
- * Prepare comparison against a particilar field,
- * returns operations for the given type.
- */
-function where<T extends Field>(field: T): Query.Asserts<T>;
-
-function where(this: QB, arg1: any, arg2?: any, arg3?: any): any {
-  if(typeof arg1 == "number"){
-    this.limit = arg1;
-    return;
-  }
-
-  if(Type.is(arg1))
-    return arg2
-      ? this.join(arg1, arg2, arg3)
-      : this.use(arg1).proxy;
-
-  if(arg1 instanceof Field)
-    return {
-      ...arg1.compare(this.wheres),
-      asc: () => { this.orderBy.set(arg1, "asc") },
-      desc: () => { this.orderBy.set(arg1, "desc") }
-    }
-  
-  if(Array.isArray(arg1)){
-    const local = [] as Query.Compare[];
-    const args = Array.from(arguments) as Syntax[][];
-
-    for(const group of args){
-      group.forEach(eq => this.wheres.delete(eq));
-
-      if(arguments.length > 1)
-        local.push(group);
-      else
-        local.push(...group);
-    }
-
-    this.wheres.add(local);
-
-    return local;
-  }
-
-  if(this.tables.has(arg1))
-    return <Query.Verbs<Type>> {
-      delete: () => {
-        this.deletes.add(arg1);
-      },
-      update: (data: Query.Update<any>) => {
-        this.updates.set(arg1, data);
-      }
-    }
-
-  throw new Error(`Argument ${arg1} is not a query argument.`);
-}
 
 export { Query, SelectQuery };
