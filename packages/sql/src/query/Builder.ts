@@ -20,7 +20,6 @@ export class Builder<T> {
   limit?: number;
 
   constructor(factory: Query.Function<T>){
-    // this.connection = factory.connection;
     this.select(factory(this.where.bind(this)));
   }
 
@@ -77,16 +76,21 @@ export class Builder<T> {
         desc: () => { this.orderBy.set(arg1, "desc") }
       }
 
-    if(typeof arg1 == "number"){
-      this.limit = arg1;
-      return;
-    }
-
     if(Type.is(arg1))
       return arg2
         ? this.join(arg1, arg2, arg3)
         : this.use(arg1).proxy;
-    
+
+    if(this.tables.has(arg1))
+      return <Query.Verbs<Type>> {
+        delete: () => {
+          this.deletes.add(arg1);
+        },
+        update: (data: Query.Update<any>) => {
+          this.updates.set(arg1, data);
+        }
+      }
+
     if(Array.isArray(arg1)){
       const local = [] as Query.Compare[];
       const args = Array.from(arguments) as Syntax[][];
@@ -105,15 +109,10 @@ export class Builder<T> {
       return local;
     }
 
-    if(this.tables.has(arg1))
-      return <Query.Verbs<Type>> {
-        delete: () => {
-          this.deletes.add(arg1);
-        },
-        update: (data: Query.Update<any>) => {
-          this.updates.set(arg1, data);
-        }
-      }
+    if(typeof arg1 == "number"){
+      this.limit = arg1;
+      return;
+    }
 
     throw new Error(`Argument ${arg1} is not a query argument.`);
   }
