@@ -1,6 +1,6 @@
 import { Field, Type } from '..';
+import { Builder as QB } from './Builder';
 import { Computed } from './math';
-import { QueryBuilder } from './QueryBuilder';
 import { Syntax } from './syntax';
 
 declare namespace Query { 
@@ -23,8 +23,8 @@ declare namespace Query {
     toString(): string;
   }
 
-  type Builder = QueryBuilder;
-
+  type Builder = QB;
+  
   type Compare = Syntax | Compare[] | undefined;
 
   type FieldOrValue<T> = T extends Value<infer U> ? U : T;
@@ -54,11 +54,6 @@ declare namespace Query {
 
   type Where = typeof where;
 
-  interface Verbs <T extends Type> {
-    delete(): void;
-    update(values: Query.Update<T>): void;
-  }
-
   type Updates<T> = Field.Updates<T> | T;
 
   type Update<T extends Type> = {
@@ -79,6 +74,11 @@ declare namespace Query {
     asc(): void;
     desc(): void;
   };
+
+  interface Verbs <T extends Type> {
+    delete(): void;
+    update(values: Query.Update<T>): void;
+  }
 }
 
 interface Query<T> extends PromiseLike<T> {
@@ -116,7 +116,7 @@ function Query<T extends {}>(from: Query.Function<T>): SelectQuery<Query.Extract
 function Query(from: Query.Function<void>): Query<number>;
 
 function Query<T = void>(factory: Query.Function<T>): Query<T> | SelectQuery<T> {
-  const builder = new QueryBuilder();
+  const builder = new QB();
   const context = where.bind(builder) as Query.Where;
 
   builder.select(factory(context))
@@ -198,7 +198,7 @@ function where<T extends Type>(field: Query.From<T>): Query.Verbs<T>;
  */
 function where<T extends Field>(field: T): Query.Asserts<T>;
 
-function where(this: QueryBuilder, arg1: any, arg2?: any, arg3?: any): any {
+function where(this: QB, arg1: any, arg2?: any, arg3?: any): any {
   if(typeof arg1 == "number"){
     this.limit = arg1;
     return;

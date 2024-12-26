@@ -21,7 +21,10 @@ function fields(from: Type.EntityType){
       const instruction = FIELD.get(value);    
   
       if(!instruction)
-        throw new Error(`Entities do not support normal values, only fields. Did you forget to import \`${capitalize(typeof value)}\`?`);
+        throw new Error(
+          `Entities do not support normal values, only fields. ` +
+          `Did you forget to import \`${capitalize(typeof value)}\`?`
+        );
   
       FIELD.delete(value);
       instruction(key, from);

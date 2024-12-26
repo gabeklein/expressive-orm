@@ -6,7 +6,7 @@ import { Computed } from './math';
 import { Query } from './Query';
 import { sql, Syntax } from './syntax';
 
-export class QueryBuilder {
+export class Builder {
   connection!: Connection;
 
   wheres = new Set<Query.Compare>();
@@ -19,8 +19,8 @@ export class QueryBuilder {
   selects?: Map<string, Field | Computed<unknown>> | Field | Computed<unknown>;
   limit?: number;
 
-  extend(apply?: Partial<QueryBuilder>){
-    return assign(create(this), apply) as QueryBuilder;
+  extend(apply?: Partial<Builder>){
+    return assign(create(this), apply) as Builder;
   }
 
   select(result: unknown){
