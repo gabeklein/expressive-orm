@@ -2,14 +2,10 @@ import { Type, Num, Query, Str, Table } from '..';
 import { TestConnection } from '../connection/TestConnection';
 
 it("will count query by default", () => {
-  class Foo extends Type {
-    color = Str();
-  }
+  class Foo extends Type {}
 
   const query = Query(where => {
-    const foo = where(Foo);
-
-    where(foo.color).equal("red");
+    where(Foo);
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -17,8 +13,6 @@ it("will count query by default", () => {
       COUNT(*)
     FROM
       foo
-    WHERE
-      foo.color = 'red'
   `);
 })
 
