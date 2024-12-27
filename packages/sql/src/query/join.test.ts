@@ -1,4 +1,4 @@
-import { Num, Query, Str, Type, SelectQuery } from '..';
+import { Num, Query, Str, Type } from '..';
 
 class Foo extends Type {
   name = Str();
@@ -95,7 +95,7 @@ it("will select left join", async () => {
     }
   });
 
-  type Returns = SelectQuery<{
+  type Returns = Query.Selects<{
     fooValue: string;
     barValue: string;
     bazRating: number | undefined;
@@ -155,7 +155,7 @@ it("will sort by joined table", async () => {
     return other.name;
   });
 
-  type Returns = SelectQuery<string>;
+  type Returns = Query.Selects<string>;
 
   expect<Returns>(query).toMatchInlineSnapshot(`
     SELECT

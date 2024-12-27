@@ -1,4 +1,4 @@
-import { Query, SelectQuery, Str, Type } from '..';
+import { Query, Str, Type } from '..';
 import { TestConnection } from '../connection/TestConnection';
 
 class Foo extends Type {
@@ -18,7 +18,7 @@ describe("select", () => {
       return { bar, baz }
     })
 
-    type Returns = SelectQuery<{
+    type Returns = Query.Selects<{
       bar: string;
       baz: string;
     }>
@@ -46,7 +46,7 @@ describe("select", () => {
       }
     })
 
-    type Returns = SelectQuery<{
+    type Returns = Query.Selects<{
       bar: { value: string };
       baz: { value: string };
     }>
@@ -70,7 +70,7 @@ describe("select", () => {
       return where(Foo).bar;
     })
 
-    type Returns = SelectQuery<string>;
+    type Returns = Query.Selects<string>;
   
     expect<Returns>(query).toMatchInlineSnapshot(`
       SELECT
@@ -85,7 +85,7 @@ describe("select", () => {
       return where(Foo);
     })
 
-    type Returns = SelectQuery<{
+    type Returns = Query.Selects<{
       id: number;
       bar: string;
       baz: string;

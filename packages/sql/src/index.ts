@@ -7,6 +7,6 @@ export { Time } from './columns/Time';
 export { Type } from './type/Type';
 export { Field, Nullable, Optional } from './type/Field';
 export { Connection } from './connection/Connection';
-export { Query, SelectQuery } from './query/Query';
+export { Query } from './query/Query';
 export { math, bit } from './query/math';
 export { Table } from './type/Table';

@@ -1,4 +1,4 @@
-import { Connection, Query, SelectQuery } from '..';
+import { Connection, Query } from '..';
 import { defineProperty, isIterable, underscore } from '../utils';
 import { Field, fields, Nullable, Optional } from './Field';
 
@@ -113,9 +113,9 @@ abstract class Type {
     }
   }
 
-  static get<T extends Type>(this: Type.EntityType<T>, limit?: number): SelectQuery<T>;
-  static get<T extends Type>(this: Type.EntityType<T>, where?: Type.Query<T, void>): SelectQuery<T>;
-  static get<T extends Type, R>(this: Type.EntityType<T>, limit: number, where: Type.Query<T, R>): SelectQuery<R>;
+  static get<T extends Type>(this: Type.EntityType<T>, limit?: number): Query.Selects<T>;
+  static get<T extends Type>(this: Type.EntityType<T>, where?: Type.Query<T, void>): Query.Selects<T>;
+  static get<T extends Type, R>(this: Type.EntityType<T>, limit: number, where: Type.Query<T, R>): Query.Selects<R>;
   static get<T extends Type, R>(this: Type.EntityType<T>, arg1?: Type.Query<T, R> | number, arg2?: Type.Query<T, R>){
     if(typeof arg1 == "function")
       arg2 = arg1;

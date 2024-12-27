@@ -79,9 +79,25 @@ declare namespace Query {
     delete(): void;
     update(values: Query.Update<T>): void;
   }
+  
+  interface Selects<T> extends Query<Extract<T>[]> {
+    /**
+     * Returns the first rows which match creteria.
+     * 
+     * @param limit The maximum number of rows to return.
+     */
+    get(limit?: number): Promise<Extract<T>[]>;
+  
+    /**
+     * Returns the first row that matches creteria.
+     * 
+     * @param orFail If true, will throw an error if no results are returned.
+     */
+    one(orFail?: boolean): Promise<Extract<T>>;
+  }
 }
 
-interface Query<T> extends PromiseLike<T> {
+interface Query<T = number> extends PromiseLike<T> {
   /** Counts the number of rows that would be selected. */
   count(): Promise<number>;
 
@@ -89,33 +105,15 @@ interface Query<T> extends PromiseLike<T> {
   toString(): string;
 }
 
-interface SelectQuery<T> extends Query<T[]> {
-  /**
-   * Returns the first rows which match creteria.
-   * 
-   * @param limit The maximum number of rows to return.
-   */
-  get(limit?: number): Promise<T[]>;
-
-  /**
-   * Returns the first row that matches creteria.
-   * 
-   * @param orFail If true, will throw an error if no results are returned.
-   */
-  one(orFail?: boolean): Promise<T>;
-}
-
-function Query<T extends {}>(from: Query.Function<T>): SelectQuery<Query.Extract<T>>;
+function Query<T extends {}>(from: Query.Function<T>): Query.Selects<T>;
 
 /**
  * Creates a new query.
- * 
- * If no selection is returned by the constructor, will return
- * the number of rows that would be selected or modified.
+ * Will return the number of rows that would be selected or modified.
  */
-function Query(from: Query.Function<void>): Query<number>;
+function Query(from: Query.Function<void>): Query;
 
-function Query<T = void>(factory: Query.Function<T>): Query<T> | SelectQuery<T> {
+function Query<T = number>(factory: Query.Function<T>): Query<T> | Query.Selects<T> {
   const builder = new QB(factory);
 
   const get = (limit?: number) => limit
@@ -141,4 +139,4 @@ function Query<T = void>(factory: Query.Function<T>): Query<T> | SelectQuery<T> 
 }
 
 
-export { Query, SelectQuery };
+export { Query };
