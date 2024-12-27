@@ -1,21 +1,11 @@
-import { Type, Num, Query, Str, Time, Table } from '..';
+import { Type, Num, Query, Str, Table } from '..';
 import { TestConnection } from '../connection/TestConnection';
 
-class Item extends Type  {
-  number = Num();
-}
-
-class Foo extends Type {
-  name = Str();
-  date = Time();
-  color = Str();
-}
-
-new TestConnection([Item], async () => {
-  await Item.insert(10, i => ({ number: i }));
-});
-
 it("will count query by default", () => {
+  class Foo extends Type {
+    color = Str();
+  }
+
   const query = Query(where => {
     const foo = where(Foo);
 
@@ -33,6 +23,14 @@ it("will count query by default", () => {
 })
 
 describe("where", () => {
+  class Item extends Type  {
+    number = Num();
+  }
+  
+  new TestConnection([Item], async () => {
+    await Item.insert(10, i => ({ number: i }));
+  });
+
   it("will limit results", async () => {
     const results = Query(where => {
       const item = where(Item);
@@ -116,6 +114,11 @@ describe("where", () => {
     })
 
     it("will group clauses", () => {
+      class Foo extends Type {
+        name = Str();
+        color = Str();
+      }
+  
       const query = Query(where => {
         const foo = where(Foo);
   
@@ -139,6 +142,11 @@ describe("where", () => {
     })
   
     it("will group recursively", () => {
+      class Foo extends Type {
+        name = Str();
+        color = Str();
+      }
+
       const query = Query(where => {
         const foo = where(Foo);
   
