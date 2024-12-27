@@ -11,21 +11,4 @@ class Syntax extends Array<any> {
   }
 }
 
-function sql(...strings: any[]){
-  return new Syntax(...strings);
-}
-
-class Template extends Syntax {
-  constructor(strings: TemplateStringsArray, values: any[]){
-    super();
-  
-    for (let i = 0; i < strings.length; i++) {
-      this.push(strings[i]);
-  
-      if (i < values.length)
-        this.push(values[i]);
-    }    
-  }
-}
-
-export { sql, Syntax, Template };
+export { Syntax };

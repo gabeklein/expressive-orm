@@ -1,5 +1,5 @@
 import { Query } from '..';
-import { sql, Syntax } from '../query/syntax';
+import { Syntax } from '../query/syntax';
 import { capitalize, create, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
 import { Type } from './Type';
 
@@ -181,7 +181,7 @@ Field.prototype = <Field> {
     const on = (operator: string) =>
       (right: Query.Value, orEqual?: boolean) => {
         const op = orEqual ? `${operator}=` : operator;
-        const eq = sql(this, op, right);
+        const eq = new Syntax(this, op, right);
         accumulate.add(eq);
         return eq;
       };

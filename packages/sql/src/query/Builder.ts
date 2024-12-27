@@ -4,7 +4,7 @@ import { Type } from '../type/Type';
 import { assign, create, defineProperty, freeze, getOwnPropertyNames } from '../utils';
 import { Computed } from './math';
 import { Query } from './Query';
-import { sql, Syntax } from './syntax';
+import { Syntax } from './syntax';
 
 export class Builder<T> {
   connection!: Connection;
@@ -246,7 +246,9 @@ export class Builder<T> {
           const right = (joinOn as any)[key];
 
           if (left instanceof Field)
-            joinsOn.add(sql(left, "=", right instanceof Field ? right : left.set(right)));
+            joinsOn.add(
+              new Syntax(left, "=", right instanceof Field ? right : left.set(right))
+            );
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }
