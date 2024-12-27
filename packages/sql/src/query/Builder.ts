@@ -20,7 +20,36 @@ export class Builder<T> {
   limit?: number;
 
   constructor(factory: Query.Function<T>){
-    this.select(factory(this.where.bind(this)));
+    const result = factory(this.where.bind(this));
+
+    this.pending.forEach(fn => fn());
+    this.pending.clear();
+
+    if(!result)
+      return;
+
+    if(result instanceof Field || result instanceof Computed){
+      this.selects = result;
+      return;
+    }
+
+    const columns = new Map<string, Field | Computed<unknown>>();
+      
+    function scan(obj: any, path?: string) {
+      getOwnPropertyNames(obj).forEach(key => {
+        const select = obj[key];
+        const use = path ? `${path}.${key}` : key;
+
+        if (select instanceof Field || select instanceof Computed)
+          columns.set(use, select);
+        else if (typeof select === 'object')
+          scan(select, use);
+      })
+    }
+
+    scan(result);
+
+    this.selects = columns;
   }
 
   extend(apply?: Partial<this>){
@@ -123,37 +152,6 @@ export class Builder<T> {
     }
 
     throw new Error(`Argument ${arg1} is not a query argument.`);
-  }
-
-  select(result: unknown){
-    this.pending.forEach(fn => fn());
-    this.pending.clear();
-
-    if(!result)
-      return;
-
-    if(result instanceof Field || result instanceof Computed){
-      this.selects = result;
-      return;
-    }
-
-    const columns = new Map<string, Field | Computed<unknown>>();
-      
-    function scan(obj: any, path?: string) {
-      getOwnPropertyNames(obj).forEach(key => {
-        const select = obj[key];
-        const use = path ? `${path}.${key}` : key;
-
-        if (select instanceof Field || select instanceof Computed)
-          columns.set(use, select);
-        else if (typeof select === 'object')
-          scan(select, use);
-      })
-    }
-
-    scan(result);
-
-    this.selects = columns;
   }
 
   use<T extends Type>(type: Type.EntityType<T>){
