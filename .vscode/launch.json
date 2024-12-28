@@ -10,7 +10,8 @@
         "${input:test_suite}",
         "--watchAll",
         "--runInBand", 
-        "--config=${workspaceFolder}/jest.config.json"
+        "--config=${workspaceFolder}/jest.config.json",
+        "--globals={\"ts-jest\":{\"tsconfig\":{\"noUnusedLocals\":false}}}"
       ],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
