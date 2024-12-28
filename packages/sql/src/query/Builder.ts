@@ -22,6 +22,9 @@ export class Builder<T> {
   constructor(factory: Query.Function<T>){
     const result = factory(this.where.bind(this));
 
+    if(!this.connection)
+      this.connection = Connection.None;
+
     this.pending.forEach(fn => fn());
     this.pending.clear();
 
@@ -158,7 +161,7 @@ export class Builder<T> {
     const { fields, schema } = type;
     const { tables } = this;
 
-    if(!this.connection){
+    if(!this.connection && type.connection){
       this.connection = type.connection;
     }
     else if(type.connection !== this.connection){

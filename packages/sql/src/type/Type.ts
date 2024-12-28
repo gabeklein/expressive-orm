@@ -42,13 +42,7 @@ abstract class Type {
 
   static schema = "";
 
-  static get connection(){
-    return this.connection = Connection.default;
-  }
-
-  static set connection(value: Connection){
-    defineProperty(this, "connection", { value });
-  }
+  static connection?: Connection;
 
   static get table(){
     return this.table = underscore(this.name);
@@ -80,9 +74,6 @@ abstract class Type {
   ){
     let data: Type.Insert<T>[];
 
-    if(!this.connection)
-      throw new Error("No connection found for type");
-
     if(typeof arg2 == "function"){
       if(typeof arg1 == "number")
         data = Array.from({ length: arg1 }, (_, i) => arg2(i));
@@ -99,6 +90,9 @@ abstract class Type {
       throw new Error("Invalid input for insert method.");
     
     const rows = data.map(digest, this);
+
+    if(!this.connection)
+      throw new Error("No connection found for type");
 
     return this.connection.insert(this.table, rows);
   }

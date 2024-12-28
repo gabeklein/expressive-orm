@@ -7,25 +7,22 @@ declare namespace Connection {
     | { [key: string | number]: typeof Type }
 
   type Using = { [key: string | number]: typeof Type };
-}
 
-let defaultConnection: Connection;
+  let None: Connection;
+}
 
 abstract class Connection {
   readonly using: Readonly<Set<typeof Type>>;
   readonly ready = false;
 
   constructor(using: Connection.Types){
-    this.using = Object.freeze(new Set(values(using).map(x => {
+    this.using = new Set(values(using).map(x => {
       if(x.hasOwnProperty('connection'))
         throw new Error(`Type ${x.name} already has assigned connection.`);
 
       x.connection = this;
       return x;
-    })));
-    
-    if(!defaultConnection)
-      defaultConnection = this;
+    }))
   }
 
   abstract close(): Promise<void>;
@@ -48,14 +45,34 @@ abstract class Connection {
       toString: () => query
     }
   }
+}
 
-  static get default(){
-    return defaultConnection;
+class NoConnection extends Connection {
+  constructor(){
+    super([]);
   }
 
-  static set default(connection: Connection){
-    defaultConnection = connection;
+  get schema(): never {
+    throw new Error("No connection to generate schema.");
+  }
+
+  async close(){
+    return;
+  }
+
+  async send(){
+    throw new Error("Cannot send a query to a null connection.");
+  }
+
+  async sync(){
+    return;
+  }
+
+  async valid(){
+    return true;
   }
 }
+
+Connection.None = new NoConnection();
 
 export { Connection };
