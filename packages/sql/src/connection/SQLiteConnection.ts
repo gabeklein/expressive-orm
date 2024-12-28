@@ -1,4 +1,4 @@
-import { Database } from 'sqlite3';
+import Database from 'better-sqlite3';
 import { Connection, Field, Type } from '..';
 
 type TableInfo = { 
@@ -9,7 +9,7 @@ type TableInfo = {
 };
 
 export class SQLiteConnection extends Connection {
-  protected engine: Database;
+  protected engine: Database.Database;
 
   constructor(using: Connection.Types, filename?: string) {
     super(using);
@@ -20,75 +20,63 @@ export class SQLiteConnection extends Connection {
     return this.generateSchema(this.using);
   }
 
-  async send(qs: string): Promise<any> {
-    return new Promise((resolve, reject) => {
-      this.engine.all(qs, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+  async send(qs: string, params?: any[]){
+    const stmt = this.engine.prepare(qs);
+
+    return qs.startsWith('SELECT')
+      ? stmt.all(params || [])
+      : stmt.run(params || []);
   }
 
-  async close(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.engine.close((err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+  async close(){
+    this.engine.close();
   }
 
-  async sync(fix?: boolean): Promise<void> {
+  async sync(fix?: boolean){
     if (this.ready)
       throw new Error("Connection is already active.");
 
-    const include = async (type: Type.EntityType) => {
-      const valid = await this.valid(type);
-
-      if (!valid && fix !== true) {
+    for (const type of this.using)
+      if (!this.valid(type) && fix !== true)
         throw new Error(`Table ${type.table} does not exist.`);
-      }
-    };
 
-    await Promise.all(Array.from(this.using).map(include));
-    await this.createSchema(this.using);
-
+    this.createSchema(this.using);
     Object.defineProperty(this, 'ready', { value: true });
   }
 
-  async valid(type: Type.EntityType): Promise<boolean> {
+  async valid(type: Type.EntityType){
     const { table } = type;
     const fields = Array.from(type.fields.values());
     
     // Check if table exists
-    const tableExists = await this.send(
-      `SELECT name FROM sqlite_master WHERE type='table' AND name='${table}'`
-    );
+    const tableExists = this.engine
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`)
+      .get(table);
     
-    if (!tableExists || tableExists.length === 0)
+    if (!tableExists)
       return false;
 
     // Get column information
-    const columns = await this.send(`PRAGMA table_info(${table})`) as TableInfo[];
+    const columns = this.engine
+      .prepare(`PRAGMA table_info(${table})`)
+      .all() as TableInfo[];
 
-    const integrity = fields.map(field => {
-      const columnInfo = columns.find((col: any) => col.name === field.column);
-
+    for (const field of fields) {
       if (!field.datatype)
-        return;
+        continue;
+
+      const columnInfo = columns.find(col => col.name === field.column);
 
       if (!columnInfo)
         throw new Error(`Column ${field.column} does not exist in table ${table}`);
 
-      return this.checkIntegrity(field, columnInfo);
-    });
-
-    await Promise.all(integrity);
+      this.checkIntegrity(field, columnInfo);
+    }
 
     return true;
   }
 
-  protected async checkIntegrity(field: Field, info: TableInfo): Promise<void> {
+  protected checkIntegrity(field: Field, info: TableInfo){
     const { column, datatype, nullable, parent, foreignTable, foreignKey } = field;
 
     // Check datatype
@@ -112,15 +100,17 @@ export class SQLiteConnection extends Connection {
         `Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`
       );
 
-    const foreignTableExists = await this.send(
-      `SELECT name FROM sqlite_master WHERE type='table' AND name='${foreignTable}'`
-    );
+    const foreignTableExists = this.engine
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`)
+      .get(foreignTable);
 
-    if (!foreignTableExists || foreignTableExists.length === 0)
+    if (!foreignTableExists)
       throw new Error(`Referenced table ${foreignTable} does not exist`);
 
-    const foreignColumn = await this.send(`PRAGMA table_info(${foreignTable})`)
-      .then((cols: any[]) => cols.find(col => col.name === foreignKey));
+    const foreignColumn = this.engine
+      .prepare<any[], any>(`PRAGMA table_info(${foreignTable})`)
+      .all()
+      .find(col => col.name === foreignKey);
 
     if (!foreignColumn)
       throw new Error(
@@ -129,17 +119,16 @@ export class SQLiteConnection extends Connection {
   }
 
   protected generateSchema(types: Iterable<typeof Type>): string {
-    let schema = '';
-    
-    for (const type of types)
-      schema += this.generateTableSchema(type);
-    
-    return schema;
+    return Array.from(types)
+      .map(type => this.generateTableSchema(type))
+      .join('\n');
   }
 
-  protected async createSchema(types: Iterable<typeof Type>): Promise<void> {
-    for (const type of types)
-      await this.send(this.generateTableSchema(type));
+  protected createSchema(types: Iterable<typeof Type>): void {
+    for (const type of types) {
+      const schema = this.generateTableSchema(type);
+      this.engine.exec(schema);
+    }
   }
 
   protected generateTableSchema(type: Type.EntityType): string {
@@ -148,15 +137,13 @@ export class SQLiteConnection extends Connection {
 
       if (!field.nullable)
         parts += ' NOT NULL';
-
       if (field.increment)
         parts += ' PRIMARY KEY AUTOINCREMENT';
-
       if (field.unique)
         parts += ' UNIQUE';
 
       if (field.fallback !== undefined)
-        parts += ` DEFAULT ${this.formatDefault(field.fallback)}`;
+        parts += ` DEFAULT ${field.set(field.fallback)}`;
 
       if (field.foreignKey && field.foreignTable)
         parts += ` REFERENCES ${field.foreignTable}(${field.foreignKey})`;
@@ -181,12 +168,5 @@ export class SQLiteConnection extends Connection {
 
     const baseType = datatype.split('(')[0].toLowerCase();
     return typeMap[baseType] || datatype;
-  }
-
-  private formatDefault(value: any): string {
-    return (
-      typeof value === 'string' ? `'${value}'` :
-      value === null ? 'NULL' : value.toString()
-    )
   }
 }
