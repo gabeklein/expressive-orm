@@ -1,5 +1,4 @@
 import { Query } from '..';
-import { Syntax } from '../query/syntax';
 import { capitalize, create, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
 import { Type } from './Type';
 
@@ -123,7 +122,12 @@ interface Field<T = unknown> {
    */
   get(value: any): T;
 
-  compare(accumulate: Set<Query.Compare>): Field.Compare<T>;
+  /**
+   * This method is used to compare this field with another value in a query.
+   * 
+   * @param acc Set of comparisons to be added to if not part of a group.
+   */
+  compare(acc?: Set<Query.Compare>): Field.Compare<T>;
 }
 
 function Field<T extends Field>(options?: Field.Init<T>): T
@@ -177,13 +181,15 @@ Field.prototype = <Field> {
   set(value: any){
     return value;
   },
-  compare(accumulate: Set<Query.Compare>){
-    const on = (operator: string) =>
-      (right: Query.Value, orEqual?: boolean) => {
-        const op = orEqual ? `${operator}=` : operator;
-        const eq = new Syntax(this, op, right);
-        accumulate.add(eq);
-        return eq;
+  compare(acc?: Set<Query.Compare>){
+    const on = (op: string) =>
+      (right: Query.Value, orEqual?: boolean): any => {
+        const r = right instanceof Field ? right : this.set(right);
+        const e = new Syntax(this, orEqual ? op + '=' : op, r);
+
+        if(acc) acc.add(e);
+
+        return e;
       };
 
     return {
@@ -195,9 +201,20 @@ Field.prototype = <Field> {
   }
 }
 
+class Syntax extends Array<any> {
+  toString(){
+    return this.map((item, i) => i % 2 ? item : this.stringify(item)).join(" ");
+  }
+
+  stringify(value: unknown){
+    return typeof value == "function" ? value() : String(value);
+  }
+}
+
 export {
   fields,
   Field,
   Nullable,
   Optional,
+  Syntax,
 };

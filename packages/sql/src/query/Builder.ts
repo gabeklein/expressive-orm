@@ -1,5 +1,5 @@
 import { Connection } from '../connection/Connection';
-import { Field } from '../type/Field';
+import { Field, Syntax } from '../type/Field';
 import { Type } from '../type/Type';
 import { assign, create, defineProperty, freeze, getOwnPropertyNames } from '../utils';
 import { Computed } from './math';
@@ -244,9 +244,7 @@ export class Builder<T> {
           const right = (joinOn as any)[key];
 
           if (left instanceof Field)
-            joinsOn.add(
-              new Syntax(left, "=", right instanceof Field ? right : left.set(right))
-            );
+            joinsOn.add(left.compare().equal(right));
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }
