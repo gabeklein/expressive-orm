@@ -117,15 +117,17 @@ abstract class Type {
   static get<T extends Type>(this: Type.EntityType<T>, where?: Type.Query<T, void>): Query.Selects<T>;
   static get<T extends Type, R>(this: Type.EntityType<T>, limit: number, where: Type.Query<T, R>): Query.Selects<R>;
   static get<T extends Type, R>(this: Type.EntityType<T>, arg1?: Type.Query<T, R> | number, arg2?: Type.Query<T, R>){
-    if(typeof arg1 == "function")
-      arg2 = arg1;
+    const limit = typeof arg1 == "number" ? arg1 : undefined;
+    const query = typeof arg1 == "function" ? arg1 : arg2;
     
-    const query = Query(where => {
+    return Query<any>(where => {
       const self = where(this);
-      return typeof arg2 == "function" && arg2(self, where) || self;
+
+      if(limit)
+        where(limit);
+
+      return typeof query == "function" && query(self, where) || self;
     });
-    
-    return typeof arg1 === "number" ? query.get(arg1) : query;
   }
 
   static one<T extends Type, R extends {}>(this: Type.EntityType<T>, query: Type.Query<T, R>): Promise<Query.Extract<R>>;
