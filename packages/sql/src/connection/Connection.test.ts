@@ -26,7 +26,7 @@ it("will convert camelCase names to underscore", async () => {
 
   const sql = new TestConnection({ FooBar });
 
-  expect(sql).toMatchInlineSnapshot(`
+  expect(sql.schema).toMatchInlineSnapshot(`
     CREATE TABLE
       foo_bar (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
@@ -46,7 +46,7 @@ it("will create FK constraints", async () => {
 
   const sql = new TestConnection({ Foo, Bar });
 
-  expect(sql).toMatchInlineSnapshot(`
+  expect(sql.schema).toMatchInlineSnapshot(`
     CREATE TABLE
       foo (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,

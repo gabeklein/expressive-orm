@@ -16,7 +16,7 @@ export class SQLiteConnection extends Connection {
     this.engine = new Database(filename || ':memory:');
   }
 
-  toString() {
+  get schema() {
     return this.generateSchema(this.using);
   }
 

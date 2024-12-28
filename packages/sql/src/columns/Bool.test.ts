@@ -12,7 +12,7 @@ it("will insert and retrieve a tinyint", async () => {
 
   const connect = new TestConnection([Test]);
 
-  expect(connect).toMatchInlineSnapshot(`
+  expect(connect.schema).toMatchInlineSnapshot(`
     CREATE TABLE
       test (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,

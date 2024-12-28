@@ -25,6 +25,8 @@ abstract class Connection {
     }))
   }
 
+  abstract get schema(): string;
+
   abstract close(): Promise<void>;
   abstract send(qs: string): Promise<any>;
   abstract sync(fix?: boolean): Promise<void>;
