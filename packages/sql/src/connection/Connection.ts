@@ -33,6 +33,22 @@ abstract class Connection {
   abstract sync(fix?: boolean): Promise<void>;
   abstract valid(type: Type.EntityType): Promise<boolean>;
 
+  /**
+   * @deprecated eventually superseded by `Query` class.
+   */
+  insert(table: string, data: Record<string, any>[]){
+    const query = 
+      `INSERT INTO ${table} (${Object.keys(data[0]).join(", ")}) ` +
+      `VALUES ${data.map(row => `(${Object.values(row).join(", ")})`).join(", ")}`;
+
+    return {
+      then: (resolve: (res: any) => any, reject: (err: any) => any) => {
+        return this.send(query).then(resolve).catch(reject);
+      },
+      toString: () => query
+    }
+  }
+
   static get default(){
     return defaultConnection;
   }

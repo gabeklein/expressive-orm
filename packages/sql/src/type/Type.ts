@@ -99,18 +99,8 @@ abstract class Type {
       throw new Error("Invalid input for insert method.");
     
     const rows = data.map(digest, this);
-    const { connection } = this;
 
-    const query = 
-      `INSERT INTO ${this.table} (${Object.keys(rows[0]).join(", ")}) ` +
-      `VALUES ${rows.map(row => `(${Object.values(row).join(", ")})`).join(", ")}`;
-
-    return {
-      then(resolve: (res: any) => any, reject: (err: any) => any){
-        return connection.send(query).then(resolve).catch(reject);
-      },
-      toString: () => query
-    }
+    return this.connection.insert(this.table, rows);
   }
 
   static get<T extends Type>(this: Type.EntityType<T>, limit?: number): Query.Selects<T>;
