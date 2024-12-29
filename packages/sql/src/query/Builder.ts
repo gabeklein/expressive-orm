@@ -327,7 +327,7 @@ export class Builder<T> {
       const { as, on } = table.join!;
       const kind = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
 
-      query += ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
+      query += ` ${kind} ${table.name} ON ${Array.from(on).join(' AND ')}`;
     }
 
     query += this.toUpdate();

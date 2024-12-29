@@ -1,4 +1,4 @@
-import { Num, Query, Str, Type } from '..';
+import { Num, Query, Str, Table, Type } from '..';
 
 class Foo extends Type {
   name = Str();
@@ -67,6 +67,30 @@ it("will join using function", async () => {
       AND bar.rating > 50
   `);
 })
+
+it("will join a table with alias", async () => {
+  class Baz extends Type {
+    this = Table({ "schema": "other" });
+
+    color = Str();
+    rating = Num();
+  }
+  
+  const query = Query(where => {
+    const foo = where(Foo);
+    const bar = where(Baz, { color: foo.color });
+
+    return bar.rating;
+  });
+
+  expect(query).toMatchInlineSnapshot(`
+    SELECT
+      T1.rating
+    FROM
+      foo
+      INNER JOIN other.baz T1 ON T1.color = foo.color
+  `);
+});
 
 it("will select left join", async () => {
   class Bar extends Type {
