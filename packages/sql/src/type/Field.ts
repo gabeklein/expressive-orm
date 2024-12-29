@@ -169,9 +169,11 @@ Field.prototype = <Field> {
   optional: false,
   increment: false,
   fallback: undefined,
-  toString(){ 
-    if(this.table)
-      return `${this.table}.${this.column}`;
+  toString(){
+    const { column, table } = this;
+
+    if(table)
+      return `${table.alias || table.name}.${column}`;
 
     throw new Error("This requires a table to be set.");
   },

@@ -5,16 +5,9 @@ import { Builder as QB } from './Builder';
 import { Computed } from './math';
 
 declare namespace Query { 
-  namespace Table {
-    interface Ref {
-      alias?: string;
-      id: string;
-      toString(): string;
-    }
-  }
-  
   interface Table<T extends Type = any> {
-    name: Table.Ref;
+    name: string;
+    alias?: string;
     proxy: Query.From<T>;
     local: Map<string, Field>;
     join?: {

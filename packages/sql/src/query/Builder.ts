@@ -164,26 +164,24 @@ export class Builder<T> {
       throw new Error(`Joined entity ${type} does not share a connection with main table ${main}.`);
     }
 
-    const name: Query.Table.Ref = {
-      id: type.table,
-      toString(){
-        return this.alias ? this.id + " " + this.alias : this.id;
-      }
-    }
-
-    if(schema){
-      name.alias = 'T' + tables.size;
-      name.id = schema + '.' + name.id;
-    }
-
     const local = new Map<string, Field>();
     const proxy = {} as Query.From;
     const table: Query.Table = {
-      name,
+      name: type.table,
       proxy,
       local,
-      toString: () => name.alias || name.id
+      toString(){
+        return this.alias
+          ? this.name + " " + this.alias
+          : this.name;
+      }
     };
+
+    // TODO: also support self-joins
+    if(schema){
+      table.alias = 'T' + tables.size;
+      table.name = schema + '.' + table.name;
+    }
 
     tables.set(proxy, table);
     fields.forEach((field, key) => {
@@ -306,7 +304,7 @@ export class Builder<T> {
 
   toString() {
     const { deletes, limit, orderBy, tables, updates, wheres } = this;
-    const [{ name: main }, ...joins] = tables.values();
+    const [main, ...joins] = tables.values();
 
     let query;
 
@@ -314,10 +312,10 @@ export class Builder<T> {
       query = `UPDATE ${main}`;
     else if(deletes.size){
       const [ target ] = deletes;
-      const { name } = this.tables.get(target)!;
+      const { alias, name } = tables.get(target)!;
 
-      query = joins.length || name.alias
-        ? `DELETE ${name} FROM ${main}`
+      query = joins.length || alias
+        ? `DELETE ${alias || name} FROM ${main}`
         : `DELETE FROM ${main}`;
     }
     else
@@ -327,7 +325,7 @@ export class Builder<T> {
       const { as, on } = table.join!;
       const kind = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
 
-      query += ` ${kind} ${table.name} ON ${Array.from(on).join(' AND ')}`;
+      query += ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
     }
 
     query += this.toUpdate();
