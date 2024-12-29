@@ -4,15 +4,28 @@ import { TestConnection } from '../connection/TestConnection';
 it("will count query by default", () => {
   class Foo extends Type {}
 
-  const query = Query(where => {
-    where(Foo);
-  });
+  const query = Query(where => void where(Foo));
 
   expect(query).toMatchInlineSnapshot(`
     SELECT
       COUNT(*)
     FROM
       foo
+  `);
+})
+
+it("will select without tables", () => {
+  const query = Query(() => {
+    return {
+      foo: 5,
+      bar: "hello",
+    }
+  });
+
+  expect(query).toMatchInlineSnapshot(`
+    SELECT
+      5 AS foo,
+      'hello' AS bar
   `);
 })
 

@@ -59,6 +59,11 @@ export const bit: Bitwise = {
 export class Computed<T> extends Array<T | Field<T> | Computed<T>> {
   rank = 0;
 
+  constructor(...args: T[]){
+    super();
+    this.push(...args);
+  }
+
   get column(){
     return "result";
   }
@@ -69,9 +74,6 @@ export class Computed<T> extends Array<T | Field<T> | Computed<T>> {
   
   toString(): string {
     return this.map(value => {
-      if(typeof value == "number")
-        return value;
-
       if(value instanceof Computed)
         return value.rank > this.rank ? value : `(${value})`;
 

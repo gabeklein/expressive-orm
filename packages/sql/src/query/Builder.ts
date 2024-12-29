@@ -46,6 +46,14 @@ export class Builder<T> {
           columns.set(use, select);
         else if (typeof select === 'object')
           scan(select, use);
+        else {
+          // TODO: should force-parametrize this
+          const value = typeof select == "string"
+            ? "'" + select.replace(/'/g, "\\'") + "'"
+            : select;
+
+          columns.set(use, new Computed(value));
+        }
       })
     }
 
@@ -319,7 +327,7 @@ export class Builder<T> {
         : `DELETE FROM ${main}`;
     }
     else
-      query = `SELECT ${this.toSelect()} FROM ${main}`;
+      query = 'SELECT ' + this.toSelect() + (main ? ` FROM ${main}` : '');
 
     for (const table of joins){
       const { as, on } = table.join!;

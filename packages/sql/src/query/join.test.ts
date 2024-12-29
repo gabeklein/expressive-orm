@@ -92,6 +92,8 @@ it("will join a table with alias", async () => {
   `);
 });
 
+it.todo("will self join");
+
 it("will select left join", async () => {
   class Bar extends Type {
     name = Str();
