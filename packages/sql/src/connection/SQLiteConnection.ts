@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
-import { Connection, Field, Type } from '..';
+
+import { Connection, Field, Type, Query } from '..';
 
 type TableInfo = { 
   name: string; 
@@ -18,6 +19,24 @@ export class SQLiteConnection extends Connection {
 
   get schema() {
     return this.generateSchema(this.using);
+  }
+
+  prepare<T>(query: Query.Builder<T> | string){
+    const sql = query.toString();
+    const parse = typeof query === "string" ? (x: any) => x : query.parse.bind(query);
+    const stmt = this.engine.prepare(sql);
+    
+    return {
+      async all(params: any[] = []){
+        return stmt.all(params).map<T>(parse);
+      },
+      async get(params: any[] = []){
+        return parse(stmt.get(params)) as T;
+      },
+      async run(params: any[] = []){
+        return stmt.run(params).changes;
+      }
+    };
   }
 
   async send(qs: string, params?: any[]){

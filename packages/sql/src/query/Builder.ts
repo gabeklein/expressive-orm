@@ -1,10 +1,9 @@
 import { Connection } from '../connection/Connection';
 import { Field, Syntax } from '../type/Field';
 import { Type } from '../type/Type';
-import { assign, create, defineProperty, freeze, getOwnPropertyNames } from '../utils';
+import { create, defineProperty, freeze, getOwnPropertyNames } from '../utils';
 import { Computed } from './math';
 import { Query } from './Query';
-import { Syntax } from './syntax';
 
 export class Builder<T> {
   connection!: Connection;
@@ -55,12 +54,8 @@ export class Builder<T> {
     this.selects = columns;
   }
 
-  extend(apply?: Partial<this>){
-    return assign(create(this), apply) as this;
-  }
-
-  async execute(): Promise<any> {
-    return this.parse(await this.connection.send(String(this)));
+  prepare(){
+    return this.connection.prepare<T>(this);
   }
 
   /** Specify the limit of results returned. */
@@ -276,14 +271,14 @@ export class Builder<T> {
     return table.proxy as Query.Join<T>;
   }
 
-  parse(raw: any[]){
+  parse(raw: unknown){
     const { selects } = this;
 
-    if(!selects)
-      return raw;
+    function mapper(row: any){
+      if(!selects)
+        return raw;
 
-    if(selects instanceof Map)
-      return raw.map(row => {
+      if(selects instanceof Map){
         const values = {} as any;
         
         selects.forEach((field, column) => {
@@ -298,9 +293,15 @@ export class Builder<T> {
         });
 
         return values;
-      });
+      }
 
-    return raw.map(row => selects.get(row[selects.column]));
+      if(selects instanceof Field)
+        return selects.get(row[selects.column]);
+
+      return selects.get(row);
+    }
+    
+    return Array.isArray(raw) ? raw.map(mapper) : mapper(raw);
   }
 
   toString() {

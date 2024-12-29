@@ -1,4 +1,4 @@
-import { Type } from '..';
+import { Type, Query } from '..';
 import { values } from '../utils';
 
 declare namespace Connection {
@@ -16,21 +16,26 @@ abstract class Connection {
   readonly ready = false;
 
   constructor(using: Connection.Types){
-    this.using = new Set(values(using).map(x => {
-      if(x.hasOwnProperty('connection'))
-        throw new Error(`Type ${x.name} already has assigned connection.`);
+    this.using = new Set(values(using).map(type => {
+      if(type.hasOwnProperty('connection'))
+        throw new Error(`Type ${type.name} already has assigned connection.`);
 
-      x.connection = this;
-      return x;
+      type.connection = this;
+      return type;
     }))
   }
 
   abstract get schema(): string;
 
   abstract close(): Promise<void>;
-  abstract send(qs: string): Promise<any>;
   abstract sync(fix?: boolean): Promise<void>;
   abstract valid(type: Type.EntityType): Promise<boolean>;
+
+  abstract prepare<T>(builder: Query.Builder<T> | string): {
+    all: (params?: any[]) => Promise<T[]>;
+    get: (params?: any[]) => Promise<T>;
+    run: (params?: any[]) => Promise<number>;
+  }
 
   /**
    * @deprecated eventually superseded by `Query` class.
@@ -42,7 +47,7 @@ abstract class Connection {
 
     return {
       then: (resolve: (res: any) => any, reject: (err: any) => any) => {
-        return this.send(query).then(resolve).catch(reject);
+        return this.prepare(query).run().then(resolve).catch(reject);
       },
       toString: () => query
     }
@@ -56,6 +61,11 @@ class NoConnection extends Connection {
 
   get schema(): never {
     throw new Error("No connection to generate schema.");
+  }
+
+  prepare(){
+    const run = () => Promise.reject();
+    return { all: run, get: run, run };
   }
 
   async close(){

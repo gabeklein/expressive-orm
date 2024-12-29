@@ -1,7 +1,8 @@
 import { Field, Type } from '..';
+import { Syntax } from '../type/Field';
+import { assign, create } from '../utils';
 import { Builder as QB } from './Builder';
 import { Computed } from './math';
-import { Syntax } from './syntax';
 
 declare namespace Query { 
   namespace Table {
@@ -110,25 +111,30 @@ function Query(from: Query.Function<void>): Query;
 
 function Query<T = number>(factory: Query.Function<T>): Query<T> | Query.Selects<T> {
   const builder = new QB(factory);
+  const query = builder.prepare();
 
-  const get = () => builder.execute();
-
-  const one = (orFail?: boolean) => builder.execute().then(res => {
-    if (res.length == 0 && orFail)
+  const get = () => query.all();
+  const one = (orFail?: boolean) => query.get().then((res: any) => {
+    if (!res && orFail)
       throw new Error("Query returned no results.");
 
-    return res[0] as T;
+    return res;
   });
 
-  const runner: Query<T> = {
-    then: (resolve, reject) => get().then(resolve).catch(reject),
-    toString: () => String(builder)
-  }
+  const runner = assign(create(Query.prototype), <Query> {
+    then: (resolve, reject) => {
+      const pending: Promise<any> = builder.selects
+        ? query.all()
+        : query.run();
+
+      return pending.then(resolve).catch(reject);
+    },
+    toString: () => builder.toString()
+  })
 
   return builder.selects
     ? { ...runner, get, one }
     : runner;
 }
-
 
 export { Query };
