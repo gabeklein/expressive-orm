@@ -17,6 +17,12 @@ declare namespace Query {
     toString(): string;
   }
 
+  type Parameter<T = unknown> = {
+    index: number;
+    value(): T;
+    toString(): string;
+  }
+
   type Builder<T = any> = QB<T>;
   
   type Compare = Syntax | Compare[] | undefined;
@@ -56,7 +62,11 @@ declare namespace Query {
 
   type Function<R> = (where: Where) => R;
 
-  type Template<A, R> = (where: Where, ...args: A[]) => R;
+  type Factory<R, A extends any[]> = (where: Where) => (...args: A) => R;
+  
+  type Template<A extends any[]> = (...args: A) => Query;
+
+  type SelectTemplate<T, A extends any[]> = (...args: A) => Selects<T>;
 
   type Extract<T> =
     T extends Field.Returns<infer R> ? R :
@@ -94,6 +104,10 @@ interface Query<T = number> extends PromiseLike<T> {
   toString(): string;
 }
 
+function Query<T extends {}, A extends unknown[]>(from: Query.Factory<T, A>): Query.SelectTemplate<T, A>;
+
+function Query<A extends unknown[]>(from: Query.Factory<void, A>): Query.Template<A>;
+
 function Query<T extends {}>(from: Query.Function<T>): Query.Selects<T>;
 
 /**
@@ -102,32 +116,61 @@ function Query<T extends {}>(from: Query.Function<T>): Query.Selects<T>;
  */
 function Query(from: Query.Function<void>): Query;
 
-function Query<T = number>(factory: Query.Function<T>): Query<T> | Query.Selects<T> {
+function Query<T = number>(factory: Query.Function<T>): Query<T> | Query.Selects<T> | Function {
   const builder = new QB(factory);
-  const query = builder.prepare();
+  const statement = builder.prepare();
 
-  const get = () => query.all();
-  const one = (orFail?: boolean) => query.get().then((res: any) => {
-    if (!res && orFail)
-      throw new Error("Query returned no results.");
+  function runner(...inputs: any[]) {
+    type Q = Query<any>;
+    const params = Array.from(builder.params || [], i => inputs[i]);
+    const query = assign<Q, Q>(create(Query.prototype), {
+      then: (resolve, reject) => {
+        const pending = builder.selects
+          ? statement.all(params)
+          : statement.run(params);
 
-    return res;
-  });
+        return pending.then(resolve).catch(reject);
+      },
+      toString(){
+        return builder.toString();
+      }
+    });
 
-  const runner = assign(create(Query.prototype), <Query> {
-    then: (resolve, reject) => {
-      const pending: Promise<any> = builder.selects
-        ? query.all()
-        : query.run();
+    if (builder.selects)
+      return assign(query, {
+        async get(){
+          return statement.all(params);
+        },
+        async one(orFail?: boolean) {
+          const res = await statement.get(params);
 
-      return pending.then(resolve).catch(reject);
-    },
-    toString: () => builder.toString()
-  })
+          if (!res && orFail)
+            throw new Error("Query returned no results.");
 
-  return builder.selects
-    ? { ...runner, get, one }
-    : runner;
+          return res;
+        }
+      });
+
+    return query;
+  }
+
+  if(builder.params){
+    Object.setPrototypeOf(runner, Query.Template.prototype);
+    runner.toString = () => builder.toString();
+    return runner;
+  }
+
+  return runner();
 }
+
+Query.Template = function Template(){
+  throw new Error("Query.Template cannot be called.");
+};
+
+Query.Template.prototype = assign(create(Query.prototype), {
+  bind: Function.prototype.bind,
+  call: Function.prototype.call,
+  apply: Function.prototype.apply
+})
 
 export { Query };

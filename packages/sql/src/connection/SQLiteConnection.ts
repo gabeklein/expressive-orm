@@ -27,13 +27,13 @@ export class SQLiteConnection extends Connection {
     const stmt = this.engine.prepare(sql);
     
     return {
-      async all(params: any[] = []){
+      async all(params: any[]){
         return stmt.all(params).map<T>(parse);
       },
-      async get(params: any[] = []){
+      async get(params: any[]){
         return parse(stmt.get(params)) as T;
       },
-      async run(params: any[] = []){
+      async run(params: any[]){
         return stmt.run(params).changes;
       }
     };

@@ -8,6 +8,14 @@ import { Query } from './Query';
 export class Builder<T> {
   connection!: Connection;
 
+  /**
+   * If running in template mode, this records the order by which
+   * parameters are used in the template itself. This is used to
+   * ensure that no parameters are duplicated or injected in the
+   * wrong order.
+   */
+  params?: Set<number>;
+
   wheres = new Set<Query.Compare>();
   pending = new Set<() => void>();
   orderBy = new Map<Field, "asc" | "desc">();
@@ -18,8 +26,24 @@ export class Builder<T> {
   selects?: Map<string, Field | Computed<unknown>> | Field | Computed<unknown>;
   limit?: number;
 
-  constructor(factory: Query.Function<T>){
-    const result = factory(this.where.bind(this));
+  constructor(factory: Query.Function<T> | Query.Factory<T, any[]>){
+    let result = factory(this.where.bind(this));
+
+    if(typeof result === 'function'){
+      const index = this.params = new Set();
+      const params = Array.from(result as never, (_, i) => {
+        return () => {
+          if(index.has(i))
+            throw new Error(`Parameter ${i} is already defined.`);
+          else
+            index.add(i);
+  
+          return "?";
+        }
+      })
+
+      result = (result as Function)(...params); 
+    }
 
     if(!this.connection)
       this.connection = Connection.None;
@@ -46,6 +70,8 @@ export class Builder<T> {
           columns.set(use, select);
         else if (typeof select === 'object')
           scan(select, use);
+        else if(typeof select === 'function')
+          columns.set(use, new Computed(select()));
         else {
           // TODO: should force-parametrize this
           const value = typeof select == "string"

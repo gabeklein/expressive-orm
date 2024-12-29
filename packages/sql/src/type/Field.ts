@@ -186,7 +186,11 @@ Field.prototype = <Field> {
   compare(acc?: Set<Query.Compare>){
     const on = (op: string) =>
       (right: Query.Value, orEqual?: boolean): any => {
-        const r = right instanceof Field ? right : this.set(right);
+        const r =
+          right instanceof Field ? right :
+          typeof right == "function" ? right() :
+          this.set(right);
+
         const e = new Syntax(this, orEqual ? op + '=' : op, r);
 
         if(acc) acc.add(e);
@@ -205,11 +209,9 @@ Field.prototype = <Field> {
 
 class Syntax extends Array<any> {
   toString(){
-    return this.map((item, i) => i % 2 ? item : this.stringify(item)).join(" ");
-  }
-
-  stringify(value: unknown){
-    return typeof value == "function" ? value() : String(value);
+    return this
+      .map(item => typeof item == "function" ? item() : String(item))
+      .join(" ");
   }
 }
 

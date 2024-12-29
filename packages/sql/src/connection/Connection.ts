@@ -32,9 +32,9 @@ abstract class Connection {
   abstract valid(type: Type.EntityType): Promise<boolean>;
 
   abstract prepare<T>(builder: Query.Builder<T> | string): {
-    all: (params?: any[]) => Promise<T[]>;
-    get: (params?: any[]) => Promise<T>;
-    run: (params?: any[]) => Promise<number>;
+    all: (params: any[]) => Promise<T[]>;
+    get: (params: any[]) => Promise<T>;
+    run: (params: any[]) => Promise<number>;
   }
 
   /**
@@ -47,7 +47,7 @@ abstract class Connection {
 
     return {
       then: (resolve: (res: any) => any, reject: (err: any) => any) => {
-        return this.prepare(query).run().then(resolve).catch(reject);
+        return this.prepare(query).run([]).then(resolve).catch(reject);
       },
       toString: () => query
     }
@@ -64,7 +64,8 @@ class NoConnection extends Connection {
   }
 
   prepare(){
-    const run = () => Promise.reject();
+    const err = new Error("No connection.");
+    const run = () => Promise.reject(err);
     return { all: run, get: run, run };
   }
 
