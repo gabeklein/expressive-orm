@@ -89,7 +89,7 @@ export class Builder<T> {
   }
 
   toRunner(){
-    return this.connection.toRunner(this);
+    return this.connection.toRunner<T>(this);
   }
 
   /** Specify the limit of results returned. */
@@ -337,7 +337,7 @@ export class Builder<T> {
   }
 
   toString() {
-    const { deletes, limit, orderBy, tables, updates, wheres } = this;
+    const { deletes, limit, orderBy, tables, updates } = this;
     const [main, ...joins] = tables.values();
 
     let query;
@@ -363,20 +363,7 @@ export class Builder<T> {
     }
 
     query += this.toUpdate();
-
-    if (wheres.size) {
-      function buildWhere(conditions: Query.Compare[], or?: boolean): string {
-        return conditions.map(cond => {
-          if(cond instanceof Syntax)
-            return cond;
-
-          if (Array.isArray(cond))
-            return `(${buildWhere(cond, !or)})`;
-        }).filter(Boolean).join(or ? ' OR ' : ' AND ');
-      }
-  
-      query += ' WHERE ' + buildWhere(Array.from(wheres.values()));
-    }
+    query += this.toWhere();
   
     if (orderBy.size)
       query += ' ORDER BY ' +
@@ -386,6 +373,25 @@ export class Builder<T> {
       query += ` LIMIT ${limit}`;
   
     return query;
+  }
+
+  toWhere(){
+    const { wheres } = this;
+
+    if (!wheres.size)
+      return '';
+
+    function where(conditions: Query.Compare[], or?: boolean): string {
+      return conditions.map(cond => {
+        if(cond instanceof Syntax)
+          return cond;
+
+        if (Array.isArray(cond))
+          return `(${where(cond, !or)})`;
+      }).filter(Boolean).join(or ? ' OR ' : ' AND ');
+    }
+
+    return ' WHERE ' + where(Array.from(wheres.values()));
   }
 
   toSelect(){
