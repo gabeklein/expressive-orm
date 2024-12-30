@@ -21,9 +21,9 @@ export class SQLiteConnection extends Connection {
     return this.generateSchema(this.using);
   }
 
-  prepare<T>(query: Query.Builder<T> | string){
+  prepare<T>(query: Query.Builder<T>){
     const sql = query.toString();
-    const parse = typeof query === "string" ? (x: any) => x : query.parse.bind(query);
+    const parse = query.parse.bind(query);
     const stmt = this.engine.prepare(sql);
     
     return {
@@ -39,12 +39,8 @@ export class SQLiteConnection extends Connection {
     };
   }
 
-  async send(qs: string, params?: any[]){
-    const stmt = this.engine.prepare(qs);
-
-    return qs.startsWith('SELECT')
-      ? stmt.all(params || [])
-      : stmt.run(params || []);
+  async run(qs: string, params?: any[]): Promise<void> {
+    this.engine.prepare(qs).run(params || []);
   }
 
   async close(){

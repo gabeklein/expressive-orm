@@ -31,7 +31,9 @@ abstract class Connection {
   abstract sync(fix?: boolean): Promise<void>;
   abstract valid(type: Type.EntityType): Promise<boolean>;
 
-  abstract prepare<T>(builder: Query.Builder<T> | string): {
+  abstract run(query: string, params?: any[]): Promise<void>;
+
+  abstract prepare<T>(builder: Query.Builder<T>): {
     all: (params: any[]) => Promise<T[]>;
     get: (params: any[]) => Promise<T>;
     run: (params: any[]) => Promise<number>;
@@ -47,7 +49,7 @@ abstract class Connection {
 
     return {
       then: (resolve: (res: any) => any, reject: (err: any) => any) => {
-        return this.prepare(query).run([]).then(resolve).catch(reject);
+        return this.run(query, []).then(resolve).catch(reject);
       },
       toString: () => query
     }
@@ -73,8 +75,8 @@ class NoConnection extends Connection {
     return;
   }
 
-  async send(){
-    throw new Error("Cannot send a query to a null connection.");
+  async run(): Promise<never> {
+    throw new Error("No connection to run query.");
   }
 
   async sync(){
