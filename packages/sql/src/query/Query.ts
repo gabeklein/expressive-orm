@@ -6,31 +6,15 @@ import { Computed } from './math';
 
 declare namespace Query { 
   interface Table<T extends Type = any> {
+    toString(): string;
     name: string;
-    alias?: string;
     proxy: Query.From<T>;
     local: Map<string, Field>;
+    alias?: string;
     join?: {
       as: Query.Join.Mode;
       on: Set<Syntax>;
     }
-    toString(): string;
-  }
-
-  type Parameter<T = unknown> = {
-    index: number;
-    value(): T;
-    toString(): string;
-  }
-
-  type Builder<T = any> = QB<T>;
-  
-  type Compare = Syntax | Compare[] | undefined;
-
-  type FieldOrValue<T> = T extends Value<infer U> ? U : T;
-
-  type From<T extends Type = Type> = {
-    [K in Type.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
   }
 
   namespace Join {
@@ -50,7 +34,17 @@ declare namespace Query {
 
   type Join<T extends Type> = From<T>;
 
+  type Builder<T = any> = QB<T>;
+  
+  type Compare = Syntax | Compare[] | undefined;
+
+  type From<T extends Type = Type> = {
+    [K in Type.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
+  }
+
   type Value<T = any> = T | Field<T> | Computed<T>
+
+  type FieldOrValue<T> = T extends Value<infer U> ? U : T;
 
   type Where = Builder["where"] & { name: string };
 
@@ -123,8 +117,10 @@ function Query<T = number>(factory: Query.Function<T>): Query<T> | Query.Selects
   function runner(...inputs: any[]) {
     type Q = Query<any>;
     const params = Array.from(builder.params || [], i => inputs[i]);
-    const query = assign<Q, Q>(create(Query.prototype), {
-      then: (resolve, reject) => {
+    const query = create(Query.prototype) as Q; 
+    
+    assign(query, {
+      then(resolve, reject){
         const pending = builder.selects
           ? statement.all(params)
           : statement.run(params);
@@ -134,10 +130,10 @@ function Query<T = number>(factory: Query.Function<T>): Query<T> | Query.Selects
       toString(){
         return builder.toString();
       }
-    });
+    } as Q);
 
     if (builder.selects)
-      return assign(query, {
+      assign(query, {
         async get(){
           return statement.all(params);
         },
@@ -167,10 +163,6 @@ Query.Template = function Template(){
   throw new Error("Query.Template cannot be called.");
 };
 
-Query.Template.prototype = assign(create(Query.prototype), {
-  bind: Function.prototype.bind,
-  call: Function.prototype.call,
-  apply: Function.prototype.apply
-})
+Query.Template.prototype = assign(create(Query.prototype), Function.prototype)
 
 export { Query };
