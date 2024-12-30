@@ -72,8 +72,8 @@ declare namespace Field {
   type Compare<T> = {
     equal(value: Query.Value<T>): Syntax;
     not(value: Query.Value<T>): Syntax;
-    more(than: Query.Value<T>, orEqual?: boolean): Syntax;
-    less(than: Query.Value<T>, orEqual?: boolean): Syntax;
+    over(value: Query.Value<T>, orEqual?: boolean): Syntax;
+    under(value: Query.Value<T>, orEqual?: boolean): Syntax;
   }
 }
 
@@ -201,8 +201,8 @@ Field.prototype = <Field> {
     return {
       equal: on("="),
       not: on("<>"),
-      more: on(">"),
-      less: on("<"),
+      over: on(">"),
+      under: on("<"),
     };
   }
 }

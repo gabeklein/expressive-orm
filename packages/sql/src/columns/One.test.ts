@@ -85,7 +85,7 @@ it("will join on id if type is passed", async () => {
     const foo = where(Foo);
     const bar = where(Bar, { foo });
 
-    where(bar.rating).more(50);
+    where(bar.rating).over(50);
 
     return foo.name;
   });

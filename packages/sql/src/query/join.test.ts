@@ -23,7 +23,7 @@ it("will join using object", async () => {
     const baz = where(Baz, { rating: bar.rating });
 
     where(foo.name).not("Danny");
-    where(bar.rating).more(50);
+    where(bar.rating).over(50);
     where(baz.color).equal("blue");
   });
 
@@ -52,7 +52,7 @@ it("will join using function", async () => {
     });
 
     where(foo.name).not("Danny");
-    where(bar.rating).more(50);
+    where(bar.rating).over(50);
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -112,7 +112,7 @@ it("will select left join", async () => {
     const baz = where(Baz, { rating: bar.rating }, "left");
 
     where(foo.name).not("Danny");
-    where(bar.rating).more(50);
+    where(bar.rating).over(50);
 
     return {
       fooValue: foo.name,

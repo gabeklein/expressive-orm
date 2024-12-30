@@ -42,7 +42,7 @@ describe("where", () => {
     const results = Query(where => {
       const item = where(Item);
 
-      where(item.number).more(3);
+      where(item.number).over(3);
       where(5);
 
       return item.number;
@@ -68,10 +68,10 @@ describe("where", () => {
 
       where(item.number).equal(5);
       where(item.number).not(0);
-      where(item.number).more(4);
-      where(item.number).more(5, true);
-      where(item.number).less(6);
-      where(item.number).less(5, true);
+      where(item.number).over(4);
+      where(item.number).over(5, true);
+      where(item.number).under(6);
+      where(item.number).under(5, true);
     });
 
     expect(results).toMatchInlineSnapshot(`
@@ -103,8 +103,8 @@ describe("where", () => {
     
         where(test.a).equal(1);
         where(test.b).not(2);
-        where(test.c).more(3);
-        where(test.d).less(4);
+        where(test.c).over(3);
+        where(test.d).under(4);
       });
     
       expect(query).toMatchInlineSnapshot(`
@@ -157,7 +157,7 @@ describe("where", () => {
       const query = Query(where => {
         const foo = where(Foo);
   
-        where(foo.id).more(1);
+        where(foo.id).over(1);
   
         where([ 
           where(foo.name).equal("Gabe"),
