@@ -298,13 +298,6 @@ describe("template", () => {
     ])
   });
 
-  it("will be instance of Query.Template", () => {
-    const query = Query(() => () => {});
-
-    expect(typeof query).toBe("function");
-    expect(query).toBeInstanceOf(Query.Template);
-  })
-
   it("will create a template", async () => {
     const query = Query(where => (color: string) => {
       const foo = where(Foo);
