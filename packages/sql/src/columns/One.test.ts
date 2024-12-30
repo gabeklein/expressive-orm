@@ -101,7 +101,7 @@ it("will join on id if type is passed", async () => {
   `);
 });
 
-it.skip("will assert a property-joined value", () => {
+it("will assert a property-joined value", () => {
   class Foo extends Type {
     name = Str();
     color = Str();
@@ -109,7 +109,6 @@ it.skip("will assert a property-joined value", () => {
 
   class Bar extends Type {
     foo = One(Foo);
-    greeting = "Hello World";
   }
 
   const query = Query(where => {
@@ -118,5 +117,13 @@ it.skip("will assert a property-joined value", () => {
     where(bar.foo.color).equal("blue");
   });
   
-  expect(query).toMatchInlineSnapshot();
+  expect(query).toMatchInlineSnapshot(`
+    SELECT
+      COUNT(*)
+    FROM
+      bar
+      INNER JOIN foo ON foo.id = bar.foo_id
+    WHERE
+      foo.color = 'blue'
+  `);
 })
