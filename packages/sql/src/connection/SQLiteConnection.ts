@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 
-import { Connection, Field, Type, Query } from '..';
+import { Connection, Field, Query, Type } from '..';
+import { assign, create } from '../utils';
 
 type TableInfo = { 
   name: string; 
@@ -19,6 +20,51 @@ export class SQLiteConnection extends Connection {
 
   get schema() {
     return this.generateSchema(this.using);
+  }
+
+  toRunner<T>(builder: Query.Builder<T>): () => Query<T> | Query.Selects<T> {
+    type Q = Query<any>;
+
+    const sql = builder.toString();
+    const parse = builder.parse.bind(builder);
+    const statement = this.engine.prepare(sql);
+
+    return function runner(...args: any[]) { 
+      args = Array.from(builder.params || [], i => args[i]);
+
+      const query = create(Query.prototype) as Q;
+      const all = () => statement.all(args).map(parse);
+      const run = () => statement.run(args).changes;
+      
+      assign(query, {
+        toString: () => sql,
+        then(resolve, reject){
+          try {
+            if(resolve)
+              resolve(builder.selects ? all() : run());
+          }
+          catch (err) {
+            if(reject)
+              reject(err);
+          }
+        }
+      } as Q);
+
+      if (builder.selects)
+        assign(query, {
+          get: async () => all(),
+          one: async (orFail?: boolean) => {
+            const res = parse(statement.get()) as T;
+
+            if (!res && orFail)
+              throw new Error("Query returned no results.");
+
+            return res;
+          }
+        });
+
+      return query;
+    }
   }
 
   prepare<T>(query: Query.Builder<T>){

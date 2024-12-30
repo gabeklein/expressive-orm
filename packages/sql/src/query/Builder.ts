@@ -88,8 +88,8 @@ export class Builder<T> {
     this.selects = columns;
   }
 
-  prepare(){
-    return this.connection.prepare<T>(this);
+  toRunner(){
+    return this.connection.toRunner(this);
   }
 
   /** Specify the limit of results returned. */

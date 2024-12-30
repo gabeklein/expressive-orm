@@ -112,43 +112,7 @@ function Query(from: Query.Function<void>): Query;
 
 function Query<T = number>(factory: Query.Function<T>): Query<T> | Query.Selects<T> | Function {
   const builder = new QB(factory);
-  const statement = builder.prepare();
-
-  function runner(...inputs: any[]) {
-    type Q = Query<any>;
-    const params = Array.from(builder.params || [], i => inputs[i]);
-    const query = create(Query.prototype) as Q; 
-    
-    assign(query, {
-      then(resolve, reject){
-        const pending = builder.selects
-          ? statement.all(params)
-          : statement.run(params);
-
-        return pending.then(resolve).catch(reject);
-      },
-      toString(){
-        return builder.toString();
-      }
-    } as Q);
-
-    if (builder.selects)
-      assign(query, {
-        async get(){
-          return statement.all(params);
-        },
-        async one(orFail?: boolean) {
-          const res = await statement.get(params);
-
-          if (!res && orFail)
-            throw new Error("Query returned no results.");
-
-          return res;
-        }
-      });
-
-    return query;
-  }
+  const runner = builder.toRunner();
 
   if(builder.params){
     Object.setPrototypeOf(runner, Query.Template.prototype);
