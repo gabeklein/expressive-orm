@@ -31,12 +31,12 @@ describe("arithmetic", () => {
   it("will properly nest", async () => {
     const results = Query((where) => {
       const { add, mul, neg } = math;
-      const item = where(Item);
+      const { number } = where(Item);
 
       return {
-        a: mul(item.number, add(item.number, 5)),
-        b: add(mul(item.number, 5), item.number),
-        c: neg(add(item.number, 100))
+        a: mul(number, add(number, 5)),
+        b: add(mul(number, 5), number),
+        c: neg(add(number, 100))
       }
     });
 
