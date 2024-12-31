@@ -69,33 +69,8 @@ export class Builder<T> {
     this.pending.forEach(fn => fn());
     this.pending.clear();
 
-    if(!result)
-      return;
-
-    if(result instanceof Field || result instanceof Computed || result instanceof Value){
-      this.selects = result;
-      return;
-    }
-
-    const columns = new Map<string, Selects>();
-      
-    function scan(obj: any, path?: string) {
-      getOwnPropertyNames(obj).forEach(key => {
-        const select = obj[key];
-        const use = path ? `${path}.${key}` : key;
-
-        if (select instanceof Field || select instanceof Computed || select instanceof Value)
-          columns.set(use, select);
-        else if (typeof select === 'object')
-          scan(select, use);
-        else
-          columns.set(use, new Value(select));
-      })
-    }
-
-    scan(result);
-
-    this.selects = columns;
+    if(result)
+      this.select(result);
   }
 
   toRunner(){
@@ -313,6 +288,33 @@ export class Builder<T> {
     return table.proxy as Query.Join<T>;
   }
 
+  select(result: unknown){
+    if(result instanceof Field || result instanceof Computed || result instanceof Value){
+      this.selects = result;
+      return;
+    }
+
+    const columns = new Map<string, Selects>();
+      
+    function scan(obj: any, path?: string) {
+      getOwnPropertyNames(obj).forEach(key => {
+        const select = obj[key];
+        const use = path ? `${path}.${key}` : key;
+
+        if (select instanceof Field || select instanceof Computed || select instanceof Value)
+          columns.set(use, select);
+        else if (typeof select === 'object')
+          scan(select, use);
+        else
+          columns.set(use, new Value(select));
+      })
+    }
+
+    scan(result);
+
+    this.selects = columns;
+  }
+
   parse(raw: Record<string, any>){
     const { selects } = this;
 
@@ -343,7 +345,7 @@ export class Builder<T> {
 
   toString() {
     const { deletes, limit, orderBy, tables, updates } = this;
-    const [main, ...joins] = tables.values();
+    const [ main, ...joins ] = tables.values();
 
     let query;
 
@@ -415,7 +417,7 @@ export class Builder<T> {
       return selects.toString();
 
     if (selects instanceof Computed)
-      return selects.toString() + ' AS value';
+      return `${selects} AS value`;
 
     if (selects)
       throw new Error('Invalid select.');
