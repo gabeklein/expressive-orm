@@ -1,16 +1,12 @@
 import { Connection } from '../connection/Connection';
 import { Field, Syntax } from '../type/Field';
 import { Type } from '../type/Type';
-import { create, defineProperty, freeze, getOwnPropertyNames } from '../utils';
+import { create, defineProperty, freeze, getOwnPropertyNames, values } from '../utils';
 import { Computed } from './math';
 import { Query } from './Query';
 
 class Value {
   constructor(public value: any){}
-
-  get(value: any){
-    return value;
-  }
 
   toString(){
     const { value } = this;
@@ -317,37 +313,32 @@ export class Builder<T> {
     return table.proxy as Query.Join<T>;
   }
 
-  parse(raw: unknown){
+  parse(raw: Record<string, any>){
     const { selects } = this;
 
-    function mapper(row: any){
-      if(!selects)
-        return raw;
+    if(selects instanceof Map){
+      const values = {} as any;
+      
+      selects.forEach((field, column) => {
+        const path = column.split('.');
+        const property = path.pop()!;
+        let target = values;
 
-      if(selects instanceof Map){
-        const values = {} as any;
-        
-        selects.forEach((field, column) => {
-          const path = column.split('.');
-          const property = path.pop()!;
-          let target = values;
+        for (const step of path)
+          target = target[step] || (target[step] = {});
 
-          for (const step of path)
-            target = target[step] || (target[step] = {});
+        const value = raw[column];
 
-          target[property] = field.get(row[column]);
-        });
+        target[property] = field instanceof Field
+          ? field.get(value) : value;
+      });
 
-        return values;
-      }
-
-      if(selects instanceof Field)
-        return selects.get(row[selects.column]);
-
-      return selects.get(row);
+      return values;
     }
+
+    const value = values(raw)[0];
     
-    return Array.isArray(raw) ? raw.map(mapper) : mapper(raw);
+    return selects instanceof Field ? selects.get(value) : raw;
   }
 
   toString() {
@@ -366,8 +357,12 @@ export class Builder<T> {
         ? `DELETE ${alias || name} FROM ${main}`
         : `DELETE FROM ${main}`;
     }
-    else
-      query = 'SELECT ' + this.toSelect() + (main ? ` FROM ${main}` : '');
+    else {
+      query = 'SELECT ' + this.toSelect();
+      
+      if(main)
+        query += ' FROM ' + main;
+    }
 
     for (const table of joins){
       const { as, on } = table.join!;

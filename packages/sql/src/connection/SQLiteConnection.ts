@@ -27,7 +27,7 @@ export class SQLiteConnection extends Connection {
 
     const sql = builder.toString();
     const parse = builder.parse.bind(builder);
-    const statement = this.engine.prepare(sql);
+    const statement = this.engine.prepare<any[], {}>(sql);
 
     return function runner(...args: any[]) { 
       args = Array.from(builder.params || [], i => args[i]);
@@ -54,12 +54,13 @@ export class SQLiteConnection extends Connection {
         assign(query, {
           get: async () => all(),
           one: async (orFail?: boolean) => {
-            const res = parse(statement.get()) as T;
+            const res = statement.get();
 
-            if (!res && orFail)
+            if(res)
+              return parse(res);
+
+            if (orFail)
               throw new Error("Query returned no results.");
-
-            return res;
           }
         });
 
