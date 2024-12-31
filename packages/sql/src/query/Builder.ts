@@ -5,6 +5,28 @@ import { create, defineProperty, freeze, getOwnPropertyNames } from '../utils';
 import { Computed } from './math';
 import { Query } from './Query';
 
+class Value {
+  constructor(public value: any){}
+
+  get(value: any){
+    return value;
+  }
+
+  toString(){
+    const { value } = this;
+
+    if(typeof value === 'string')
+      return `'${value.replace(/'/g, "\\'")}'`;
+
+    if(typeof value === 'function')
+      return value();
+
+    return value;
+  }
+}
+
+type Selects = Field | Value | Computed<unknown>;
+
 export class Builder<T> {
   connection!: Connection;
 
@@ -23,7 +45,7 @@ export class Builder<T> {
 
   deletes = new Set<Query.From<any>>();
   updates = new Map<Query.From<any>, Query.Update<any>>();
-  selects?: Map<string, Field | Computed<unknown>> | Field | Computed<unknown>;
+  selects?: Map<string, Selects> | Selects;
   limit?: number;
 
   constructor(factory: Query.Function<T> | Query.Factory<T, any[]>){
@@ -54,32 +76,24 @@ export class Builder<T> {
     if(!result)
       return;
 
-    if(result instanceof Field || result instanceof Computed){
+    if(result instanceof Field || result instanceof Computed || result instanceof Value){
       this.selects = result;
       return;
     }
 
-    const columns = new Map<string, Field | Computed<unknown>>();
+    const columns = new Map<string, Selects>();
       
     function scan(obj: any, path?: string) {
       getOwnPropertyNames(obj).forEach(key => {
         const select = obj[key];
         const use = path ? `${path}.${key}` : key;
 
-        if (select instanceof Field || select instanceof Computed)
+        if (select instanceof Field || select instanceof Computed || select instanceof Value)
           columns.set(use, select);
         else if (typeof select === 'object')
           scan(select, use);
-        else if(typeof select === 'function')
-          columns.set(use, new Computed(select()));
-        else {
-          // TODO: should force-parametrize this
-          const value = typeof select == "string"
-            ? "'" + select.replace(/'/g, "\\'") + "'"
-            : select;
-
-          columns.set(use, new Computed(value));
-        }
+        else
+          columns.set(use, new Value(select));
       })
     }
 
@@ -406,7 +420,7 @@ export class Builder<T> {
       return selects.toString();
 
     if (selects instanceof Computed)
-      return selects.toString() + ' AS ' + selects.column;
+      return selects.toString() + ' AS value';
 
     if (selects)
       throw new Error('Invalid select.');

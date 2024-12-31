@@ -24,17 +24,10 @@ export interface MathOps {
   pos(value: Numeric): Numeric;
 }
 
-function op(op: string, rank: number, unary: true): (value: Value) => Value;
-function op(op: string, rank: number, unary?: false): (left: Value, right: Value) => Value;
-function op(op: string, rank: number, arg2?: boolean){
-  return (l: any, r?: any) => {
-    const input = arg2 === true ? [op, l] : [l, op, r]
-    const computed = new Computed(...input);
-
-    computed.rank = rank || 0;
-
-    return computed;
-  }
+function op(operator: string, rank: number, unary?: boolean) {
+  return (left: Value, right?: Value) => {
+    return new Computed(operator, left, unary ? undefined : right, rank);
+  };
 }
 
 export const math: MathOps = {
@@ -42,7 +35,7 @@ export const math: MathOps = {
   sub: op('-', 4),
   mul: op('*', 5),
   div: op('/', 5),
-  mod: op('%,', 5),
+  mod: op('%', 5),
   neg: op('-', 7, true),
   pos: op('+', 7, true),
 }
@@ -56,28 +49,46 @@ export const bit: Bitwise = {
   xor: op('^', 1),
 }
 
-export class Computed<T> extends Array<T | Field<T> | Computed<T>> {
-  rank = 0;
+export class Computed<T> {
+  readonly left?: Query.Value | Field<T> | Computed<T>;
+  readonly right: Query.Value | Field<T> | Computed<T>;
 
-  constructor(...args: T[]){
-    super();
-    this.push(...args);
-  }
+  readonly operator: string;
+  readonly rank: number;
+  
+  constructor(
+    operator: string,
+    value: Value | Field<T> | Computed<T>,
+    right?: Value | Field<T> | Computed<T>,
+    rank: number = 0
+  ) {
+    this.operator = operator;
+    this.rank = rank;
 
-  get column(){
-    return "result";
+    if (right === undefined)
+      this.right = value;
+    else {
+      this.left = value;
+      this.right = right;
+    }
   }
 
   get(input: unknown){
     return input as string;
   }
-  
-  toString(): string {
-    return this.map(value => {
-      if(value instanceof Computed)
-        return value.rank > this.rank ? value : `(${value})`;
 
-      return String(value);
-    }).join(" ");
+  toString(): string {
+    let { left, operator, right } = this;
+
+    if(right.rank <= this.rank)
+      right = `(${right})`;
+
+    if (!left)
+      return `${operator}${right}`;
+    
+    if (left.rank < this.rank)
+      left = `(${left})`;
+
+    return `${left} ${operator} ${right}`;
   }
 }
