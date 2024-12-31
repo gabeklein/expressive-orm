@@ -2,7 +2,7 @@ import { Connection } from '../connection/Connection';
 import { Field, Syntax } from '../type/Field';
 import { Type } from '../type/Type';
 import { create, defineProperty, freeze, getOwnPropertyNames, values } from '../utils';
-import { Computed } from './math';
+import { Computed } from './Computed';
 import { Query } from './Query';
 
 class Value {

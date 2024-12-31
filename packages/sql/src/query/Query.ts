@@ -1,7 +1,7 @@
 import { Field, Type } from '..';
 import { Syntax } from '../type/Field';
 import { Builder as QB } from './Builder';
-import { Computed } from './math';
+import { Computed } from './Computed';
 
 declare namespace Query { 
   interface Table<T extends Type = any> {
@@ -114,7 +114,7 @@ function Query<T extends {}>(from: Query.Function<T>): Query.Selects<T>;
  */
 function Query(from: Query.Function<void>): Query;
 
-function Query<T = number>(factory: Query.Function<T>): Query<T> | Query.Selects<T> | Function {
+function Query<T = number>(factory: Query.Function<T>){
   const builder = new QB(factory);
   const runner = builder.toRunner();
 

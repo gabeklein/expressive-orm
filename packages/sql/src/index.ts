@@ -4,9 +4,9 @@ export { One } from './columns/One';
 export { Str } from './columns/Str';
 export { Time } from './columns/Time';
 
-export { Type } from './type/Type';
-export { Field, Nullable, Optional } from './type/Field';
 export { Connection } from './connection/Connection';
+export { Field, Nullable, Optional } from './type/Field';
+export { math, bit } from './query/Computed';
 export { Query } from './query/Query';
-export { math, bit } from './query/math';
 export { Table } from './type/Table';
+export { Type } from './type/Type';
