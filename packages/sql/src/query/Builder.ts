@@ -7,7 +7,7 @@ import { Query } from './Query';
 
 type Selects = Field | Value | Computed<unknown>;
 
-export class Builder<T> {
+class Builder<T> {
   connection!: Connection;
 
   /**
@@ -16,7 +16,7 @@ export class Builder<T> {
    * ensure that no parameters are duplicated or injected in the
    * wrong order.
    */
-  params?: Set<number>;
+  params?: Set<Parameter>;
 
   wheres = new Set<Query.Compare>();
   pending = new Set<() => void>();
@@ -33,14 +33,16 @@ export class Builder<T> {
 
     if(typeof result === 'function'){
       const index = this.params = new Set();
-      const params = Array.from(result as never, (_, i) => {
+      const params = Array.from(result as { length: number }, (_, i) => {
+        const p = new Parameter(i);
+        
         return () => {
-          if(index.has(i))
+          if(index.has(p))
             throw new Error(`Parameter ${i} is already defined.`);
           else
-            index.add(i);
+            index.add(p);
   
-          return "?";
+          return p;
         }
       })
 
@@ -299,6 +301,10 @@ export class Builder<T> {
     this.selects = columns;
   }
 
+  accept(args: unknown[]){
+    return Array.from(this.params || [], p => p.digest(args[p.index]));
+  }
+
   parse(raw: Record<string, any>){
     const { selects } = this;
 
@@ -354,16 +360,17 @@ export class Builder<T> {
     for (const table of joins)
       query += this.toJoin(table);
 
-    query += this.toUpdate();
+    if(updates.size)
+      query += ' SET ' + this.toUpdate();
 
     if (wheres.size)
       query += ' WHERE ' + this.toWhere(wheres.values());
   
     if (orderBy.size)
-      query += ` ORDER BY ` + Array.from(orderBy).map(x => x.join(' '));
+      query += ' ORDER BY ' + Array.from(orderBy).map(x => x.join(' '));
   
     if (limit)
-      query += ` LIMIT ` + limit;
+      query += ' LIMIT ' + limit;
   
     return query;
   }
@@ -433,7 +440,22 @@ export class Builder<T> {
         sets.push(`\`${field.column}\` = ${value}`);
       }
 
-    return sets.length ? ` SET ` + sets.join(', ') : "";
+    if(sets.length)
+      return sets.join(', ');
+
+    throw new Error('Update contains no values.');
+  }
+}
+
+class Parameter {
+  constructor(public index: number){}
+
+  digest(value: any){
+    return value;
+  }
+
+  toString(){
+    return '?';
   }
 }
 
@@ -452,3 +474,5 @@ class Value {
     return value;
   }
 }
+
+export { Builder, Parameter };

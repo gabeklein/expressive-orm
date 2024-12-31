@@ -210,7 +210,7 @@ Field.prototype = <Field> {
 class Syntax extends Array<any> {
   toString(){
     return this
-      .map(item => typeof item == "function" ? item() : String(item))
+      .map(item => typeof item == "function" ? item() : item)
       .join(" ");
   }
 }

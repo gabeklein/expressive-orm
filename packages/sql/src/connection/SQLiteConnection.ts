@@ -25,12 +25,12 @@ export class SQLiteConnection extends Connection {
   toRunner<T>(builder: Query.Builder<T>): () => Query<T> | Query.Selects<T> {
     type Q = Query<any>;
 
-    const sql = builder.toString();
+    const sql = String(builder);
     const parse = builder.parse.bind(builder);
     const statement = this.engine.prepare<any[], {}>(sql);
 
     return function runner(...args: any[]) { 
-      args = Array.from(builder.params || [], i => args[i]);
+      args = builder.accept(args);
 
       const query = create(Query.prototype) as Q;
       const all = () => statement.all(args).map(parse);
