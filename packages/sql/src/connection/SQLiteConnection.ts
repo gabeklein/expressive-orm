@@ -67,24 +67,6 @@ export class SQLiteConnection extends Connection {
     }
   }
 
-  prepare<T>(query: Query.Builder<T>){
-    const sql = query.toString();
-    const parse = query.parse.bind(query);
-    const stmt = this.engine.prepare(sql);
-    
-    return {
-      async all(params: any[]){
-        return stmt.all(params).map<T>(parse);
-      },
-      async get(params: any[]){
-        return parse(stmt.get(params)) as T;
-      },
-      async run(params: any[]){
-        return stmt.run(params).changes;
-      }
-    };
-  }
-
   async run(qs: string, params?: any[]): Promise<void> {
     this.engine.prepare(qs).run(params || []);
   }
