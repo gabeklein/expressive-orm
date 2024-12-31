@@ -73,10 +73,6 @@ export class Computed<T> {
     }
   }
 
-  get(input: unknown){
-    return input as string;
-  }
-
   toString(): string {
     let { left, operator, right } = this;
 
