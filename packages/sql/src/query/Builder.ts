@@ -5,22 +5,6 @@ import { create, defineProperty, freeze, getOwnPropertyNames, values } from '../
 import { Computed } from './Computed';
 import { Query } from './Query';
 
-class Value {
-  constructor(public value: any){}
-
-  toString(){
-    const { value } = this;
-
-    if(typeof value === 'string')
-      return `'${value.replace(/'/g, "\\'")}'`;
-
-    if(typeof value === 'function')
-      return value();
-
-    return value;
-  }
-}
-
 type Selects = Field | Value | Computed<unknown>;
 
 export class Builder<T> {
@@ -344,13 +328,14 @@ export class Builder<T> {
   }
 
   toString() {
-    const { deletes, limit, orderBy, tables, updates } = this;
+    const { deletes, limit, orderBy, tables, updates, wheres } = this;
     const [ main, ...joins ] = tables.values();
 
     let query;
 
-    if(updates.size)
+    if(updates.size){
       query = `UPDATE ${main}`;
+    }
     else if(deletes.size){
       const [ target ] = deletes;
       const { alias, name } = tables.get(target)!;
@@ -366,43 +351,21 @@ export class Builder<T> {
         query += ' FROM ' + main;
     }
 
-    for (const table of joins){
-      const { as, on } = table.join!;
-      const kind = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
-
-      query += ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
-    }
+    for (const table of joins)
+      query += this.toJoin(table);
 
     query += this.toUpdate();
-    query += this.toWhere();
+
+    if (wheres.size)
+      query += ' WHERE ' + this.toWhere(wheres.values());
   
     if (orderBy.size)
-      query += ' ORDER BY ' +
-        Array.from(orderBy).map(x => x.join(' ')).join(', ')
+      query += ` ORDER BY ` + Array.from(orderBy).map(x => x.join(' '));
   
     if (limit)
-      query += ` LIMIT ${limit}`;
+      query += ` LIMIT ` + limit;
   
     return query;
-  }
-
-  toWhere(){
-    const { wheres } = this;
-
-    if (!wheres.size)
-      return '';
-
-    function where(conditions: Query.Compare[], or?: boolean): string {
-      return conditions.map(cond => {
-        if(cond instanceof Syntax)
-          return cond;
-
-        if (Array.isArray(cond))
-          return `(${where(cond, !or)})`;
-      }).filter(Boolean).join(or ? ' OR ' : ' AND ');
-    }
-
-    return ' WHERE ' + where(Array.from(wheres.values()));
   }
 
   toSelect(){
@@ -423,6 +386,25 @@ export class Builder<T> {
       throw new Error('Invalid select.');
 
     return 'COUNT(*)';
+  }
+
+  toWhere(conditions: Iterable<Query.Compare>, or?: boolean): string {
+    const parts = [] as unknown[];
+
+    for(const cond of conditions)
+      if(cond instanceof Syntax)
+        parts.push(cond);
+      else if (Array.isArray(cond))
+        parts.push(`(${this.toWhere(cond, !or)})`);
+    
+    return parts.join(or ? ' OR ' : ' AND ');
+  }
+
+  toJoin(table: Query.Table){
+    const { as, on } = table.join!;
+    const kind = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
+
+    return ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
   }
 
   toUpdate(multiTableAllowed = false){
@@ -452,5 +434,21 @@ export class Builder<T> {
       }
 
     return sets.length ? ` SET ` + sets.join(', ') : "";
+  }
+}
+
+class Value {
+  constructor(public value: any){}
+
+  toString(){
+    const { value } = this;
+
+    if(typeof value === 'string')
+      return `'${value.replace(/'/g, "\\'")}'`;
+
+    if(typeof value === 'function')
+      return value();
+
+    return value;
   }
 }
