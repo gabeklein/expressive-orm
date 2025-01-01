@@ -62,9 +62,10 @@ class NoConnection extends Connection {
   }
 
   toRunner(builder: Query.Builder){
-    return (): Query<never> => ({
+    return (...args: any[]): Query<never> => ({
+      params: builder.accept(args),
       toString: () => builder.toString(),
-      then: (_, rej) => this.run().catch(rej)
+      then: (_, cb) => this.run().catch(cb)
     })
   }
 

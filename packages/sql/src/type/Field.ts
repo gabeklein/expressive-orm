@@ -1,4 +1,5 @@
 import { Query } from '..';
+import { Parameter } from '../query/Builder';
 import { capitalize, create, escape, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
 import { Type } from './Type';
 
@@ -169,13 +170,17 @@ Field.prototype = <Field> {
     }
 
     const using = (op: string) =>
-      (right: Query.Value, orEqual?: boolean): any => {
-        const r =
-          right instanceof Field ? right :
-          typeof right == "function" ? right() :
-          this.raw(right);
+      (right: unknown, orEqual?: boolean): any => {
+        if(typeof right == "function"){
+          right = right();
 
-        return expect(this, op + (orEqual ? '=' : ''), r);
+          if(right instanceof Parameter)
+            right.digest = this.set.bind(this);
+        }
+        else if(!(right instanceof Field))
+          right = this.raw(right);
+
+        return expect(this, op + (orEqual ? '=' : ''), right);
       };
 
     return {

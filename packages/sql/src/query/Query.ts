@@ -100,6 +100,12 @@ declare namespace Query {
 interface Query<T = number> extends PromiseLike<T> {
   /** Returns the SQL string prepared by this query. */
   toString(): string;
+
+  /**
+   * Processed inputs which will be sent with SQL for this query.
+   * Data has already been serialized and ordered to match `?` in template.
+   */
+  params: (string | number)[];
 }
 
 function Query<T extends {}, A extends unknown[]>(from: Query.Factory<T, A>): Query.TemplateSelects<T, A>;

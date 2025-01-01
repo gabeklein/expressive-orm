@@ -37,6 +37,7 @@ export class SQLiteConnection extends Connection {
       const run = () => statement.run(args).changes;
       
       assign(query, {
+        params: args,
         toString: () => sql,
         then(resolve, reject){
           try {
