@@ -189,7 +189,7 @@ Field.prototype = <Field> {
       over: using(">"),
       under: using("<"),
       in: (right: Query.Value[]) => {
-        const r = right.map(value => this.set(value));
+        const r = right.map(this.raw, this);
         return expect(this, "IN", `(${r})`);
       }
     };
