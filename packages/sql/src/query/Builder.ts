@@ -346,7 +346,7 @@ class Builder<T> {
       const [ target ] = deletes;
       const { alias, name } = tables.get(target)!;
 
-      query = joins.length || alias
+      query = tables.size > 1 || alias
         ? `DELETE ${alias || name} FROM ${main}`
         : `DELETE FROM ${main}`;
     }
@@ -399,10 +399,11 @@ class Builder<T> {
     const parts = [] as unknown[];
 
     for(const cond of conditions)
-      if(cond instanceof Syntax)
-        parts.push(cond);
-      else if (Array.isArray(cond))
-        parts.push(`(${this.toWhere(cond, !or)})`);
+      if(cond)
+        parts.push(
+          cond instanceof Syntax ?
+            cond : `(${this.toWhere(cond, !or)})`
+        );
     
     return parts.join(or ? ' OR ' : ' AND ');
   }
