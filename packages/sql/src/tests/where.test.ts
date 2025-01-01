@@ -60,6 +60,23 @@ it("will add operator clauses", () => {
   `);
 });
 
+it("will add IN clause", () => {
+  const results = Query(where => {
+    const item = where(Item);
+
+    where(item.number).in([1, 2, 3]);
+  });
+
+  expect(results).toMatchInlineSnapshot(`
+    SELECT
+      COUNT(*)
+    FROM
+      item
+    WHERE
+      item.number IN (1, 2, 3)
+  `);
+});
+
 describe("grouping", () => {
   it("will chain clauses", () => {
     class Test extends Type {

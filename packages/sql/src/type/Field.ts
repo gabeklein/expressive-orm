@@ -46,6 +46,7 @@ declare namespace Field {
     not(value: Query.Value<T>): Syntax;
     over(value: Query.Value<T>, orEqual?: boolean): Syntax;
     under(value: Query.Value<T>, orEqual?: boolean): Syntax;
+    in(value: Query.Value<T>[]): Syntax;
   }
 }
 
@@ -156,25 +157,31 @@ Field.prototype = <Field> {
     return value;
   },
   compare(acc?: Set<Query.Compare>){
-    const on = (op: string) =>
+    const expect = (left: Query.Value, op: string, right: Query.Value) => {
+      const e = new Syntax(left, op, right);
+      if(acc) acc.add(e);
+      return e;
+    }
+
+    const using = (op: string) =>
       (right: Query.Value, orEqual?: boolean): any => {
         const r =
           right instanceof Field ? right :
           typeof right == "function" ? right() :
           this.set(right);
 
-        const e = new Syntax(this, orEqual ? op + '=' : op, r);
-
-        if(acc) acc.add(e);
-
-        return e;
+        return expect(this, op + (orEqual ? '=' : ''), r);
       };
 
     return {
-      equal: on("="),
-      not: on("<>"),
-      over: on(">"),
-      under: on("<"),
+      equal: using("="),
+      not: using("<>"),
+      over: using(">"),
+      under: using("<"),
+      in: (right: Query.Value[]) => {
+        const r = right.map(value => this.set(value));
+        return expect(this, "IN", `(${r})`);
+      }
     };
   }
 }
@@ -182,7 +189,9 @@ Field.prototype = <Field> {
 class Syntax extends Array<any> {
   toString(){
     return this
-      .map(item => typeof item == "function" ? item() : item)
+      .map(item => {
+        return typeof item == "function" ? item() : item;
+      })
       .join(" ");
   }
 }
