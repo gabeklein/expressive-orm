@@ -1,5 +1,5 @@
 import { Query, Type } from '..';
-import { values } from '../utils';
+import { escape, values } from '../utils';
 
 declare namespace Connection {
   type Types =
@@ -39,9 +39,9 @@ abstract class Connection {
    * @deprecated eventually superseded by `Query` class.
    */
   insert(table: string, data: Record<string, any>[]){
-    const query = 
-      `INSERT INTO ${table} (${Object.keys(data[0]).join(", ")}) ` +
-      `VALUES ${data.map(row => `(${Object.values(row).join(", ")})`).join(", ")}`;
+    const keys = Object.keys(data[0]);
+    const values = data.map(row => `(${Object.values(row).map(escape)})`);
+    const query = `INSERT INTO ${table} (${keys}) VALUES ${values}`;
 
     return {
       then: (resolve: (res: any) => any, reject: (err: any) => any) => {

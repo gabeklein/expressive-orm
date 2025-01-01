@@ -424,6 +424,9 @@ class Builder<T> {
       for(let [col, value] of Object.entries(data)){
         const field = table[col] as Field; 
 
+        if(value === undefined)
+          continue;
+
         if(value === null){
           if(field.nullable)
             value = 'NULL';
@@ -432,10 +435,8 @@ class Builder<T> {
         }
         else if(value instanceof Field || value instanceof Computed)
           value = value.toString();
-        else if(value !== undefined)
-          value = field.set(value);
         else
-          continue;
+          value = field.raw(value);
 
         sets.push(`\`${field.column}\` = ${value}`);
       }

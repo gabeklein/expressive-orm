@@ -36,12 +36,10 @@ function Bool<T extends Bool.Options>(opts = {} as T){
       return value === YES;
     },
     set(value: boolean){
-      if(typeof value != "boolean")
-        throw "Value must be a boolean."
-
-      const apply = value ? YES : NO;
-
-      return typeof apply == "string" ? `'${apply}'` : apply;
+      if(typeof value == "boolean")
+        return value ? YES : NO;
+        
+      throw "Value must be a boolean."
     }
   });
 }

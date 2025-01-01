@@ -14,6 +14,27 @@ export function underscore(str: string){
   return str.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
 }
 
+function escape(value: any){
+  if(typeof value != "string")
+    return value;
+
+  value = value
+    .replace(/[\0\n\r\b\t\\'"\x1a]/g, s => (
+      s == "\0" ? "\\0" :
+      s == "\n" ? "\\n" :
+      s == "\r" ? "\\r" :
+      s == "\b" ? "\\b" :
+      s == "\t" ? "\\t" :
+      s == "\x1a" ? "\\Z" :
+      "\\" + s
+    ))
+    .replace(/[\x00-\x1f\x7f-\x9f]/g, ch => (
+      '\\x' + ch.charCodeAt(0).toString(16).padStart(2, '0')
+    ));
+
+  return `'${value}'`;
+}
+
 const {
   assign,
   create,
@@ -34,4 +55,5 @@ export {
   getOwnPropertyDescriptor,
   getOwnPropertyNames,
   values,
+  escape
 }

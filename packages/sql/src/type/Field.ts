@@ -1,5 +1,5 @@
 import { Query } from '..';
-import { capitalize, create, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
+import { capitalize, create, escape, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
 import { Type } from './Type';
 
 const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
@@ -95,6 +95,8 @@ interface Field<T = unknown> {
    */
   get(value: any): T;
 
+  raw(value: T): string;
+
   /**
    * This method is used to compare this field with another value in a query.
    * 
@@ -156,6 +158,9 @@ Field.prototype = <Field> {
   set(value: any){
     return value;
   },
+  raw(value: any){
+    return escape(this.set(value));
+  },
   compare(acc?: Set<Query.Compare>){
     const expect = (left: Query.Value, op: string, right: Query.Value) => {
       const e = new Syntax(left, op, right);
@@ -168,7 +173,7 @@ Field.prototype = <Field> {
         const r =
           right instanceof Field ? right :
           typeof right == "function" ? right() :
-          this.set(right);
+          this.raw(right);
 
         return expect(this, op + (orEqual ? '=' : ''), r);
       };
@@ -188,11 +193,7 @@ Field.prototype = <Field> {
 
 class Syntax extends Array<any> {
   toString(){
-    return this
-      .map(item => {
-        return typeof item == "function" ? item() : item;
-      })
-      .join(" ");
+    return this.join(" ");
   }
 }
 
