@@ -11,18 +11,12 @@ type Selects = Field | Value | Computed<unknown>;
 function where(limit: number): void;
 
 /**
-   * Accepts instructions for nesting in a parenthesis.
-   * When only one group of instructions is provided, the statement are separated by OR.
-   */
-function where(orWhere: Syntax[]): Syntax;
-
-/**
- * Accepts instructions for nesting in a parenthesis.
+ * Accepts other where() assertions for nesting in parenthesis.
  * 
- * When multiple groups of instructions are provided, the groups
- * are separated by OR and nested comparisons are separated by AND.
+ * Will alternate between AND-OR depending on depth, starting with OR.
+ * 
  */
-function where(...orWhere: Syntax[][]): Syntax;
+function where(...orWhere: Syntax[]): Syntax;
 
 /**
  * Create a reference to the primary table, returned
@@ -75,17 +69,12 @@ function where(this: Builder<unknown>, arg1: any, arg2?: any, arg3?: any): any {
       }
     }
 
-  if(Array.isArray(arg1)){
-    const local = [] as Query.Compare[];
-    const args = Array.from(arguments) as Syntax[][];
+  if(arg1 instanceof Syntax){
+    const local = new Syntax();
 
-    for(const group of args){
-      group.forEach(eq => this.wheres.delete(eq));
-
-      if(arguments.length > 1)
-        local.push(group);
-      else
-        local.push(...group);
+    for(const eq of arguments){
+      this.wheres.delete(eq)
+      local.push(eq); 
     }
 
     this.wheres.add(local);
@@ -112,7 +101,7 @@ class Builder<T> {
    */
   params?: Set<Parameter>;
 
-  wheres = new Set<Query.Compare>();
+  wheres = new Set<Syntax>();
   pending = new Set<() => void>();
   orderBy = new Map<Field, "asc" | "desc">();
   tables = new Map<{}, Query.Table>();
@@ -364,7 +353,7 @@ class Builder<T> {
       query += ' SET ' + this.toUpdate();
 
     if (wheres.size)
-      query += ' WHERE ' + this.toWhere(wheres.values());
+      query += ' WHERE ' + this.toWhere(wheres);
   
     if (orderBy.size)
       query += ' ORDER BY ' + Array.from(orderBy).map(x => x.join(' '));
@@ -395,17 +384,18 @@ class Builder<T> {
     return 'COUNT(*)';
   }
 
-  toWhere(conditions: Iterable<Query.Compare>, or?: boolean): string {
-    const parts = [] as unknown[];
+  toWhere(conditions: Iterable<Syntax>, or?: boolean): string {
+    return Array
+      .from(conditions)
+      .map((cond, i) => {
+        if (cond[0] instanceof Syntax){
+          const inner = this.toWhere(cond, !or);
+          return cond.length == 1 || or !== false && !i ? inner : `(${inner})`;
+        }
 
-    for(const cond of conditions)
-      if(cond)
-        parts.push(
-          cond instanceof Syntax ?
-            cond : `(${this.toWhere(cond, !or)})`
-        );
-    
-    return parts.join(or ? ' OR ' : ' AND ');
+        return cond.toString();
+      })
+      .join(or ? ' OR ' : ' AND ');
   }
 
   toJoin(table: Query.Table){

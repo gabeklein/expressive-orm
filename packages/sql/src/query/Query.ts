@@ -35,8 +35,6 @@ declare namespace Query {
 
   type Builder<T = any> = QB<T>;
   
-  type Compare = Syntax | Compare[] | undefined;
-
   type From<T extends Type = Type> = {
     [K in Type.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
   }

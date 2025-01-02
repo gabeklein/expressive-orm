@@ -103,7 +103,7 @@ interface Field<T = unknown> {
    * 
    * @param acc Set of comparisons to be added to if not part of a group.
    */
-  compare(acc?: Set<Query.Compare>): Field.Compare<T>;
+  compare(acc?: Set<Syntax>): Field.Compare<T>;
 }
 
 function Field<T extends Field>(options?: Field.Init<T>): T
@@ -162,7 +162,7 @@ Field.prototype = <Field> {
   raw(value: any){
     return escape(this.set(value));
   },
-  compare(acc?: Set<Query.Compare>){
+  compare(acc?: Set<Syntax>){
     const expect = (left: Query.Value, op: string, right: Query.Value) => {
       const e = new Syntax(left, op, right);
       if(acc) acc.add(e);

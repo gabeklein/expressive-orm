@@ -1,4 +1,4 @@
-import { Type, Num, Query, Str } from '..';
+import { Type, Num, Query, Str, Bool } from '..';
 import { TestConnection } from '../connection/TestConnection';
 
 class Item extends Type  {
@@ -117,10 +117,14 @@ describe("grouping", () => {
     const query = Query(where => {
       const foo = where(Foo);
 
-      where([
+      where(
         where(foo.name).equal("Gabe"),
         where(foo.color).equal("purple"),
-      ])
+        where(
+          where(foo.color).not("orange"),
+          where(foo.color).not("yellow"),
+        )
+      )
     });
 
     expect(query).toMatchInlineSnapshot(`
@@ -129,9 +133,11 @@ describe("grouping", () => {
       FROM
         foo
       WHERE
-        (
-          foo.name = 'Gabe'
-          OR foo.color = 'purple'
+        foo.name = 'Gabe'
+        OR foo.color = 'purple'
+        OR (
+          foo.color <> 'orange'
+          AND foo.color <> 'yellow'
         )
     `);
   })
@@ -147,16 +153,19 @@ describe("grouping", () => {
 
       where(foo.id).over(1);
 
-      where([ 
-        where(foo.name).equal("Gabe"),
-        where(foo.color).equal("red"),
-      ], [
-        where(foo.name).equal("Bob"),
-        where([
-          where(foo.color).equal("blue"),
-          where(foo.color).equal("green"),
-        ])
-      ])
+      where(
+        where(
+          where(foo.name).equal("Gabe"),
+          where(foo.color).equal("red"),
+        ),
+        where(
+          where(foo.name).equal("Bob"),
+          where(
+            where(foo.color).equal("blue"),
+            where(foo.color).equal("green")
+          )
+        )
+      )
     });
     
     expect(query).toMatchInlineSnapshot(`
@@ -167,10 +176,8 @@ describe("grouping", () => {
       WHERE
         foo.id > 1
         AND (
-          (
-            foo.name = 'Gabe'
-            AND foo.color = 'red'
-          )
+          foo.name = 'Gabe'
+          AND foo.color = 'red'
           OR (
             foo.name = 'Bob'
             AND (
@@ -181,6 +188,120 @@ describe("grouping", () => {
         )
     `);
   })
+});
+
+describe("complex grouping", () => {
+  class Item extends Type {
+    name = Str();
+    price = Num();
+    color = Str();
+    size = Str();
+    inStock = Bool();
+  }
+
+  it("will alternate between OR and AND groups", () => {
+    const query = Query(where => {
+      const item = where(Item);
+      
+      where(
+        where(
+          where(item.color).equal("red"),
+          where(
+            where(item.size).equal("small"),
+            where(item.size).equal("medium")
+          )
+        ),
+        where(
+          where(item.color).equal("blue"),
+          where(item.size).equal("large")
+        )
+      );
+    });
+
+    expect(query).toMatchInlineSnapshot(`
+      SELECT
+        COUNT(*)
+      FROM
+        item
+      WHERE
+        item.color = 'red'
+        AND (
+          item.size = 'small'
+          OR item.size = 'medium'
+        )
+        OR (
+          item.color = 'blue'
+          AND item.size = 'large'
+        )
+    `);
+  });
+
+  it("will combine standalone and grouped conditions", () => {
+    const query = Query(where => {
+      const item = where(Item);
+      
+      // Standalone condition at query level = AND
+      where(item.id).over(0);
+      
+      // Group of conditions = OR between siblings
+      where(
+        where(item.price).over(50),
+        where(
+          where(item.color).equal("red"),
+          where(item.size).equal("large")
+        ),
+        where(item.inStock).equal(true)
+      );
+    });
+
+    expect(query).toMatchInlineSnapshot(`
+      SELECT
+        COUNT(*)
+      FROM
+        item
+      WHERE
+        item.id > 0
+        AND (
+          item.price > 50
+          OR (
+            item.color = 'red'
+            AND item.size = 'large'
+          )
+          OR item.in_stock = 1
+        )
+    `);
+  });
+
+  it("will remove unnecessary parens", () => {
+    const query = Query(where => {
+      const item = where(Item);
+      
+      where(
+        where(
+          where(item.price).over(100)
+        ),
+        where(item.color).equal("red"),
+        where(
+          where(item.size).equal("large"),
+          where(item.inStock).equal(true)
+        )
+      );
+    });
+
+    expect(query).toMatchInlineSnapshot(`
+      SELECT
+        COUNT(*)
+      FROM
+        item
+      WHERE
+        item.price > 100
+        OR item.color = 'red'
+        OR (
+          item.size = 'large'
+          AND item.in_stock = 1
+        )
+    `);
+  });
 });
 
 describe("sort", () => {
