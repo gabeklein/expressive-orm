@@ -123,7 +123,8 @@ function Query<T = number>(factory: Query.Function<T>){
   type Q = Query<any>;
   
   const builder = new QB(factory);
-  const statement = builder.connection.prepare(String(builder));
+  const template = String(builder);
+  const statement = builder.connection.prepare(template);
   const runner = (...args: any[]) => { 
     args = builder.accept(args);
     
@@ -132,7 +133,7 @@ function Query<T = number>(factory: Query.Function<T>){
     
     assign(query, {
       params: args,
-      toString: () => String(builder),
+      toString: () => template,
       then(resolve, reject){
         const run = builder.selects ? get() : statement.run(args);
         return run.then(resolve).catch(reject);
@@ -157,7 +158,7 @@ function Query<T = number>(factory: Query.Function<T>){
   };
 
   if(builder.params){
-    runner.toString = () => String(builder);
+    runner.toString = () => template;
     return runner;
   }
 
