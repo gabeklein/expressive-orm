@@ -22,40 +22,44 @@ export class SQLiteConnection extends Connection {
     return this.generateSchema(this.using);
   }
 
-  toRunner<T>(builder: Query.Builder<T>): () => Query<T> | Query.Selects<T> {
+  prepare<T = any>(sql: string){
+    const stmt = this.engine.prepare(sql);
+
+    return {
+      all: async (p?: any[]) => stmt.all(p || []) as T[],
+      get: async (p?: any[]) => stmt.get(p || []) as T,
+      run: async (p?: any[]) => stmt.run(p || []).changes,
+    };
+  }
+
+  // will be deleted, instead creating a thin wrapper on database adapeter
+  toRunner<T>(builder: Query.Builder): () => Query<T> | Query.Selects<T> {
     type Q = Query<any>;
 
     const sql = String(builder);
     const parse = builder.parse.bind(builder);
-    const statement = this.engine.prepare<any[], {}>(sql);
+    const statement = this.prepare(sql);
 
     return function runner(...args: any[]) { 
       args = builder.accept(args);
 
       const query = create(Query.prototype) as Q;
-      const all = () => statement.all(args).map(parse);
-      const run = () => statement.run(args).changes;
+      const get = () => statement.all(args).then(x => x.map(parse));
       
       assign(query, {
         params: args,
         toString: () => sql,
         then(resolve, reject){
-          try {
-            if(resolve)
-              resolve(builder.selects ? all() : run());
-          }
-          catch (err) {
-            if(reject)
-              reject(err);
-          }
+          const run = builder.selects ? get() : statement.run(args);
+          return run.then(resolve).catch(reject);
         }
       } as Q);
 
       if (builder.selects)
         assign(query, {
-          get: async () => all(),
+          get,
           one: async (orFail?: boolean) => {
-            const res = statement.get();
+            const res = await statement.get();
 
             if(res)
               return parse(res);
