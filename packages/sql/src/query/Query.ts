@@ -1,6 +1,6 @@
 import { Field, Type } from '..';
 import { Syntax } from '../type/Field';
-import { Builder as QB } from './Builder';
+import { Builder as QB, where } from './Builder';
 import { Computed } from './Computed';
 
 declare namespace Query { 
@@ -45,7 +45,7 @@ declare namespace Query {
 
   type FieldOrValue<T> = T extends Value<infer U> ? U : T;
 
-  type Where = Builder["where"] & { name: string };
+  type Where = typeof where & { name: string };
 
   type Updates<T> = Field.Updates<T> | T;
 
