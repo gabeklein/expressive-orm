@@ -46,7 +46,7 @@ function where<T extends Type>(field: Query.From<T>): Query.Verbs<T>;
  */
 function where<T extends Field>(field: T): Query.Asserts<T>;
 
-function where(this: Builder<unknown>, arg1: any, arg2?: any, arg3?: any): any {
+function where(this: Builder, arg1: any, arg2?: any, arg3?: any): any {
   if(arg1 instanceof Field)
     return {
       ...arg1.compare(this.wheres),
@@ -90,7 +90,7 @@ function where(this: Builder<unknown>, arg1: any, arg2?: any, arg3?: any): any {
   throw new Error(`Argument ${arg1} is not a query argument.`);
 }
 
-class Builder<T> {
+class Builder {
   connection!: Connection;
 
   /**
@@ -111,7 +111,7 @@ class Builder<T> {
   selects?: Map<string, Selects> | Selects;
   limit?: number;
 
-  constructor(factory: Query.Function<T> | Query.Factory<T, any[]>){
+  constructor(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>){
     let result = factory(where.bind(this));
 
     if(typeof result === 'function'){
@@ -140,10 +140,6 @@ class Builder<T> {
 
     if(result)
       this.select(result);
-  }
-
-  toRunner(){
-    return this.connection.toRunner<T>(this);
   }
 
   use<T extends Type>(type: Type.EntityType<T>){

@@ -1,7 +1,6 @@
 import Database from 'better-sqlite3';
 
-import { Connection, Field, Query, Type } from '..';
-import { assign, create } from '../utils';
+import { Connection, Field, Type } from '..';
 
 type TableInfo = { 
   name: string; 
@@ -27,50 +26,9 @@ export class SQLiteConnection extends Connection {
 
     return {
       all: async (p?: any[]) => stmt.all(p || []) as T[],
-      get: async (p?: any[]) => stmt.get(p || []) as T,
+      get: async (p?: any[]) => stmt.get(p || []) as T || undefined,
       run: async (p?: any[]) => stmt.run(p || []).changes,
     };
-  }
-
-  // will be deleted, instead creating a thin wrapper on database adapeter
-  toRunner<T>(builder: Query.Builder): () => Query<T> | Query.Selects<T> {
-    type Q = Query<any>;
-
-    const sql = String(builder);
-    const parse = builder.parse.bind(builder);
-    const statement = this.prepare(sql);
-
-    return function runner(...args: any[]) { 
-      args = builder.accept(args);
-
-      const query = create(Query.prototype) as Q;
-      const get = () => statement.all(args).then(x => x.map(parse));
-      
-      assign(query, {
-        params: args,
-        toString: () => sql,
-        then(resolve, reject){
-          const run = builder.selects ? get() : statement.run(args);
-          return run.then(resolve).catch(reject);
-        }
-      } as Q);
-
-      if (builder.selects)
-        assign(query, {
-          get,
-          one: async (orFail?: boolean) => {
-            const res = await statement.get();
-
-            if(res)
-              return parse(res);
-
-            if (orFail)
-              throw new Error("Query returned no results.");
-          }
-        });
-
-      return query;
-    }
   }
 
   async run(qs: string, params?: any[]): Promise<void> {

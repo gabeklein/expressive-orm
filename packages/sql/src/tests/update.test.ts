@@ -58,25 +58,25 @@ it("will complain about nullable mismatch", () => {
     nonNullable = Str();
   }
   
-  let query = Query(where => {
+  const goodQuery = Query(where => {
     const baz = where(Baz);
     where(baz).update({ nullable: null });
   });
 
-  expect(query).toMatchInlineSnapshot(`
+  expect(goodQuery).toMatchInlineSnapshot(`
     UPDATE
       baz
     SET
       nullable = NULL
   `);
 
-  query = Query(where => {
+  const badQuery = () => Query(where => {
     const baz = where(Baz);
     // @ts-expect-error
     where(baz).update({ nonNullable: null });
   })
 
-  expect(() => String(query)).toThrowErrorMatchingInlineSnapshot(
+  expect(badQuery).toThrowErrorMatchingInlineSnapshot(
     `Column baz.non_nullable is not nullable.`
   );
 })

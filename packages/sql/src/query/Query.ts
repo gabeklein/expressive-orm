@@ -1,5 +1,6 @@
 import { Field, Type } from '..';
 import { Syntax } from '../type/Field';
+import { assign, create } from '../utils';
 import { Builder as QB, where } from './Builder';
 import { Computed } from './Computed';
 
@@ -33,7 +34,7 @@ declare namespace Query {
 
   type Join<T extends Type> = From<T>;
 
-  type Builder<T = any> = QB<T>;
+  type Builder = QB;
   
   type From<T extends Type = Type> = {
     [K in Type.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
@@ -119,11 +120,44 @@ function Query<T extends {}>(from: Query.Function<T>): Query.Selects<T>;
 function Query(from: Query.Function<void>): Query;
 
 function Query<T = number>(factory: Query.Function<T>){
+  type Q = Query<any>;
+  
   const builder = new QB(factory);
-  const runner = builder.toRunner();
+  const statement = builder.connection.prepare(String(builder));
+  const runner = (...args: any[]) => { 
+    args = builder.accept(args);
+    
+    const get = () => statement.all(args).then(x => x.map(builder.parse, builder));
+    const query = create(Query.prototype) as Q;
+    
+    assign(query, {
+      params: args,
+      toString: () => String(builder),
+      then(resolve, reject){
+        const run = builder.selects ? get() : statement.run(args);
+        return run.then(resolve).catch(reject);
+      }
+    } as Q);
+
+    if (builder.selects)
+      assign(query, {
+        get,
+        one: async (orFail?: boolean) => {
+          const res = await statement.get();
+
+          if(res)
+            return builder.parse(res);
+
+          if (orFail)
+            throw new Error("Query returned no results.");
+        }
+      });
+
+    return query;
+  };
 
   if(builder.params){
-    runner.toString = () => builder.toString();
+    runner.toString = () => String(builder);
     return runner;
   }
 

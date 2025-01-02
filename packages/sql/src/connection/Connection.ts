@@ -1,4 +1,4 @@
-import { Query, Type } from '..';
+import { Type } from '..';
 import { escape, values } from '../utils';
 
 declare namespace Connection {
@@ -31,7 +31,11 @@ abstract class Connection {
   abstract sync(fix?: boolean): Promise<void>;
   abstract valid(type: Type.EntityType): Promise<boolean>;
 
-  abstract toRunner<T>(builder: Query.Builder<T>): () => Query<T> | Query.Selects<T>;
+  abstract prepare<T = any>(query: string): {
+    all: (args?: any[]) => Promise<T[]>;
+    get: (args?: any[]) => Promise<T | undefined>;
+    run: (args?: any[]) => Promise<number>;
+  }
 
   abstract run(query: string, params?: any[]): Promise<void>;
 
@@ -61,12 +65,10 @@ class NoConnection extends Connection {
     throw new Error("No connection to generate schema.");
   }
 
-  toRunner(builder: Query.Builder){
-    return (...args: any[]): Query<never> => ({
-      params: builder.accept(args),
-      toString: () => builder.toString(),
-      then: (_, cb) => this.run().catch(cb)
-    })
+  prepare(){
+    const run = async () => { throw new Error("No connection to run query."); }
+
+    return { all: run, get: run, run }
   }
 
   async close(){
