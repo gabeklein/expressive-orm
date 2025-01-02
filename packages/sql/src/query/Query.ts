@@ -52,9 +52,9 @@ declare namespace Query {
     [K in Type.Fields<T>]?: Updates<T[K]>;
   }
 
-  type Function<R> = (where: Where) => R;
+  type Function<R> = (this: QB, where: Where) => R;
 
-  type Factory<R, A extends any[]> = (where: Where) => (...args: A) => R;
+  type Factory<R, A extends any[]> = (this: QB, where: Where) => (...args: A) => R;
   
   interface Template<A extends any[]> {
     (...args: A): Query;
@@ -164,5 +164,7 @@ function Query<T = number>(factory: Query.Function<T>){
 
   return runner();
 }
+
+Query.Builder = QB;
 
 export { Query };

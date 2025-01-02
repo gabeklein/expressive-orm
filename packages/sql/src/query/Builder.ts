@@ -29,7 +29,7 @@ class Builder {
   limit?: number;
 
   constructor(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>){
-    let result = factory(this.where.bind(this));
+    let result = factory.call(this, this.where.bind(this));
 
     if(typeof result === 'function'){
       const index = this.params = new Set();
