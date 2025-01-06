@@ -157,7 +157,7 @@ function Query<T = number>(factory: Query.Function<T>){
     return query;
   };
 
-  if(builder.params){
+  if(builder.arguments){
     runner.toString = () => template;
     return runner;
   }

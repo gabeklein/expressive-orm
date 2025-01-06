@@ -16,7 +16,8 @@ class Builder {
    * ensure that no parameters are duplicated or injected in the
    * wrong order.
    */
-  params?: Set<Parameter>;
+  params = new Set<Parameter>();
+  arguments?: number;
 
   wheres = new Set<Syntax>();
   pending = new Set<() => void>();
@@ -62,17 +63,6 @@ class Builder {
     return (factory as Function)(...params);
   }
 
-    /** Specify the limit of results returned. */
-  private where(limit: number): void;
-
-  /**
-   * Accepts other where() assertions for nesting in parenthesis.
-   * 
-   * Will alternate between AND-OR depending on depth, starting with OR.
-   * 
-   */
-  private where(...orWhere: Syntax[]): Syntax;
-
   /**
    * Create a reference to the primary table, returned
    * object can be used to query against that table.
@@ -100,6 +90,17 @@ class Builder {
    * returns operations for the given type.
    */
   private where<T extends Field>(field: T): Query.Asserts<T>;
+
+  /**
+   * Accepts other where() assertions for nesting in parenthesis.
+   * 
+   * Will alternate between AND-OR depending on depth, starting with OR.
+   * 
+   */
+  private where(...orWhere: Syntax[]): Syntax;
+
+  /** Specify the limit of results returned. */
+  private where(limit: number): void;
 
   private where(this: Builder, arg1: any, arg2?: any, arg3?: any): any {
     if(arg1 instanceof Field)
