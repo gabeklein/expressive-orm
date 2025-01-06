@@ -31,23 +31,8 @@ class Builder {
   constructor(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>){
     let result = factory.call(this, this.where.bind(this));
 
-    if(typeof result === 'function'){
-      const index = this.params = new Set();
-      const params = Array.from(result as { length: number }, (_, i) => {
-        const p = new Parameter(i);
-        
-        return () => {
-          if(index.has(p))
-            throw new Error(`Parameter ${i} is already defined.`);
-          else
-            index.add(p);
-  
-          return p;
-        }
-      })
-
-      result = (result as Function)(...params); 
-    }
+    if(typeof result === 'function')
+      result = this.defer(result);
 
     if(!this.connection)
       this.connection = Connection.None;
@@ -57,6 +42,24 @@ class Builder {
 
     if(result)
       this.select(result);
+  }
+
+  private defer(factory: Query.Function<unknown>){
+    this.arguments = factory.length;
+    const params = Array.from(factory as { length: number }, (_, i) => {
+      const p = new Parameter(i);
+
+      return () => {
+        if(this.params.has(p))
+          throw new Error(`Parameter ${i} is already defined.`);
+        else
+          this.params.add(p);
+
+        return p;
+      }
+    })
+
+    return (factory as Function)(...params);
   }
 
     /** Specify the limit of results returned. */
@@ -100,11 +103,7 @@ class Builder {
 
   private where(this: Builder, arg1: any, arg2?: any, arg3?: any): any {
     if(arg1 instanceof Field)
-      return {
-        ...arg1.compare(this.wheres),
-        asc: () => { this.orderBy.set(arg1, "asc") },
-        desc: () => { this.orderBy.set(arg1, "desc") }
-      }
+      return this.compare(arg1);
 
     if(Type.is(arg1))
       return arg2
@@ -112,27 +111,10 @@ class Builder {
         : this.use(arg1).proxy;
 
     if(this.tables.has(arg1))
-      return <Query.Verbs<Type>> {
-        delete: () => {
-          this.deletes.add(arg1);
-        },
-        update: (data: Query.Update<any>) => {
-          this.updates.set(arg1, data);
-        }
-      }
+      return this.apply(arg1);
 
-    if(arg1 instanceof Syntax){
-      const local = new Syntax();
-
-      for(const eq of arguments){
-        this.wheres.delete(eq)
-        local.push(eq); 
-      }
-
-      this.wheres.add(local);
-
-      return local;
-    }
+    if(arg1 instanceof Syntax)
+      return this.andOr(...arguments);
 
     if(typeof arg1 == "number"){
       this.limit = arg1;
@@ -140,6 +122,38 @@ class Builder {
     }
 
     throw new Error(`Argument ${arg1} is not a query argument.`);
+  }
+
+  apply(table: Query.From){
+    return <Query.Verbs<Type>> {
+      delete: () => {
+        this.deletes.add(table);
+      },
+      update: (data: Query.Update<any>) => {
+        this.updates.set(table, data);
+      }
+    }
+  }
+
+  compare<T extends Field>(field: T){
+    return {
+      ...field.compare(this.wheres),
+      asc: () => { this.orderBy.set(field, "asc") },
+      desc: () => { this.orderBy.set(field, "desc") }
+    }
+  }
+
+  andOr(...args: Syntax[]){
+    const local = new Syntax();
+
+    for(const eq of args){
+      this.wheres.delete(eq)
+      local.push(eq); 
+    }
+
+    this.wheres.add(local);
+
+    return local;
   }
 
   use<T extends Type>(type: Type.EntityType<T>){
