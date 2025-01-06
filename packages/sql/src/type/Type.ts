@@ -125,7 +125,7 @@ abstract class Type {
         return query(self, where);
 
       if(typeof query == "number")
-        where(self.id).equal(query);
+        where(self.id).is(query);
       else
         where(self.id).desc();
       

@@ -17,7 +17,7 @@ new TestConnection([Foo], async () => {
 it("will create a template", async () => {
   const query = Query(where => (color: string) => {
     const foo = where(Foo);
-    where(foo.color).equal(color);
+    where(foo.color).is(color);
     return foo.first;
   });
 
@@ -42,8 +42,8 @@ it("will preserve params order", async () => {
 
     // Should sorts parameters by order of
     // usage despite the order of arguments.
-    where(foo.first).equal(firstname);
-    where(foo.color).equal(color);
+    where(foo.first).is(firstname);
+    where(foo.color).is(color);
     
     return foo.last;
   });
@@ -69,7 +69,7 @@ it("will preprocess params", async () => {
 
   const template = Query(where => (created: Date) => {
     const thing = where(Thing);
-    where(thing.created).equal(created);
+    where(thing.created).is(created);
   });
 
   const query = template(new Date("2020-01-01"));

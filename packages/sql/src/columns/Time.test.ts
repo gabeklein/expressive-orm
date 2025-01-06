@@ -16,7 +16,7 @@ it("will insert and retrieve a Date", async () => {
   await Foo.insert({ date: now })
 
   const date = await Foo.one((foo, where) => {
-    where(foo.id).equal(1);
+    where(foo.id).is(1);
 
     return foo.date;
   });

@@ -10,7 +10,7 @@ it("will alias types with a schema", () => {
   const query = Query(where => {
     const foo = where(Foo);
 
-    where(foo.color).equal("red");
+    where(foo.color).is("red");
   })
 
   expect(query).toMatchInlineSnapshot(`

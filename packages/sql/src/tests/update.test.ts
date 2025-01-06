@@ -14,7 +14,7 @@ it("will generate query", () => {
   const query = Query(where => {
     const foo = where(Foo);
 
-    where(foo.color).equal("red");
+    where(foo.color).is("red");
     where(foo).update({
       value: "new!",
       color: "blue"
@@ -37,7 +37,7 @@ it("will update with joins", () => {
     const foo = where(Foo);
     const bar = where(Bar, { color: foo.color });
 
-    where(foo.color).equal("red");
+    where(foo.color).is("red");
     where(foo).update({ value: bar.value });
   });
 

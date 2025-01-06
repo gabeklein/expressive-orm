@@ -37,7 +37,7 @@ it("will add operator clauses", () => {
   const results = Query(where => {
     const item = where(Item);
 
-    where(item.number).equal(5);
+    where(item.number).is(5);
     where(item.number).not(0);
     where(item.number).over(4);
     where(item.number).over(5, true);
@@ -89,7 +89,7 @@ describe("grouping", () => {
     const query = Query(where => {
       const test = where(Test);
   
-      where(test.a).equal(1);
+      where(test.a).is(1);
       where(test.b).not(2);
       where(test.c).over(3);
       where(test.d).under(4);
@@ -118,8 +118,8 @@ describe("grouping", () => {
       const foo = where(Foo);
 
       where(
-        where(foo.name).equal("Gabe"),
-        where(foo.color).equal("purple"),
+        where(foo.name).is("Gabe"),
+        where(foo.color).is("purple"),
         where(
           where(foo.color).not("orange"),
           where(foo.color).not("yellow"),
@@ -155,14 +155,14 @@ describe("grouping", () => {
 
       where(
         where(
-          where(foo.name).equal("Gabe"),
-          where(foo.color).equal("red"),
+          where(foo.name).is("Gabe"),
+          where(foo.color).is("red"),
         ),
         where(
-          where(foo.name).equal("Bob"),
+          where(foo.name).is("Bob"),
           where(
-            where(foo.color).equal("blue"),
-            where(foo.color).equal("green")
+            where(foo.color).is("blue"),
+            where(foo.color).is("green")
           )
         )
       )
@@ -205,15 +205,15 @@ describe("complex grouping", () => {
       
       where(
         where(
-          where(item.color).equal("red"),
+          where(item.color).is("red"),
           where(
-            where(item.size).equal("small"),
-            where(item.size).equal("medium")
+            where(item.size).is("small"),
+            where(item.size).is("medium")
           )
         ),
         where(
-          where(item.color).equal("blue"),
-          where(item.size).equal("large")
+          where(item.color).is("blue"),
+          where(item.size).is("large")
         )
       );
     });
@@ -247,10 +247,10 @@ describe("complex grouping", () => {
       where(
         where(item.price).over(50),
         where(
-          where(item.color).equal("red"),
-          where(item.size).equal("large")
+          where(item.color).is("red"),
+          where(item.size).is("large")
         ),
-        where(item.inStock).equal(true)
+        where(item.inStock).is(true)
       );
     });
 
@@ -280,10 +280,10 @@ describe("complex grouping", () => {
         where(
           where(item.price).over(100)
         ),
-        where(item.color).equal("red"),
+        where(item.color).is("red"),
         where(
-          where(item.size).equal("large"),
-          where(item.inStock).equal(true)
+          where(item.size).is("large"),
+          where(item.inStock).is(true)
         )
       );
     });

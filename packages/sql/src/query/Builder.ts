@@ -245,7 +245,7 @@ class Builder {
           const right = (joinOn as any)[key];
 
           if (left instanceof Field)
-            joinsOn.add(left.compare().equal(right));
+            joinsOn.add(left.compare().is(right));
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }

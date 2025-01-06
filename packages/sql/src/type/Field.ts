@@ -43,7 +43,7 @@ declare namespace Field {
   type Output = Record<string, string | number>;
 
   type Compare<T> = {
-    equal(value: Query.Value<T>): Syntax;
+    is(value: Query.Value<T>): Syntax;
     not(value: Query.Value<T>): Syntax;
     over(value: Query.Value<T>, orEqual?: boolean): Syntax;
     under(value: Query.Value<T>, orEqual?: boolean): Syntax;
@@ -185,7 +185,7 @@ Field.prototype = <Field> {
       };
 
     return {
-      equal: using("="),
+      is: using("="),
       not: using("<>"),
       over: using(">"),
       under: using("<"),

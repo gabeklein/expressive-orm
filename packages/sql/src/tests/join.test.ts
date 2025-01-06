@@ -24,7 +24,7 @@ it("will join using object", async () => {
 
     where(foo.name).not("Danny");
     where(bar.rating).over(50);
-    where(baz.color).equal("blue");
+    where(baz.color).is("blue");
   });
 
   type Returns = Query<number>;
@@ -48,7 +48,7 @@ it("will join using function", async () => {
     const foo = where(Foo);
     const bar = where(Bar, on => {
       on(bar.name).not(foo.name);
-      on(bar.color).equal(foo.color);
+      on(bar.color).is(foo.color);
     });
 
     where(foo.name).not("Danny");
@@ -147,7 +147,7 @@ it("will assert a joined property's value", () => {
     const foo = where(Foo);
     const bar = where(Bar, { color: foo.color });
 
-    where(bar.rating).equal(42);
+    where(bar.rating).is(42);
   });
   
   expect(query).toMatchInlineSnapshot(`
