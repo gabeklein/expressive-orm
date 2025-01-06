@@ -1,6 +1,6 @@
 import { Field, Type } from '..';
 import { assign, create } from '../utils';
-import { Builder as QB } from './Builder';
+import { Group, Builder as QB } from './Builder';
 import { Computed } from './Computed';
 
 declare namespace Query { 
@@ -12,7 +12,7 @@ declare namespace Query {
     alias?: string;
     join?: {
       as: Query.Join.Mode;
-      on: Set<string>;
+      on: Group
     }
   }
 

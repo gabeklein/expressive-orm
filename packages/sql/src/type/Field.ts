@@ -1,5 +1,5 @@
 import { Query } from '..';
-import { Parameter } from '../query/Builder';
+import { Group, Parameter } from '../query/Builder';
 import { capitalize, create, escape, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
 import { Type } from './Type';
 
@@ -103,7 +103,7 @@ interface Field<T = unknown> {
    * 
    * @param acc Set of comparisons to be added to if not part of a group.
    */
-  compare(acc?: { add(where: string): void }): Field.Compare<T>;
+  compare(acc?: Group): Field.Compare<T>;
 }
 
 function Field<T extends Field>(options?: Field.Init<T>): T

@@ -19,7 +19,7 @@ class Builder {
   params = new Set<Parameter>();
   arguments?: number;
 
-  wheres = new Set<string | Group>();
+  filters = new Group();
   pending = new Set<() => void>();
   orderBy = new Map<Field, "asc" | "desc">();
   tables = new Map<{}, Query.Table>();
@@ -135,7 +135,7 @@ class Builder {
 
   field<T extends Field>(field: T){
     return {
-      ...field.compare(this.wheres),
+      ...field.compare(this.filters),
       asc: () => { this.orderBy.set(field, "asc") },
       desc: () => { this.orderBy.set(field, "desc") }
     }
@@ -144,12 +144,12 @@ class Builder {
   andOr(...args: (string | Group)[]){
     const local = new Group();
 
-    for(const eq of args){
-      this.wheres.delete(eq)
-      local.push(eq); 
-    }
+    this.filters.add(local);
 
-    this.wheres.add(local);
+    for(const eq of args){
+      this.filters.delete(eq)
+      local.add(eq); 
+    }
 
     return local;
   }
@@ -233,7 +233,7 @@ class Builder {
         throw new Error(`Invalid join type ${joinAs}.`);
     }
     
-    const joinsOn = new Set<string>();
+    const joinsOn = new Group();
 
     switch(typeof joinOn){
       case "object":
@@ -331,7 +331,7 @@ class Builder {
   }
 
   toString() {
-    const { deletes, limit, orderBy, tables, updates, wheres } = this;
+    const { deletes, limit, orderBy, tables, updates, filters } = this;
     const [ main, ...joins ] = tables.values();
 
     let query;
@@ -360,8 +360,8 @@ class Builder {
     if(updates.size)
       query += ' SET ' + this.toUpdate();
 
-    if (wheres.size)
-      query += ' WHERE ' + this.toWhere(wheres);
+    if (filters.size)
+      query += ` WHERE ${filters}`;
   
     if (orderBy.size)
       query += ' ORDER BY ' + Array.from(orderBy).map(x => x.join(' '));
@@ -392,25 +392,11 @@ class Builder {
     return 'COUNT(*)';
   }
 
-  toWhere(conditions: Iterable<string | Group>, or?: boolean): string {
-    return Array
-      .from(conditions)
-      .map((cond, i) => {
-        if (cond instanceof Group){
-          const inner = this.toWhere(cond, !or);
-          return cond.length == 1 || or !== false && !i ? inner : `(${inner})`;
-        }
-
-        return cond;
-      })
-      .join(or ? ' OR ' : ' AND ');
-  }
-
   toJoin(table: Query.Table){
     const { as, on } = table.join!;
     const kind = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
 
-    return ` ${kind} ${table} ON ${Array.from(on).join(' AND ')}`;
+    return ` ${kind} ${table} ON ${on}`;
   }
 
   toUpdate(multiTableAllowed = false){
@@ -475,6 +461,35 @@ class Value {
   }
 }
 
-class Group extends Array<string | Group> {}
+class Group {
+  children = new Set<string | Group>();
 
-export { Builder, Parameter };
+  add(child: string | Group){
+    this.children.add(child);
+  }
+
+  delete(child: string | Group){
+    this.children.delete(child);
+  }
+
+  get size(){
+    return this.children.size;
+  }
+
+  toString(or?: boolean): string {
+    return Array
+      .from(this.children)
+      .map((cond, i) => {
+        if(typeof cond == "string")
+          return cond;
+
+        const inner = cond.toString(!or);
+        const first = or !== false && i === 0;
+
+        return cond.size == 1 || first ? inner : `(${inner})`;
+      })
+      .join(or ? ' OR ' : ' AND ')
+  }
+}
+
+export { Builder, Parameter, Group };
