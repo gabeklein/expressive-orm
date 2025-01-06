@@ -19,7 +19,7 @@ class Builder {
   params = new Set<Parameter>();
   arguments?: number;
 
-  wheres = new Set<Syntax>();
+  wheres = new Set<Syntax | Group>();
   pending = new Set<() => void>();
   orderBy = new Map<Field, "asc" | "desc">();
   tables = new Map<{}, Query.Table>();
@@ -33,7 +33,7 @@ class Builder {
     let result = factory.call(this, this.where.bind(this));
 
     if(typeof result === 'function')
-      result = this.defer(result);
+      result = this.defer(result as Query.Function<unknown>);
 
     if(!this.connection)
       this.connection = Connection.None;
@@ -114,7 +114,7 @@ class Builder {
     if(this.tables.has(arg1))
       return this.apply(arg1);
 
-    if(arg1 instanceof Syntax)
+    if(arg1 instanceof Group || arg1 instanceof Syntax)
       return this.andOr(...arguments);
 
     if(typeof arg1 == "number"){
@@ -145,7 +145,7 @@ class Builder {
   }
 
   andOr(...args: Syntax[]){
-    const local = new Syntax();
+    const local = new Group();
 
     for(const eq of args){
       this.wheres.delete(eq)
@@ -399,12 +399,12 @@ class Builder {
     return Array
       .from(conditions)
       .map((cond, i) => {
-        if (cond[0] instanceof Syntax){
+        if (cond instanceof Group){
           const inner = this.toWhere(cond, !or);
           return cond.length == 1 || or !== false && !i ? inner : `(${inner})`;
         }
 
-        return cond.toString();
+        return cond;
       })
       .join(or ? ' OR ' : ' AND ');
   }
@@ -477,5 +477,7 @@ class Value {
     return value;
   }
 }
+
+class Group extends Array<Syntax | Group> {}
 
 export { Builder, Parameter };

@@ -164,7 +164,8 @@ Field.prototype = <Field> {
   },
   compare(acc?: Set<Syntax>){
     const expect = (left: Query.Value, op: string, right: Query.Value) => {
-      const e = new Syntax(left, op, right);
+      const e = new Syntax();
+      e.toString = () => `${left} ${op} ${right}`;
       if(acc) acc.add(e);
       return e;
     }
@@ -196,11 +197,7 @@ Field.prototype = <Field> {
   }
 }
 
-class Syntax extends Array<any> {
-  toString(){
-    return this.join(" ");
-  }
-}
+class Syntax {}
 
 function fields(from: Type.EntityType){
   let fields = REGISTER.get(from);
