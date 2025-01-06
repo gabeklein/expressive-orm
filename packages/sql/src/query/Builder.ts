@@ -331,45 +331,49 @@ class Builder {
   }
 
   toString() {
+    const query = [] as unknown[];
+    const add = query.push.bind(query);
+
     const { deletes, limit, orderBy, tables, updates, filters } = this;
     const [ main, ...joins ] = tables.values();
 
-    let query;
-
     if(updates.size){
-      query = `UPDATE ${main}`;
+      add("UPDATE", main);
     }
     else if(deletes.size){
       const [ target ] = deletes;
       const { alias, name } = tables.get(target)!;
 
-      query = tables.size > 1 || alias
-        ? `DELETE ${alias || name} FROM ${main}`
-        : `DELETE FROM ${main}`;
+      add("DELETE");
+
+      if(tables.size > 1 || alias)
+        add(alias || name);
+
+      add('FROM', name);
     }
     else {
-      query = 'SELECT ' + this.toSelect();
+      add('SELECT', this.toSelect());
       
       if(main)
-        query += ' FROM ' + main;
+        add('FROM', main);
     }
 
-    for (const table of joins)
-      query += this.toJoin(table);
+    for(const table of joins)
+      add(this.toJoin(table));
 
     if(updates.size)
-      query += ' SET ' + this.toUpdate();
+      add('SET', this.toUpdate());
 
-    if (filters.size)
-      query += ` WHERE ${filters}`;
+    if(filters.size)
+      add('WHERE', filters);
   
-    if (orderBy.size)
-      query += ' ORDER BY ' + Array.from(orderBy).map(x => x.join(' '));
+    if(orderBy.size)
+      add('ORDER BY', Array.from(orderBy).map(x => x.join(' ')));
   
-    if (limit)
-      query += ' LIMIT ' + limit;
+    if(limit)
+      add('LIMIT', limit);
   
-    return query;
+    return query.join(' ');
   }
 
   toSelect(){
