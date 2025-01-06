@@ -1,5 +1,5 @@
 import { Connection } from '../connection/Connection';
-import { Field, Syntax } from '../type/Field';
+import { Field } from '../type/Field';
 import { Type } from '../type/Type';
 import { create, defineProperty, freeze, getOwnPropertyNames, values } from '../utils';
 import { Computed } from './Computed';
@@ -19,7 +19,7 @@ class Builder {
   params = new Set<Parameter>();
   arguments?: number;
 
-  wheres = new Set<Syntax | Group>();
+  wheres = new Set<string | Group>();
   pending = new Set<() => void>();
   orderBy = new Map<Field, "asc" | "desc">();
   tables = new Map<{}, Query.Table>();
@@ -97,7 +97,7 @@ class Builder {
    * Will alternate between AND-OR depending on depth, starting with OR.
    * 
    */
-  private where(...orWhere: Syntax[]): Syntax;
+  private where(...orWhere: (string | Group)[]): Group;
 
   /** Specify the limit of results returned. */
   private where(limit: number): void;
@@ -114,7 +114,7 @@ class Builder {
     if(this.tables.has(arg1))
       return this.apply(arg1);
 
-    if(arg1 instanceof Group || arg1 instanceof Syntax)
+    if(arg1 instanceof Group || typeof arg1 == "string")
       return this.andOr(...arguments);
 
     if(typeof arg1 == "number"){
@@ -144,7 +144,7 @@ class Builder {
     }
   }
 
-  andOr(...args: Syntax[]){
+  andOr(...args: (string | Group)[]){
     const local = new Group();
 
     for(const eq of args){
@@ -236,7 +236,7 @@ class Builder {
         throw new Error(`Invalid join type ${joinAs}.`);
     }
     
-    const joinsOn = new Set<Syntax>();
+    const joinsOn = new Set<string>();
 
     switch(typeof joinOn){
       case "object":
@@ -395,7 +395,7 @@ class Builder {
     return 'COUNT(*)';
   }
 
-  toWhere(conditions: Iterable<Syntax>, or?: boolean): string {
+  toWhere(conditions: Iterable<string | Group>, or?: boolean): string {
     return Array
       .from(conditions)
       .map((cond, i) => {
@@ -478,6 +478,6 @@ class Value {
   }
 }
 
-class Group extends Array<Syntax | Group> {}
+class Group extends Array<string | Group> {}
 
 export { Builder, Parameter };

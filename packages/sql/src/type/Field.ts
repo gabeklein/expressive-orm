@@ -43,11 +43,11 @@ declare namespace Field {
   type Output = Record<string, string | number>;
 
   type Compare<T> = {
-    is(value: Query.Value<T>): Syntax;
-    not(value: Query.Value<T>): Syntax;
-    over(value: Query.Value<T>, orEqual?: boolean): Syntax;
-    under(value: Query.Value<T>, orEqual?: boolean): Syntax;
-    in(value: Query.Value<T>[]): Syntax;
+    is(value: Query.Value<T>): string;
+    not(value: Query.Value<T>): string;
+    over(value: Query.Value<T>, orEqual?: boolean): string;
+    under(value: Query.Value<T>, orEqual?: boolean): string;
+    in(value: Query.Value<T>[]): string;
   }
 }
 
@@ -103,7 +103,7 @@ interface Field<T = unknown> {
    * 
    * @param acc Set of comparisons to be added to if not part of a group.
    */
-  compare(acc?: Set<Syntax>): Field.Compare<T>;
+  compare(acc?: { add(where: string): void }): Field.Compare<T>;
 }
 
 function Field<T extends Field>(options?: Field.Init<T>): T
@@ -162,42 +162,33 @@ Field.prototype = <Field> {
   raw(value: any){
     return escape(this.set(value));
   },
-  compare(acc?: Set<Syntax>){
-    const expect = (left: Query.Value, op: string, right: Query.Value) => {
-      const e = new Syntax();
-      e.toString = () => `${left} ${op} ${right}`;
-      if(acc) acc.add(e);
-      return e;
-    }
-
+  compare(acc?: Set<string>){
     const using = (op: string) =>
-      (right: unknown, orEqual?: boolean): any => {
-        if(typeof right == "function"){
+      (right: unknown, orEqual?: boolean) => {
+        if(typeof right == "function")
           right = right();
-
-          if(right instanceof Parameter)
-            right.digest = this.set.bind(this);
-        }
+  
+        if(right instanceof Parameter)
+          right.digest = this.set.bind(this);
+        else if(Array.isArray(right))
+          right = `(${right.map(this.raw, this)})`;
         else if(!(right instanceof Field))
           right = this.raw(right);
-
-        return expect(this, op + (orEqual ? '=' : ''), right);
-      };
+  
+        const e = `${this} ${op + (orEqual ? '=' : '')} ${right}`;
+        if(acc) acc.add(e);
+        return e;
+      }
 
     return {
-      is: using("="),
-      not: using("<>"),
-      over: using(">"),
-      under: using("<"),
-      in: (right: Query.Value[]) => {
-        const r = right.map(this.raw, this);
-        return expect(this, "IN", `(${r})`);
-      }
+      get is(){ return using("=") },
+      get not(){ return using("<>") },
+      get over(){ return using(">") },
+      get under(){ return using("<") },
+      get in(){ return using("IN") }
     };
   }
 }
-
-class Syntax {}
 
 function fields(from: Type.EntityType){
   let fields = REGISTER.get(from);
@@ -231,6 +222,5 @@ export {
   fields,
   Field,
   Nullable,
-  Optional,
-  Syntax,
+  Optional
 };

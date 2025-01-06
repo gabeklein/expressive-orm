@@ -1,5 +1,4 @@
 import { Field, Type } from '..';
-import { Syntax } from '../type/Field';
 import { assign, create } from '../utils';
 import { Builder as QB } from './Builder';
 import { Computed } from './Computed';
@@ -13,7 +12,7 @@ declare namespace Query {
     alias?: string;
     join?: {
       as: Query.Join.Mode;
-      on: Set<Syntax>;
+      on: Set<string>;
     }
   }
 
