@@ -32,8 +32,23 @@ class Builder {
   constructor(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>){
     let result = factory.call(this, this.where.bind(this));
 
-    if(typeof result === 'function')
-      result = this.defer(result as Query.Function<unknown>);
+    if(typeof result === 'function'){
+      this.arguments = result.length;
+      const params = Array.from(result as { length: number }, (_, i) => {
+        const p = new Parameter(i);
+
+        return () => {
+          if(this.params.has(p))
+            throw new Error(`Parameter ${i} is already defined.`);
+          else
+            this.params.add(p);
+
+          return p;
+        }
+      })
+
+      result = (result as Function)(...params);
+    }
 
     if(!this.connection)
       this.connection = Connection.None;
@@ -43,24 +58,6 @@ class Builder {
 
     if(result)
       this.select(result);
-  }
-
-  private defer(factory: Query.Function<unknown>){
-    this.arguments = factory.length;
-    const params = Array.from(factory as { length: number }, (_, i) => {
-      const p = new Parameter(i);
-
-      return () => {
-        if(this.params.has(p))
-          throw new Error(`Parameter ${i} is already defined.`);
-        else
-          this.params.add(p);
-
-        return p;
-      }
-    })
-
-    return (factory as Function)(...params);
   }
 
   /**
