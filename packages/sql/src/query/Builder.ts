@@ -101,7 +101,7 @@ class Builder {
 
   private where(this: Builder, arg1: any, arg2?: any, arg3?: any): any {
     if(arg1 instanceof Field)
-      return this.compare(arg1);
+      return this.field(arg1);
 
     if(Type.is(arg1))
       return arg2
@@ -109,7 +109,7 @@ class Builder {
         : this.use(arg1).proxy;
 
     if(this.tables.has(arg1))
-      return this.apply(arg1);
+      return this.table(arg1);
 
     if(arg1 instanceof Group || typeof arg1 == "string")
       return this.andOr(...arguments);
@@ -122,7 +122,7 @@ class Builder {
     throw new Error(`Argument ${arg1} is not a query argument.`);
   }
 
-  apply(table: Query.From){
+  table(table: Query.From){
     return <Query.Verbs<Type>> {
       delete: () => {
         this.deletes.add(table);
@@ -133,7 +133,7 @@ class Builder {
     }
   }
 
-  compare<T extends Field>(field: T){
+  field<T extends Field>(field: T){
     return {
       ...field.compare(this.wheres),
       asc: () => { this.orderBy.set(field, "asc") },
