@@ -5,7 +5,7 @@ import { create, defineProperty, freeze, getOwnPropertyNames, values } from '../
 import { Computed } from './Computed';
 import { Query } from './Query';
 
-type Selects = Field | Value | Computed<unknown>;
+type Selects = Field | Computed<unknown>;
 
 class Builder {
   connection!: Connection;
@@ -26,7 +26,7 @@ class Builder {
 
   deletes = new Set<Query.From<any>>();
   updates = new Map<Query.From<any>, Query.Update<any>>();
-  selects?: Map<string, Selects> | Selects;
+  selects?: unknown;
   limit?: number;
 
   constructor(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>){
@@ -56,8 +56,40 @@ class Builder {
     this.pending.forEach(fn => fn());
     this.pending.clear();
 
-    if(result)
-      this.select(result);
+    if(!result)
+      return;
+
+    if(result instanceof Field || result instanceof Computed){
+      this.selects = result;
+      return;
+    }
+
+    const columns = new Map<string, Selects>();
+      
+    function scan(obj: any, path?: string) {
+      getOwnPropertyNames(obj).forEach(key => {
+        const use = path ? `${path}.${key}` : key;
+        const selects = obj[key];
+
+        if (selects instanceof Field || selects instanceof Computed)
+          columns.set(use, selects);
+        else if (typeof selects === 'object')
+          scan(selects, use);
+        else {
+          columns.set(use, 
+            typeof selects === 'function' ?
+              selects() :
+            typeof selects === 'string' ?
+              `'${selects.replace(/'/g, "\\'")}'` :
+            selects
+          );
+        }
+      })
+    }
+
+    scan(result);
+
+    this.selects = columns;
   }
 
   /**
@@ -271,33 +303,6 @@ class Builder {
     return table.proxy as Query.Join<T>;
   }
 
-  select(result: unknown){
-    if(result instanceof Field || result instanceof Computed || result instanceof Value){
-      this.selects = result;
-      return;
-    }
-
-    const columns = new Map<string, Selects>();
-      
-    function scan(obj: any, path?: string) {
-      getOwnPropertyNames(obj).forEach(key => {
-        const select = obj[key];
-        const use = path ? `${path}.${key}` : key;
-
-        if (select instanceof Field || select instanceof Computed || select instanceof Value)
-          columns.set(use, select);
-        else if (typeof select === 'object')
-          scan(select, use);
-        else
-          columns.set(use, new Value(select));
-      })
-    }
-
-    scan(result);
-
-    this.selects = columns;
-  }
-
   accept(args: unknown[]){
     return Array.from(this.params || [], p => p.digest(args[p.index]));
   }
@@ -446,22 +451,6 @@ class Parameter {
 
   toString(){
     return '?';
-  }
-}
-
-class Value {
-  constructor(public value: any){}
-
-  toString(){
-    const { value } = this;
-
-    if(typeof value === 'string')
-      return `'${value.replace(/'/g, "\\'")}'`;
-
-    if(typeof value === 'function')
-      return value();
-
-    return value;
   }
 }
 
