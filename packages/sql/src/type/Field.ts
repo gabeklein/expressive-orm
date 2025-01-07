@@ -103,7 +103,7 @@ interface Field<T = unknown> {
    * 
    * @param acc Set of comparisons to be added to if not part of a group.
    */
-  compare(acc?: Group): Field.Compare<T>;
+  where(acc?: Group): Field.Compare<T>;
 }
 
 function Field<T extends Field>(options?: Field.Init<T>): T
@@ -162,30 +162,29 @@ Field.prototype = <Field> {
   raw(value: any){
     return escape(this.set(value));
   },
-  compare(acc?: Set<string>){
-    const using = (op: string) =>
-      (right: unknown, orEqual?: boolean) => {
-        if(typeof right == "function")
-          right = right();
-  
-        if(right instanceof Parameter)
-          right.digest = this.set.bind(this);
-        else if(Array.isArray(right))
-          right = `(${right.map(this.raw, this)})`;
-        else if(!(right instanceof Field))
-          right = this.raw(right);
-  
-        const e = `${this} ${op + (orEqual ? '=' : '')} ${right}`;
-        if(acc) acc.add(e);
-        return e;
-      }
+  where(acc?: Set<string>){
+    const using = (op: string, right: unknown, orEqual?: boolean) => {
+      if(typeof right == "function")
+        right = right();
+
+      if(right instanceof Parameter)
+        right.digest = this.set.bind(this);
+      else if(Array.isArray(right))
+        right = `(${right.map(this.raw, this)})`;
+      else if(!(right instanceof Field))
+        right = this.raw(right);
+
+      const e = `${this} ${op + (orEqual ? '=' : '')} ${right}`;
+      if(acc) acc.add(e);
+      return e;
+    }
 
     return {
-      get is(){ return using("=") },
-      get not(){ return using("<>") },
-      get over(){ return using(">") },
-      get under(){ return using("<") },
-      get in(){ return using("IN") }
+      in: using.bind(this, "IN"),
+      is: using.bind(this, "="),
+      not: using.bind(this, "<>"),
+      over: using.bind(this, ">"),
+      under: using.bind(this, "<")
     };
   }
 }

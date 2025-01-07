@@ -70,7 +70,7 @@ declare namespace Query {
     T extends {} ? { [K in keyof T]: Extract<T[K]> } :
     T;
 
-  type Asserts<T extends Field> = ReturnType<T["compare"]> & {
+  type Asserts<T extends Field> = ReturnType<T["where"]> & {
     asc(): void;
     desc(): void;
   };

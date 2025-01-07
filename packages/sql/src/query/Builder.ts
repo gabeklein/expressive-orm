@@ -168,7 +168,7 @@ class Builder {
 
   field<T extends Field>(field: T){
     return {
-      ...field.compare(this.filters),
+      ...field.where(this.filters),
       asc: () => { this.orderBy.set(field, "asc") },
       desc: () => { this.orderBy.set(field, "desc") }
     }
@@ -275,7 +275,7 @@ class Builder {
           const right = (joinOn as any)[key];
 
           if (left instanceof Field)
-            joinsOn.add(left.compare().is(right));
+            joinsOn.add(left.where().is(right));
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }
@@ -285,7 +285,7 @@ class Builder {
         this.pending.add(() => {
           joinOn(left => {
             if(left instanceof Field)
-              return left.compare(joinsOn);
+              return left.where(joinsOn);
 
             throw new Error("Join assertions can only apply to fields.");
           });
