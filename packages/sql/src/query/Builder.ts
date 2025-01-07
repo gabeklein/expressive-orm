@@ -11,12 +11,13 @@ class Builder {
   connection!: Connection;
 
   /**
-   * If running in template mode, this records the order by which
-   * parameters are used in the template itself. This is used to
-   * ensure that no parameters are duplicated or injected in the
-   * wrong order.
+   * Parameters which will be sent with query.
+   * May either be placeholders for a template, or values
+   * which the query deems unsafe to interpolate directly.
    */
   params = new Set<Parameter>();
+
+  /** Number of external arguments this query expects. */
   arguments?: number;
 
   filters = new Group();
@@ -304,7 +305,7 @@ class Builder {
   }
 
   accept(args: unknown[]){
-    return Array.from(this.params || [], p => p.digest(args[p.index]));
+    return Array.from(this.params || [], p => p.data(args));
   }
 
   parse(raw: Record<string, any>){
@@ -443,10 +444,14 @@ class Builder {
 }
 
 class Parameter {
-  constructor(public index: number){}
+  constructor(public index = -1){}
 
-  digest(value: any){
+  digest(value: unknown){
     return value;
+  }
+
+  data(from: Record<string, any>){
+    return this.digest(from[this.index]);
   }
 
   toString(){
