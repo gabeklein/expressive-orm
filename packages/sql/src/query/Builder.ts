@@ -19,7 +19,7 @@ class Builder {
   pending = new Set<() => void>();
   orderBy = new Map<Field, "asc" | "desc">();
   tables = new Map<{}, Query.Table>();
-  cte = new Map<string, Parameter>();
+  cte = new Map<string, Map<string, Parameter>>();
 
   deletes = new Set<Query.From<any>>();
   updates = new Map<Query.From<any>, Query.Update<any>>();
@@ -187,6 +187,7 @@ class Builder {
       const current = this.filters;
   
       switch(typeof joinOn){
+        // TODO: Can this be combined with function mode
         case "object":
           this.filters = joinsOn;
           for (const key in joinOn) {
@@ -269,17 +270,12 @@ class Builder {
 
     const master = new Parameter();
 
-    master.toString = () =>
-      `SELECT ${
-        Array.from(used, ([key], i) => `value -> ${i} AS ${key}`)
-      } FROM json_each(?)`
-
     master.data = () =>
       Array.from(data, row => (
         Array.from(used, ([key, value]) => value.digest(row[key]))
       ));
 
-    this.cte.set(name, master);
+    this.cte.set(name, used);
     this.params.add(master);
 
     const table: Query.Table = {
@@ -335,7 +331,10 @@ class Builder {
 
 
     if(cte.size)
-      add('WITH', Array.from(cte, ([name, param]) => `${name} AS (${param})`));
+      add('WITH', Array.from(cte, ([name, param]) => {
+        const fields = Array.from(param, ([key], i) => `value -> ${i} AS ${key}`)
+        return `${name} AS (SELECT ${fields} FROM json_each(?))`;
+      }));
 
     if(updates.size){
       add("UPDATE", main);
