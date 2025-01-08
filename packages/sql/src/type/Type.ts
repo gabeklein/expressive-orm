@@ -64,9 +64,10 @@ abstract class Type {
     return fields(this);
   }
 
-  static insert<T extends Type>(this: Type.EntityType<T>, entries: Type.Insert<T> | Type.Insert<T>[]): Type.InsertOp;
+  static insert<T extends Type>(this: Type.EntityType<T>, values: Type.Insert<T>): Type.InsertOp;
+  static insert<T extends Type>(this: Type.EntityType<T>, values: Type.Insert<T>[]): Type.InsertOp;
+  static insert<T extends Type, I>(this: Type.EntityType<T>, forEach: Array<I>, map: (value: I, index: number) => Type.Insert<T>): Type.InsertOp;
   static insert<T extends Type>(this: Type.EntityType<T>, number: number, map: (index: number) => Type.Insert<T>): Type.InsertOp;
-  static insert<T extends Type, I>(this: Type.EntityType<T>, inputs: Array<I>, map: (value: I, index: number) => Type.Insert<T>): Type.InsertOp;
   static insert<T extends Type>(
     this: Type.EntityType<T>,
     arg1: Type.Insert<T> | Iterable<unknown> | number,
