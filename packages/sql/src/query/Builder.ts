@@ -115,9 +115,9 @@ class Builder {
   private where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join: Query.Join.Mode): Query.Join.Left<T>;
 
   /**
-   * Prepares write operations for a particular table.
+   * Select a table for comparison or write operations.
    */
-  private where<T extends Type>(field: Query.From<T>): Query.Verbs<T>;
+  private where<T extends Type>(field: Query.From<T> | Query.Join<T>): Query.Verbs<T>;
 
   /**
    * Prepare comparison against a particilar field,
@@ -500,7 +500,10 @@ class Builder {
           else
             throw new Error(`Column ${field} is not nullable.`);
         }
-        else if(value instanceof Field || value instanceof Computed)
+        else if(
+          value instanceof Field || 
+          value instanceof Computed || 
+          value instanceof Parameter)
           value = value.toString();
         else
           value = field.raw(value);

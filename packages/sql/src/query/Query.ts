@@ -47,7 +47,7 @@ declare namespace Query {
 
   type Where = QB["where"] & { name: string };
 
-  type Updates<T> = Field.Updates<T> | T;
+  type Updates<T> = Field.Updates<T> | T | Field;
 
   type Update<T extends Type> = {
     [K in Type.Fields<T>]?: Updates<T[K]>;

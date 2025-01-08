@@ -272,7 +272,7 @@ describe("complex grouping", () => {
     `);
   });
 
-  it("will remove unnecessary parens", () => {
+  it("will collapse unnecessary nesting", () => {
     const query = Query(where => {
       const item = where(Item);
       
@@ -367,17 +367,17 @@ describe("sort", () => {
 })
 
 describe("data", () => {
+  interface Data {
+    name: string;
+    age: number;
+  }
+
+  const data: Data[] = [
+    { name: "John", age: 30 },
+    { name: "Jane", age: 25 },
+  ];
+
   it("will convert to virtual table", () => {
-    interface Data {
-      name: string;
-      age: number;
-    }
-
-    const data: Data[] = [
-      { name: "John", age: 30 },
-      { name: "Jane", age: 25 },
-    ];
-
     const query = Query.from(data, (_, data) => data);
   
     expect(query.params).toEqual([[
@@ -400,5 +400,29 @@ describe("data", () => {
       FROM
         cte
     `);
+  })
+
+  it.skip("will update rows in a table", async () => {
+    class User extends Type {
+      name = Str();
+      age = Num();
+    }
+
+    await new TestConnection([User]);
+
+    await User.insert([
+      { name: "John", age: 0 },
+      { name: "Jane", age: 0 },
+      { name: "Joe", age: 0 },
+    ])
+    
+    const query = Query.from(data, (where, data) => {
+      const user = where(User, { name: data.name });
+
+      where(user).update({ age: data.age });
+    });
+
+    expect(query).toMatchInlineSnapshot()
+
   })
 })
