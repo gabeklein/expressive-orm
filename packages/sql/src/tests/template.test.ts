@@ -62,6 +62,24 @@ it("will preserve params order", async () => {
   await expect(query("blue", "Jane")).resolves.toEqual(["Smith"]);
 })
 
+it("will select a parameter value", async () => {
+  const query = Query(() => (color: string) => color);
+
+  expect(query).toMatchInlineSnapshot(`
+    SELECT
+      ? AS VALUE
+  `);
+});
+
+it("will select a parameter value", async () => {
+  const query = Query(() => (color: string) => ({ color }));
+
+  expect(query).toMatchInlineSnapshot(`
+    SELECT
+      ? AS color
+  `);
+});
+
 it("will preprocess params", async () => {
   class Thing extends Type {
     created = Time();

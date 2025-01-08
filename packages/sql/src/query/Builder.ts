@@ -59,7 +59,10 @@ class Builder {
     if(!result)
       return;
 
-    if(result instanceof Field || result instanceof Computed){
+    if(typeof result === 'function')
+      result = result();
+
+    if(result instanceof Field || result instanceof Computed || result instanceof Parameter){
       this.selects = result;
       return;
     }
@@ -477,7 +480,7 @@ class Builder {
     if (selects instanceof Field)
       return selects.toString();
 
-    if (selects instanceof Computed)
+    if (selects instanceof Computed || selects instanceof Parameter)
       return `${selects} AS value`;
 
     if (!selects)
