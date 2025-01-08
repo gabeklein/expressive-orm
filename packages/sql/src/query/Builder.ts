@@ -5,8 +5,6 @@ import { create, defineProperty, freeze, getOwnPropertyNames, values } from '../
 import { Computed } from './Computed';
 import { Query } from './Query';
 
-type Selects = Field | Computed<unknown>;
-
 class Builder {
   connection!: Connection;
 
@@ -65,15 +63,17 @@ class Builder {
       return;
     }
 
-    const columns = new Map<string, Selects>();
+    const columns = new Map<string, string | Field>();
       
     function scan(obj: any, path?: string) {
       getOwnPropertyNames(obj).forEach(key => {
         const use = path ? `${path}.${key}` : key;
         const selects = obj[key];
 
-        if (selects instanceof Field || selects instanceof Computed)
+        if (selects instanceof Field)
           columns.set(use, selects);
+        else if(selects instanceof Computed || selects instanceof Parameter)
+          columns.set(use, String(selects));
         else if (typeof selects === 'object')
           scan(selects, use);
         else {
@@ -144,7 +144,7 @@ class Builder {
     if(this.tables.has(arg1))
       return this.table(arg1);
 
-    if(arg1 instanceof Group || typeof arg1 == "string")
+    if(typeof arg1 == "string" || arg1 instanceof Group)
       return this.andOr(...arguments);
 
     if(typeof arg1 == "number"){
@@ -396,10 +396,10 @@ class Builder {
     if (selects instanceof Computed)
       return `${selects} AS value`;
 
-    if (selects)
-      throw new Error('Invalid select.');
+    if (!selects)
+      return 'COUNT(*)';
 
-    return 'COUNT(*)';
+    throw new Error('Invalid select.');
   }
 
   toJoin(table: Query.Table){
