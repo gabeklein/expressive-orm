@@ -143,9 +143,7 @@ class Builder {
       return this.field(arg1);
 
     if(Type.is(arg1))
-      return arg2
-        ? this.join(arg1, arg2, arg3)
-        : this.use(arg1).proxy;
+      return this.use(arg1, arg2, arg3);
 
     if(this.tables.has(arg1))
       return this.table(arg1);
@@ -196,7 +194,9 @@ class Builder {
     return local;
   }
 
-  use<T extends Type>(type: Type.EntityType<T>){
+  use<T extends Type>(type: Type.EntityType<T>): Query.From<T>;
+  use<T extends Type>(type: Type.EntityType<T>, joinOn: Query.Join.On<T>, joinAs?: Query.Join.Mode): Query.Join<T>;
+  use<T extends Type>(type: Type.EntityType<T>, joinOn?: Query.Join.On<T>, joinAs?: Query.Join.Mode){
     const { fields, schema } = type;
     const { tables } = this;
 
@@ -245,77 +245,69 @@ class Builder {
 
     freeze(proxy);
 
-    return table;
-  }
-
-  join<T extends Type>(
-    type: Type.EntityType<T>,
-    joinOn: Query.Join.On<T>,
-    joinAs?: Query.Join.Mode){
-
-    const table = this.use(type);
-    
-    if(typeof joinOn == "string")
-      throw new Error("Bad parameters.");
-
-    switch(joinAs){
-      case undefined:
-        joinAs = "inner";
-
-      case "inner":
-      case "left":
-        break;
-
-      case "right" as unknown:
-      case "full" as unknown:
-        const [ main ] = this.tables.values();
-        throw new Error(`Cannot ${joinAs} join because that would affect ${main} which is already defined.`);
-
-      default:
-        throw new Error(`Invalid join type ${joinAs}.`);
-    }
-    
-    const joinsOn = new Group();
-    const current = this.filters;
-
-    switch(typeof joinOn){
-      case "object":
-        this.filters = joinsOn;
-        for (const key in joinOn) {
-          const left = table.local.get(key);
-          const right = (joinOn as any)[key];
-
-          if (left instanceof Field)
-            this.compare(left, "=", right);
-          else
-            throw new Error(`${key} is not a valid column in ${type}.`);
-        }
-        this.filters = current;
-      break;
-
-      case "function":
-        this.pending.add(() => {
+    if(joinOn){
+      if(typeof joinOn == "string")
+        throw new Error("Bad parameters.");
+  
+      switch(joinAs){
+        case undefined:
+          joinAs = "inner";
+  
+        case "inner":
+        case "left":
+          break;
+  
+        case "right" as unknown:
+        case "full" as unknown:
+          const [ main ] = this.tables.values();
+          throw new Error(`Cannot ${joinAs} join because that would affect ${main} which is already defined.`);
+  
+        default:
+          throw new Error(`Invalid join type ${joinAs}.`);
+      }
+      
+      const joinsOn = new Group();
+      const current = this.filters;
+  
+      switch(typeof joinOn){
+        case "object":
           this.filters = joinsOn;
-          joinOn(left => {
-            if(left instanceof Field)
-              return left.where();
-
-            throw new Error("Join assertions can only apply to fields.");
-          });
+          for (const key in joinOn) {
+            const left = table.local.get(key);
+            const right = (joinOn as any)[key];
+  
+            if (left instanceof Field)
+              this.compare(left, "=", right);
+            else
+              throw new Error(`${key} is not a valid column in ${type}.`);
+          }
           this.filters = current;
-        })
-      break;
-
-      default:
-        throw new Error(`Invalid join on: ${joinOn}`);
+        break;
+  
+        case "function":
+          this.pending.add(() => {
+            this.filters = joinsOn;
+            joinOn(left => {
+              if(left instanceof Field)
+                return left.where();
+  
+              throw new Error("Join assertions can only apply to fields.");
+            });
+            this.filters = current;
+          })
+        break;
+  
+        default:
+          throw new Error(`Invalid join on: ${joinOn}`);
+      }
+  
+      table.join = {
+        as: joinAs,
+        on: joinsOn
+      }
     }
-
-    table.join = {
-      as: joinAs,
-      on: joinsOn
-    }
-
-    return table.proxy as Query.Join<T>;
+    
+    return table.proxy;
   }
 
   compare(left: Field, op: string, right: unknown){

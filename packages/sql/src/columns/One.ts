@@ -26,7 +26,7 @@ function One<T extends Type>(type: Type.EntityType<T>, nullable?: boolean){
       return value;
     },
     use(query){
-      return query.join(type, { id: this });
+      return query.use(type, { id: this });
     }
   }));
 }
