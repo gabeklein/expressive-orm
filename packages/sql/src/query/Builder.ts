@@ -15,9 +15,6 @@ class Builder {
    */
   params = new Set<Parameter>();
 
-  /** Number of external arguments this query expects. */
-  arguments?: number;
-
   filters = new Group();
   pending = new Set<() => void>();
   orderBy = new Map<Field, "asc" | "desc">();
@@ -29,137 +26,57 @@ class Builder {
   selects?: unknown;
   limit?: number;
 
-  constructor(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>){
-    let result = factory.call(this, this.where.bind(this));
-
-    if(typeof result === 'function'){
-      this.arguments = result.length;
-      const params = Array.from(result as { length: number }, (_, i) => {
-        const p = new Parameter(i);
-
-        return () => {
-          if(this.params.has(p))
-            throw new Error(`Parameter ${i} is already defined.`);
-          else
-            this.params.add(p);
-
-          return p;
-        }
-      })
-
-      result = (result as Function)(...params);
-    }
-
-    if(!this.connection)
-      this.connection = Connection.None;
+  commit(returns: unknown){
+    if(this.selects)
+      throw new Error('This query has already been committed.');
 
     this.pending.forEach(fn => fn());
     this.pending.clear();
 
-    if(!result)
-      return;
+    if(!this.connection)
+      this.connection = Connection.None;
 
-    if(typeof result === 'function')
-      result = result();
+    if(typeof returns === 'function')
+      returns = returns();
 
-    if(result instanceof Field || result instanceof Computed || result instanceof Parameter){
-      this.selects = result;
-      return;
+    if(
+      returns instanceof Field || 
+      returns instanceof Computed || 
+      returns instanceof Parameter){
+      this.selects = returns;
+    }
+    else if(returns) {
+      const columns = new Map<string, string | Field>();
+        
+      function scan(obj: any, path?: string) {
+        getOwnPropertyNames(obj).forEach(key => {
+          const use = path ? `${path}.${key}` : key;
+          const selects = obj[key];
+  
+          if (selects instanceof Field)
+            columns.set(use, selects);
+          else if(selects instanceof Computed || selects instanceof Parameter)
+            columns.set(use, String(selects));
+          else if (typeof selects === 'object')
+            scan(selects, use);
+          else {
+            columns.set(use, 
+              typeof selects === 'function' ?
+                selects() :
+              typeof selects === 'string' ?
+                `'${selects.replace(/'/g, "\\'")}'` :
+              selects
+            );
+          }
+        })
+      }
+  
+      scan(returns);
+  
+      this.selects = columns;
     }
 
-    const columns = new Map<string, string | Field>();
-      
-    function scan(obj: any, path?: string) {
-      getOwnPropertyNames(obj).forEach(key => {
-        const use = path ? `${path}.${key}` : key;
-        const selects = obj[key];
-
-        if (selects instanceof Field)
-          columns.set(use, selects);
-        else if(selects instanceof Computed || selects instanceof Parameter)
-          columns.set(use, String(selects));
-        else if (typeof selects === 'object')
-          scan(selects, use);
-        else {
-          columns.set(use, 
-            typeof selects === 'function' ?
-              selects() :
-            typeof selects === 'string' ?
-              `'${selects.replace(/'/g, "\\'")}'` :
-            selects
-          );
-        }
-      })
-    }
-
-    scan(result);
-
-    this.selects = columns;
-  }
-
-  /**
-   * Create a reference to the primary table, returned
-   * object can be used to query against that table.
-   */
-  private where<T extends Type>(entity: Type.EntityType<T>): Query.From<T>;
-
-  /**
-   * Registers a type as inner join.
-   */
-  private where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join?: "inner"): Query.Join<T>;
-
-  /**
-   * Registers a type as a left join, returned object has optional
-   * properties which may be undefined where the join is not present.
-   */
-  private where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join: Query.Join.Mode): Query.Join.Left<T>;
-
-  /**
-   * Select a table for comparison or write operations.
-   */
-  private where<T extends Type>(field: Query.From<T> | Query.Join<T>): Query.Verbs<T>;
-
-  /**
-   * Prepare comparison against a particilar field,
-   * returns operations for the given type.
-   */
-  private where<T extends Field>(field: T): Query.Asserts<T>;
-
-  /**
-   * Accepts other where() assertions for nesting in parenthesis.
-   * 
-   * Will alternate between AND-OR depending on depth, starting with OR.
-   * 
-   */
-  private where(...orWhere: (string | Group)[]): Group;
-
-  private where<T extends {}>(data: Iterable<T>): { [K in keyof T]: Field<T[K]> };
-
-  /** Specify the limit of results returned. */
-  private where(limit: number): void;
-
-  private where(this: Builder, arg1: any, arg2?: any, arg3?: any): any {
-    if(arg1 instanceof Field)
-      return this.field(arg1);
-
-    if(Type.is(arg1))
-      return this.use(arg1, arg2, arg3);
-
-    if(this.tables.has(arg1))
-      return this.table(arg1);
-
-    if(typeof arg1 == "string" || arg1 instanceof Group)
-      return this.andOr(...arguments);
-
-    if(typeof arg1 == "number"){
-      this.limit = arg1;
-      return;
-    }
-
-    if(Symbol.iterator in arg1) 
-      return this.with(arg1);
-
-    throw new Error(`Argument ${arg1} is not a query argument.`);
+    return this.toString();
   }
 
   table(table: Query.From){
