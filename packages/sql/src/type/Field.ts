@@ -1,5 +1,4 @@
 import { Query } from '..';
-import { Group, Parameter } from '../query/Builder';
 import { capitalize, create, escape, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
 import { Type } from './Type';
 
@@ -103,7 +102,7 @@ interface Field<T = unknown> {
    * 
    * @param acc Set of comparisons to be added to if not part of a group.
    */
-  where(acc?: Group): Field.Compare<T>;
+  where(): Field.Compare<T>;
 }
 
 function Field<T extends Field>(options?: Field.Init<T>): T
@@ -162,29 +161,17 @@ Field.prototype = <Field> {
   raw(value: any){
     return escape(this.set(value));
   },
-  where(acc?: Set<string>){
-    const using = (op: string, right: unknown, orEqual?: boolean) => {
-      if(typeof right == "function")
-        right = right();
-
-      if(right instanceof Parameter)
-        right.digest = this.set.bind(this);
-      else if(Array.isArray(right))
-        right = `(${right.map(this.raw, this)})`;
-      else if(!(right instanceof Field))
-        right = this.raw(right);
-
-      const e = `${this} ${op + (orEqual ? '=' : '')} ${right}`;
-      if(acc) acc.add(e);
-      return e;
-    }
+  where(){
+    const use = (op: string) =>
+      (right: unknown, orEqual?: boolean) =>
+        this.query!.compare(this, op + (orEqual ? '=' : ''), right)
 
     return {
-      in: using.bind(this, "IN"),
-      is: using.bind(this, "="),
-      not: using.bind(this, "<>"),
-      over: using.bind(this, ">"),
-      under: using.bind(this, "<")
+      is: use("="),
+      in: use("IN"),
+      not: use("<>"),
+      over: use(">"),
+      under: use("<")
     };
   }
 }

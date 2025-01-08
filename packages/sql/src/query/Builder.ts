@@ -174,7 +174,7 @@ class Builder {
 
   field<T extends Field>(field: T){
     return {
-      ...field.where(this.filters),
+      ...field.where(),
       asc: () => { this.orderBy.set(field, "asc") },
       desc: () => { this.orderBy.set(field, "desc") }
     }
@@ -273,28 +273,33 @@ class Builder {
     }
     
     const joinsOn = new Group();
+    const current = this.filters;
 
     switch(typeof joinOn){
       case "object":
+        this.filters = joinsOn;
         for (const key in joinOn) {
           const left = table.local.get(key);
           const right = (joinOn as any)[key];
 
           if (left instanceof Field)
-            joinsOn.add(left.where().is(right));
+            this.compare(left, "=", right);
           else
             throw new Error(`${key} is not a valid column in ${type}.`);
         }
+        this.filters = current;
       break;
 
       case "function":
         this.pending.add(() => {
+          this.filters = joinsOn;
           joinOn(left => {
             if(left instanceof Field)
-              return left.where(joinsOn);
+              return left.where();
 
             throw new Error("Join assertions can only apply to fields.");
           });
+          this.filters = current;
         })
       break;
 
@@ -308,6 +313,24 @@ class Builder {
     }
 
     return table.proxy as Query.Join<T>;
+  }
+
+  compare(left: Field, op: string, right: unknown){
+    if(typeof right == "function")
+      right = right();
+
+    if(right instanceof Parameter){
+      right.digest = left.set.bind(this);
+      right = right.toString();
+    }
+    else if(Array.isArray(right))
+      right = `(${right.map(left.raw, left)})`;
+    else if(!(right instanceof Field))
+      right = left.raw(right);
+
+    const e = `${left} ${op} ${right}`;
+    this.filters.add(e);
+    return e;
   }
 
   with(data: Iterable<Record<string, any>>){
