@@ -323,10 +323,12 @@ class Builder {
       right.digest = left.set.bind(this);
       right = right.toString();
     }
-    else if(Array.isArray(right))
+    else if(Array.isArray(right)){
       right = `(${right.map(left.raw, left)})`;
-    else if(!(right instanceof Field))
+    }
+    else if(!(right instanceof Field)){
       right = left.raw(right);
+    }
 
     const e = `${left} ${op} ${right}`;
     this.filters.add(e);
