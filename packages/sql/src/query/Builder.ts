@@ -22,6 +22,7 @@ class Builder {
   pending = new Set<() => void>();
   orderBy = new Map<Field, "asc" | "desc">();
   tables = new Map<{}, Query.Table>();
+  cte = new Map<string, Parameter>();
 
   deletes = new Set<Query.From<any>>();
   updates = new Map<Query.From<any>, Query.Update<any>>();
@@ -129,6 +130,8 @@ class Builder {
    */
   private where(...orWhere: (string | Group)[]): Group;
 
+  private where<T extends {}>(data: Iterable<T>): { [K in keyof T]: Field<T[K]> };
+
   /** Specify the limit of results returned. */
   private where(limit: number): void;
 
@@ -151,6 +154,9 @@ class Builder {
       this.limit = arg1;
       return;
     }
+
+    if(Symbol.iterator in arg1) 
+      return this.with(arg1);
 
     throw new Error(`Argument ${arg1} is not a query argument.`);
   }
@@ -304,6 +310,53 @@ class Builder {
     return table.proxy as Query.Join<T>;
   }
 
+  with(data: Iterable<Record<string, any>>){
+    const keys = new Set(([] as string[]).concat(...Array.from(data, Object.keys)));
+    const used = new Map<string, Parameter>();
+    const proxy = {};
+    const name = 'cte';
+
+    for(const key of keys){
+      defineProperty(proxy, key, {
+        configurable: true,
+        get(){
+          const value = new Parameter();
+
+          used.set(key, value);
+          value.toString = () => `${name}.${key}`;
+          defineProperty(this, key, { value });
+          return value;
+        }
+      });
+    }
+
+    const master = new Parameter();
+
+    master.toString = () =>
+      `SELECT ${
+        Array.from(used, ([key], i) => `value -> ${i} AS ${key}`)
+      } FROM json_each(?)`
+
+    master.data = () =>
+      Array.from(data, row => (
+        Array.from(used, ([key, value]) => value.digest(row[key]))
+      ));
+
+    this.cte.set(name, master);
+    this.params.add(master);
+
+    const table: Query.Table = {
+      name,
+      proxy,
+      local: new Map(),
+      toString: () => name
+    };
+
+    this.tables.set(proxy, table);
+
+    return proxy;
+  }
+
   accept(args: unknown[]){
     return Array.from(this.params || [], p => p.data(args));
   }
@@ -340,8 +393,12 @@ class Builder {
     const query = [] as unknown[];
     const add = query.push.bind(query);
 
-    const { deletes, limit, orderBy, tables, updates, filters } = this;
+    const { deletes, limit, orderBy, tables, updates, filters, cte } = this;
     const [ main, ...joins ] = tables.values();
+
+
+    if(cte.size)
+      add('WITH', Array.from(cte, ([name, param]) => `${name} AS (${param})`));
 
     if(updates.size){
       add("UPDATE", main);

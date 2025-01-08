@@ -39,6 +39,8 @@ declare namespace Query {
     [K in Type.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
   }
 
+  type FromData<T extends {}> = { [K in keyof T]: Field<T[K]> };
+
   type Value<T = any> = T | Field<T> | Computed<T>
 
   type FieldOrValue<T> = T extends Value<infer U> ? U : T;
@@ -52,6 +54,8 @@ declare namespace Query {
   }
 
   type Function<R> = (this: QB, where: Where) => R;
+
+  type FunctionFrom<T extends {}, R> = (this: QB, where: Where, data: FromData<T>) => R;
 
   type Factory<R, A extends any[]> = (this: QB, where: Where) => (...args: A) => R;
   
@@ -164,6 +168,18 @@ function Query<T = number>(factory: Query.Function<T>){
   return runner();
 }
 
+function from<I extends {}, O extends {}>(data: Iterable<I>, from: Query.FunctionFrom<I, O>): Query.Selects<O>;
+
+function from<I extends {}>(data: Iterable<I>, from: Query.FunctionFrom<I, void>): Query;
+
+function from<I extends {}>(data: Iterable<I>, from: Query.FunctionFrom<I, any>): any {
+  return Query(function(where){
+    const virtual = where(data);
+    return from.call(this, where, virtual);
+  })
+}
+
+Query.from = from;
 Query.Builder = QB;
 
 export { Query };

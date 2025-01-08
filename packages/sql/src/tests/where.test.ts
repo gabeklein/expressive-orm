@@ -365,3 +365,40 @@ describe("sort", () => {
     // SQLite may not support multiple column sorting
   })  
 })
+
+describe("data", () => {
+  it("will convert to virtual table", () => {
+    interface Data {
+      name: string;
+      age: number;
+    }
+
+    const data: Data[] = [
+      { name: "John", age: 30 },
+      { name: "Jane", age: 25 },
+    ];
+
+    const query = Query.from(data, (_, data) => data);
+  
+    expect(query.params).toEqual([[
+      [ "John", 30 ],
+      [ "Jane", 25 ],
+    ]]);
+
+    expect(query).toMatchInlineSnapshot(`
+      WITH
+        cte AS (
+          SELECT
+            VALUE -> 0 AS name,
+            VALUE -> 1 AS age
+          FROM
+            json_each (?)
+        )
+      SELECT
+        cte.name AS name,
+        cte.age AS age
+      FROM
+        cte
+    `);
+  })
+})
