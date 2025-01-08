@@ -446,8 +446,10 @@ class Builder {
         add('FROM', main);
     }
 
-    for(const table of joins)
-      add(this.toJoin(table));
+    for(const table of joins){
+      const { as, on } = table.join!;
+      add(as.toUpperCase(), "JOIN", table, 'ON', on);
+    }
 
     if(updates.size)
       add('SET', this.toUpdate());
@@ -482,13 +484,6 @@ class Builder {
       return 'COUNT(*)';
 
     throw new Error('Invalid select.');
-  }
-
-  toJoin(table: Query.Table){
-    const { as, on } = table.join!;
-    const kind = as === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
-
-    return ` ${kind} ${table} ON ${on}`;
   }
 
   toUpdate(multiTableAllowed = false){
