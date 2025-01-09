@@ -1,6 +1,6 @@
 import { Query, Field } from "..";
+import { Value } from "./Builder";
 
-type Value = Query.Value;
 type ANumeric = Query.Value<string | number>;
 type Numeric = Query.Value<number>;
 
@@ -49,7 +49,7 @@ export const bit: Bitwise = {
   xor: op('^', 1),
 }
 
-export class Computed<T> {
+export class Computed<T> extends Value {
   readonly left?: Query.Value | Field<T> | Computed<T>;
   readonly right: Query.Value | Field<T> | Computed<T>;
 
@@ -62,6 +62,7 @@ export class Computed<T> {
     right?: Value | Field<T> | Computed<T>,
     rank: number = 0
   ) {
+    super();
     this.operator = operator;
     this.rank = rank;
 

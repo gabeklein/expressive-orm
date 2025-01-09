@@ -2,7 +2,6 @@ import { Connection } from '../connection/Connection';
 import { Field } from '../type/Field';
 import { Type } from '../type/Type';
 import { create, defineProperty, freeze, getOwnPropertyNames, values } from '../utils';
-import { Computed } from './Computed';
 import { Query } from './Query';
 
 class Builder {
@@ -39,10 +38,7 @@ class Builder {
     if(typeof returns === 'function')
       returns = returns();
 
-    if(
-      returns instanceof Field || 
-      returns instanceof Computed || 
-      returns instanceof Parameter){
+    if(returns instanceof Field || returns instanceof Value){
       this.selects = returns;
     }
     else if(returns) {
@@ -55,7 +51,7 @@ class Builder {
   
           if (selects instanceof Field)
             columns.set(use, selects);
-          else if(selects instanceof Computed || selects instanceof Parameter)
+          else if(selects instanceof Value)
             columns.set(use, String(selects));
           else if (typeof selects === 'object')
             scan(selects, use);
@@ -329,7 +325,6 @@ class Builder {
     const { deletes, limit, orderBy, tables, updates, filters, cte } = this;
     const [ main, ...joins ] = tables.values();
 
-
     if(cte.size)
       add('WITH', Array.from(cte, ([name, param]) => {
         const fields = Array.from(param, ([key], i) => `value -> ${i} AS ${key}`)
@@ -380,6 +375,9 @@ class Builder {
   toSelect(){
     const { selects } = this;
 
+    if (!selects)
+      return 'COUNT(*)';
+
     if(selects instanceof Map)
       return Array.from(selects)
         .map(([alias, field]) => `${field} AS \`${alias}\``)
@@ -388,13 +386,7 @@ class Builder {
     if (selects instanceof Field)
       return selects.toString();
 
-    if (selects instanceof Computed || selects instanceof Parameter)
-      return `${selects} AS value`;
-
-    if (!selects)
-      return 'COUNT(*)';
-
-    throw new Error('Invalid select.');
+    return `${selects} AS value`;
   }
 
   toUpdate(multiTableAllowed = false){
@@ -434,8 +426,12 @@ class Builder {
   }
 }
 
-class Parameter {
-  constructor(public index = -1){}
+class Value {}
+
+class Parameter extends Value {
+  constructor(public index = -1){
+    super();
+  }
 
   digest(value: unknown){
     return value;
@@ -481,4 +477,4 @@ class Group {
   }
 }
 
-export { Builder, Parameter, Group };
+export { Builder, Parameter, Group, Value };
