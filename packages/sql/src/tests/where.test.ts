@@ -387,7 +387,7 @@ describe("data", () => {
 
     expect(query).toMatchInlineSnapshot(`
       WITH
-        cte AS (
+        input AS (
           SELECT
             VALUE -> 0 AS name,
             VALUE -> 1 AS age
@@ -395,10 +395,10 @@ describe("data", () => {
             json_each (?)
         )
       SELECT
-        cte.name AS name,
-        cte.age AS age
+        input.name AS name,
+        input.age AS age
       FROM
-        cte
+        input
     `);
   })
 

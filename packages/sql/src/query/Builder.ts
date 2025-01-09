@@ -248,40 +248,36 @@ class Builder {
     const keys = new Set(([] as string[]).concat(...Array.from(data, Object.keys)));
     const used = new Map<string, Parameter>();
     const proxy = {};
-    const name = 'cte';
+    const name = 'input';
 
     for(const key of keys){
       defineProperty(proxy, key, {
         configurable: true,
         get(){
-          const value = new Parameter();
+          const value = new Parameter(`${name}.${key}`);
 
           used.set(key, value);
-          value.toString = () => `${name}.${key}`;
           defineProperty(this, key, { value });
           return value;
         }
       });
     }
 
-    const master = new Parameter();
-
-    master.data = () =>
-      Array.from(data, row => (
-        Array.from(used, ([key, value]) => value.digest(row[key]))
-      ));
-
     this.cte.set(name, used);
-    this.params.add(master);
+    this.params.add(
+      new Parameter(() => (
+        Array.from(data, row => (
+          Array.from(used, ([key, value]) => value.digest(row[key]))
+        ))
+      ))
+    );
 
-    const table: Query.Table = {
+    this.tables.set(proxy, {
       name,
       proxy,
       local: new Map(),
       toString: () => name
-    };
-
-    this.tables.set(proxy, table);
+    });
 
     return proxy;
   }
@@ -426,8 +422,20 @@ class Builder {
 class Value {}
 
 class Parameter extends Value {
-  constructor(public index = -1){
+  index = -1;
+
+  constructor(index?: number);
+  constructor(placeholder?: string);
+  constructor(data?: () => unknown);
+  constructor(arg?: number | string | (() => unknown)){
     super();
+
+    if(typeof arg == "number")
+      this.index = arg;
+    else if(typeof arg == "function")
+      this.data = arg;
+    else if(typeof arg == "string")
+      this.toString = () => arg;
   }
 
   digest(value: unknown){
