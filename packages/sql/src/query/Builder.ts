@@ -16,7 +16,7 @@ class Builder {
 
   filters = new Group();
   pending = new Set<() => void>();
-  orderBy = new Map<Field, "asc" | "desc">();
+  order = new Map<Field, "asc" | "desc">();
   tables = new Map<{}, Query.Table>();
   cte = new Map<string, Map<string, Parameter>>();
 
@@ -89,8 +89,8 @@ class Builder {
   field<T extends Field>(field: T){
     return {
       ...field.where(),
-      asc: () => { this.orderBy.set(field, "asc") },
-      desc: () => { this.orderBy.set(field, "desc") }
+      asc: () => { this.order.set(field, "asc") },
+      desc: () => { this.order.set(field, "desc") }
     }
   }
 
@@ -322,7 +322,7 @@ class Builder {
     const query = [] as unknown[];
     const add = query.push.bind(query);
 
-    const { deletes, limit, orderBy, tables, updates, filters, cte } = this;
+    const { deletes, limit, order, tables, updates, filters, cte } = this;
     const [ main, ...joins ] = tables.values();
 
     if(cte.size)
@@ -363,8 +363,8 @@ class Builder {
     if(filters.size)
       add('WHERE', filters);
   
-    if(orderBy.size)
-      add('ORDER BY', Array.from(orderBy).map(x => x.join(' ')));
+    if(order.size)
+      add('ORDER BY', Array.from(order).map(x => x.join(' ')));
   
     if(limit)
       add('LIMIT', limit);
@@ -408,10 +408,7 @@ class Builder {
           else
             throw new Error(`Column ${field} is not nullable.`);
         }
-        else if(
-          value instanceof Field || 
-          value instanceof Computed || 
-          value instanceof Parameter)
+        else if(value instanceof Field || value instanceof Value)
           value = value.toString();
         else
           value = field.raw(value);
