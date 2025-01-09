@@ -195,7 +195,7 @@ class Builder {
             const right = (joinOn as any)[key];
   
             if (left instanceof Field)
-              this.compare(left, "=", right);
+              this.where(left, "=", right);
             else
               throw new Error(`${key} is not a valid column in ${type}.`);
           }
@@ -228,7 +228,7 @@ class Builder {
     return table.proxy;
   }
 
-  compare(left: Field, op: string, right: unknown){
+  where(left: Field, op: string, right: unknown){
     if(typeof right == "function")
       right = right();
 

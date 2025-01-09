@@ -164,7 +164,7 @@ Field.prototype = <Field> {
   where(){
     const use = (op: string) =>
       (right: unknown, orEqual?: boolean) =>
-        this.query!.compare(this, op + (orEqual ? '=' : ''), right)
+        this.query!.where(this, op + (orEqual ? '=' : ''), right)
 
     return {
       is: use("="),
