@@ -61,7 +61,6 @@ interface Field<T = unknown> {
   property: string;
   parent: Type.EntityType;
 
-  table?: Query.Table;
   query?: Query.Builder;
 
   foreignKey?: string;
@@ -144,12 +143,7 @@ Field.prototype = <Field> {
   optional: false,
   increment: false,
   fallback: undefined,
-  toString(){
-    const { column, table } = this;
-
-    if(table)
-      return `${table.alias || table.name}.${column}`;
-
+  toString(): string {
     throw new Error("This requires a table to be set.");
   },
   get(value: any){

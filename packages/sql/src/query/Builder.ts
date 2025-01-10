@@ -155,8 +155,10 @@ class Builder {
     tables.set(proxy, table);
     fields.forEach((field, key) => {
       field = create(field);
-      field.table = table;
       field.query = this;
+      field.toString = () =>
+        `${table.alias || table.name}.${field.column}`;
+
       local.set(key, field);
 
       let value: any;
@@ -494,4 +496,4 @@ class Group {
   }
 }
 
-export { Builder, Parameter, Group, Value };
+export { Builder, Parameter, Group, Value, Table };
