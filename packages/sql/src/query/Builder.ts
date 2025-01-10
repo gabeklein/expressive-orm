@@ -4,6 +4,18 @@ import { Type } from '../type/Type';
 import { create, defineProperty, freeze, getOwnPropertyNames, values } from '../utils';
 import { Query } from './Query';
 
+interface Table<T extends Type = any> {
+  toString(): string;
+  name: string;
+  proxy: Query.From<T>;
+  local: Map<string, Field>;
+  alias?: string;
+  join?: {
+    as: Query.Join.Mode;
+    on: Group
+  }
+}
+
 class Builder {
   connection!: Connection;
 
@@ -17,7 +29,7 @@ class Builder {
   filters = new Group();
   pending = new Set<() => void>();
   order = new Map<Field, "asc" | "desc">();
-  tables = new Map<{}, Query.Table>();
+  tables = new Map<{}, Table>();
   cte = new Map<string, Map<string, Parameter>>();
 
   deletes = new Set<Query.From<any>>();
@@ -123,7 +135,7 @@ class Builder {
 
     const local = new Map<string, Field>();
     const proxy = {} as Query.From;
-    const table: Query.Table = {
+    const table: Table = {
       name: type.table,
       proxy,
       local,

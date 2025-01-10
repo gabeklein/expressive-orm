@@ -9,23 +9,13 @@ declare namespace Query {
   /** Internal state for this Query. */
   type Builder = QB;
 
-  interface Table<T extends Type = any> {
-    toString(): string;
-    name: string;
-    proxy: Query.From<T>;
-    local: Map<string, Field>;
-    alias?: string;
-    join?: {
-      as: Query.Join.Mode;
-      on: Group
-    }
-  }
+  type Join<T extends Type> = From<T>;
 
   namespace Join {
     type Mode = "left" | "inner";
 
     // TODO: does not chain like actual Compare
-    type Where = <T extends Field>(field: T) => Field.Compare<FieldOrValue<T>>;
+    type Where = <T extends Field>(field: T) => Field.Compare<T extends Value<infer U> ? U : T>;
 
     type Function = (on: Where) => void;
 
@@ -35,8 +25,6 @@ declare namespace Query {
 
     type Left<T extends Type> = Partial<From<T>>;
   }
-
-  type Join<T extends Type> = From<T>;
   
   type From<T extends Type = Type> = {
     [K in Type.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
@@ -45,8 +33,6 @@ declare namespace Query {
   type FromData<T extends {}> = { [K in keyof T]: Field<T[K]> };
 
   type Value<T = any> = T | Field<T> | Computed<T>
-
-  type FieldOrValue<T> = T extends Value<infer U> ? U : T;
 
   type Where = typeof where & { name: string };
 
