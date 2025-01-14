@@ -8,7 +8,6 @@ interface Table<T extends Type = any> {
   toString(): string;
   name: string;
   proxy: Query.From<T>;
-  local: Map<string, Field>;
   alias?: string;
   join?: {
     as: Query.Join.Mode;
@@ -138,7 +137,6 @@ class Builder {
     const table: Table = {
       name: type.table,
       proxy,
-      local,
       toString(){
         return this.alias
           ? this.name + " " + this.alias
@@ -210,7 +208,7 @@ class Builder {
 
           case "object":
             for (const key in joinOn) {
-              const left = table.local.get(key);
+              const left = local.get(key);
       
               if (left instanceof Field)
                 this.where(left, "=", joinOn[key]);
@@ -285,7 +283,6 @@ class Builder {
     this.tables.set(proxy, {
       name,
       proxy,
-      local: new Map(),
       toString: () => name
     });
 
