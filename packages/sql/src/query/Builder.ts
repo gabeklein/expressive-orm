@@ -195,39 +195,35 @@ class Builder {
       
       const joinsOn = new Group();
       const current = this.filters;
-  
-      switch(typeof joinOn){
-        // TODO: Can this be combined with function mode
-        case "object":
-          this.filters = joinsOn;
-          for (const key in joinOn) {
-            const left = table.local.get(key);
-            const right = (joinOn as any)[key];
-  
-            if (left instanceof Field)
-              this.where(left, "=", right);
-            else
-              throw new Error(`${key} is not a valid column in ${type}.`);
-          }
-          this.filters = current;
-        break;
-  
-        case "function":
-          this.pending.add(() => {
-            this.filters = joinsOn;
+
+      this.pending.add(() => {
+        this.filters = joinsOn;
+        switch(typeof joinOn){
+          case "function":
             joinOn(left => {
               if(left instanceof Field)
                 return left.where();
-  
+      
               throw new Error("Join assertions can only apply to fields.");
             });
-            this.filters = current;
-          })
-        break;
-  
-        default:
-          throw new Error(`Invalid join on: ${joinOn}`);
-      }
+          break;
+
+          case "object":
+            for (const key in joinOn) {
+              const left = table.local.get(key);
+      
+              if (left instanceof Field)
+                this.where(left, "=", joinOn[key]);
+              else
+                throw new Error(`${key} is not a valid column in ${type}.`);
+            }
+          break;
+      
+          default:
+            throw new Error(`Invalid join on: ${joinOn}`);
+        }
+        this.filters = current;
+      })
   
       table.join = {
         as: joinAs,
@@ -261,8 +257,8 @@ class Builder {
   with(data: Iterable<Record<string, any>>){
     const keys = new Set(([] as string[]).concat(...Array.from(data, Object.keys)));
     const used = new Map<string, Parameter>();
-    const proxy = {};
     const name = 'input';
+    const proxy = {};
 
     for(const key of keys){
       defineProperty(proxy, key, {
