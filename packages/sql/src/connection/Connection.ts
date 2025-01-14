@@ -1,4 +1,6 @@
 import { Type } from '..';
+import { Builder } from '../query/Builder';
+import { Generator } from '../query/Generator';
 import { escape, values } from '../utils';
 
 declare namespace Connection {
@@ -12,6 +14,8 @@ declare namespace Connection {
 }
 
 abstract class Connection {
+  static generator = Generator;
+
   readonly using: Readonly<Set<typeof Type>>;
   readonly ready = false;
 
@@ -38,6 +42,11 @@ abstract class Connection {
   }
 
   abstract run(query: string, params?: any[]): Promise<void>;
+
+  stringify(builder: Builder){
+    const self = this.constructor as typeof Connection;
+    return new self.generator(builder).toString();
+  }
 
   /**
    * @deprecated eventually superseded by `Query` class.
