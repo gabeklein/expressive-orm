@@ -136,7 +136,7 @@ class Builder {
       throw new Error(`Joined entity ${type} does not share a connection with main table ${main}.`);
     }
 
-    const local = new Map<string, Field>();
+    const reference = {} as T;
     const proxy = {} as Query.From<T>;
     const table: Builder.Table = {
       name: type.table,
@@ -161,7 +161,7 @@ class Builder {
       field.toString = () =>
         `${table.alias || table.name}.${field.column}`;
 
-      local.set(key, field);
+      defineProperty(reference, key, { value: field });
 
       let value: any;
 
@@ -200,30 +200,7 @@ class Builder {
 
       this.pending.add(() => {
         this.filters = joinsOn;
-        switch(typeof joinOn){
-          case "function":
-            joinOn(left => {
-              if(left instanceof Field)
-                return left.where();
-      
-              throw new Error("Join assertions can only apply to fields.");
-            });
-          break;
-
-          case "object":
-            for (const key in joinOn) {
-              const left = local.get(key);
-      
-              if (left instanceof Field)
-                this.where(left, "=", joinOn[key]);
-              else
-                throw new Error(`${key} is not a valid column in ${type}.`);
-            }
-          break;
-      
-          default:
-            throw new Error(`Invalid join on: ${joinOn}`);
-        }
+        joinOn(reference);
         this.filters = current;
       })
   

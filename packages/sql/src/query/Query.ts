@@ -17,15 +17,13 @@ declare namespace Query {
     // TODO: does not chain like actual Compare
     type Where = <T extends Field>(field: T) => Field.Compare<T extends Value<infer U> ? U : T>;
 
-    type Function = (on: Where) => void;
-
     type Equal<T extends Type = any> = { [K in keyof T]?: Field | Query.From };
     
-    type On<T extends Type> = Function | Equal<T>;
+    type On<T extends Type> = ((ref: T) => void);
 
     type Left<T extends Type> = Partial<From<T>>;
   }
-  
+
   type From<T extends Type = Type> = {
     [K in Type.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
   }

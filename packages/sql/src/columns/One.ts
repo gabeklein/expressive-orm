@@ -26,7 +26,9 @@ function One<T extends Type>(type: Type.EntityType<T>, nullable?: boolean){
       return value;
     },
     use(query){
-      return query.use(type, { id: this });
+      return query.use(type, (on) => {
+        query.where(on.id, "=", this);
+      });
     }
   }));
 }
