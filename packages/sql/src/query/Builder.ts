@@ -4,15 +4,19 @@ import { Type } from '../type/Type';
 import { create, defineProperty, freeze, getOwnPropertyNames, values } from '../utils';
 import { Query } from './Query';
 
-interface Table<T extends Type = any> {
-  toString(): string;
-  name: string;
-  proxy: Query.From<T>;
-  alias?: string;
-  join?: {
-    as: Query.Join.Mode;
-    on: Group
+declare namespace Builder {
+  interface Table<T extends Type = any> {
+    toString(): string;
+    name: string;
+    proxy: Query.From<T>;
+    alias?: string;
+    join?: {
+      as: Query.Join.Mode;
+      on: Group
+    }
   }
+
+  type Using<T extends Type> = (self: Query.From<T>, where: Query.Where) => void;
 }
 
 class Builder {
@@ -28,7 +32,7 @@ class Builder {
   filters = new Group();
   pending = new Set<() => void>();
   order = new Map<Field, "asc" | "desc">();
-  tables = new Map<{}, Table>();
+  tables = new Map<{}, Builder.Table>();
   cte = new Map<string, Map<string, Parameter>>();
 
   deletes = new Set<Query.From<any>>();
@@ -133,8 +137,8 @@ class Builder {
     }
 
     const local = new Map<string, Field>();
-    const proxy = {} as Query.From;
-    const table: Table = {
+    const proxy = {} as Query.From<T>;
+    const table: Builder.Table = {
       name: type.table,
       proxy,
       toString(){
@@ -385,4 +389,4 @@ class Group {
   }
 }
 
-export { Builder, Parameter, Group, Value, Table };
+export { Builder, Parameter, Group, Value };

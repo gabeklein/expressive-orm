@@ -16,11 +16,40 @@ class Baz extends Type {
   rating = Num();
 }
 
-it("will join using object", async () => {
+it("will join using function", async () => {
   const query = Query(where => {
     const foo = where(Foo);
-    const bar = where(Bar, { color: foo.color });
-    const baz = where(Baz, { rating: bar.rating });
+    const bar = where(Bar, () => {
+      where(bar.name).not(foo.name);
+      where(bar.color).is(foo.color);
+    });
+
+    where(foo.name).not("Danny");
+    where(bar.rating).over(50);
+  });
+
+  expect(query).toMatchInlineSnapshot(`
+    SELECT
+      COUNT(*)
+    FROM
+      foo
+      INNER JOIN bar ON bar.name <> foo.name
+      AND bar.color = foo.color
+    WHERE
+      foo.name <> 'Danny'
+      AND bar.rating > 50
+  `);
+})
+
+it("will join multiple", async () => {
+  const query = Query(where => {
+    const foo = where(Foo);
+    const bar = where(Bar, () => {
+      where(bar.color).is(foo.color);
+    });
+    const baz = where(Baz, () => {
+      where(baz.rating).is(bar.rating);
+    });
 
     where(foo.name).not("Danny");
     where(bar.rating).over(50);
@@ -43,31 +72,6 @@ it("will join using object", async () => {
   `);
 })
 
-it("will join using function", async () => {
-  const query = Query(where => {
-    const foo = where(Foo);
-    const bar = where(Bar, on => {
-      on(bar.name).not(foo.name);
-      on(bar.color).is(foo.color);
-    });
-
-    where(foo.name).not("Danny");
-    where(bar.rating).over(50);
-  });
-
-  expect(query).toMatchInlineSnapshot(`
-    SELECT
-      COUNT(*)
-    FROM
-      foo
-      INNER JOIN bar ON bar.name <> foo.name
-      AND bar.color = foo.color
-    WHERE
-      foo.name <> 'Danny'
-      AND bar.rating > 50
-  `);
-})
-
 it("will join a table with alias", async () => {
   class Baz extends Type {
     this = Table({ "schema": "other" });
@@ -78,7 +82,9 @@ it("will join a table with alias", async () => {
   
   const query = Query(where => {
     const foo = where(Foo);
-    const bar = where(Baz, { color: foo.color });
+    const bar = where(Baz, () => {
+      where(bar.color).is(foo.color);
+    });
 
     return bar.rating;
   });
@@ -108,8 +114,12 @@ it("will select left join", async () => {
 
   const query = Query(where => {
     const foo = where(Foo);
-    const bar = where(Bar, { color: foo.color });
-    const baz = where(Baz, { rating: bar.rating }, "left");
+    const bar = where(Bar, () => {
+      where(bar.color).is(foo.color);
+    });
+    const baz = where(Baz, () => {
+      where(baz.rating).is(bar.rating);
+    }, "left");
 
     where(foo.name).not("Danny");
     where(bar.rating).over(50);
@@ -145,7 +155,9 @@ it("will select left join", async () => {
 it("will assert a joined property's value", () => {
   const query = Query(where => {
     const foo = where(Foo);
-    const bar = where(Bar, { color: foo.color });
+    const bar = where(Bar, () => {
+      where(bar.color).is(foo.color);
+    });
 
     where(bar.rating).is(42);
   });
@@ -174,7 +186,9 @@ it("will sort by joined table", async () => {
 
   const query = Query(where => {
     const test = where(Test);
-    const other = where(Other, { name: test.name })
+    const other = where(Other, () => {
+      where(other.name).is(test.name);
+    })
 
     where(other.rank).asc();
 

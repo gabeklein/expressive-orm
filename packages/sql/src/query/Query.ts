@@ -141,7 +141,7 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   const runner = (...args: any[]) => { 
     args = builder.accept(args);
     
-    const get = () => statement.all(args).then(x => x.map(builder.parse, builder));
+    const get = () => statement.all(args).then(a => a.map(x => builder.parse(x)));
     const query = create(Query.prototype) as Q;
     
     assign(query, {
@@ -178,13 +178,13 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   return runner();
 }
 
-function from<I extends {}, O extends {}>(data: Iterable<I>, from: Query.FunctionFrom<I, O>): Query.Selects<O>;
+function from<I extends {}, O extends {}>(data: Iterable<I>, query: Query.FunctionFrom<I, O>): Query.Selects<O>;
 
-function from<I extends {}>(data: Iterable<I>, from: Query.FunctionFrom<I, void>): Query;
+function from<I extends {}>(data: Iterable<I>, query: Query.FunctionFrom<I, void>): Query;
 
-function from<I extends {}>(data: Iterable<I>, from: Query.FunctionFrom<I, any>): any {
+function from<I extends {}>(data: Iterable<I>, query: Query.FunctionFrom<I, any>): any {
   return Query(function(where){
-    return from.call(this, where, where(data));
+    return query.call(this, where, where(data));
   })
 }
 
@@ -200,13 +200,13 @@ function where<T extends Type>(entity: Type.EntityType<T>): Query.From<T>;
 /**
  * Registers a type as inner join.
  */
-function where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join?: "inner"): Query.Join<T>;
+function where<T extends Type>(entity: Type.EntityType<T>, on: Function, join?: "inner"): Query.Join<T>;
 
 /**
  * Registers a type as a left join, returned object has optional
  * properties which may be undefined where the join is not present.
  */
-function where<T extends Type>(entity: Type.EntityType<T>, on: Query.Join.On<T>, join: Query.Join.Mode): Query.Join.Left<T>;
+function where<T extends Type>(entity: Type.EntityType<T>, on: Function, join: Query.Join.Mode): Query.Join.Left<T>;
 
 /**
  * Select a table for comparison or write operations.
@@ -217,7 +217,7 @@ function where<T extends Type>(field: Query.From<T> | Query.Join<T>): Query.Verb
  * Prepare comparison against a particilar field,
  * returns operations for the given type.
  */
-function where<T extends Field>(field: T): Query.Asserts<T>;
+function where<T extends Field>(field: T | undefined): Query.Asserts<T>;
 
 function where<T extends {}>(data: Iterable<T>): { [K in keyof T]: Field<T[K]> };
 

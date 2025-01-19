@@ -417,7 +417,9 @@ describe("data", () => {
     ])
     
     const query = Query.from(data, (where, data) => {
-      const user = where(User, { name: data.name });
+      const user = where(User, () => {
+        where(user.name).is(data.name);
+      });
 
       where(user).update({ age: data.age });
     });
