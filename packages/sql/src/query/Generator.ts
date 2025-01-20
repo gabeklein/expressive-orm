@@ -22,6 +22,10 @@ export class Generator {
     return this.acc.join(' ');
   }
 
+  escape(name: unknown){
+    return String(name).split('.').map(x => `\`${x}\``).join('.');
+  }
+
   protected toWith(){
     const { cte } = this.query;
 
@@ -29,7 +33,7 @@ export class Generator {
       return;
 
     this.add('WITH', Array.from(cte, ([name, param]) => {
-      const fields = Array.from(param, ([key], i) => `value -> ${i} AS \`${key}\``)
+      const fields = Array.from(param, ([key], i) => `value -> ${i} AS ${this.escape(key)}`)
       return `${name} AS (SELECT ${fields} FROM json_each(?))`;
     }));
   }
@@ -56,7 +60,9 @@ export class Generator {
 
       const mode = optional ? "LEFT" : "INNER";
       const as = name + (alias ? ` ${alias}` : "");
-      const conditions = joins.map(x => x.join(' '));
+      const conditions = joins.map(([left, op, right]) =>
+        `${this.escape(left)} ${op} ${this.escape(right)}`
+      );
 
       output.push(
         `${mode} JOIN ${as} ON ${conditions.join(' AND ')}`
@@ -88,7 +94,7 @@ export class Generator {
         else
           value = field.raw(value);
 
-        sets.push(`\`${field.column}\` = ${value}`);
+        sets.push(`${this.escape(field.column)} = ${value}`);
       }
 
     if(!sets.length)
@@ -108,7 +114,7 @@ export class Generator {
 
     const [ main ] = updates.keys();
 
-    this.add('UPDATE', `\`${main}\``);
+    this.add('UPDATE', this.escape(main));
     this.toJoins(main);
     this.toSet(updates);
 
