@@ -2,71 +2,38 @@ import { Field } from "../type/Field";
 import { Value, type Builder } from "./Builder";
 
 export class Generator {
-  constructor(public query: Builder){}
+  acc = [] as unknown[];
+  add = (...args: unknown[]) => this.acc.push(...args);
 
-  toString() {
-    const query = [] as unknown[];
-    const add = query.push.bind(query);
+  constructor(public query: Builder){
+    this.toWith();
 
-    const { deletes, limit, order, tables, updates, filters, cte } = this.query;
+    this.toUpdate() ||
+    this.toDelete() ||
+    this.toSelect()
 
-    if(cte.size)
-      add('WITH', Array.from(cte, ([name, param]) => {
-        const fields = Array.from(param, ([key], i) => `value -> ${i} AS \`${key}\``)
-        return `${name} AS (SELECT ${fields} FROM json_each(?))`;
-      }));
-
-    if(updates.size){
-      const [ main ] = updates.keys();
-      const joins = this.toJoins(main);
-
-      add('UPDATE', main);
-
-      if(joins)
-        add(joins);
-
-      add('SET', this.toUpdate());
-    }
-    else {
-      const [ main ] = tables.values();
-
-      if(deletes.size){
-        const [ target ] = deletes;
-        const { alias, name } = target!;
-  
-        add("DELETE");
-  
-        if(tables.size > 1 || alias)
-          add(alias || name);
-  
-        add('FROM', name);
-      }
-      else {
-        add('SELECT', this.toSelect());
-        
-        if(main)
-          add('FROM', main);
-      }
-
-      const joins = this.toJoins(main);
-
-      if(joins)
-        add(joins);
-    }
-
-    if(filters.size)
-      add('WHERE', filters);
-  
-    if(order.size)
-      add('ORDER BY', Array.from(order).map(x => x.join(' ')));
-  
-    if(limit)
-      add('LIMIT', limit);
-  
-    return query.join(' ');
+    this.toWhere();
+    this.toOrder();
+    this.toLimit();
   }
 
-  toJoins(main: Builder.Table){
+  toString() {
+    return this.acc.join(' ');
+  }
+
+  protected toWith(){
+    const { cte } = this.query;
+
+    if(!cte.size)
+      return;
+
+    this.add('WITH', Array.from(cte, ([name, param]) => {
+      const fields = Array.from(param, ([key], i) => `value -> ${i} AS \`${key}\``)
+      return `${name} AS (SELECT ${fields} FROM json_each(?))`;
+    }));
+  }
+
+  protected toJoins(main: Builder.Table){
     const output: string[] = [];
     const applied = new Set();
 
@@ -89,35 +56,22 @@ export class Generator {
       const mode = optional ? "LEFT" : "INNER";
       const as = name + (alias ? ` ${alias}` : "");
       const conditions = joins.map(x => x.join(' '));
-      
+
       output.push(
         `${mode} JOIN ${as} ON ${conditions.join(' AND ')}`
       );
     }
 
-    return output.join(' ');
+    if(output.length)
+      this.add(output.join(' '));
   }
 
-  toSelect(){
-    const { selects } = this.query;
-
-    if (!selects)
-      return 'COUNT(*)';
-
-    if (selects instanceof Field)
-      return selects.toString();
-
-    if(selects instanceof Map)
-      return Array.from(selects)
-        .map(([alias, field]) => `${field} AS \`${alias}\``)
-        .join(', ');
-
-    return `${selects} AS value`;
-  }
-
-  toUpdate(multiTableAllowed = false){
+  protected toUpdate(multiTableAllowed = false){
     const { updates } = this.query;
     const sets: string[] = [];
+
+    if(!updates.size)
+      return;
 
     if(updates.size > 1 && !multiTableAllowed)
       throw new Error('Engine does not support multi-table updates.');
@@ -143,10 +97,86 @@ export class Generator {
         sets.push(`\`${field.column}\` = ${value}`);
       }
 
-    if(sets.length)
-      return sets.join(', ');
+    if(!sets.length)
+      throw new Error('Update contains no values.');
 
-    throw new Error('Update contains no values.');
+    const [ main ] = updates.keys();
+
+    this.add('UPDATE', main);
+    this.toJoins(main);
+    this.add('SET', sets.join(', '));
+
+    return true;
   }
 
+  protected toDelete(){
+    const { add, query } = this;
+    const [ main ] = this.query.deletes;
+
+    if(!main)
+      return;
+
+    const { alias, name } = main;
+
+    add("DELETE");
+
+    if(query.tables.size > 1 || alias)
+      add(alias || name);
+
+    add('FROM', name);
+
+    this.toJoins(main);
+
+    return true;
+  }
+
+  protected toSelect(){
+    const { add } = this;
+    const { selects } = this.query;
+
+    add("SELECT")
+
+    if (!selects)
+      add('COUNT(*)');
+
+    else if (selects instanceof Field)
+      add(selects.toString());
+
+    else if(selects instanceof Map)
+      add(
+        Array.from(selects)
+        .map(([alias, field]) => `${field} AS \`${alias}\``)
+        .join(', ')
+      )
+    else 
+      add(`${selects} AS value`);
+
+    const [ main ] = this.query.tables.values();
+        
+    if(main)
+      add('FROM', main);
+
+    this.toJoins(main);
+  }
+
+  protected toWhere(){
+    const { filters } = this.query;
+
+    if(filters.size)
+      this.add('WHERE', filters);
+  }
+
+  protected toOrder(){
+    const { order } = this.query;
+
+    if(order.size)
+      this.add('ORDER BY', Array.from(order).map(x => x.join(' ')));
+  }
+
+  protected toLimit(){
+    const { limit } = this.query;
+
+    if(limit)
+      this.add('LIMIT', limit);
+  }
 }
