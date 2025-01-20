@@ -1,5 +1,6 @@
-import { Field } from "../type/Field";
-import { Value, type Builder } from "./Builder";
+import { Field } from '../type/Field';
+import { Builder, Value } from './Builder';
+import { Query } from './Query';
 
 export class Generator {
   acc = [] as unknown[];
@@ -66,15 +67,8 @@ export class Generator {
       this.add(output.join(' '));
   }
 
-  protected toUpdate(multiTableAllowed = false){
-    const { updates } = this.query;
+  protected toSet(updates: Map<Query.Table, Query.Update<any>>){
     const sets: string[] = [];
-
-    if(!updates.size)
-      return;
-
-    if(updates.size > 1 && !multiTableAllowed)
-      throw new Error('Engine does not support multi-table updates.');
 
     for(const [table, data] of updates)
       for(let [col, value] of Object.entries(data)){
@@ -100,11 +94,23 @@ export class Generator {
     if(!sets.length)
       throw new Error('Update contains no values.');
 
+    this.add('SET', sets.join(', '));
+  }
+
+  protected toUpdate(multiTableAllowed = false){
+    const { updates } = this.query;
+
+    if(!updates.size)
+      return;
+
+    if(updates.size > 1 && !multiTableAllowed)
+      throw new Error('Engine does not support multi-table updates.');
+
     const [ main ] = updates.keys();
 
-    this.add('UPDATE', main);
+    this.add('UPDATE', `\`${main}\``);
     this.toJoins(main);
-    this.add('SET', sets.join(', '));
+    this.toSet(updates);
 
     return true;
   }

@@ -115,8 +115,8 @@ it("will update from data", async () => {
           json_each (?)
       )
     UPDATE
-      USER
-      INNER JOIN input ON USER.name = input.name
+      user
+      INNER JOIN input ON user.name = input.name
     SET
       age = input.age
   `)
