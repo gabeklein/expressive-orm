@@ -401,30 +401,4 @@ describe("data", () => {
         input
     `);
   })
-
-  it.skip("will update rows in a table", async () => {
-    class User extends Type {
-      name = Str();
-      age = Num();
-    }
-
-    await new TestConnection([User]);
-
-    await User.insert([
-      { name: "John", age: 0 },
-      { name: "Jane", age: 0 },
-      { name: "Joe", age: 0 },
-    ])
-    
-    const query = Query.from(data, (where, data) => {
-      const user = where(User, () => {
-        where(user.name).is(data.name);
-      });
-
-      where(user).update({ age: data.age });
-    });
-
-    expect(query).toMatchInlineSnapshot()
-
-  })
 })

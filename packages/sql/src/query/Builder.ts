@@ -9,11 +9,10 @@ declare namespace Builder {
     toString(): string;
     name: string;
     proxy: Query.From<T>;
+    reference: T;
     alias?: string;
-    join?: {
-      as: Query.Join.Mode;
-      on: Group
-    }
+    optional?: boolean;
+    joins: (readonly [Field, string, Field | Value])[];
   }
 
   type Using<T extends Type> = (self: Query.From<T>, where: Query.Where) => void;
@@ -33,10 +32,10 @@ class Builder {
   pending = new Set<() => void>();
   order = new Map<Field, "asc" | "desc">();
   tables = new Map<{}, Builder.Table>();
-  cte = new Map<string, Map<string, Parameter>>();
+  cte = new Map<string, Map<string, DataField>>();
 
-  deletes = new Set<Query.From<any>>();
-  updates = new Map<Query.From<any>, Query.Update<any>>();
+  deletes = new Set<Query.Table>();
+  updates = new Map<Query.Table, Query.Update<any>>();
   selects?: unknown;
   limit?: number;
 
@@ -91,12 +90,14 @@ class Builder {
   }
 
   table(table: Query.From){
+    const target = this.tables.get(table)!;
+
     return <Query.Verbs<Type>> {
       delete: () => {
-        this.deletes.add(table);
+        this.deletes.add(target);
       },
       update: (data: Query.Update<any>) => {
-        this.updates.set(table, data);
+        this.updates.set(target, data);
       }
     }
   }
@@ -122,9 +123,9 @@ class Builder {
     return local;
   }
 
-  use<T extends Type>(type: Type.EntityType<T>): Query.From<T>;
-  use<T extends Type>(type: Type.EntityType<T>, joinOn: Query.Join.On<T>, joinAs?: Query.Join.Mode): Query.Join<T>;
-  use<T extends Type>(type: Type.EntityType<T>, joinOn?: Query.Join.On<T>, joinAs?: Query.Join.Mode){
+  use<T extends Type>(type: Type.EntityType<T>, optional?: false): Query.From<T>;
+  use<T extends Type>(type: Type.EntityType<T>, optional?: boolean): Query.Join<T>;
+  use<T extends Type>(type: Type.EntityType<T>, optional?: boolean){
     const { fields, schema } = type;
     const { tables } = this;
 
@@ -140,7 +141,10 @@ class Builder {
     const proxy = {} as Query.From<T>;
     const table: Builder.Table = {
       name: type.table,
+      joins: [],
+      reference,
       proxy,
+      optional,
       toString(){
         return this.alias
           ? this.name + " " + this.alias
@@ -158,6 +162,7 @@ class Builder {
     fields.forEach((field, key) => {
       field = create(field);
       field.query = this;
+      field.table = table;
       field.toString = () =>
         `${table.alias || table.name}.${field.column}`;
 
@@ -173,42 +178,6 @@ class Builder {
     });
 
     freeze(proxy);
-
-    if(joinOn){
-      if(typeof joinOn == "string")
-        throw new Error("Bad parameters.");
-  
-      switch(joinAs){
-        case undefined:
-          joinAs = "inner";
-  
-        case "inner":
-        case "left":
-          break;
-  
-        case "right" as unknown:
-        case "full" as unknown:
-          const [ main ] = this.tables.values();
-          throw new Error(`Cannot ${joinAs} join because that would affect ${main} which is already defined.`);
-  
-        default:
-          throw new Error(`Invalid join type ${joinAs}.`);
-      }
-      
-      const joinsOn = new Group();
-      const current = this.filters;
-
-      this.pending.add(() => {
-        this.filters = joinsOn;
-        joinOn(reference);
-        this.filters = current;
-      })
-  
-      table.join = {
-        as: joinAs,
-        on: joinsOn
-      }
-    }
     
     return table.proxy;
   }
@@ -217,16 +186,30 @@ class Builder {
     if(typeof right == "function")
       right = right();
 
+    if(right instanceof Field || right instanceof DataField){
+      const where = [left, op, right] as const;
+
+      if(right instanceof DataField)
+        right.table.joins.push(where);
+      else
+        left.table!.joins.push(where);
+
+      return {
+        toString(){
+          throw new Error("Composing joins is not supported.");
+        }
+      }
+    }
+
     if(right instanceof Parameter){
       right.digest = left.set.bind(this);
       right = right.toString();
     }
-    else if(Array.isArray(right)){
+    else if(right instanceof Array){
       right = `(${right.map(left.raw, left)})`;
     }
-    else if(!(right instanceof Field)){
+    else
       right = left.raw(right);
-    }
 
     const e = `${left} ${op} ${right}`;
     this.filters.add(e);
@@ -235,15 +218,23 @@ class Builder {
 
   with(data: Iterable<Record<string, any>>){
     const keys = new Set(([] as string[]).concat(...Array.from(data, Object.keys)));
-    const used = new Map<string, Parameter>();
+    const used = new Map<string, DataField>();
     const name = 'input';
     const proxy = {};
+    const table: Builder.Table = {
+      name,
+      proxy,
+      joins: [],
+      optional: false,
+      reference: {},
+      toString: () => name
+    }
 
     for(const key of keys){
       defineProperty(proxy, key, {
         configurable: true,
         get(){
-          const value = new Parameter(`${name}.${key}`);
+          const value = new DataField(`${name}.${key}`, table);
 
           used.set(key, value);
           defineProperty(this, key, { value });
@@ -261,11 +252,7 @@ class Builder {
       ))
     );
 
-    this.tables.set(proxy, {
-      name,
-      proxy,
-      toString: () => name
-    });
+    this.tables.set(proxy, table);
 
     return proxy;
   }
@@ -305,21 +292,29 @@ class Builder {
 
 class Value {}
 
+class DataField extends Value {
+  constructor(placeholder: string, public table: Builder.Table){
+    super();
+    this.toString = () => placeholder;
+  }
+
+  digest(value: unknown){
+    return value;
+  }
+}
+
 class Parameter extends Value {
   index = -1;
 
   constructor(index?: number);
-  constructor(placeholder?: string);
   constructor(data?: () => unknown);
-  constructor(arg?: number | string | (() => unknown)){
+  constructor(arg?: number | (() => unknown)){
     super();
 
     if(typeof arg == "number")
       this.index = arg;
     else if(typeof arg == "function")
       this.data = arg;
-    else if(typeof arg == "string")
-      this.toString = () => arg;
   }
 
   digest(value: unknown){

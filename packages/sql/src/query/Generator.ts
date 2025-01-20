@@ -9,42 +9,50 @@ export class Generator {
     const add = query.push.bind(query);
 
     const { deletes, limit, order, tables, updates, filters, cte } = this.query;
-    const [ main, ...joins ] = tables.values();
 
     if(cte.size)
       add('WITH', Array.from(cte, ([name, param]) => {
-        const fields = Array.from(param, ([key], i) => `value -> ${i} AS ${key}`)
+        const fields = Array.from(param, ([key], i) => `value -> ${i} AS \`${key}\``)
         return `${name} AS (SELECT ${fields} FROM json_each(?))`;
       }));
 
     if(updates.size){
-      add("UPDATE", main);
-    }
-    else if(deletes.size){
-      const [ target ] = deletes;
-      const { alias, name } = tables.get(target)!;
+      const [ main ] = updates.keys();
+      const joins = this.toJoins(main);
 
-      add("DELETE");
+      add('UPDATE', main);
 
-      if(tables.size > 1 || alias)
-        add(alias || name);
+      if(joins)
+        add(joins);
 
-      add('FROM', name);
+      add('SET', this.toUpdate());
     }
     else {
-      add('SELECT', this.toSelect());
-      
-      if(main)
-        add('FROM', main);
-    }
+      const [ main ] = tables.values();
 
-    for(const table of joins){
-      const { as, on } = table.join!;
-      add(as.toUpperCase(), "JOIN", table, 'ON', on);
-    }
+      if(deletes.size){
+        const [ target ] = deletes;
+        const { alias, name } = target!;
+  
+        add("DELETE");
+  
+        if(tables.size > 1 || alias)
+          add(alias || name);
+  
+        add('FROM', name);
+      }
+      else {
+        add('SELECT', this.toSelect());
+        
+        if(main)
+          add('FROM', main);
+      }
 
-    if(updates.size)
-      add('SET', this.toUpdate());
+      const joins = this.toJoins(main);
+
+      if(joins)
+        add(joins);
+    }
 
     if(filters.size)
       add('WHERE', filters);
@@ -58,19 +66,51 @@ export class Generator {
     return query.join(' ');
   }
 
+  toJoins(main: Builder.Table){
+    const output: string[] = [];
+    const applied = new Set();
+
+    for(const table of this.query.tables.values()){
+      if(table === main)
+        continue;
+
+      const { alias, name, optional } = table;
+
+      if(table.joins.length === 0)
+        throw new Error(`Table ${name} has no joins.`);
+
+      const joins = table.joins.filter(x => {
+        if(!applied.has(x)){
+          applied.add(x);
+          return true;
+        }
+      });
+
+      const mode = optional ? "LEFT" : "INNER";
+      const as = name + (alias ? ` ${alias}` : "");
+      const conditions = joins.map(x => x.join(' '));
+      
+      output.push(
+        `${mode} JOIN ${as} ON ${conditions.join(' AND ')}`
+      );
+    }
+
+    return output.join(' ');
+  }
+
   toSelect(){
     const { selects } = this.query;
 
     if (!selects)
       return 'COUNT(*)';
 
+    if (selects instanceof Field)
+      return selects.toString();
+
     if(selects instanceof Map)
       return Array.from(selects)
         .map(([alias, field]) => `${field} AS \`${alias}\``)
         .join(', ');
-
-    if (selects instanceof Field)
-      return selects.toString();
 
     return `${selects} AS value`;
   }
@@ -84,7 +124,7 @@ export class Generator {
 
     for(const [table, data] of updates)
       for(let [col, value] of Object.entries(data)){
-        const field = table[col] as Field; 
+        const field = table.reference[col] as Field; 
 
         if(value === undefined)
           continue;

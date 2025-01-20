@@ -1,15 +1,15 @@
 import { Field, Type } from '..';
 import { assign, create } from '../utils';
-import { Group, Parameter, Builder } from './Builder';
+import { Group, Parameter, Builder as QB } from './Builder';
 import { Computed } from './Computed';
-
-type QB = Builder;
 
 declare namespace Query {
   /** Internal state for this Query. */
   type Builder = QB;
 
   type Join<T extends Type> = From<T>;
+
+  type Table = QB.Table;
 
   namespace Join {
     type Mode = "left" | "inner";
@@ -110,7 +110,7 @@ function Query<T extends {}>(from: Query.Function<T>): Query.Selects<T>;
 function Query(from: Query.Function<void>): Query;
 
 function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>){
-  const builder = new Builder();
+  const builder = new QB();
   let result = factory.call(builder, where.bind(builder));
   let args = 0;
 
@@ -187,24 +187,19 @@ function from<I extends {}>(data: Iterable<I>, query: Query.FunctionFrom<I, any>
 }
 
 Query.from = from;
-Query.Builder = Builder;
+Query.Builder = QB;
 
 /**
  * Create a reference to the primary table, returned
  * object can be used to query against that table.
  */
-function where<T extends Type>(entity: Type.EntityType<T>): Query.From<T>;
-
-/**
- * Registers a type as inner join.
- */
-function where<T extends Type>(entity: Type.EntityType<T>, on: Function, join?: "inner"): Query.Join<T>;
+function where<T extends Type>(entity: Type.EntityType<T>, optional?: false): Query.From<T>;
 
 /**
  * Registers a type as a left join, returned object has optional
  * properties which may be undefined where the join is not present.
  */
-function where<T extends Type>(entity: Type.EntityType<T>, on: Function, join: Query.Join.Mode): Query.Join.Left<T>;
+function where<T extends Type>(entity: Type.EntityType<T>, optional?: boolean): Query.Join.Left<T>;
 
 /**
  * Select a table for comparison or write operations.
@@ -234,7 +229,7 @@ function where(this: QB, arg1: any, arg2?: any, arg3?: any): any {
     return this.field(arg1);
 
   if(Type.is(arg1))
-    return this.use(arg1, arg2, arg3);
+    return this.use(arg1, arg2);
 
   if(this.tables.has(arg1))
     return this.table(arg1);

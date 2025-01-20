@@ -29,11 +29,11 @@ it("will generate query", () => {
 it("will include FROM statement where JOIN exists", () => {
   const query = Query(where => {
     const foo = where(Foo);
-    const bar = where(Bar, () => {
-      where(bar.color).is(foo.color);
-    });
+    const bar = where(Bar);
 
+    where(bar.color).is(foo.color);
     where(bar.value).is("Hello World!");
+
     where(foo).delete();
   });
 

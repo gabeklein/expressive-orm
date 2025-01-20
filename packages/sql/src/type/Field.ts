@@ -60,7 +60,8 @@ interface Field<T = unknown> {
 
   property: string;
   parent: Type.EntityType;
-
+  
+  table?: Query.Table;
   query?: Query.Builder;
 
   foreignKey?: string;
