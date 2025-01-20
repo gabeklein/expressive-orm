@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-import { Connection, Field, Type } from '..';
+import { Connection, Field, Type, Generator } from '..';
 
 type TableInfo = { 
   name: string; 
@@ -9,7 +9,49 @@ type TableInfo = {
   dflt_value: any
 };
 
+export class SQLiteGenerator extends Generator {
+  protected toUpdate(){
+    const { updates, tables } = this.query;
+
+    const [main] = updates.keys();
+
+    if (!updates.size)
+      return
+
+    this.add('UPDATE', this.escape(main));
+    this.toSet(updates);
+
+    if (tables.size > 1) {
+      // TODO: maybe redundant with base class
+      const using = Array.from(tables.values())
+        .filter(table => table !== main)
+        .map(table => {
+          const { joins } = table;
+
+          if (joins.length === 0)
+            throw new Error(`Table ${table.name} has no joins.`);
+
+          return {
+            table,
+            conditions: joins.map(([left, op, right]) => {
+              return `${this.escape(left)} ${op} ${this.escape(right)}`;
+            }).join(' AND ')
+          };
+        });
+
+      if (using.length > 0) {
+        this.add('FROM', using.map(({ table }) => table).join(', '));
+        this.add('WHERE', using.map(x => x.conditions).join(' AND '));
+      }
+    }
+
+    return true;
+  }
+}
+
 export class SQLiteConnection extends Connection {
+  static generator = SQLiteGenerator;
+
   protected engine: Database.Database;
 
   constructor(using: Connection.Types, filename?: string) {
@@ -132,10 +174,7 @@ export class SQLiteConnection extends Connection {
   }
 
   protected createSchema(types: Iterable<typeof Type>): void {
-    for (const type of types) {
-      const schema = this.generateTableSchema(type);
-      this.engine.exec(schema);
-    }
+    this.engine.exec(this.generateSchema(types));
   }
 
   protected generateTableSchema(type: Type.EntityType): string {
@@ -150,7 +189,7 @@ export class SQLiteConnection extends Connection {
         parts += ' UNIQUE';
 
       if (field.fallback !== undefined)
-        parts += ` DEFAULT ${field.set(field.fallback)}`;
+        parts += ' DEFAULT ' + field.set(field.fallback);
 
       if (field.foreignKey && field.foreignTable)
         parts += ` REFERENCES ${field.foreignTable}(${field.foreignKey})`;
