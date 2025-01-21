@@ -22,6 +22,12 @@ it("will update from data", async () => {
 
   await new TestConnection([User]);
 
+  await User.insert([
+    { name: "John", age: 0 },
+    { name: "Jane", age: 0 },
+    { name: "Joe", age: 0 },
+  ])
+
   const query = Query.from(data, (where, input) => {
     const user = where(User);
 
@@ -47,4 +53,14 @@ it("will update from data", async () => {
     WHERE
       user.name = input.name
   `)
+
+  await expect(query).resolves.toBe(2);
+
+  const results = await User.get();
+  
+  expect(results).toEqual([
+    { id: 1, name: "John", age: 30 },
+    { id: 2, name: "Jane", age: 25 },
+    { id: 3, name: "Joe", age: 0 },
+  ]);
 })
