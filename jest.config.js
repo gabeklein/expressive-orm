@@ -6,7 +6,7 @@ module.exports = {
     try {
       const sql = format(query.toString(), { keywordCase: "upper" });
       return sql
-        .replace(/ - > /g, " -> ")
+        .replace(/ - > > /g, " ->> ")
         .replace(/`([a-zA-Z][a-zA-Z0-9_]*)`/g, "$1");
     }
     catch(e) {
