@@ -65,11 +65,14 @@ export class SQLiteConnection extends Connection {
 
   prepare<T = any>(sql: string){
     const stmt = this.engine.prepare(sql);
+    const string = (x?: unknown[]) => x
+      ? x.map(x => typeof x === 'object' ? JSON.stringify(x) : x)
+      : [];
 
     return {
-      all: async (p?: any[]) => stmt.all(p || []) as T[],
-      get: async (p?: any[]) => stmt.get(p || []) as T || undefined,
-      run: async (p?: any[]) => stmt.run(p || []).changes,
+      all: async (p?: any[]) => stmt.all(string(p)) as T[],
+      get: async (p?: any[]) => stmt.get(string(p)) as T || undefined,
+      run: async (p?: any[]) => stmt.run(string(p)).changes,
     };
   }
 
