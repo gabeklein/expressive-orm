@@ -75,13 +75,11 @@ class NoConnection extends Connection {
   }
 
   prepare(){
-    const run = async () => { throw new Error("No connection to run query."); }
-
-    return { all: run, get: run, run }
-  }
-
-  async close(){
-    return;
+    return {
+      all: this.run,
+      get: this.run,
+      run: this.run
+    }
   }
 
   async run(): Promise<never> {
@@ -94,6 +92,10 @@ class NoConnection extends Connection {
 
   async valid(){
     return true;
+  }
+
+  async close(){
+    return;
   }
 }
 
