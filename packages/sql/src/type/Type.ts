@@ -122,7 +122,7 @@ abstract class Type {
       const self = where(this);
 
       if(typeof query == "function")
-        return query(self, where);
+        return query(self, where) || self;
 
       if(typeof query == "number")
         where(self.id).is(query);
