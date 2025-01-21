@@ -29,13 +29,12 @@ export class Generator {
   protected toWith(){
     const { cte } = this.query;
 
-    if(!cte.size)
-      return;
-
-    this.add('WITH', Array.from(cte, ([name, param]) => {
-      const fields = Array.from(param, ([key], i) => `value ->> ${i} AS ${this.escape(key)}`)
-      return `${name} AS (SELECT ${fields} FROM json_each(?))`;
-    }));
+    if(cte.size)
+      this.add('WITH', Array.from(cte, ([name, param]) => {
+        const fields = Array.from(param, ([key], i) => `value ->> ${i} AS ${this.escape(key)}`);
+        const query = `SELECT ${fields} FROM json_each(?)`;
+        return `${name} AS (${query})`;
+      }));
   }
 
   protected toJoins(main: Builder.Table){
@@ -64,9 +63,7 @@ export class Generator {
         `${this.escape(left)} ${op} ${this.escape(right)}`
       );
 
-      output.push(
-        `${mode} JOIN ${as} ON ${conditions.join(' AND ')}`
-      );
+      output.push(`${mode} JOIN ${as} ON ${conditions.join(' AND ')}`);
     }
 
     if(output.length)
