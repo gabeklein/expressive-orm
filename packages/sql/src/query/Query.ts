@@ -11,22 +11,15 @@ declare namespace Query {
 
   type Table = QB.Table;
 
-  namespace Join {
-    type Mode = "left" | "inner";
-
-    // TODO: does not chain like actual Compare
-    type Where = <T extends Field>(field: T) => Field.Compare<T extends Value<infer U> ? U : T>;
-
-    type Equal<T extends Type = any> = { [K in keyof T]?: Field | Query.From };
-    
-    type On<T extends Type> = ((ref: T) => void);
-
-    type Left<T extends Type> = Partial<From<T>>;
-  }
-
   type From<T extends Type = Type> = {
     [K in Type.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
   }
+
+  type Optional<T extends Type = Type> = {
+    [K in Type.Fields<T>]?: T[K] extends Field.Queries<infer U> ? U : T[K];
+  }
+
+  type Update<T extends Type> = { [K in Type.Fields<T>]?: Updates<T[K]> };
 
   type FromData<T extends {}> = { [K in keyof T]: Field<T[K]> };
 
@@ -35,10 +28,6 @@ declare namespace Query {
   type Where = typeof where & { name: string };
 
   type Updates<T> = Field.Updates<T> | T | Field;
-
-  type Update<T extends Type> = {
-    [K in Type.Fields<T>]?: Updates<T[K]>;
-  }
 
   type Function<R> = (this: Builder, where: Where) => R;
 
@@ -199,7 +188,7 @@ function where<T extends Type>(entity: Type.EntityType<T>, optional?: false): Qu
  * Registers a type as a left join, returned object has optional
  * properties which may be undefined where the join is not present.
  */
-function where<T extends Type>(entity: Type.EntityType<T>, optional?: boolean): Query.Join.Left<T>;
+function where<T extends Type>(entity: Type.EntityType<T>, optional?: boolean): Query.Optional<T>;
 
 /**
  * Select a table for comparison or write operations.
