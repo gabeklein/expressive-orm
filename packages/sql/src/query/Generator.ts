@@ -27,14 +27,19 @@ export class Generator {
   }
 
   protected toWith(){
-    const { cte } = this.query;
+    const cte = [] as string[];
 
-    if(cte.size)
-      this.add('WITH', Array.from(cte, ([name, param]) => {
-        const fields = Array.from(param, ([key], i) => `value ->> ${i} ${this.escape(key)}`);
-        const query = `SELECT ${fields} FROM json_each(?)`;
-        return `${name} AS (${query})`;
-      }));
+    this.query.tables.forEach(({ data, name }) => {
+      if(!data)
+        return;
+
+      const fields = Array.from(data, ([key], i) => `value ->> ${i} ${this.escape(key)}`);
+
+      cte.push(`${name} AS (SELECT ${fields} FROM json_each(?))`)
+    })
+
+    if(cte.length)
+      this.add('WITH', cte.join(", "));
   }
 
   protected toJoins(main: Builder.Table){

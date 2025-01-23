@@ -13,6 +13,7 @@ declare namespace Builder {
     alias?: string;
     optional?: boolean;
     joins: (readonly [Field, string, Field | Value])[];
+    data?: Map<string, DataField>;
   }
 
   type Using<T extends Type> = (self: Query.From<T>, where: Query.Where) => void;
@@ -32,7 +33,6 @@ class Builder {
   pending = new Set<() => void>();
   order = new Map<Field, "asc" | "desc">();
   tables = new Map<{}, Builder.Table>();
-  cte = new Map<string, Map<string, DataField>>();
 
   deletes = new Set<Query.Table>();
   updates = new Map<Query.Table, Query.Update<any>>();
@@ -225,6 +225,7 @@ class Builder {
       name,
       proxy,
       joins: [],
+      data: used,
       optional: false,
       reference: {},
       toString: () => name
