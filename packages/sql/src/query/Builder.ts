@@ -26,7 +26,7 @@ class Builder {
    * May either be placeholders for a template, or values
    * which the query deems unsafe to interpolate directly.
    */
-  params = new Set<Parameter>();
+  params = new Set<Parameter | ((...args: unknown[]) => unknown)>();
 
   filters = new Group();
   pending = new Set<() => void>();
@@ -231,26 +231,20 @@ class Builder {
     }
 
     for(const key of keys){
+      const value = new DataField(`${name}.${key}`, table);
       defineProperty(proxy, key, {
-        configurable: true,
         get(){
-          const value = new DataField(`${name}.${key}`, table);
-
           used.set(key, value);
-          defineProperty(this, key, { value });
           return value;
         }
       });
     }
 
-    this.cte.set(name, used);
-    this.params.add(
-      new Parameter(() => (
-        Array.from(data, row => (
-          Array.from(used, ([key, value]) => value.digest(row[key]))
-        ))
+    this.params.add(() => (
+      Array.from(data, row => (
+        Array.from(used, ([key]) => row[key])
       ))
-    );
+    ));
 
     this.tables.set(proxy, table);
 
@@ -258,7 +252,7 @@ class Builder {
   }
 
   accept(args: unknown[]){
-    return Array.from(this.params || [], p => p.data(args));
+    return Array.from(this.params || [], p => typeof p == "function" ? p() : p.data(args));
   }
 
   parse(raw: Record<string, any>){
@@ -293,13 +287,14 @@ class Builder {
 class Value {}
 
 class DataField extends Value {
-  constructor(placeholder: string, public table: Builder.Table){
+  constructor(
+    public placeholder: string,
+    public table: Builder.Table){
     super();
-    this.toString = () => placeholder;
   }
 
-  digest(value: unknown){
-    return value;
+  toString(){
+    return this.placeholder;
   }
 }
 
