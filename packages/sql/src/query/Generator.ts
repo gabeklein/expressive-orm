@@ -31,7 +31,7 @@ export class Generator {
 
     if(cte.size)
       this.add('WITH', Array.from(cte, ([name, param]) => {
-        const fields = Array.from(param, ([key], i) => `value ->> ${i} AS ${this.escape(key)}`);
+        const fields = Array.from(param, ([key], i) => `value ->> ${i} ${this.escape(key)}`);
         const query = `SELECT ${fields} FROM json_each(?)`;
         return `${name} AS (${query})`;
       }));
