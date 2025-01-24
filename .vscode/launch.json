@@ -4,44 +4,12 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Jest Tests",
-      "program": "${workspaceFolder}/node_modules/jest/bin/jest.js",
-      "args": [
-        "${input:test_suite}",
-        "--watchAll",
-        "--runInBand", 
-        "--config=${workspaceFolder}/jest.config.json",
-        "--globals={\"ts-jest\":{\"tsconfig\":{\"noUnusedLocals\":false}}}"
-      ],
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen",
-      "runtimeExecutable": "/usr/local/bin/node"
-    },
-    {
-      "name": "Run development",
-      "type": "node",
-      "request": "launch",
-      "program": "${workspaceFolder}/node_modules/ts-node-dev/lib/bin.js",
-      "console": "integratedTerminal",
-      "sourceMaps": true,
-      "args": ["--transpile-only", "--clear", "${relativeFile}"],
-      "envFile": "${workspaceFolder}/.env",
-      "env": {
-        "NODE_ENV": "development"
-      }
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Jest: Current File",
-      "program": "${workspaceFolder}/node_modules/jest/bin/jest.js",
-      "args": [
-        "${relativeFile}",
-        "--watchAll",
-        "--noUnusedLocals=false",
-        "--config=${workspaceFolder}/jest.config.json",
-        "--testTimeout=3600000"
-      ],
+      "name": "Run tests",
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
+      "args": ["${input:test_suite}", "--watch"],
+      "smartStep": true,
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
     }
@@ -50,7 +18,7 @@
     {
       "id": "test_suite",
       "type": "promptString",
-      "description": "Test you wish to run a debug session for."
+      "description": "Test pattern to run (e.g., 'src/**/*.test.ts')"
     }
   ]
 }

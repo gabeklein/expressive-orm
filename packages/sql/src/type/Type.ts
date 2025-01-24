@@ -45,7 +45,8 @@ abstract class Type {
   static connection?: Connection;
 
   static get table(){
-    return this.table = underscore(this.name);
+    // chop off trailing numbers from transpiled class name
+    return this.table = underscore(this.name.replace(/\d+$/, ""));
   }
 
   static set table(value: string){
