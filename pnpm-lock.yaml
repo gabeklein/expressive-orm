@@ -51,12 +51,9 @@ importers:
 
   packages/sql:
     devDependencies:
-      '@types/better-sqlite3':
-        specifier: ^7.6.12
-        version: 7.6.12
-      better-sqlite3:
-        specifier: ^11.7.0
-        version: 11.7.0
+      '@expressive/sqlite':
+        specifier: workspace:*
+        version: link:../sqlite
 
   packages/sql-import:
     dependencies:
@@ -73,6 +70,15 @@ importers:
       '@types/moo':
         specifier: ^0.5.5
         version: 0.5.9
+
+  packages/sqlite:
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.12
+        version: 7.6.12
+      better-sqlite3:
+        specifier: ^11.7.0
+        version: 11.7.0
 
 packages:
 

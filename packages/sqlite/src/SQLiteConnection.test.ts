@@ -1,8 +1,6 @@
-import { Num } from '../columns/Num';
-import { Str } from '../columns/Str';
-import { TestConnection } from '../connection/TestConnection';
-import { Query } from '../query/Query';
-import { Type } from '../type/Type';
+import { Num, Query, Str, Type } from '@expressive/sql';
+
+import { TestConnection } from './TestConnection';
 
 it("will update from data", async () => {
   class User extends Type {

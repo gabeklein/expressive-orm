@@ -1,6 +1,5 @@
+import { Connection, Field, Generator, Type } from '@expressive/sql';
 import Database from 'better-sqlite3';
-
-import { Connection, Field, Type, Generator } from '..';
 
 type TableInfo = { 
   name: string; 

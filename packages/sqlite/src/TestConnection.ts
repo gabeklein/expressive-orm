@@ -1,6 +1,5 @@
+import { Connection } from '@expressive/sql';
 import { SQLiteConnection } from '@expressive/sqlite';
-
-import { Connection } from '..';
 
 const reset = new Set<Function>();
 let cleanup: Function | undefined;
