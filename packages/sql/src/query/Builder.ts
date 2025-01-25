@@ -88,6 +88,21 @@ class Builder {
     return this.connection!.stringify(this);
   }
 
+  inject(args: number){
+    return Array.from({ length: args }, (_, i) => {
+      const p = new Parameter(i);
+
+      return () => {
+        if(this.params.has(p))
+          throw new Error(`Parameter ${i} is already defined.`);
+        else
+          this.params.add(p);
+
+        return p;
+      }
+    })
+  }
+
   table(table: Query.From){
     const target = this.tables.get(table)!;
 

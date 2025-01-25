@@ -1,6 +1,6 @@
 import { Field, Type } from '..';
 import { assign, create } from '../utils';
-import { Group, Parameter, Builder as QB } from './Builder';
+import { Group, Builder as QB } from './Builder';
 import { Computed } from './Computed';
 
 declare namespace Query {
@@ -101,23 +101,10 @@ function Query(from: Query.Function<void>): Query;
 function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>){
   const builder = new QB();
   let result = factory.call(builder, where.bind(builder));
-  let args = 0;
+  let args: number | undefined;
 
   if(typeof result === 'function'){
-    args = result.length;
-    const params = Array.from(result as { length: number }, (_, i) => {
-      const p = new Parameter(i);
-
-      return () => {
-        if(builder.params.has(p))
-          throw new Error(`Parameter ${i} is already defined.`);
-        else
-          builder.params.add(p);
-
-        return p;
-      }
-    })
-
+    const params = builder.inject(args = result.length);
     result = (result as Function)(...params);
   }
 
@@ -161,7 +148,7 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     return query;
   };
 
-  if(args){
+  if(typeof args == "number"){
     runner.toString = toString;
     return runner;
   }
