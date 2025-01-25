@@ -5,10 +5,10 @@ export { Str } from './columns/Str';
 export { Time } from './columns/Time';
 
 export { Connection } from './connection/Connection';
-export { Field, Nullable, Optional } from './type/Field';
-export { math, bit } from './query/Computed';
-export { Generator } from './query/Generator';
-export { Query } from './query/Query';
 export { DataTable, Builder } from './query/Builder';
+export { Field, Nullable, Optional } from './type/Field';
+export { Generator } from './connection/Generator';
+export { math, bit } from './query/Computed';
+export { Query } from './query/Query';
 export { Table } from './type/Table';
 export { Type } from './type/Type';

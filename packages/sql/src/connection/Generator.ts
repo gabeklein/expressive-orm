@@ -1,6 +1,6 @@
+import { Builder, DataTable, Value } from '../query/Builder';
+import { Query } from '../query/Query';
 import { Field } from '../type/Field';
-import { Builder, DataTable, Value } from './Builder';
-import { Query } from './Query';
 
 export class Generator {
   acc = [] as unknown[];

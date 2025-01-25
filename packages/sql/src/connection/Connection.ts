@@ -1,8 +1,8 @@
-import { format } from "sql-formatter";
+import { format } from 'sql-formatter';
 
 import { Type } from '..';
+import { Generator } from '../connection/Generator';
 import { Builder } from '../query/Builder';
-import { Generator } from '../query/Generator';
 import { escape, values } from '../utils';
 
 declare namespace Connection {
