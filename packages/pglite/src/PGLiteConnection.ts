@@ -1,0 +1,194 @@
+import { PGlite, PGliteOptions } from '@electric-sql/pglite';
+import { Connection, Field, Type } from '@expressive/sql';
+
+import { PostgresGenerator } from './PostgresGenerator';
+import { format } from 'sql-formatter';
+
+export class PGLiteConnection extends Connection {
+  static generator = PostgresGenerator;
+  
+  protected engine: PGlite;
+  constructor(using: Connection.Types, dataDir?: string, config?: PGliteOptions) {
+    super(using);
+    this.engine = new PGlite(dataDir, config);
+  }
+
+  get schema() {
+    return this.generateSchema(this.using);
+  }
+
+  prepare<T = any>(sql: string) {
+    const send = async (params?: any[]) => {
+      try {
+        return this.engine.query(sql, params);
+      }
+      catch (error) {
+        if(error instanceof Error && error.message.includes('syntax error'))
+          throw new Error(`Syntax error in query: ${sql}`);
+
+        throw error;
+      }
+    }
+
+    return {
+      all: async (params?: any[]) => {
+        const result = await send(params);
+        return result.rows as T[];
+      },
+      get: async (params?: any[]) => {
+        const result = await send(params);
+        return result.rows[0] as T | undefined;
+      },
+      run: async (params?: any[]) => {
+        const result = await send(params);
+        return result.affectedRows || 0;
+      },
+      toString(){
+        return format(sql, { language: 'postgresql' })
+          .replace(/ - > /g, " -> ")
+          .replace(/`([a-zA-Z][a-zA-Z0-9_]*)`/g, "$1"); 
+      }
+    };
+  }
+
+  async close() {
+    super.close();
+    await this.engine.close();
+  }
+
+  async sync(fix?: boolean) {
+    if (this.ready)
+      throw new Error("Connection is already active.");
+
+    for (const type of this.using) {
+      const valid = await this.valid(type);
+
+      if (!valid && fix !== true)
+        throw new Error(`Table ${type.table} does not exist.`);
+    }
+
+    await this.createSchema(this.using);
+    Object.defineProperty(this, 'ready', { value: true });
+  }
+
+  async valid(type: Type.EntityType): Promise<boolean> {
+    const { table } = type;
+    const fields = Array.from(type.fields.values());
+    
+    const tableExists = await this.prepare<{exists: boolean}>(
+      'SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)'
+    ).get([table]);
+
+    if (!tableExists?.exists) return false;
+
+    const columns = await this.prepare<{
+      column_name: string;
+      data_type: string;
+      is_nullable: string;
+      column_default: string;
+    }>(
+      'SELECT column_name, data_type, is_nullable, column_default ' +
+      'FROM information_schema.columns WHERE table_name = $1'
+    ).all([table]);
+
+    for (const field of fields) {
+      if (!field.datatype) continue;
+
+      const columnInfo = columns.find(col => col.column_name === field.column);
+
+      if (!columnInfo)
+        throw new Error(`Column ${field.column} does not exist in table ${table}`);
+
+      await this.checkIntegrity(field, columnInfo);
+    }
+
+    return true;
+  }
+
+  protected async checkIntegrity(
+    field: Field,
+    info: {
+      column_name: string;
+      data_type: string;
+      is_nullable: string;
+      column_default: string;
+    }
+  ) {
+    const { column, datatype, nullable, parent, foreignTable, foreignKey } = field;
+
+    if (this.mapDataType(datatype).toLowerCase() !== info.data_type.toLowerCase())
+      throw new Error(
+        `Column ${column} in table ${parent.table} has type ${info.data_type}, expected ${datatype}`
+      );
+
+    if ((info.is_nullable === 'YES') === !nullable)
+      throw new Error(
+        `Column ${column} in table ${parent.table} has incorrect nullable value`
+      );
+
+    if (!foreignTable || !foreignKey) return;
+
+    // if (field.parent.connection !== this) {
+    //   throw new Error(
+    //     `Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`
+    //   );
+    // }
+
+    const foreignExists = await this.prepare<{exists: boolean}>(
+      'SELECT EXISTS (SELECT 1 FROM information_schema.columns ' +
+      'WHERE table_name = $1 AND column_name = $2)'
+    ).get([foreignTable, foreignKey]);
+
+    if (!foreignExists?.exists)
+      throw new Error(
+        `Referenced column ${foreignKey} does not exist in table ${foreignTable}`
+      );
+  }
+
+  protected generateSchema(types: Iterable<typeof Type>): string {
+    return Array.from(types)
+      .map(type => this.generateTableSchema(type))
+      .join('\n');
+  }
+
+  protected async createSchema(types: Iterable<typeof Type>): Promise<void> {
+    const schema = this.generateSchema(types);
+    await this.prepare(schema).run();
+  }
+
+  protected generateTableSchema(type: Type.EntityType): string {
+    const fields = Array.from(type.fields.values()).map(field => {
+      let parts = `"${field.column}" ${this.mapDataType(field.datatype!)}`;
+
+      if (!field.nullable) parts += ' NOT NULL';
+      if (field.increment) parts += ' GENERATED ALWAYS AS IDENTITY';
+      if (field.unique) parts += ' UNIQUE';
+
+      if (field.fallback !== undefined)
+        parts += ' DEFAULT ' + field.set(field.fallback);
+
+      if (field.foreignKey && field.foreignTable)
+        parts += ` REFERENCES "${field.foreignTable}"("${field.foreignKey}")`;
+
+      return parts;
+    });
+
+    return `CREATE TABLE "${type.table}" (${fields.join(', ')});`;
+  }
+
+  private mapDataType(datatype: string): string {
+    const typeMap: Record<string, string> = {
+      'varchar': 'TEXT',
+      'int': 'INTEGER',
+      'float': 'REAL',
+      'double': 'DOUBLE PRECISION',
+      'boolean': 'BOOLEAN',
+      'date': 'DATE',
+      'datetime': 'TIMESTAMP',
+      'timestamp': 'TIMESTAMP'
+    };
+
+    const baseType = datatype.split('(')[0].toLowerCase();
+    return typeMap[baseType] || datatype;
+  }
+}

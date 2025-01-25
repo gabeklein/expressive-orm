@@ -160,7 +160,7 @@ export class Generator {
     else if(selects instanceof Map)
       add(
         Array.from(selects)
-        .map(([alias, field]) => `${field} AS \`${alias}\``)
+        .map(([alias, field]) => `${field} AS ${this.escape(alias)}`)
         .join(', ')
       )
     else 
