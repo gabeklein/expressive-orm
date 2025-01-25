@@ -13,7 +13,8 @@
   "license": "ISC",
   "dependencies": {
     "@expressive/sql": "workspace:*",
-    "better-sqlite3": "^11.7.0"
+    "better-sqlite3": "^11.7.0",
+		"sql-formatter": "^10.7.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12"

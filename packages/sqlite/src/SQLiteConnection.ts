@@ -1,5 +1,6 @@
 import { Connection, Field, Generator, Type } from '@expressive/sql';
 import Database from 'better-sqlite3';
+import { format } from 'sql-formatter';
 
 type TableInfo = { 
   name: string; 
@@ -72,11 +73,12 @@ export class SQLiteConnection extends Connection {
       all: async (p?: any[]) => stmt.all(string(p)) as T[],
       get: async (p?: any[]) => stmt.get(string(p)) as T || undefined,
       run: async (p?: any[]) => stmt.run(string(p)).changes,
+      toString(){
+        return format(sql, { language: 'sqlite' })
+          .replace(/ - > > /g, " ->> ")
+          .replace(/`([a-zA-Z][a-zA-Z0-9_]*)`/g, "$1");
+      }
     };
-  }
-
-  async run(qs: string, params?: any[]): Promise<void> {
-    this.engine.prepare(qs).run(params || []);
   }
 
   async close(){

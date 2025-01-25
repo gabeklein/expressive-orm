@@ -125,6 +125,7 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
 
   const template = builder.commit(result);
   const statement = builder.connection.prepare(template);
+  const toString = () => statement.toString();
   const runner = (...args: any[]) => { 
     args = builder.accept(args);
     
@@ -133,7 +134,10 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     
     assign(query, {
       params: args,
-      toString: () => template,
+      toString,
+      get template(){
+        return toString();
+      },
       then(resolve, reject){
         const run = builder.selects ? get() : statement.run(args);
         return run.then(resolve).catch(reject);
@@ -158,7 +162,7 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   };
 
   if(args){
-    runner.toString = () => template;
+    runner.toString = toString;
     return runner;
   }
 
