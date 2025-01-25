@@ -31,7 +31,11 @@ abstract class Connection {
 
   abstract get schema(): string;
 
-  abstract close(): Promise<void>;
+  async close(){
+    for(const type of this.using)
+      delete type.connection;
+  }
+  
   abstract sync(fix?: boolean): Promise<void>;
   abstract valid(type: Type.EntityType): Promise<boolean>;
 
