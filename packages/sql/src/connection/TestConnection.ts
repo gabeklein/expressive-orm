@@ -6,7 +6,7 @@ const reset = new Set<Function>();
 let cleanup: Function | undefined;
 
 afterEach(() => {
-  return Promise.all(Array.from(reset).map(cb => {
+  Promise.all(Array.from(reset).map(cb => {
     reset.delete(cb);
     return cb();
   }));
@@ -28,7 +28,7 @@ export class TestConnection extends SQLiteConnection {
     if(expect.getState().currentTestName)
       reset.add(() => this.close());
     else {
-      beforeAll(async () => this);
+      beforeAll(async () => { await this });
       cleanup = () => this.close();
     }
   }
