@@ -3,23 +3,24 @@ import { Query } from '../query/Query';
 import { Field } from '../type/Field';
 
 export class Generator {
-  acc = [] as unknown[];
-  add = (...args: unknown[]) => this.acc.push(...args);
+  cte = new Map<string, string>();
 
-  constructor(public query: Builder){
-    this.toWith();
-
-    this.toUpdate() ||
-    this.toDelete() ||
-    this.toSelect()
-
-    this.toWhere();
-    this.toOrder();
-    this.toLimit();
-  }
+  constructor(public query: Builder){}
 
   toString() {
-    return this.acc.join(' ');
+    const parts = [
+      this.toWith(),
+      this.toDoes(),
+      this.toWhere(),
+      this.toOrder(),
+      this.toLimit()
+    ];
+
+    return parts.flat().filter(Boolean).join(' ');
+  }
+
+  toDoes(){
+    return this.toUpdate() || this.toDelete() || this.toSelect();
   }
 
   escape(name: unknown){
@@ -40,7 +41,7 @@ export class Generator {
     })
 
     if(cte.length)
-      this.add('WITH', cte.join(", "));
+      return 'WITH ' + cte.join();
   }
 
   protected toJoins(main: Builder.Table){
@@ -73,7 +74,7 @@ export class Generator {
     }
 
     if(output.length)
-      this.add(output.join(' '));
+      return output.join(' ');
   }
 
   protected toSet(updates: Map<Query.Table, Query.Update<any>>){
@@ -103,7 +104,7 @@ export class Generator {
     if(!sets.length)
       throw new Error('Update contains no values.');
 
-    this.add('SET', sets.join(', '));
+    return `SET ${sets}`;
   }
 
   protected toUpdate(multiTableAllowed = false){
@@ -117,15 +118,16 @@ export class Generator {
 
     const [ main ] = updates.keys();
 
-    this.add('UPDATE', this.escape(main));
-    this.toJoins(main);
-    this.toSet(updates);
-
-    return true;
+    return [
+      'UPDATE',
+      this.escape(main),
+      this.toJoins(main),
+      this.toSet(updates)
+    ]
   }
 
   protected toDelete(){
-    const { add, query } = this;
+    const { query } = this;
     const [ main ] = this.query.deletes;
 
     if(!main)
@@ -133,65 +135,53 @@ export class Generator {
 
     const { alias, name } = main;
 
-    add("DELETE");
-
-    if(query.tables.size > 1 || alias)
-      add(alias || name);
-
-    add('FROM', name);
-
-    this.toJoins(main);
-
-    return true;
+    return [
+      "DELETE",
+      query.tables.size > 1 && (alias || name),
+      'FROM', name, this.toJoins(main)
+    ]
   }
 
   protected toSelect(){
-    const { add } = this;
-    const { selects } = this.query;
+    const { selects, tables } = this.query;
+    const [ main ] = tables.values();
 
-    add("SELECT")
-
-    if (!selects)
-      add('COUNT(*)');
-
-    else if (selects instanceof Field)
-      add(selects.toString());
-
-    else if(selects instanceof Map)
-      add(
+    const selection =
+      selects instanceof Field ? selects.toString() :
+      selects instanceof Map ?
+        // TODO: simplify this
         Array.from(selects)
         .map(([alias, field]) => `${field} AS "${alias}"`)
-        .join(', ')
-      )
-    else 
-      add(`${selects} AS value`);
+        .join(', ') :
+      selects ? `${selects} AS value` :
+      'COUNT(*)';
 
-    const [ main ] = this.query.tables.values();
-        
-    if(main)
-      add('FROM', main);
-
-    this.toJoins(main);
+    return [
+      "SELECT",
+      selection,
+      main && `FROM ${main}`,
+      this.toJoins(main)
+    ]
   }
 
   protected toWhere(){
     const { filters } = this.query;
 
     if(filters.size)
-      this.add('WHERE', filters);
+      return ['WHERE', filters];
   }
 
   protected toOrder(){
     const { order } = this.query;
 
     if(order.size)
-      this.add('ORDER BY', Array.from(order).map(x => x.join(' ')));
+      return 'ORDER BY ' + Array.from(order).map(x => x.join(' '))
   }
 
   protected toLimit(){
     const { limit } = this.query;
 
     if(limit)
-      this.add('LIMIT', limit);
+      return ['LIMIT', limit];
   }
 }

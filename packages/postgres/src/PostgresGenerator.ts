@@ -17,19 +17,20 @@ export class PostgresGenerator extends Generator {
       }
      
       cte.push(`${this.escape(table)} AS (SELECT * FROM json_to_recordset(${param}) AS x(${types}))`);
-      table.data = () => {
-        return Array.from(table.input).map(x => {
-          const subset = {} as Record<string, any>;
-          for(const [key] of table.used)
-            subset[key as string] = x[key]
-          return subset;
-        })
-      }
+
+      table.toParam = () => Array.from(table.input).map(x => {
+        const subset = {} as Record<string, any>;
+
+        for(const [key] of table.used)
+          subset[key as string] = x[key];
+
+        return subset;
+      })
     });
     
 
     if(cte.length)
-      this.add('WITH', cte.join(", "));
+      return 'WITH' + cte.join(", ");
   }
 
   protected toUpdate() {
@@ -38,8 +39,11 @@ export class PostgresGenerator extends Generator {
 
     if (!updates.size) return;
 
-    this.add('UPDATE', this.escape(main));
-    this.toSet(updates);
+    const output = [
+      'UPDATE',
+      this.escape(main),
+      this.toSet(updates)
+    ]
 
     if (tables.size > 1) {
       const using = Array.from(tables.values())
@@ -51,13 +55,14 @@ export class PostgresGenerator extends Generator {
           ).join(' AND ')
         }));
 
-      if (using.length) {
-        this.add('FROM', using.map(({ table }) => this.escape(table)).join(', '));
-        this.add('WHERE', using.map(x => x.conditions).join(' AND '));
-      }
+      if (using.length)
+        output.push(
+          'FROM', using.map(({ table }) => this.escape(table)).join(', '),
+          'WHERE', using.map(x => x.conditions).join(' AND ')
+        );
     }
 
-    return true;
+    return output;
   }
 
   escape(name: unknown) {

@@ -18,8 +18,11 @@ export class SQLiteGenerator extends Generator {
     if (!updates.size)
       return
 
-    this.add('UPDATE', this.escape(main));
-    this.toSet(updates);
+    const output = [
+      'UPDATE',
+      this.escape(main),
+      this.toSet(updates)
+    ]
 
     if (tables.size > 1) {
       // TODO: maybe redundant with base class
@@ -39,13 +42,14 @@ export class SQLiteGenerator extends Generator {
           };
         });
 
-      if (using.length > 0) {
-        this.add('FROM', using.map(({ table }) => table).join(', '));
-        this.add('WHERE', using.map(x => x.conditions).join(' AND '));
-      }
+      if (using.length > 0)
+        output.push(
+          'FROM', using.map(({ table }) => table).join(', '),
+          'WHERE', using.map(x => x.conditions).join(' AND ')
+        )
     }
 
-    return true;
+    return output;
   }
 }
 
@@ -64,19 +68,27 @@ export class SQLiteConnection extends Connection {
   }
 
   prepare<T = any>(sql: string){
-    const stmt = this.engine.prepare(sql);
-    const string = (x?: unknown[]) => x
-      ? x.map(x => typeof x === 'object' ? JSON.stringify(x) : x)
-      : [];
-
-    return {
-      all: async (p?: any[]) => stmt.all(string(p)) as T[],
-      get: async (p?: any[]) => stmt.get(string(p)) as T || undefined,
-      run: async (p?: any[]) => stmt.run(string(p)).changes,
-      toString(){
-        return pretty(sql);
-      }
-    };
+    try {
+      const stmt = this.engine.prepare(sql);
+      const string = (x?: unknown[]) => x
+        ? x.map(x => typeof x === 'object' ? JSON.stringify(x) : x)
+        : [];
+  
+      return {
+        all: async (p?: any[]) => stmt.all(string(p)) as T[],
+        get: async (p?: any[]) => stmt.get(string(p)) as T || undefined,
+        run: async (p?: any[]) => stmt.run(string(p)).changes,
+        toString(){
+          return pretty(sql);
+        }
+      };
+    }
+    catch (err) {
+      if(err instanceof Error)
+        throw new Error(`Error preparing SQL: ${err.message}\n${pretty(sql)}`);
+      
+      throw err;
+    }
   }
 
   async close(){

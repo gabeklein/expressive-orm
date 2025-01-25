@@ -232,7 +232,7 @@ class Builder {
   }
 
   accept(args: unknown[]){
-    return Array.from(this.params || [], p => p.data(args));
+    return Array.from(this.params || [], p => p.toParam(args));
   }
 
   parse(raw: Record<string, any>){
@@ -291,14 +291,14 @@ class Parameter extends Value {
     if(typeof arg == "number")
       this.index = arg;
     else if(typeof arg == "function")
-      this.data = arg;
+      this.toParam = arg;
   }
 
   digest(value: unknown){
     return value;
   }
 
-  data(from: Record<string, any>){
+  toParam(from: Record<string, any>){
     return this.digest(from[this.index]);
   }
 
@@ -340,7 +340,7 @@ class DataTable<T extends Record<string, unknown> = any>
     });
   }
 
-  data(): any {
+  toParam(): any {
     return Array.from(this.input, row => (
       Array.from(this.used, ([key]) => row[key])
     ))
