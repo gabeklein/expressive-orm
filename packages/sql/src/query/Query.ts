@@ -126,20 +126,20 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   const template = builder.commit(result);
   const statement = builder.connection.prepare(template);
   const toString = () => statement.toString();
-  const runner = (...args: any[]) => { 
-    args = builder.accept(args);
+  const runner = (...params: any[]) => { 
+    params = builder.accept(params);
     
-    const get = () => statement.all(args).then(a => a.map(x => builder.parse(x)));
+    const get = () => statement.all(params).then(a => a.map(x => builder.parse(x)));
     const query = create(Query.prototype) as Q;
     
     assign(query, {
-      params: args,
+      params,
       toString,
       get template(){
         return toString();
       },
       then(resolve, reject){
-        const run = builder.selects ? get() : statement.run(args);
+        const run = builder.selects ? get() : statement.run(params);
         return run.then(resolve).catch(reject);
       }
     } as Q);
