@@ -336,7 +336,7 @@ describe("sort", () => {
       FROM
         test
       ORDER BY
-        test.id desc
+        test.id DESC
     `);
 
     expect(await query).toEqual(["F", "E", "D", "C", "B", "A"]);
@@ -358,8 +358,8 @@ describe("sort", () => {
       FROM
         test
       ORDER BY
-        test.rating asc,
-        test.name desc
+        test.rating ASC,
+        test.name DESC
     `);
 
     // SQLite may not support multiple column sorting
@@ -395,8 +395,8 @@ describe("data", () => {
             json_each (?)
         )
       SELECT
-        input.name AS name,
-        input.age AS age
+        input.name AS "name",
+        input.age AS "age"
       FROM
         input
     `);

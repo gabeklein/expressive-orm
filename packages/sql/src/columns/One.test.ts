@@ -41,8 +41,8 @@ it("will select via an object", () => {
 
   expect(query).toMatchInlineSnapshot(`
     SELECT
-      a.value AS aValue,
-      c.value AS cValue
+      a.value AS "aValue",
+      c.value AS "cValue"
     FROM
       a
       INNER JOIN b ON b.id = a.b_id

@@ -159,9 +159,9 @@ it("will select left join", async () => {
 
   expect<Returns>(query).toMatchInlineSnapshot(`
     SELECT
-      foo.name AS fooValue,
-      bar.name AS barValue,
-      baz.rating AS bazRating
+      foo.name AS "fooValue",
+      bar.name AS "barValue",
+      baz.rating AS "bazRating"
     FROM
       foo
       INNER JOIN bar ON bar.color = foo.color

@@ -33,8 +33,8 @@ it("will select without tables", () => {
 
   expect(query).toMatchInlineSnapshot(`
     SELECT
-      5 AS foo,
-      'hello' AS bar
+      5 AS "foo",
+      'hello' AS "bar"
   `);
 })
 
@@ -52,8 +52,8 @@ it("will select via object", async () => {
 
   expect<Returns>(query).toMatchInlineSnapshot(`
     SELECT
-      foo.bar AS bar,
-      foo.baz AS baz
+      foo.bar AS "bar",
+      foo.baz AS "baz"
     FROM
       foo
   `);
@@ -80,8 +80,8 @@ it("will output nested object", async () => {
 
   expect<Returns>(query).toMatchInlineSnapshot(`
     SELECT
-      foo.bar AS \`bar.value\`,
-      foo.baz AS \`baz.value\`
+      foo.bar AS "bar.value",
+      foo.baz AS "baz.value"
     FROM
       foo
   `);
@@ -120,9 +120,9 @@ it("will select a entire entity", () => {
 
   expect<Returns>(query).toMatchInlineSnapshot(`
     SELECT
-      foo.id AS id,
-      foo.bar AS bar,
-      foo.baz AS baz
+      foo.id AS "id",
+      foo.bar AS "bar",
+      foo.baz AS "baz"
     FROM
       foo
   `);

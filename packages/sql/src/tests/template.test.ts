@@ -76,7 +76,7 @@ it("will select a parameter value", async () => {
 
   expect(query).toMatchInlineSnapshot(`
     SELECT
-      ? AS color
+      ? AS "color"
   `);
 });
 
