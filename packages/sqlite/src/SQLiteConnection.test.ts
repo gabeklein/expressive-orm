@@ -37,10 +37,10 @@ it("will update from data", async () => {
     WITH
       input AS (
         SELECT
-          VALUE ->> 0 name,
-          VALUE ->> 1 age
+          value ->> 0 name,
+          value ->> 1 age
         FROM
-          json_each (?)
+          JSON_EACH(?)
       )
     UPDATE
       user

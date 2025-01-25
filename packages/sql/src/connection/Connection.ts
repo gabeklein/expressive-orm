@@ -1,3 +1,5 @@
+import { format } from "sql-formatter";
+
 import { Type } from '..';
 import { Builder } from '../query/Builder';
 import { Generator } from '../query/Generator';
@@ -62,7 +64,7 @@ abstract class Connection {
       then: (resolve: (res: any) => any, reject: (err: any) => any) => {
         return this.prepare(query).run().then(resolve).catch(reject);
       },
-      toString: () => query
+      toString: () => pretty(query)
     }
   }
 }
@@ -76,7 +78,7 @@ class NoConnection extends Connection {
     throw new Error("No connection to generate schema.");
   }
 
-  prepare(){
+  prepare(template: string){
     async function run(): Promise<never> {
       throw new Error("No connection to run query.");
     }
@@ -84,7 +86,10 @@ class NoConnection extends Connection {
     return {
       all: run,
       get: run,
-      run
+      run,
+      toString(){
+        return pretty(template);
+      }
     }
   }
 
@@ -99,6 +104,13 @@ class NoConnection extends Connection {
   async close(){
     return;
   }
+}
+
+function pretty(sql: string){
+  return format(sql, { keywordCase: "upper" })
+    // TODO: this shouldn't apply - drop CTE from this module
+    .replace(/ - > > /g, " ->> ")
+    .replace(/`([a-zA-Z][a-zA-Z0-9_]*)`/g, "$1");
 }
 
 Connection.None = new NoConnection();

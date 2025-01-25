@@ -60,7 +60,7 @@ export class SQLiteConnection extends Connection {
   }
 
   get schema() {
-    return this.generateSchema(this.using);
+    return pretty(this.generateSchema(this.using));
   }
 
   prepare<T = any>(sql: string){
@@ -74,9 +74,7 @@ export class SQLiteConnection extends Connection {
       get: async (p?: any[]) => stmt.get(string(p)) as T || undefined,
       run: async (p?: any[]) => stmt.run(string(p)).changes,
       toString(){
-        return format(sql, { language: 'sqlite' })
-          .replace(/ - > > /g, " ->> ")
-          .replace(/`([a-zA-Z][a-zA-Z0-9_]*)`/g, "$1");
+        return pretty(sql);
       }
     };
   }
@@ -219,4 +217,10 @@ export class SQLiteConnection extends Connection {
     const baseType = datatype.split('(')[0].toLowerCase();
     return typeMap[baseType] || datatype;
   }
+}
+
+function pretty(sql: string){
+  return format(sql, { language: 'sqlite', keywordCase: "upper",  })
+    .replace(/ - > > /g, " ->> ")
+    .replace(/`([a-zA-Z][a-zA-Z0-9_]*)`/g, "$1");
 }

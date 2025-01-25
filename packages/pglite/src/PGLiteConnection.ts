@@ -43,10 +43,8 @@ export class PGLiteConnection extends Connection {
         const result = await send(params);
         return result.affectedRows || 0;
       },
-      toString(){
-        return format(sql, { language: 'postgresql' })
-          .replace(/ - > /g, " -> ")
-          .replace(/`([a-zA-Z][a-zA-Z0-9_]*)`/g, "$1"); 
+      toString: () => {
+        return format(sql, { language: 'postgresql', keywordCase: "upper" });
       }
     };
   }
@@ -152,8 +150,7 @@ export class PGLiteConnection extends Connection {
   }
 
   protected async createSchema(types: Iterable<typeof Type>): Promise<void> {
-    const schema = this.generateSchema(types);
-    await this.prepare(schema).run();
+    await this.prepare(this.generateSchema(types)).run();
   }
 
   protected generateTableSchema(type: Type.EntityType): string {

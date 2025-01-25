@@ -50,6 +50,10 @@ importers:
         version: 10.7.2
 
   packages/sql:
+    dependencies:
+      sql-formatter:
+        specifier: ^10.7.2
+        version: 10.7.2
     devDependencies:
       '@expressive/sqlite':
         specifier: workspace:*
