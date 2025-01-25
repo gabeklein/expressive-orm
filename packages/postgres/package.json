@@ -1,5 +1,5 @@
 {
-  "name": "@expressive/pglite",
+  "name": "@expressive/postgres",
   "version": "0.0.1",
   "description": "Query builder and ORM",
   "type": "module",
@@ -13,8 +13,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@electric-sql/pglite": "^0.2.16",
     "@expressive/sql": "workspace:*",
 		"sql-formatter": "^10.7.2"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.2.16"
   }
 }

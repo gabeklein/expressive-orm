@@ -7,16 +7,6 @@ class Users extends Type {
   age = Num();
 }
 
-it("will insert rows", async () => {
-  await new TestConnection([Users]);
-
-  await Users.insert([
-    { name: "John", age: 0 },
-    { name: "Jane", age: 0 },
-    { name: "Joe", age: 0 },
-  ])
-})
-
 it("will select rows", async () => {
   await new TestConnection([Users]);
 

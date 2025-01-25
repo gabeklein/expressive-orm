@@ -37,17 +37,18 @@ importers:
         specifier: ^2.18.1
         version: 2.18.1
 
-  packages/pglite:
+  packages/postgres:
     dependencies:
-      '@electric-sql/pglite':
-        specifier: ^0.2.16
-        version: 0.2.16
       '@expressive/sql':
         specifier: workspace:*
         version: link:../sql
       sql-formatter:
         specifier: ^10.7.2
         version: 10.7.2
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.16
+        version: 0.2.16
 
   packages/sql:
     dependencies:
@@ -95,7 +96,7 @@ packages:
 
   /@electric-sql/pglite@0.2.16:
     resolution: {integrity: sha512-dCSHpoOKuTxecaYhWDRp2yFTN3XWcMPMrBVl5yOR8VZEUprz4+R3iuU7BipmlsqBnBDO/6l9H/C2ZwJdunkWyw==}
-    dev: false
+    dev: true
 
   /@esbuild/aix-ppc64@0.21.5:
     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}
