@@ -9,11 +9,10 @@ declare namespace Builder {
     toString(): string;
     name: string;
     proxy: Query.From<T>;
-    reference: T;
+    reference: Record<string, Field>;
     alias?: string;
     optional?: boolean;
     joins: (readonly [Field, string, Field | Value])[];
-    data?: Map<string, DataField>;
   }
 
   type Using<T extends Type> = (self: Query.From<T>, where: Query.Where) => void;
@@ -27,7 +26,7 @@ class Builder {
    * May either be placeholders for a template, or values
    * which the query deems unsafe to interpolate directly.
    */
-  params = new Set<Parameter | ((...args: unknown[]) => unknown)>();
+  params = new Set<Parameter>();
 
   filters = new Group();
   pending = new Set<() => void>();
@@ -97,6 +96,11 @@ class Builder {
         this.deletes.add(target);
       },
       update: (data: Query.Update<any>) => {
+        Object.entries(data).forEach(([key, value]) => {
+          if(value instanceof DataField)
+            value.datatype = target.reference[key].datatype;
+        })
+
         this.updates.set(target, data);
       }
     }
@@ -137,7 +141,7 @@ class Builder {
       throw new Error(`Joined entity ${type} does not share a connection with main table ${main}.`);
     }
 
-    const reference = {} as T;
+    const reference = {} as Record<string, Field>;
     const proxy = {} as Query.From<T>;
     const table: Builder.Table = {
       name: type.table,
@@ -189,8 +193,10 @@ class Builder {
     if(right instanceof Field || right instanceof DataField){
       const where = [left, op, right] as const;
 
-      if(right instanceof DataField)
+      if(right instanceof DataField){
+        right.datatype = left.datatype;
         right.table.joins.push(where);
+      }
       else
         left.table!.joins.push(where);
 
@@ -217,43 +223,16 @@ class Builder {
   }
 
   with(data: Iterable<Record<string, any>>){
-    const keys = new Set(([] as string[]).concat(...Array.from(data, Object.keys)));
-    const used = new Map<string, DataField>();
-    const name = 'input';
-    const proxy = {};
-    const table: Builder.Table = {
-      name,
-      proxy,
-      joins: [],
-      data: used,
-      optional: false,
-      reference: {},
-      toString: () => name
-    }
+    const param = new DataTable(data, this.params.size);
 
-    for(const key of keys){
-      const value = new DataField(`${name}.${key}`, table);
-      defineProperty(proxy, key, {
-        get(){
-          used.set(key, value);
-          return value;
-        }
-      });
-    }
+    this.params.add(param);
+    this.tables.set(param.proxy, param);
 
-    this.params.add(() => (
-      Array.from(data, row => (
-        Array.from(used, ([key]) => row[key])
-      ))
-    ));
-
-    this.tables.set(proxy, table);
-
-    return proxy;
+    return param.proxy;
   }
 
   accept(args: unknown[]){
-    return Array.from(this.params || [], p => typeof p == "function" ? p() : p.data(args));
+    return Array.from(this.params || [], p => p.data(args));
   }
 
   parse(raw: Record<string, any>){
@@ -288,14 +267,16 @@ class Builder {
 class Value {}
 
 class DataField extends Value {
+  datatype = "";
+
   constructor(
-    public placeholder: string,
-    public table: Builder.Table){
+    public column: string,
+    public table: DataTable){
     super();
   }
 
   toString(){
-    return this.placeholder;
+    return this.table.name + "." + this.column;
   }
 }
 
@@ -323,6 +304,46 @@ class Parameter extends Value {
 
   toString(){
     return '?';
+  }
+}
+
+class DataTable<T extends Record<string, unknown> = any>
+  extends Parameter implements Builder.Table {
+
+  proxy: T;
+  used = new Map<keyof T & string, DataField>();
+  joins: (readonly [Field, string, Field | Value])[] = [];
+  optional = false;
+  reference = {};
+  name = "input";
+  
+  toString(){
+    return this.name;
+  }
+
+  constructor(public input: Iterable<T>, index: number){
+    super();
+
+    this.proxy = {} as T;
+    this.index = index;
+
+    new Set(([] as string[]).concat(
+      ...Array.from(input, Object.keys))
+    ).forEach(key => {
+      const value = new DataField(key, this);
+      defineProperty(this.proxy, key, {
+        get: () => {
+          this.used.set(key, value);
+          return value;
+        }
+      });
+    });
+  }
+
+  data(): any {
+    return Array.from(this.input, row => (
+      Array.from(this.used, ([key]) => row[key])
+    ))
   }
 }
 
@@ -357,4 +378,4 @@ class Group {
   }
 }
 
-export { Builder, Parameter, Group, Value };
+export { Builder, Parameter, Group, Value, DataTable };

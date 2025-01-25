@@ -1,5 +1,5 @@
 import { Field } from '../type/Field';
-import { Builder, Value } from './Builder';
+import { Builder, DataTable, Value } from './Builder';
 import { Query } from './Query';
 
 export class Generator {
@@ -29,13 +29,14 @@ export class Generator {
   protected toWith(){
     const cte = [] as string[];
 
-    this.query.tables.forEach(({ data, name }) => {
-      if(!data)
+    // TODO: move this to adapter
+    this.query.tables.forEach((table) => {
+      if(!(table instanceof DataTable))
         return;
 
-      const fields = Array.from(data, ([key], i) => `value ->> ${i} ${this.escape(key)}`);
+      const fields = Array.from(table.used, ([key], i) => `value ->> ${i} ${this.escape(key)}`);
 
-      cte.push(`${name} AS (SELECT ${fields} FROM json_each(?))`)
+      cte.push(`${table} AS (SELECT ${fields} FROM json_each(?))`)
     })
 
     if(cte.length)
