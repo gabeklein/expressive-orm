@@ -41,8 +41,6 @@ abstract class Connection {
     run: (args?: any[]) => Promise<number>;
   }
 
-  abstract run(query: string, params?: any[]): Promise<void>;
-
   stringify(builder: Builder){
     const self = this.constructor as typeof Connection;
     return new self.generator(builder).toString();
@@ -58,7 +56,7 @@ abstract class Connection {
 
     return {
       then: (resolve: (res: any) => any, reject: (err: any) => any) => {
-        return this.run(query, []).then(resolve).catch(reject);
+        return this.prepare(query).run().then(resolve).catch(reject);
       },
       toString: () => query
     }
@@ -75,15 +73,15 @@ class NoConnection extends Connection {
   }
 
   prepare(){
-    return {
-      all: this.run,
-      get: this.run,
-      run: this.run
+    async function run(): Promise<never> {
+      throw new Error("No connection to run query.");
     }
-  }
 
-  async run(): Promise<never> {
-    throw new Error("No connection to run query.");
+    return {
+      all: run,
+      get: run,
+      run
+    }
   }
 
   async sync(){
