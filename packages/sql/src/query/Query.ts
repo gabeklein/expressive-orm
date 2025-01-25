@@ -75,7 +75,7 @@ declare namespace Query {
   }
 }
 
-interface Query<T = number> extends PromiseLike<T> {
+interface Query<T = any> extends PromiseLike<T> {
   /** Returns the SQL string prepared by this query. */
   toString(): string;
 
@@ -96,7 +96,7 @@ function Query<T extends {}>(from: Query.Function<T>): Query.Selects<T>;
  * Creates a new query.
  * Will return the number of rows that would be selected or modified.
  */
-function Query(from: Query.Function<void>): Query;
+function Query(from: Query.Function<void>): Query<number>;
 
 function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>){
   const builder = new QB();
@@ -108,8 +108,6 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     result = (result as Function)(...params);
   }
 
-  type Q = Query<any>;
-
   const template = builder.commit(result);
   const statement = builder.connection.prepare(template);
   const toString = () => statement.toString();
@@ -117,7 +115,7 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     params = builder.accept(params);
     
     const get = () => statement.all(params).then(a => a.map(x => builder.parse(x)));
-    const query = create(Query.prototype) as Q;
+    const query = create(Query.prototype) as Query;
     
     assign(query, {
       params,
@@ -129,7 +127,7 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
         const run = builder.selects ? get() : statement.run(params);
         return run.then(resolve).catch(reject);
       }
-    } as Q);
+    } as Query);
 
     if (builder.selects)
       assign(query, {
