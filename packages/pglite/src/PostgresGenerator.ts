@@ -16,7 +16,7 @@ export class PostgresGenerator extends Generator {
         types.push(key + ' ' + field.datatype);
       }
      
-      cte.push(`${table} AS (SELECT ${fields} FROM json_to_recordset(${param}) AS x(${types}))`);
+      cte.push(`${this.escape(table)} AS (SELECT * FROM json_to_recordset(${param}) AS x(${types}))`);
       table.data = () => {
         return Array.from(table.input).map(x => {
           const subset = {} as Record<string, any>;
@@ -52,7 +52,7 @@ export class PostgresGenerator extends Generator {
         }));
 
       if (using.length) {
-        this.add('FROM', using.map(({ table }) => table).join(', '));
+        this.add('FROM', using.map(({ table }) => this.escape(table)).join(', '));
         this.add('WHERE', using.map(x => x.conditions).join(' AND '));
       }
     }

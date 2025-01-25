@@ -36,7 +36,7 @@ export class Generator {
 
       const fields = Array.from(table.used, ([key], i) => `value ->> ${i} ${this.escape(key)}`);
 
-      cte.push(`${table} AS (SELECT ${fields} FROM json_each(?))`)
+      cte.push(`${this.escape(table)} AS (SELECT ${fields} FROM json_each(?))`)
     })
 
     if(cte.length)
@@ -93,7 +93,7 @@ export class Generator {
             throw new Error(`Column ${field} is not nullable.`);
         }
         else if(value instanceof Field || value instanceof Value)
-          value = value.toString();
+          value = this.escape(value);
         else
           value = field.raw(value);
 

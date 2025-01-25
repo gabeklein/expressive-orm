@@ -61,19 +61,18 @@ it("will update from data", async () => {
 
   expect(query).toMatchInlineSnapshot(`
     WITH
-      input AS (
+      "input" AS (
         SELECT
-          name,
-          age
+          *
         FROM
-          json_to_recordset($1) AS x (name varchar(255), age int)
+          JSON_TO_RECORDSET($1) AS x (NAME VARCHAR(255), age INT)
       )
     UPDATE
       "users"
     SET
-      "age" = input.age
+      "age" = "input"."age"
     FROM
-      input
+      "input"
     WHERE
       "users"."name" = "input"."name"
   `);
