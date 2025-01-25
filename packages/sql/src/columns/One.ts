@@ -5,7 +5,7 @@ interface One<T extends Type> extends Field<Type.Values<T>> {
   entity: Type.EntityType<T>;
   foreignKey: string;
   foreignTable: string;
-  use(this: One<T>, query: Query.Builder): Query.Join<T>;
+  use(this: One<T>, query: Query.Builder): Query.From<T>;
   set(this: One<T>, value: Type.Values<T> | number): void;
 }
 

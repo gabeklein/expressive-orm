@@ -143,7 +143,7 @@ class Builder {
   }
 
   use<T extends Type>(type: Type.EntityType<T>, optional?: false): Query.From<T>;
-  use<T extends Type>(type: Type.EntityType<T>, optional?: boolean): Query.Join<T>;
+  use<T extends Type>(type: Type.EntityType<T>, optional: boolean): Query.Join<T>;
   use<T extends Type>(type: Type.EntityType<T>, optional?: boolean){
     const { fields, schema } = type;
     const { tables } = this;

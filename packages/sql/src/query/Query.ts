@@ -7,15 +7,13 @@ declare namespace Query {
   /** Internal state for this Query. */
   type Builder = QB;
 
-  type Join<T extends Type> = From<T>;
-
   type Table = QB.Table;
 
   type From<T extends Type = Type> = {
     [K in Type.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
   }
 
-  type Optional<T extends Type = Type> = {
+  type Join<T extends Type = Type> = {
     [K in Type.Fields<T>]?: T[K] extends Field.Queries<infer U> ? U : T[K];
   }
 
@@ -25,7 +23,43 @@ declare namespace Query {
 
   type Value<T = any> = T | Field<T> | Computed<T>
 
-  type Where = typeof where & { name: string };
+  /** Main callback for adding instructions to a Query. */
+  type Where = {
+    /**
+     * Create a reference to the primary table, returned
+     * object can be used to query against that table.
+     */
+    <T extends Type>(entity: Type.EntityType<T>, optional?: false): Query.From<T>;
+
+    /**
+     * Registers a type as a left join, returned object has optional
+     * properties which may be undefined where the join is not present.
+     */
+    <T extends Type>(entity: Type.EntityType<T>, optional?: boolean): Query.Join<T>;
+
+    /**
+     * Select a table for comparison or write operations.
+     */
+    <T extends Type>(field: Query.From<T> | Query.Join<T>): Query.Verbs<T>;
+
+    /**
+     * Prepare comparison against a particilar field,
+     * returns operations for the given type.
+     */
+    <T extends Field>(field: T | undefined): Query.Asserts<T>;
+
+    <T extends {}>(data: Iterable<T>): { [K in keyof T]: Field<T[K]> };
+
+    /**
+     * Accepts other where() assertions for nesting in parenthesis.
+     * 
+     * Will alternate between AND-OR depending on depth, starting with OR.
+     */
+    (...orWhere: (string | Group)[]): Group;
+
+    /** Specify the limit of results returned. */
+    (limit: number): void;
+  }
 
   type Updates<T> = Field.Updates<T> | T | Field;
 
@@ -99,8 +133,32 @@ function Query<T extends {}>(from: Query.Function<T>): Query.Selects<T>;
 function Query(from: Query.Function<void>): Query<number>;
 
 function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>){
+  function where(arg1: any, arg2?: any): any {
+    if(Type.is(arg1))
+      return builder.use(arg1, arg2);
+
+    if(arg1 instanceof Field)
+      return builder.field(arg1);
+
+    if(builder.tables.has(arg1))
+      return builder.table(arg1);
+  
+    if(typeof arg1 == "string" || arg1 instanceof Group)
+      return builder.andOr(...arguments);
+  
+    if(typeof arg1 == "number"){
+      builder.limit = arg1;
+      return;
+    }
+  
+    if(Symbol.iterator in arg1) 
+      return builder.with(arg1);
+  
+    throw new Error(`Argument ${arg1} is not a query argument.`);
+  }
+
   const builder = new QB();
-  let result = factory.call(builder, where.bind(builder));
+  let result = factory.call(builder, where);
   let args: number | undefined;
 
   if(typeof result === 'function'){
@@ -166,64 +224,5 @@ function from<I extends {}>(data: Iterable<I>, query: Query.FunctionFrom<I, any>
 
 Query.from = from;
 Query.Builder = QB;
-
-/**
- * Create a reference to the primary table, returned
- * object can be used to query against that table.
- */
-function where<T extends Type>(entity: Type.EntityType<T>, optional?: false): Query.From<T>;
-
-/**
- * Registers a type as a left join, returned object has optional
- * properties which may be undefined where the join is not present.
- */
-function where<T extends Type>(entity: Type.EntityType<T>, optional?: boolean): Query.Optional<T>;
-
-/**
- * Select a table for comparison or write operations.
- */
-function where<T extends Type>(field: Query.From<T> | Query.Join<T>): Query.Verbs<T>;
-
-/**
- * Prepare comparison against a particilar field,
- * returns operations for the given type.
- */
-function where<T extends Field>(field: T | undefined): Query.Asserts<T>;
-
-function where<T extends {}>(data: Iterable<T>): { [K in keyof T]: Field<T[K]> };
-
-/**
- * Accepts other where() assertions for nesting in parenthesis.
- * 
- * Will alternate between AND-OR depending on depth, starting with OR.
- */
-function where(...orWhere: (string | Group)[]): Group;
-
-/** Specify the limit of results returned. */
-function where(limit: number): void;
-
-function where(this: QB, arg1: any, arg2?: any, arg3?: any): any {
-  if(arg1 instanceof Field)
-    return this.field(arg1);
-
-  if(Type.is(arg1))
-    return this.use(arg1, arg2);
-
-  if(this.tables.has(arg1))
-    return this.table(arg1);
-
-  if(typeof arg1 == "string" || arg1 instanceof Group)
-    return this.andOr(...arguments);
-
-  if(typeof arg1 == "number"){
-    this.limit = arg1;
-    return;
-  }
-
-  if(Symbol.iterator in arg1) 
-    return this.with(arg1);
-
-  throw new Error(`Argument ${arg1} is not a query argument.`);
-}
 
 export { Query };
