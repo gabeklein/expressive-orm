@@ -10,17 +10,15 @@ export class Generator {
   toString() {
     const parts = [
       this.toWith(),
-      this.toDoes(),
+      this.toUpdate() ||
+      this.toDelete() ||
+      this.toSelect(),
       this.toWhere(),
       this.toOrder(),
       this.toLimit()
     ];
 
     return parts.flat().filter(Boolean).join(' ');
-  }
-
-  toDoes(){
-    return this.toUpdate() || this.toDelete() || this.toSelect();
   }
 
   escape(name: unknown){
