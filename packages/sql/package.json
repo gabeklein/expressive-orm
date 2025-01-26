@@ -13,8 +13,5 @@
   "license": "ISC",
   "dependencies": {
 		"sql-formatter": "^10.7.2"
-  },
-  "devDependencies": {
-    "@expressive/sqlite": "workspace:*"
   }
 }

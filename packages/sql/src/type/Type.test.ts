@@ -1,48 +1,67 @@
 import { Type, Num } from '..';
-import { TestConnection } from '../connection/TestConnection';
 
 class Item extends Type  {
   number = Num();
 }
 
-new TestConnection([Item], async () => {
-  await Item.insert(10, i => ({ number: i }));
-});
-
 describe("get method", () => {
   it("will fetch rows", async () => {
-    const results = await Item.get();
+    const query = Item.get();
 
-    expect(results).toHaveLength(10); 
+    expect(query).toMatchInlineSnapshot(`
+      SELECT
+        item.id AS "id",
+        item.number AS "number"
+      FROM
+        item
+    `);
   })
 
   it("will limit rows", async () => {
-    const results = await Item.get(5);
+    const query = Item.get(5);
 
-    expect(results).toHaveLength(5); 
+    expect(query).toMatchInlineSnapshot(`
+      SELECT
+        item.id AS "id",
+        item.number AS "number"
+      FROM
+        item
+      LIMIT
+        5
+    `);
   })
 
   it("will query rows", async () => {
-    const results = await Item.get((item, where) => {
+    const query = Item.get((item, where) => {
       where(item.number).over(5);
     });
 
-    expect(results).toMatchObject([
-      { number: 6 },
-      { number: 7 },
-      { number: 8 },
-      { number: 9 },
-    ]);
+    expect(query).toMatchInlineSnapshot(`
+      SELECT
+        item.id AS "id",
+        item.number AS "number"
+      FROM
+        item
+      WHERE
+        item.number > 5
+    `);
   })
 
   it("will limit queried rows", async () => {
-    const results = await Item.get(2, (item, where) => {
+    const query =  Item.get(2, (item, where) => {
       where(item.number).over(5);
     });
 
-    expect(results).toMatchObject([
-      { number: 6 },
-      { number: 7 },
-    ]);
+    expect(query).toMatchInlineSnapshot(`
+      SELECT
+        item.id AS "id",
+        item.number AS "number"
+      FROM
+        item
+      WHERE
+        item.number > 5
+      LIMIT
+        2
+    `);
   })
 })

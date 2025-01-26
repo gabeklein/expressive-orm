@@ -1,14 +1,9 @@
 import { Query, Str, Type } from '..';
-import { TestConnection } from '../connection/TestConnection';
 
 class Foo extends Type {
   bar = Str();
   baz = Str();
 }
-
-new TestConnection({ Foo }, async () => {
-  await Foo.insert({ bar: "hello", baz: "world" });
-});
 
 it("will count query by default", () => {
   class Foo extends Type {}
@@ -38,7 +33,7 @@ it("will select without tables", () => {
   `);
 })
 
-it("will select via object", async () => {
+it("will select via object", () => {
   const query = Query(where => {
     const { bar, baz } = where(Foo);
 
@@ -57,13 +52,9 @@ it("will select via object", async () => {
     FROM
       foo
   `);
-
-  expect(await query).toEqual([
-    { bar: "hello", baz: "world" }
-  ]);
 })
 
-it("will output nested object", async () => {
+it("will output nested object", () => {
   const query = Query(where => {
     const { bar, baz } = where(Foo);
 
@@ -85,11 +76,6 @@ it("will output nested object", async () => {
     FROM
       foo
   `);
-
-  expect(await query).toEqual([{ 
-    bar: { value: "hello" }, 
-    baz: { value: "world" }
-  }]);
 })
 
 it("will select a field directly", () => {

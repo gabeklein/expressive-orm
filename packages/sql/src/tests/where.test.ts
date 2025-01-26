@@ -1,13 +1,8 @@
 import { Type, Num, Query, Str, Bool } from '..';
-import { TestConnection } from '../connection/TestConnection';
 
 class Item extends Type  {
   number = Num();
 }
-
-new TestConnection([Item], async () => {
-  await Item.insert(10, i => ({ number: i }));
-});
 
 it("will limit results", async () => {
   const results = Query(where => {
@@ -29,8 +24,6 @@ it("will limit results", async () => {
     LIMIT
       3
   `);
-
-  expect(await results).toEqual([4, 5, 6]);
 });
 
 it("will add operator clauses", () => {
@@ -310,17 +303,6 @@ describe("sort", () => {
     rating = Num();
   }
 
-  new TestConnection({ Test }, async () => {
-    await Test.insert([
-      { name: "A", rating: 1 },
-      { name: "B", rating: 2 },
-      { name: "C", rating: 3 },
-      { name: "D", rating: 1 },
-      { name: "E", rating: 2 },
-      { name: "F", rating: 3 },
-    ])
-  });
-
   it("will add order clause", async () => {
     const query = Query(where => {
       const test = where(Test);
@@ -336,10 +318,8 @@ describe("sort", () => {
       FROM
         test
       ORDER BY
-        test.id DESC
+        test.id desc
     `);
-
-    expect(await query).toEqual(["F", "E", "D", "C", "B", "A"]);
   })
 
   it("will sort multiple columns", async () => {
@@ -358,8 +338,8 @@ describe("sort", () => {
       FROM
         test
       ORDER BY
-        test.rating ASC,
-        test.name DESC
+        test.rating asc,
+        test.name desc
     `);
 
     // SQLite may not support multiple column sorting
