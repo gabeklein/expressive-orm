@@ -6,8 +6,6 @@
   "main": "src",
   "module": "src",
   "scripts": {
-    "watch": "jest --watchAll",
-    "test": "jest",
     "build": "tsc"
   },
   "author": "",
