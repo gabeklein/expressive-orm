@@ -143,35 +143,46 @@ export class PGLiteConnection extends Connection {
       );
   }
 
-  protected generateSchema(types: Iterable<typeof Type>): string {
-    return Array.from(types)
-      .map(type => this.generateTableSchema(type))
-      .join('\n');
-  }
-
   protected async createSchema(types: Iterable<typeof Type>): Promise<void> {
-    await this.prepare(this.generateSchema(types)).run();
+    await this.engine.exec(this.generateSchema(types));
   }
 
-  protected generateTableSchema(type: Type.EntityType): string {
+  protected generateSchema(types: Iterable<typeof Type>): string {
+    const schemas = Array.from(types).map(type => this.generateTableSchema(type));
+    const statements = [
+      ...schemas.map(s => s.table),
+      ...schemas.map(s => s.constraints)
+    ]
+
+    return statements.join('\n');
+  }
+
+  protected generateTableSchema(type: Type.EntityType) {
+    const constraints: string[] = [];
+    
     const fields = Array.from(type.fields.values()).map(field => {
       let parts = `"${field.column}" ${this.mapDataType(field.datatype!)}`;
-
+   
       if (!field.nullable) parts += ' NOT NULL';
-      if (field.increment) parts += ' GENERATED ALWAYS AS IDENTITY';
+      if (field.increment) parts += ' GENERATED ALWAYS AS IDENTITY'; 
       if (field.unique) parts += ' UNIQUE';
-
-      if (field.fallback !== undefined)
-        parts += ' DEFAULT ' + field.set(field.fallback);
-
-      if (field.foreignKey && field.foreignTable)
-        parts += ` REFERENCES "${field.foreignTable}"("${field.foreignKey}")`;
-
+      if (field.fallback !== undefined) parts += ' DEFAULT ' + field.set(field.fallback);
+   
+      if (field.foreignKey && field.foreignTable) {
+        constraints.push(
+          `ALTER TABLE "${type.table}" ADD CONSTRAINT "${type.table}_${field.column}_fk" ` +
+          `FOREIGN KEY ("${field.column}") REFERENCES "${field.foreignTable}"("${field.foreignKey}");`
+        );
+      }
+   
       return parts;
     });
-
-    return `CREATE TABLE "${type.table}" (${fields.join(', ')});`;
-  }
+   
+    return {
+      table: `CREATE TABLE "${type.table}" (${fields.join(', ')});`,
+      constraints: constraints.join('\n')
+    };
+   }
 
   private mapDataType(datatype: string): string {
     const typeMap: Record<string, string> = {

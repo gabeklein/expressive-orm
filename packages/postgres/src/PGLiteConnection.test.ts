@@ -43,9 +43,12 @@ describe("schema", () => {
     const sql = new TestConnection({ Foo, Bar });
   
     expect(sql.schema).toMatchInlineSnapshot(`
-      CREATE TABLE "foo" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "bar_id" INTEGER NOT NULL REFERENCES "bar"("id"));
+      CREATE TABLE "foo" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "bar_id" INTEGER NOT NULL);
       CREATE TABLE "bar" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "value" INTEGER NOT NULL);
+      ALTER TABLE "foo" ADD CONSTRAINT "foo_bar_id_fk" FOREIGN KEY ("bar_id") REFERENCES "bar"("id");
     `);
+
+    await sql;
   });
 });
 
