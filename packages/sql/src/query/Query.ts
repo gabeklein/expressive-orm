@@ -1,6 +1,6 @@
 import { Field, Type } from '..';
 import { assign, create } from '../utils';
-import { Group, Builder as QB } from './Builder';
+import { Cond, Group, Builder as QB } from './Builder';
 import { Computed } from './Computed';
 
 declare namespace Query {
@@ -143,7 +143,7 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     if(builder.tables.has(arg1))
       return builder.table(arg1);
   
-    if(typeof arg1 == "string" || arg1 instanceof Group)
+    if(arg1 instanceof Cond || arg1 instanceof Group)
       return builder.andOr(...arguments);
   
     if(typeof arg1 == "number"){

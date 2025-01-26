@@ -129,7 +129,7 @@ class Builder {
     }
   }
 
-  andOr(...args: (string | Group)[]){
+  andOr(...args: (Cond | Group)[]){
     const local = new Group();
 
     this.filters.add(local);
@@ -232,9 +232,7 @@ class Builder {
     else
       right = left.raw(right);
 
-    const e = `${left} ${op} ${right}`;
-    this.filters.add(e);
-    return e;
+    return this.filters.add(left, op, right);
   }
 
   with(data: Iterable<Record<string, any>>){
@@ -362,14 +360,31 @@ class DataTable<T extends Record<string, unknown> = any>
   }
 }
 
-class Group {
-  children = new Set<string | Group>();
+export class Cond {
+  constructor(
+    public readonly left: Field, 
+    public readonly op: string, 
+    public readonly right: unknown
+  ){}
 
-  add(child: string | Group){
-    this.children.add(child);
+  toString(){
+    return `${this.left} ${this.op} ${this.right}`;
+  }
+}
+
+class Group {
+  children = new Set<Cond | Group>();
+
+  add(left: Field | Group | Cond, op?: string, right?: unknown){
+    const cond = left instanceof Field
+      ? new Cond(left, op!, right!) : left;
+    
+    this.children.add(cond);
+
+    return cond;
   }
 
-  delete(child: string | Group){
+  delete(child: Cond | Group){
     this.children.delete(child);
   }
 
@@ -381,13 +396,14 @@ class Group {
     return Array
       .from(this.children)
       .map((cond, i) => {
-        if(typeof cond == "string")
-          return cond;
+        if(cond instanceof Group){
+          const inner = cond.toString(!or);
+          const first = or !== false && i === 0;
+  
+          return cond.size == 1 || first ? inner : `(${inner})`;
+        }
 
-        const inner = cond.toString(!or);
-        const first = or !== false && i === 0;
-
-        return cond.size == 1 || first ? inner : `(${inner})`;
+        return cond;
       })
       .join(or ? ' OR ' : ' AND ')
   }
