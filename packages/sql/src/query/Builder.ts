@@ -12,7 +12,7 @@ declare namespace Builder {
     reference: Record<string, Field>;
     alias?: string;
     optional?: boolean;
-    joins: (readonly [Field, string, Field | Value])[];
+    joins: Cond[];
   }
 
   type Using<T extends Type> = (self: Query.From<T>, where: Query.Where) => void;
@@ -135,6 +135,9 @@ class Builder {
     this.filters.add(local);
 
     for(const eq of args){
+      if(eq instanceof Cond && eq.restricted)
+        throw new Error(`Cannot use ${eq} in a group.`);
+
       this.filters.delete(eq)
       local.add(eq); 
     }
@@ -205,32 +208,26 @@ class Builder {
     if(typeof right == "function")
       right = right();
 
+    if(right === null && !left.nullable)
+      throw new Error(`Column ${left} is not nullable.`);
+
     if(right instanceof Field || right instanceof DataField){
-      const where = [left, op, right] as const;
+      const where = new Cond(left, op, right, true);
 
       if(right instanceof DataField){
+        // TODO: should generator handle this?
         right.datatype = left.datatype;
         right.table.joins.push(where);
       }
       else
         left.table!.joins.push(where);
 
-      return {
-        toString(){
-          throw new Error("Composing joins is not supported.");
-        }
-      }
+      return where;
     }
 
     if(right instanceof Parameter){
       right.digest = left.set.bind(this);
-      right = right.toString();
     }
-    else if(right instanceof Array){
-      right = `(${right.map(left.raw, left)})`;
-    }
-    else
-      right = left.raw(right);
 
     return this.filters.add(left, op, right);
   }
@@ -325,7 +322,7 @@ class DataTable<T extends Record<string, unknown> = any>
 
   proxy: T;
   used = new Map<keyof T & string, DataField>();
-  joins: (readonly [Field, string, Field | Value])[] = [];
+  joins: Cond[] = [];
   optional = false;
   reference = {};
   name = "input";
@@ -364,7 +361,8 @@ export class Cond {
   constructor(
     public readonly left: Field, 
     public readonly op: string, 
-    public readonly right: unknown
+    public readonly right: unknown,
+    public readonly restricted = false
   ){}
 
   toString(){
@@ -390,22 +388,6 @@ class Group {
 
   get size(){
     return this.children.size;
-  }
-
-  toString(or?: boolean): string {
-    return Array
-      .from(this.children)
-      .map((cond, i) => {
-        if(cond instanceof Group){
-          const inner = cond.toString(!or);
-          const first = or !== false && i === 0;
-  
-          return cond.size == 1 || first ? inner : `(${inner})`;
-        }
-
-        return cond;
-      })
-      .join(or ? ' OR ' : ' AND ')
   }
 }
 

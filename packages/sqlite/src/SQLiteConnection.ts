@@ -36,9 +36,10 @@ export class SQLiteGenerator extends Generator {
 
           return {
             table,
-            conditions: joins.map(([left, op, right]) => {
-              return `${this.escape(left)} ${op} ${this.escape(right)}`;
-            }).join(' AND ')
+            // TODO: consolidate this
+            conditions: joins
+              .map(({ left, op, right }) => this.toFilter(left, op, right))
+              .join(' AND ')
           };
         });
 

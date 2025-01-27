@@ -1,4 +1,4 @@
-import { Builder, DataTable, Value } from '../query/Builder';
+import { Builder, DataTable, Group, Parameter, Value } from '../query/Builder';
 import { Query } from '../query/Query';
 import { Field } from '../type/Field';
 
@@ -64,8 +64,8 @@ export class Generator {
 
       const mode = optional ? "LEFT" : "INNER";
       const as = name + (alias ? ` ${alias}` : "");
-      const conditions = joins.map(([left, op, right]) =>
-        `${this.escape(left)} ${op} ${this.escape(right)}`
+      const conditions = joins.map(({ left, op, right }) =>
+        this.toFilter(left, op, right)
       );
 
       output.push(`${mode} JOIN ${as} ON ${conditions.join(' AND ')}`);
@@ -162,11 +162,53 @@ export class Generator {
     ]
   }
 
-  protected toWhere(){
+  protected toParam(from: Parameter){
+    return "?";
+  }
+
+  protected toFilter(left: Field, op: string, right: unknown){
+    if (right === null){
+      right === "NULL";
+
+      if(op == '=')
+        op = 'IS';
+      else if(op == '!=')
+        op = 'IS NOT';
+      else
+        throw new Error('Cannot compare NULL with ' + op);
+    }
+    else if (right instanceof Parameter)
+      right = this.toParam(right);
+    else if (right instanceof Field || right instanceof Value)
+      right = this.escape(right);
+    else if(right instanceof Array)
+      right = `(${right.map(left.raw, left)})`;
+    else
+      right = left.raw(right);
+
+    return `${this.escape(left)} ${op} ${right}`;
+  }
+
+  protected toWhere() {
     const { filters } = this.query;
 
-    if(filters.size)
-      return ['WHERE', filters];
+    if (!filters.size) return;
+
+    const combine = (group: Group, or?: boolean): string => {
+      return Array
+        .from(group.children, (cond, i) => {
+          if (cond instanceof Group) {
+            const inner = combine(cond, !or);
+            const first = or !== false && i === 0;
+            return cond.size === 1 || first ? inner : `(${inner})`;
+          }
+          
+          return this.toFilter(cond.left, cond.op, cond.right);
+        })
+        .join(or ? ' OR ' : ' AND ');
+    };
+
+    return ['WHERE', combine(filters)];
   }
 
   protected toOrder(){

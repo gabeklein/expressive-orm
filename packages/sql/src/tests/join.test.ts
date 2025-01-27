@@ -71,6 +71,21 @@ it("will join multiple", async () => {
   `);
 })
 
+it("will throw if joins are composed", async () => {
+  const query = () => Query(where => {
+    const foo = where(Foo);
+    const bar = where(Bar);
+
+    where(
+      where(bar.color).is(foo.color)
+    );
+  });
+
+  expect(query).toThrowErrorMatchingInlineSnapshot(
+    `Cannot use bar.color = foo.color in a group.`
+  );
+});
+
 it.skip("will filter for comparisons to later tables", async () => {
   const query = Query(where => {
     const foo = where(Foo);

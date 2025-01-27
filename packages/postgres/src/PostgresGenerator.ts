@@ -50,9 +50,9 @@ export class PostgresGenerator extends Generator {
         .filter(table => table !== main)
         .map(table => ({
           table,
-          conditions: table.joins.map(([left, op, right]) => 
-            `${this.escape(left)} ${op} ${this.escape(right)}`
-          ).join(' AND ')
+          conditions: table.joins
+            .map(({ left, op, right }) => this.toFilter(left, op, right))
+            .join(' AND ')
         }));
 
       if (using.length)
