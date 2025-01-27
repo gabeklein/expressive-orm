@@ -1,4 +1,5 @@
 import { Query } from '..';
+import { Cond } from '../query/Builder';
 import { capitalize, create, escape, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
 import { Type } from './Type';
 
@@ -42,11 +43,11 @@ declare namespace Field {
   type Output = Record<string, string | number>;
 
   type Compare<T> = {
-    is(value: Query.Value<T>): string;
-    not(value: Query.Value<T>): string;
-    over(value: Query.Value<T>, orEqual?: boolean): string;
-    under(value: Query.Value<T>, orEqual?: boolean): string;
-    in(value: Query.Value<T>[]): string;
+    is(value: Query.Value<T>): Cond;
+    not(value: Query.Value<T>): Cond;
+    over(value: Query.Value<T>, orEqual?: boolean): Cond;
+    under(value: Query.Value<T>, orEqual?: boolean): Cond;
+    in(value: Query.Value<T>[]): Cond;
   }
 }
 
