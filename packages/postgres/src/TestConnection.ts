@@ -1,44 +1,23 @@
+import { PGlite } from '@electric-sql/pglite';
 import { Connection } from '@expressive/sql';
 
 import { PGLiteConnection } from './PGLiteConnection';
 
-const reset = new Set<Function>();
-let cleanup: Function | undefined;
+const shared = new PGlite();
+let current: TestConnection | undefined;
 
-afterEach(() => {
-  Promise.all(Array.from(reset).map(cb => {
-    reset.delete(cb);
-    return cb();
-  }));
+afterEach(async () => {
+  // clear the database
+  await shared.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
+
+  if(current)
+    for(const type of current.using)
+      delete type.connection;
 });
 
-afterAll(() => cleanup && cleanup());
-
-/**
- * An in-memory database specific to a
- * test and attaches entities provided to it.
- **/
 export class TestConnection extends PGLiteConnection {
-  constructor(
-    using: Connection.Types,
-    private after?: () => void){
-
-    super(using);
-
-    if(expect.getState().currentTestName)
-      reset.add(() => this.close());
-    else {
-      beforeAll(async () => { await this });
-      cleanup = () => {
-        return this.close();
-      }
-    }
-  }
-
-  then(onfulfilled?: (value: void) => any) {
-    this.sync(true).then(() => {
-      if(this.after) this.after();
-      if(onfulfilled) onfulfilled();
-    });
+  constructor(using: Connection.Types){
+    super(using, shared);
+    current = this;
   }
 }

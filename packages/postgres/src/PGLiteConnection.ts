@@ -6,11 +6,14 @@ import { format } from 'sql-formatter';
 
 export class PGLiteConnection extends Connection {
   static generator = PostgresGenerator;
-  
+
   protected engine: PGlite;
-  constructor(using: Connection.Types, dataDir?: string, config?: PGliteOptions) {
+
+  constructor(using: Connection.Types, engine: PGlite)
+  constructor(using: Connection.Types, dataDir?: string, config?: PGliteOptions)
+  constructor(using: Connection.Types, arg2?: string | PGlite, config?: PGliteOptions) {
     super(using);
-    this.engine = new PGlite(dataDir, config);
+    this.engine = arg2 instanceof PGlite ? arg2 : new PGlite(arg2, config);
   }
 
   get schema() {
@@ -44,7 +47,10 @@ export class PGLiteConnection extends Connection {
         return result.affectedRows || 0;
       },
       toString: () => {
-        return format(sql, { language: 'postgresql', keywordCase: "upper" });
+        return format(sql, {
+          language: 'postgresql',
+          keywordCase: "upper"
+        });
       }
     };
   }

@@ -19,7 +19,7 @@ abstract class Connection {
   static generator = Generator;
 
   readonly using: Readonly<Set<typeof Type>>;
-  readonly ready = false;
+  readonly ready: boolean = false;
 
   constructor(using: Connection.Types){
     this.using = new Set(values(using).map(type => {
@@ -29,6 +29,20 @@ abstract class Connection {
       type.connection = this;
       return type;
     }))
+  }
+
+  async then(
+    onfulfilled?: (value: Omit<this, "then">) => any,
+    onrejected?: (reason: any) => any) {
+
+    return (this.ready ? Promise.resolve() : this.sync(true))
+      .then(() => {
+        Object.defineProperty(this, 'then', { value: undefined });
+
+        if (onfulfilled)
+          onfulfilled(this);
+      })
+      .catch(onrejected);
   }
 
   abstract get schema(): string;

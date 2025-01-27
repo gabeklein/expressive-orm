@@ -14,10 +14,6 @@ afterEach(() => {
 
 afterAll(() => cleanup && cleanup());
 
-/**
- * An in-memory database specific to a
- * test and attaches entities provided to it.
- **/
 export class TestConnection extends SQLiteConnection {
   constructor(
     using: Connection.Types,
@@ -28,15 +24,13 @@ export class TestConnection extends SQLiteConnection {
     if(expect.getState().currentTestName)
       reset.add(() => this.close());
     else {
-      beforeAll(async () => { await this });
+      beforeAll(() => this.then());
       cleanup = () => this.close();
     }
   }
 
-  then(onfulfilled?: (value: void) => any) {
-    this.sync(true).then(() => {
-      if(this.after) this.after();
-      if(onfulfilled) onfulfilled();
-    });
+  async sync(fix?: boolean){
+    await super.sync(fix);
+    if(this.after) this.after();
   }
 }

@@ -62,13 +62,11 @@ describe.skip("types", () => {
       });
     }
   
-    const conn = new TestConnection([Test]);
+    const conn = await new TestConnection([Test]);
   
     expect(conn.schema).toMatchInlineSnapshot(
       `CREATE TABLE "test" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "value1" tinyint NOT NULL, "value2" TEXT NOT NULL);`
     );
-  
-    await conn;
   
     const insert = Test.insert({
       value1: true, value2: true
@@ -92,13 +90,11 @@ describe.skip("types", () => {
       date = Time();
     }
 
-    const conn = new TestConnection([ Test ]);
+    const conn = await new TestConnection([ Test ]);
 
     expect(conn.schema).toMatchInlineSnapshot(
       `CREATE TABLE "test" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "date" TIMESTAMP NOT NULL);`
     );
-
-    await conn;
   
     const now = new Date();
   
@@ -124,14 +120,17 @@ describe("select", () => {
     bar = Str();
     baz = Str();
   }
-  
-  new TestConnection({ Foo }, async () => {
+
+  async function prepare(){
+    await new TestConnection({ Foo });
     await Foo.insert([
       { bar: "hello", baz: "world" },
     ]);
-  });
+  }
 
   it("will select via object", async () => {
+    await prepare();
+    
     const query = Query(where => {
       const { bar, baz } = where(Foo);
       return { bar, baz }
@@ -143,6 +142,8 @@ describe("select", () => {
   })
   
   it("will output nested object", async () => {
+    await prepare();
+    
     const query = Query(where => {
       const { bar, baz } = where(Foo);
   
@@ -159,6 +160,8 @@ describe("select", () => {
   })
   
   it("will select a field directly", async () => {
+    await prepare();
+    
     const query = Query(where => {
       const { bar } = where(Foo);
       return bar;
@@ -168,6 +171,8 @@ describe("select", () => {
   })
   
   it("will select a entire entity", async () => {
+    await prepare();
+    
     const query = Query(where => {
       return where(Foo);
     })
@@ -197,14 +202,17 @@ describe("template", () => {
     color = Str();
   }
 
-  new TestConnection([Foo], async () => {
+  async function prepare(){
+    await new TestConnection([Foo]);
     await Foo.insert([
       { first: "John", last: "Doe",   color: "red" },
       { first: "Jane", last: "Smith", color: "blue" },
-    ])
-  });
+    ]);
+  }
 
   it.skip("will create a template", async () => {
+    await prepare();
+
     const query = Query(where => (color: string) => {
       const foo = where(Foo);
       where(foo.color).is(color);
@@ -225,6 +233,8 @@ describe("template", () => {
   })
   
   it.skip("will preserve params order", async () => {
+    await prepare();
+
     const query = Query(where => (
       color: string, firstname: string
     ) => {
@@ -278,7 +288,7 @@ it("will insert procedurally generated rows", async () => {
     age = Num();
   }
   
-  await new TestConnection([Users]);
+  await new TestConnection({ Users });
 
   const names = ["john", "jane", "bob", "alice"];
   const insert = Users.insert(names, (name, i) => ({

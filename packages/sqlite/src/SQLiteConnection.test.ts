@@ -72,7 +72,7 @@ describe("types", () => {
       });
     }
   
-    const conn = new TestConnection([Test]);
+    const conn = await new TestConnection([Test]);
   
     expect(conn.schema).toMatchInlineSnapshot(`
       CREATE TABLE
@@ -82,8 +82,6 @@ describe("types", () => {
           value2 TEXT NOT NULL
         );
     `);
-  
-    await conn;
   
     const insert = Test.insert({
       value1: true, value2: true
@@ -107,7 +105,7 @@ describe("types", () => {
       date = Time();
     }
 
-    const conn = new TestConnection([ Test ]);
+    const conn = await new TestConnection([ Test ]);
 
     expect(conn.schema).toMatchInlineSnapshot(`
       CREATE TABLE
@@ -116,8 +114,6 @@ describe("types", () => {
           date TEXT NOT NULL
         );
     `);
-
-    await conn;
   
     const now = new Date();
   
