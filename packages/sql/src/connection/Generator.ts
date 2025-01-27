@@ -132,12 +132,9 @@ export class Generator {
       return;
 
     const { alias, name } = main;
+    const target = query.tables.size > 1 && (alias || name);
 
-    return [
-      "DELETE",
-      query.tables.size > 1 && (alias || name),
-      'FROM', name, this.toJoins(main)
-    ]
+    return ['DELETE', target, 'FROM', name, this.toJoins(main)]
   }
 
   protected toSelect(){
@@ -154,12 +151,7 @@ export class Generator {
       selects ? `${selects} AS value` :
       'COUNT(*)';
 
-    return [
-      "SELECT",
-      selection,
-      main && `FROM ${main}`,
-      this.toJoins(main)
-    ]
+    return ["SELECT", selection, main && `FROM ${main}`, this.toJoins(main)]
   }
 
   protected toParam(from: Parameter){
@@ -215,7 +207,7 @@ export class Generator {
     const { order } = this.query;
 
     if(order.size)
-      return 'ORDER BY ' + Array.from(order).map(x => x.join(' '))
+      return ['ORDER BY', Array.from(order).map(x => x.join(' '))];
   }
 
   protected toLimit(){
