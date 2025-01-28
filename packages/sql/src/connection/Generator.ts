@@ -28,18 +28,17 @@ export class Generator {
   protected toWith(){
     const cte = [] as string[];
 
-    // TODO: move this to adapter
     this.query.tables.forEach((table) => {
-      if(!(table instanceof DataTable))
-        return;
-
-      const fields = Array.from(table.used, ([key], i) => `value ->> ${i} ${this.escape(key)}`);
-
-      cte.push(`${this.escape(table)} AS (SELECT ${fields} FROM json_each(?))`)
-    })
+      if (table instanceof DataTable)
+        cte.push(`${this.escape(table)} AS (${this.toJsonTable(table)})`);
+    });
 
     if(cte.length)
       return 'WITH ' + cte.join();
+  }
+
+  protected toJsonTable(table: DataTable){
+    throw new Error("Not implemented.")
   }
 
   protected toJoins(main: Builder.Table){

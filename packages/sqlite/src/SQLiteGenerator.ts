@@ -1,6 +1,14 @@
-import { Generator } from '@expressive/sql';
+import { DataTable, Generator } from '@expressive/sql';
 
 export class SQLiteGenerator extends Generator {
+  protected toJsonTable(table: DataTable): string {
+    const param = this.toParam(table);
+    const fields = Array.from(table.used.entries())
+      .map(([key], i) => `value ->> ${i} ${this.escape(key)}`);
+    
+    return `SELECT ${fields.join(', ')} FROM json_each(${param})`;
+  }
+
   protected toUpdate(){
     const { updates, tables } = this.query;
 

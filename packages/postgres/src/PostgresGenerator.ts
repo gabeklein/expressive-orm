@@ -2,36 +2,19 @@ import { DataTable, Generator } from '@expressive/sql';
 import { Parameter } from 'packages/sql/src/query/Builder';
 
 export class PostgresGenerator extends Generator {
-  protected toWith(){
-    const cte = [] as string[];
+  protected toJsonTable(table: DataTable){
+    const param = this.toParam(table);
+    const types = Array.from(table.used.entries())
+      .map(([key, field]) => `${key} ${field.datatype}`)
+      .join(', ');
 
-    this.query.tables.forEach((table) => {
-      if(!(table instanceof DataTable)) return;
-     
-      const fields: string[] = [];
-      const types: string[] = [];
-      const param = "$" + (table.index + 1);
-      
-      for(const [key, field] of table.used) {
-        fields.push(key);
-        types.push(key + ' ' + field.datatype);
-      }
-     
-      cte.push(`${this.escape(table)} AS (SELECT * FROM json_to_recordset(${param}) AS x(${types}))`);
-
-      table.toParam = () => Array.from(table.input).map(x => {
-        const subset = {} as Record<string, any>;
-
-        for(const [key] of table.used)
-          subset[key as string] = x[key];
-
-        return subset;
-      })
+    table.toParam = () => Array.from(table.input).map(x => {
+      const subset = {} as Record<string, any>;
+      for (const [key] of table.used) subset[key as string] = x[key];
+      return subset;
     });
     
-
-    if(cte.length)
-      return 'WITH' + cte.join(", ");
+    return `SELECT * FROM json_to_recordset(${param}) AS x(${types})`;
   }
 
   protected toParam(from: Parameter): string {
