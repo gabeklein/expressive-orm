@@ -34,18 +34,9 @@ export class PGLiteConnection extends Connection {
     }
 
     return {
-      all: async (params?: any[]) => {
-        const result = await send(params);
-        return result.rows as T[];
-      },
-      get: async (params?: any[]) => {
-        const result = await send(params);
-        return result.rows[0] as T | undefined;
-      },
-      run: async (params?: any[]) => {
-        const result = await send(params);
-        return result.affectedRows || 0;
-      },
+      all: async (params?: any[]) => (await send(params)).rows as T[],
+      get: async (params?: any[]) => (await send(params)).rows[0] as T | undefined,
+      run: async (params?: any[]) => (await send(params)).affectedRows || 0,
       toString: () => {
         return format(sql, {
           language: 'postgresql',
