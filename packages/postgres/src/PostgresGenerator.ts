@@ -1,4 +1,5 @@
 import { DataTable, Generator } from '@expressive/sql';
+import { Parameter } from 'packages/sql/src/query/Builder';
 
 export class PostgresGenerator extends Generator {
   protected toWith(){
@@ -31,6 +32,10 @@ export class PostgresGenerator extends Generator {
 
     if(cte.length)
       return 'WITH' + cte.join(", ");
+  }
+
+  protected toParam(from: Parameter): string {
+    return '$' + (this.query.params.indexOf(from) + 1);
   }
 
   protected toUpdate() {

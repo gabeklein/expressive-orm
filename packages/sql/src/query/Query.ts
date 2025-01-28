@@ -170,10 +170,10 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   const statement = builder.connection.prepare(template);
   const toString = () => statement.toString();
   const runner = (...params: any[]) => { 
-    params = builder.accept(params);
-    
     const get = () => statement.all(params).then(a => a.map(x => builder.parse(x)));
     const query = create(Query.prototype) as Query;
+
+    params = builder.accept(params);
     
     assign(query, {
       params,

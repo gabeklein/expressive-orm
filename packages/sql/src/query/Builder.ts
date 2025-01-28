@@ -26,7 +26,7 @@ class Builder {
    * May either be placeholders for a template, or values
    * which the query deems unsafe to interpolate directly.
    */
-  params = new Set<Parameter>();
+  params = [] as Parameter[];
 
   filters = new Group();
   pending = new Set<() => void>();
@@ -93,10 +93,10 @@ class Builder {
       const p = new Parameter(i);
 
       return () => {
-        if(this.params.has(p))
+        if(this.params.includes(p))
           throw new Error(`Parameter ${i} is already defined.`);
         else
-          this.params.add(p);
+          this.params.push(p);
 
         return p;
       }
@@ -233,9 +233,9 @@ class Builder {
   }
 
   with(data: Iterable<Record<string, any>>){
-    const param = new DataTable(data, this.params.size);
+    const param = new DataTable(data, this.params.length);
 
-    this.params.add(param);
+    this.params.push(param);
     this.tables.set(param.proxy, param);
 
     return param.proxy;

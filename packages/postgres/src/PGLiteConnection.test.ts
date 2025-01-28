@@ -206,11 +206,11 @@ describe("template", () => {
     await new TestConnection([Foo]);
     await Foo.insert([
       { first: "John", last: "Doe",   color: "red" },
-      { first: "Jane", last: "Smith", color: "blue" },
+      { first: "Jane", last: "Smith", color: "blue" }
     ]);
   }
 
-  it.skip("will create a template", async () => {
+  it("will create a template", async () => {
     await prepare();
 
     const query = Query(where => (color: string) => {
@@ -225,14 +225,14 @@ describe("template", () => {
       FROM
         foo
       WHERE
-        foo.color = $1
+        "foo"."color" = $1
     `);
   
     await expect(query("red")).resolves.toEqual(["John"]);
     await expect(query("blue")).resolves.toEqual(["Jane"]);
   })
   
-  it.skip("will preserve params order", async () => {
+  it("will preserve params order", async () => {
     await prepare();
 
     const query = Query(where => (
@@ -254,12 +254,17 @@ describe("template", () => {
       FROM
         foo
       WHERE
-        foo.first = $1
-        AND foo.color = $2
+        "foo"."first" = $1
+        AND "foo"."color" = $2
     `);
+
+    const getJohn = query("red", "John");
+
+    expect(getJohn.params).toEqual([ "John", "red"]);
   
-    await expect(query("red", "John")).resolves.toEqual(["Doe"]);
-    await expect(query("blue", "Jane")).resolves.toEqual(["Smith"]);
+    expect(await getJohn).toEqual(["Doe"]);
+
+    expect(await query("blue", "Jane")).toEqual(["Smith"]);
   })
   
   it("will select a parameter value", async () => {
