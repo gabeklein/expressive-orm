@@ -5,8 +5,7 @@ export class PostgresGenerator extends Generator {
   protected toJsonTable(table: DataTable){
     const param = this.toParam(table);
     const types = Array.from(table.used.entries())
-      .map(([key, field]) => `${key} ${field.datatype}`)
-      .join(', ');
+      .map(([key, field]) => `${key} ${field.datatype}`);
 
     table.toParam = () => Array.from(table.input).map(x => {
       const subset = {} as Record<string, any>;

@@ -37,12 +37,7 @@ export class PGLiteConnection extends Connection {
       all: async (params?: any[]) => (await send(params)).rows as T[],
       get: async (params?: any[]) => (await send(params)).rows[0] as T | undefined,
       run: async (params?: any[]) => (await send(params)).affectedRows || 0,
-      toString: () => {
-        return format(sql, {
-          language: 'postgresql',
-          keywordCase: "upper"
-        });
-      }
+      toString: () => format(sql, { language: 'postgresql', keywordCase: "upper" })
     };
   }
 
@@ -123,11 +118,10 @@ export class PGLiteConnection extends Connection {
 
     if (!foreignTable || !foreignKey) return;
 
-    // if (field.parent.connection !== this) {
-    //   throw new Error(
-    //     `Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`
-    //   );
-    // }
+    if (field.parent.connection !== this)
+      throw new Error(
+        `Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`
+      );
 
     const foreignExists = await this.prepare<{exists: boolean}>(
       'SELECT EXISTS (SELECT 1 FROM information_schema.columns ' +
@@ -155,28 +149,33 @@ export class PGLiteConnection extends Connection {
   }
 
   protected generateTableSchema(type: Type.EntityType) {
+    const { table, fields } = type;
+
     const constraints: string[] = [];
-    
-    const fields = Array.from(type.fields.values()).map(field => {
-      let parts = `"${field.column}" ${this.mapDataType(field.datatype!)}`;
+    const columns = Array.from(fields.values()).map(field => {
+      const {
+        column, datatype, fallback, foreignKey,
+        foreignTable, increment, nullable, unique,
+      } = field;
    
-      if (!field.nullable) parts += ' NOT NULL';
-      if (field.increment) parts += ' GENERATED ALWAYS AS IDENTITY'; 
-      if (field.unique) parts += ' UNIQUE';
-      if (field.fallback !== undefined) parts += ' DEFAULT ' + field.set(field.fallback);
-   
-      if (field.foreignKey && field.foreignTable) {
+      if (foreignKey && foreignTable)
         constraints.push(
-          `ALTER TABLE "${type.table}" ADD CONSTRAINT "${type.table}_${field.column}_fk" ` +
-          `FOREIGN KEY ("${field.column}") REFERENCES "${field.foreignTable}"("${field.foreignKey}");`
+          `ALTER TABLE "${table}" ADD CONSTRAINT "${table}_${column}_fk" ` +
+          `FOREIGN KEY ("${column}") REFERENCES "${foreignTable}"("${foreignKey}");`
         );
-      }
+
+      let parts = `"${column}" ${this.mapDataType(datatype!)}`;
+   
+      if (!nullable) parts += ' NOT NULL';
+      if (increment) parts += ' GENERATED ALWAYS AS IDENTITY'; 
+      if (unique) parts += ' UNIQUE';
+      if (fallback !== undefined) parts += ' DEFAULT ' + field.set(fallback);
    
       return parts;
     });
    
     return {
-      table: `CREATE TABLE "${type.table}" (${fields.join(', ')});`,
+      table: `CREATE TABLE "${table}" (${columns.join(", ")});`,
       constraints: constraints.join('\n')
     };
    }
