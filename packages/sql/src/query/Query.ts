@@ -46,7 +46,7 @@ declare namespace Query {
      * Prepare comparison against a particilar field,
      * returns operations for the given type.
      */
-    <T extends Field>(field: T | undefined): Query.Asserts<T>;
+    <T extends Field>(field: T | undefined):  Query.Asserts<T>;
 
     <T extends {}>(data: Iterable<T>): { [K in keyof T]: Field<T[K]> };
 
@@ -55,7 +55,7 @@ declare namespace Query {
      * 
      * Will alternate between AND-OR depending on depth, starting with OR.
      */
-    (...orWhere: (string | Group)[]): Group;
+    (...orWhere: (Cond | Group)[]): Group;
 
     /** Specify the limit of results returned. */
     (limit: number): void;
