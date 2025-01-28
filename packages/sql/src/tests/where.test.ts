@@ -324,12 +324,12 @@ describe("sort", () => {
 
   it("will sort multiple columns", async () => {
     const query = Query(where => {
-      const test = where(Test);
+      const { name, rating } = where(Test);
   
-      where(test.rating).asc()
-      where(test.name).desc()
+      where(rating).asc()
+      where(name).desc()
   
-      return test.name;
+      return name;
     });
   
     expect(query).toMatchInlineSnapshot(`
