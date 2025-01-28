@@ -5,8 +5,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       exclude: [
-        'node_modules/',
-        "PGLiteConnection.test.ts",
+        'node_modules'
       ],
       thresholds: {
         branches: 100,
