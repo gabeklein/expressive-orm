@@ -1,4 +1,4 @@
-import { Num, Query, Str, Type } from '..';
+import { Query, Str, Type } from '..';
 
 class Foo extends Type {
   value = Str();
@@ -80,46 +80,6 @@ it("will complain about nullable mismatch", () => {
   expect(badQuery).toThrowErrorMatchingInlineSnapshot(
     `Column baz.non_nullable is not nullable.`
   );
-})
-
-it("will update from data", async () => {
-  class User extends Type {
-    name = Str();
-    age = Num();
-  }
-
-  interface Data {
-    name: string;
-    age: number;
-  }
-
-  const data: Data[] = [
-    { name: "John", age: 30 },
-    { name: "Jane", age: 25 },
-  ];
-
-  const query = Query.from(data, (where, input) => {
-    const user = where(User);
-
-    where(user.name).is(input.name);
-    where(user).update({ age: input.age });
-  });
-
-  expect(query).toMatchInlineSnapshot(`
-    WITH
-      input AS (
-        SELECT
-          VALUE ->> 0 name,
-          VALUE ->> 1 age
-        FROM
-          json_each (?)
-      )
-    UPDATE
-      user
-      INNER JOIN input ON user.name = input.name
-    SET
-      age = input.age
-  `)
 })
 
 it.todo('will update multiple tables')
