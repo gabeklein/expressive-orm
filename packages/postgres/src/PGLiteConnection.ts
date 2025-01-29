@@ -1,8 +1,8 @@
 import { PGlite, PGliteOptions } from '@electric-sql/pglite';
 import { Connection, Field, Type } from '@expressive/sql';
+import { format } from 'sql-formatter';
 
 import { PostgresGenerator } from './PostgresGenerator';
-import { format } from 'sql-formatter';
 
 export class PGLiteConnection extends Connection {
   static generator = PostgresGenerator;
@@ -17,7 +17,7 @@ export class PGLiteConnection extends Connection {
   }
 
   get schema() {
-    return this.generateSchema(this.using);
+    return format(this.generateSchema(this.using));
   }
 
   prepare<T = any>(sql: string) {

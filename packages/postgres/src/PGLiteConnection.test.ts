@@ -24,11 +24,15 @@ describe("schema", () => {
       fooBar = Bool();
     }
   
-    const sql = new TestConnection({ FooBar });
+    const conn = new TestConnection({ FooBar });
   
-    expect(sql.schema).toMatchInlineSnapshot(
-      `CREATE TABLE "foo_bar" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "foo_bar" tinyint NOT NULL);`
-    );
+    expect(conn.schema).toMatchInlineSnapshot(`
+      CREATE TABLE
+        "foo_bar" (
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "foo_bar" tinyint NOT NULL
+        );
+    `);
   });
   
   it("will create FK constraints", async () => {
@@ -40,15 +44,24 @@ describe("schema", () => {
       value = Num();
     }
   
-    const sql = new TestConnection({ Foo, Bar });
+    const conn = await new TestConnection({ Foo, Bar });
   
-    expect(sql.schema).toMatchInlineSnapshot(`
-      CREATE TABLE "foo" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "bar_id" INTEGER NOT NULL);
-      CREATE TABLE "bar" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "value" INTEGER NOT NULL);
-      ALTER TABLE "foo" ADD CONSTRAINT "foo_bar_id_fk" FOREIGN KEY ("bar_id") REFERENCES "bar"("id");
-    `);
+    expect(conn.schema).toMatchInlineSnapshot(`
+      CREATE TABLE
+        "foo" (
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "bar_id" INTEGER NOT NULL
+        );
 
-    await sql;
+      CREATE TABLE
+        "bar" (
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "value" INTEGER NOT NULL
+        );
+
+      ALTER TABLE
+        "foo" ADD CONSTRAINT "foo_bar_id_fk" FOREIGN KEY ("bar_id") REFERENCES "bar" ("id");
+    `);
   });
 });
 
@@ -62,7 +75,7 @@ describe.skip("types", () => {
       });
     }
   
-    const conn = await new TestConnection([Test]);
+    const conn = await new TestConnection({ Test });
   
     expect(conn.schema).toMatchInlineSnapshot(
       `CREATE TABLE "test" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "value1" tinyint NOT NULL, "value2" TEXT NOT NULL);`
