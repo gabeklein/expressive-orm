@@ -63,11 +63,9 @@ export class Generator {
 
       const mode = optional ? "LEFT" : "INNER";
       const as = name + (alias ? ` ${alias}` : "");
-      const conditions = joins.map(({ left, op, right }) =>
-        this.toFilter(left, op, right)
-      );
+      const conds = joins.map(x => this.toFilter(x.left, x.op, x.right));
 
-      output.push(`${mode} JOIN ${as} ON ${conditions.join(' AND ')}`);
+      output.push(`${mode} JOIN ${as} ON ${conds.join(' AND ')}`);
     }
 
     if(output.length)

@@ -28,18 +28,14 @@ export class SQLiteGenerator extends Generator {
       const using = Array.from(tables.values())
         .filter(table => table !== main)
         .map(table => {
-          const { joins } = table;
-
-          if (joins.length === 0)
+          if (table.joins.length === 0)
             throw new Error(`Table ${table.name} has no joins.`);
 
-          return {
-            table,
-            // TODO: consolidate this
-            conditions: joins
-              .map(({ left, op, right }) => this.toFilter(left, op, right))
-              .join(' AND ')
-          };
+          const conditions = table.joins
+            .map(x => this.toFilter(x.left, x.op, x.right))
+            .join(' AND ')
+
+          return { conditions, table };
         });
 
       if (using.length > 0)

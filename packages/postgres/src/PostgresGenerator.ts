@@ -38,7 +38,7 @@ export class PostgresGenerator extends Generator {
         .map(table => ({
           table,
           conditions: table.joins
-            .map(({ left, op, right }) => this.toFilter(left, op, right))
+            .map(x => this.toFilter(x.left, x.op, x.right))
             .join(' AND ')
         }));
 
