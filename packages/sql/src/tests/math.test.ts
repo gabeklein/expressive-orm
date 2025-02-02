@@ -5,7 +5,23 @@ class Item extends Type  {
 }
 
 describe("arithmetic", () => {
-  it("will select", () => {
+  it("will select equation", () => {
+    const results = Query(where => {
+      const { add } = math;
+      const item = where(Item);
+
+      return add(item.number, 2)
+    });
+
+    expect(results).toMatchInlineSnapshot(`
+      SELECT
+        item.number + 2
+      FROM
+        item
+    `);
+  })
+
+  it("will select multiple equations", () => {
     const results = Query(where => {
       const { add, sub, mul, div } = math;
       const item = where(Item);
