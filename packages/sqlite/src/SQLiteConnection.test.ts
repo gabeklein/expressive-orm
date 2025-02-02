@@ -268,21 +268,34 @@ describe("template", () => {
   })
   
   it("will select a parameter value", async () => {
-    const query = Query(() => (color: string) => color);
-  
+    const conn = await new TestConnection([]);
+    const query = Query(function(){
+      // TODO: assign connection to Query itself?
+      this.connection = conn as any;
+      return (color: string) => color;
+    });
+
     expect(query).toMatchInlineSnapshot(`
       SELECT
-        ? AS VALUE
+        ?
     `);
+
+    expect(await query("red")).toEqual(["red"]);
   });
   
-  it("will select a parameter value", async () => {
-    const query = Query(() => (color: string) => ({ color }));
+  it("will select a parameter in property", async () => {
+    const conn = await new TestConnection([]);
+    const query = Query(function(){
+      this.connection = conn as any;
+      return (color: string) => ({ color })
+    });
   
     expect(query).toMatchInlineSnapshot(`
       SELECT
         ? AS "color"
     `);
+
+    expect(await query("red")).toEqual([{ color: "red" }]);
   });
 })
 
