@@ -131,7 +131,25 @@ export class Generator {
     const { alias, name } = main;
     const target = query.tables.size > 1 && (alias || name);
 
-    return ['DELETE', target, 'FROM', name, this.toJoins(main)]
+    return ['DELETE', target, 'FROM', this.escape(name), this.toJoins(main)]
+  }
+
+  protected toReference(from: Field | Value){
+    if(from instanceof Parameter)
+      return this.toParam(from);
+
+    if(from instanceof Value)
+      return from.toString();
+
+    if(from instanceof Field){
+      const column = this.escape(from.column);
+      const { table } = from;
+  
+      if(table)
+        return this.escape(table.alias || table.name) + "." + column;
+    }
+
+    return from;
   }
 
   protected toSelect(){
@@ -139,16 +157,22 @@ export class Generator {
     const [ main ] = tables.values();
 
     const selection =
-      selects instanceof Field ? selects.toString() :
       selects instanceof Map ?
         // TODO: simplify this
         Array.from(selects)
-        .map(([alias, field]) => `${field} AS "${alias}"`)
-        .join(', ') :
-      selects ? `${selects} AS value` :
-      'COUNT(*)';
+          .map(([alias, field]) => this.toReference(field) + ` AS "${alias}"`)
+          .join(', ') :
+      selects ?
+        this.toReference(selects as Field) :
+        'COUNT(*)';
 
-    return ["SELECT", selection, main && `FROM ${main}`, this.toJoins(main)]
+    return [
+      "SELECT",
+      selection,
+      main && `FROM ${this.escape(main.name)}`,
+      main && main.alias,
+      this.toJoins(main)
+    ]
   }
 
   protected toParam(from: Parameter){
@@ -166,16 +190,16 @@ export class Generator {
       else
         throw new Error('Cannot compare NULL with ' + op);
     }
-    else if (right instanceof Parameter)
-      right = this.toParam(right);
-    else if (right instanceof Field || right instanceof Value)
-      right = this.escape(right);
     else if(right instanceof Array)
       right = `(${right.map(left.raw, left)})`;
+    else if (right instanceof Field || right instanceof Parameter)
+      right = this.toReference(right);
+    else if (right instanceof Value)
+      right = this.escape(right);
     else
       right = left.raw(right);
 
-    return `${this.escape(left)} ${op} ${right}`;
+    return `${this.toReference(left)} ${op} ${right}`;
   }
 
   protected toWhere() {
@@ -204,7 +228,7 @@ export class Generator {
     const { order } = this.query;
 
     if(order.size)
-      return ['ORDER BY', Array.from(order).map(x => x.join(' '))];
+      return ['ORDER BY', Array.from(order, ([x, y]) => `${this.toReference(x)} ${y}`)];
   }
 
   protected toLimit(){

@@ -55,17 +55,15 @@ class Builder {
       this.selects = returns;
     }
     else if(returns) {
-      const columns = new Map<string, string | Field>();
+      const columns = new Map<string, string | Field | Value>();
         
       function scan(obj: any, path?: string) {
         getOwnPropertyNames(obj).forEach(key => {
           const use = path ? `${path}.${key}` : key;
           const selects = obj[key];
   
-          if (selects instanceof Field)
+          if (selects instanceof Field || selects instanceof Value)
             columns.set(use, selects);
-          else if(selects instanceof Value)
-            columns.set(use, String(selects));
           else if (typeof selects === 'object')
             scan(selects, use);
           else {
@@ -185,8 +183,9 @@ class Builder {
       field = create(field);
       field.query = this;
       field.table = table;
-      field.toString = () =>
-        `${table.alias || table.name}.${field.column}`;
+      field.toString = () => {
+        return `${table.alias || table.name}.${field.column}`;
+      }
 
       defineProperty(reference, key, { value: field });
 
@@ -261,16 +260,24 @@ class Builder {
 
         const value = raw[column];
 
-        target[property] = field instanceof Field
-          ? field.get(value) : value;
+        target[property] = 
+          field instanceof Field ? field.get(value) :
+          selects instanceof Parameter ? selects.digest(value) :
+          value;
       });
 
       return values;
     }
 
     const value = values(raw)[0];
+
+    if(selects instanceof Parameter)
+      return selects.digest(value);
     
-    return selects instanceof Field ? selects.get(value) : raw;
+    if(selects instanceof Field)
+      return selects.get(value);
+
+    return raw;
   }
 }
 

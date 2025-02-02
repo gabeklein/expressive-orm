@@ -234,9 +234,9 @@ describe("template", () => {
   
     expect(query).toMatchInlineSnapshot(`
       SELECT
-        foo.first
+        "foo"."first"
       FROM
-        foo
+        "foo"
       WHERE
         "foo"."color" = $1
     `);
@@ -263,9 +263,9 @@ describe("template", () => {
   
     expect(query).toMatchInlineSnapshot(`
       SELECT
-        foo.last
+        "foo"."last"
       FROM
-        foo
+        "foo"
       WHERE
         "foo"."first" = $1
         AND "foo"."color" = $2
@@ -285,7 +285,7 @@ describe("template", () => {
   
     expect(query).toMatchInlineSnapshot(`
       SELECT
-        ? AS VALUE
+        ?
     `);
 
     // TODO: test if comes back as expected
