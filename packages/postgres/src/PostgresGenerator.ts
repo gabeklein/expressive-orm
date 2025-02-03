@@ -44,7 +44,10 @@ export class PostgresGenerator extends Generator {
 
       if (using.length)
         output.push(
-          'FROM', using.map(({ table }) => this.escape(table)).join(', '),
+          'FROM', using.map(({ table }) => {
+            const { alias, name } = table;
+            return this.escape(alias ? `${name} ${alias}` : name);
+          }).join(', '),
           'WHERE', using.map(x => x.conditions).join(' AND ')
         );
     }

@@ -73,19 +73,4 @@ export class Computed<T> extends Value {
       this.right = right;
     }
   }
-
-  toString(): string {
-    let { left, operator, right } = this;
-
-    if(right.rank <= this.rank)
-      right = `(${right})`;
-
-    if (!left)
-      return `${operator}${right}`;
-    
-    if (left.rank < this.rank)
-      left = `(${left})`;
-
-    return `${left} ${operator} ${right}`;
-  }
 }

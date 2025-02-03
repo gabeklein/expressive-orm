@@ -40,7 +40,7 @@ export class SQLiteGenerator extends Generator {
 
       if (using.length > 0)
         output.push(
-          'FROM', using.map(x => x.table).join(', '),
+          'FROM', using.map(x => x.table.name).join(', '),
           'WHERE', using.map(x => x.conditions).join(' AND ')
         )
     }

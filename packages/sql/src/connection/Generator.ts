@@ -1,4 +1,5 @@
-import { Builder, DataTable, Group, Parameter, Value } from '../query/Builder';
+import { Builder, DataField, DataTable, Group, Parameter, Value } from '../query/Builder';
+import { Computed } from '../query/Computed';
 import { Query } from '../query/Query';
 import { Field } from '../type/Field';
 
@@ -30,7 +31,7 @@ export class Generator {
 
     this.query.tables.forEach((table) => {
       if (table instanceof DataTable)
-        cte.push(`${this.escape(table)} AS (${this.toJsonTable(table)})`);
+        cte.push(`${this.escape(table.name)} AS (${this.toJsonTable(table)})`);
     });
 
     if(cte.length)
@@ -39,6 +40,25 @@ export class Generator {
 
   protected toJsonTable(table: DataTable){
     throw new Error("Not implemented.")
+  }
+
+  toComputed(from: Computed<any>){
+    let { left, operator, right } = from;
+
+    if(right instanceof Computed){
+      const value = this.toComputed(right);
+      right = right.rank <= from.rank ? `(${value})` : value;
+    }
+
+    if(!left)
+      return `${operator}${right}`;
+
+    if(left instanceof Computed){
+      const value = this.toComputed(left);
+      left = left.rank < from.rank ? `(${value})` : value;
+    }
+
+    return `${left} ${operator} ${right}`;
   }
 
   protected toJoins(main: Builder.Table){
@@ -82,14 +102,15 @@ export class Generator {
         if(value === undefined)
           continue;
 
-        if(value === null){
+        if(value instanceof Field || value instanceof Value){
+          value = this.toReference(value);
+        }
+        else if(value === null){
           if(field.nullable)
             value = 'NULL';
           else
             throw new Error(`Column ${field} is not nullable.`);
         }
-        else if(value instanceof Field || value instanceof Value)
-          value = this.escape(value);
         else
           value = field.raw(value);
 
@@ -135,6 +156,12 @@ export class Generator {
   }
 
   protected toReference(from: Field | Value){
+    if(from instanceof DataField)
+      return this.escape(from.table.name + '.' + from.column);
+
+    if(from instanceof Computed)
+      return this.toComputed(from);
+
     if(from instanceof Parameter)
       return this.toParam(from);
 
@@ -192,10 +219,8 @@ export class Generator {
     }
     else if(right instanceof Array)
       right = `(${right.map(left.raw, left)})`;
-    else if (right instanceof Field || right instanceof Parameter)
+    else if (right instanceof Field || right instanceof Value)
       right = this.toReference(right);
-    else if (right instanceof Value)
-      right = this.escape(right);
     else
       right = left.raw(right);
 

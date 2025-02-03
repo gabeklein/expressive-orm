@@ -283,17 +283,13 @@ class Builder {
 
 class Value {}
 
-class DataField extends Value {
+export class DataField extends Value {
   datatype = "";
 
   constructor(
     public column: string,
     public table: DataTable){
     super();
-  }
-
-  toString(){
-    return this.table.name + "." + this.column;
   }
 }
 
@@ -318,10 +314,6 @@ class Parameter extends Value {
   toParam(from: Record<string, any>){
     return this.digest(from[this.index]);
   }
-
-  toString(){
-    return '?';
-  }
 }
 
 class DataTable<T extends Record<string, unknown> = any>
@@ -333,10 +325,6 @@ class DataTable<T extends Record<string, unknown> = any>
   optional = false;
   reference = {};
   name = "input";
-  
-  toString(){
-    return this.name;
-  }
 
   constructor(public input: Iterable<T>, index: number){
     super();
