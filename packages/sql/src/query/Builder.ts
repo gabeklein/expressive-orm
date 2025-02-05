@@ -35,7 +35,7 @@ class Builder {
 
   deletes = new Set<Query.Table>();
   updates = new Map<Query.Table, Query.Update<any>>();
-  selects?: unknown;
+  selects?: Map<string, Field | Value> | Field | Value;
   limit?: number;
 
   commit(returns: unknown){
