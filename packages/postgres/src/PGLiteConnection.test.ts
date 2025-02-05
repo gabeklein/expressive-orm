@@ -93,7 +93,7 @@ describe.skip("types", () => {
     `);
     
     await insert;
-    await expect(Test.one()).resolves.toEqual({
+    expect(await Test.one()).toEqual({
       id: 1, value1: true, value2: true
     });
   });
@@ -149,7 +149,7 @@ describe("select", () => {
       return { bar, baz }
     })
   
-    await expect(query).resolves.toEqual([
+    expect(await query).toEqual([
       { bar: "hello", baz: "world" }
     ]);
   })
@@ -166,7 +166,7 @@ describe("select", () => {
       }
     })
   
-    await expect(query).resolves.toEqual([{
+    expect(await query).toEqual([{
       bar: { value: "hello" }, 
       baz: { value: "world" }
     }]);
@@ -176,11 +176,10 @@ describe("select", () => {
     await prepare();
     
     const query = Query(where => {
-      const { bar } = where(Foo);
-      return bar;
+      return where(Foo).bar;
     })
 
-    await expect(query).resolves.toEqual(["hello"]);
+    expect(await query).toEqual(["hello"]);
   })
   
   it("will select a entire entity", async () => {
@@ -190,7 +189,7 @@ describe("select", () => {
       return where(Foo);
     })
 
-    await expect(query).resolves.toEqual([
+    expect(await query).toEqual([
       { id: 1, bar: "hello", baz: "world" }
     ]);
   })
@@ -204,7 +203,7 @@ describe("select", () => {
     });
     
     // TODO: Query has no fallback connection without tables.
-    await expect(query).resolves.toEqual([{ foo: 5, bar: "hello" }]);
+    expect(await query).toEqual([{ foo: 5, bar: "hello" }]);
   })
 })
 
@@ -241,8 +240,8 @@ describe("template", () => {
         "foo"."color" = $1
     `);
   
-    await expect(query("red")).resolves.toEqual(["John"]);
-    await expect(query("blue")).resolves.toEqual(["Jane"]);
+    expect(await query("red")).toEqual(["John"]);
+    expect(await query("blue")).toEqual(["Jane"]);
   })
   
   it("will preserve params order", async () => {
@@ -331,7 +330,7 @@ it("will insert procedurally generated rows", async () => {
 
   const results = Users.get();
 
-  await expect(results).resolves.toMatchObject([
+  expect(await results).toMatchObject([
     { "id": 1, "name": "john",  "email": "john@email.org",  "age": 25 },
     { "id": 2, "name": "jane",  "email": "jane@email.org",  "age": 26 },
     { "id": 3, "name": "bob",   "email": "bob@email.org",   "age": 27 },
@@ -383,8 +382,8 @@ it("will update from data", async () => {
       "users"."name" = "input"."name"
   `);
 
-  await expect(query).resolves.toBe(2);
-  await expect(Users.get()).resolves.toEqual([
+  expect(await query).toBe(2);
+  expect(await Users.get()).toEqual([
     { id: 3, name: "Joe", age: 0 },
     { id: 1, name: "John", age: 30 },
     { id: 2, name: "Jane", age: 25 },
