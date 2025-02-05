@@ -35,11 +35,11 @@ class Builder {
 
   deletes = new Set<Query.Table>();
   updates = new Map<Query.Table, Query.Update<any>>();
-  selects?: Map<string, Field | Value> | Field | Value;
+  returns?: Map<string, Field | Value> | Field | Value;
   limit?: number;
 
   commit(returns: unknown){
-    if(this.selects)
+    if(this.returns)
       throw new Error('This query has already been committed.');
 
     this.pending.forEach(fn => fn());
@@ -52,7 +52,7 @@ class Builder {
       returns = returns();
 
     if(returns instanceof Field || returns instanceof Value){
-      this.selects = returns;
+      this.returns = returns;
     }
     else if(returns) {
       const columns = new Map<string, string | Field | Value>();
@@ -80,7 +80,7 @@ class Builder {
   
       scan(returns);
   
-      this.selects = columns;
+      this.returns = columns;
     }
 
     return this.connection!.stringify(this);
@@ -245,7 +245,7 @@ class Builder {
   }
 
   parse(raw: Record<string, any>){
-    const { selects } = this;
+    const { returns: selects } = this;
 
     if(selects instanceof Map){
       const values = {} as any;

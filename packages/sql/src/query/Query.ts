@@ -114,8 +114,8 @@ interface Query<T = any> extends PromiseLike<T> {
   toString(): string;
 
   /**
-   * Processed inputs which will be sent with SQL for this query.
-   * Data has already been serialized and ordered to match `?` in template.
+   * Inputs to be sent with SQL for this query.
+   * Data has already been serialized and matched to query parameters in template.
    */
   params: (string | number)[];
 }
@@ -168,7 +168,6 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
 
   const template = builder.commit(result);
   const statement = builder.connection.prepare(template);
-  const toString = () => statement.toString();
   const runner = (...params: any[]) => { 
     const get = () => statement.all(params).then(a => a.map(x => builder.parse(x)));
     const query = create(Query.prototype) as Query;
@@ -177,17 +176,16 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     
     assign(query, {
       params,
-      toString,
-      get template(){
-        return toString();
-      },
       then(resolve, reject){
-        const run = builder.selects ? get() : statement.run(params);
+        const run = builder.returns ? get() : statement.run(params);
         return run.then(resolve).catch(reject);
+      },
+      toString(){
+        return String(statement);
       }
     } as Query);
 
-    if (builder.selects)
+    if (builder.returns)
       assign(query, {
         get,
         one: async (orFail?: boolean) => {
@@ -205,7 +203,7 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   };
 
   if(typeof args == "number"){
-    runner.toString = toString;
+    runner.toString = () => String(statement);
     return runner;
   }
 

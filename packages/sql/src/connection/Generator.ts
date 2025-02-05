@@ -180,17 +180,17 @@ export class Generator {
   }
 
   protected toSelect(){
-    const { selects, tables } = this.query;
+    const { returns, tables } = this.query;
     const [ main ] = tables.values();
 
     const selection =
-      selects instanceof Map ?
+      returns instanceof Map ?
         // TODO: simplify this
-        Array.from(selects)
+        Array.from(returns)
           .map(([alias, field]) => this.toReference(field) + ` AS "${alias}"`)
           .join(', ') :
-      selects ?
-        this.toReference(selects as Field) :
+      returns ?
+        this.toReference(returns as Field) :
         'COUNT(*)';
 
     return [
