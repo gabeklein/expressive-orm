@@ -133,8 +133,10 @@ class Builder {
     this.filters.add(local);
 
     for(const eq of args){
-      if(eq instanceof Cond && eq.restricted)
-        throw new Error(`Cannot use ${eq} in a group.`);
+      if(eq instanceof Cond && eq.restricted){
+        const name = `${eq.left} ${eq.op} ${eq.right}`;
+        throw new Error(`Cannot use ${name} in a group.`);
+      }
 
       this.filters.delete(eq)
       local.add(eq); 
@@ -359,10 +361,6 @@ export class Cond {
     public readonly right: unknown,
     public readonly restricted = false
   ){}
-
-  toString(){
-    return `${this.left} ${this.op} ${this.right}`;
-  }
 }
 
 class Group {
