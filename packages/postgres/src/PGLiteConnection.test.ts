@@ -370,7 +370,7 @@ it("will update from data", async () => {
         SELECT
           *
         FROM
-          JSON_TO_RECORDSET($1) AS x (NAME VARCHAR(255), age INT)
+          JSON_TO_RECORDSET($1) AS x ("name" VARCHAR(255), "age" INT)
       )
     UPDATE
       "users"
