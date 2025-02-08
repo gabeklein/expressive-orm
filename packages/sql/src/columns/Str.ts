@@ -1,6 +1,38 @@
-import { Field } from '..';
+import { Field } from '../type/Field';
 
 const VARIABLE_TYPE = new Set(["char", "varchar", "text"]);
+
+class StringColumn extends Field<string> {
+  readonly type: "char" | "varchar" | "text" | "tinytext" | "mediumtext" | "longtext" = "varchar";
+  readonly length = 255;
+
+  constructor(opts?: Str.Options) {
+    super(({ parent, property }) => {
+      let { type = "varchar", length = 255, datatype } = opts || {};
+
+      if(VARIABLE_TYPE.has(type!))
+        if(length)
+          datatype = `${datatype || type}(${length})`;
+        else
+          throw `Can't determine datatype! Length is not specified for ${parent.name}.${property}.`
+  
+      return {
+        datatype,
+        ...opts
+      }
+    });
+  }
+
+  set(value: string) {
+    if (typeof value !== 'string')
+      throw 'Value must be a string.';
+
+    if (this.length && value.length > this.length)
+      throw `Value length ${value.length} exceeds maximum of ${this.length}.`;
+
+    return value;
+  }
+}
 
 declare namespace Str {
   interface Char extends Str {
@@ -32,38 +64,12 @@ declare namespace Str {
   type Options = Partial<Type>;
 }
 
-interface Str extends Field<string> {
-  type: "char" | "varchar" | "text" | "tinytext" | "mediumtext" | "longtext";
-  length: number;
-}
+interface Str extends StringColumn {}
 
-function Str<T extends Str.Options>(opts?: T): Field.Specify<T, Str.Type, Str.VarChar>;
 function Str<T extends Str.Options>(opts?: T){
-  let { type = "varchar", length = 255, datatype } = opts || {};
-
-  return Field<Str.Type>(({ parent, property }) => {
-    if(VARIABLE_TYPE.has(type!))
-      if(length)
-        datatype = `${datatype || type}(${length})`;
-      else
-        throw `Can't determine datatype! Length is not specified for ${parent.name}.${property}.`
-
-    return {
-      type,
-      length,
-      datatype,
-      ...opts,
-      set(value: string) {
-        if(typeof value !== "string")
-          throw "Value must be a string."
-
-        if(this.length && value.length > this.length)
-          throw `Value length ${value.length} exceeds maximum of ${this.length}.`
-
-        return value;
-      }
-    }
-  }); 
+  return new StringColumn(opts) as Field.Specify<T, Str.Type, Str.VarChar>; 
 }
+
+Str.Type = StringColumn;
 
 export { Str }

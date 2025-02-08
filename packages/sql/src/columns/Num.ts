@@ -1,4 +1,18 @@
-import { Field } from '..';
+import { Field } from '../type/Field';
+
+class NumericColumn extends Field<number> {
+  readonly type: "int" | "tinyint" | "smallint" | "bigint" | "float" | "double" = "int";
+
+  set(value: number) {
+    if (typeof value !== "number" || isNaN(value))
+      throw `Got '${value}' but value must be a number.`;
+
+    if (this.type === "int" && value !== Math.floor(value))
+      throw `Got '${value}' but datatype is integer.`;
+
+    return value;
+  }
+}
 
 declare namespace Num {
   interface Int extends Num {
@@ -26,27 +40,15 @@ declare namespace Num {
   }
 
   type Type = Int | TinyInt | SmallInt | BigInt | Float | Double;
-
   type Options = Partial<Type>;
 }
 
-interface Num extends Field<number> {}
+interface Num extends NumericColumn {}
 
-function Num<T extends Num.Options>(opts?: T): Field.Specify<T, Num.Type, Num.Int>;
 function Num<T extends Num.Options>(opts?: T){
-  return Field<Num.Type>({
-    type: "int",
-    ...opts,
-    set(value: number){
-      if(typeof value !== "number" || isNaN(value))
-        throw `Got '${value}' but value must be a number.`
-  
-      if(this.type === "int" && value !== Math.floor(value))
-        throw `Got '${value}' but datatype is integer.`
-  
-      return value;
-    }
-  });
+  return new NumericColumn(opts) as Field.Specify<T, Num.Type, Num.Int>;
 }
+
+Num.Type = NumericColumn;
 
 export { Num };

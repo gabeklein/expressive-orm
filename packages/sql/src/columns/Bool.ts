@@ -1,47 +1,64 @@
-import { Field } from '..';
+import { Field } from '../type/Field';
+
+class BooleanColumn extends Field<boolean> {
+  readonly type: "tinyint" | "varchar" = "tinyint";
+  readonly datatype: string;
+
+  readonly TRUE: string | number = 1;
+  readonly FALSE: string | number = 0;
+
+  constructor(opts: Bool.Options = {}) {
+    let type: "tinyint" | "varchar" = "tinyint";
+    let datatype = "tinyint";
+    let TRUE: string | number = 1;
+    let FALSE: string | number = 0;
+
+    if ("either" in opts && opts.either) {
+      [TRUE, FALSE] = opts.either;
+      type = "varchar";
+      datatype = `varchar(${Math.max(TRUE.length, FALSE.length)})`;
+    }
+
+    super(opts);
+
+    this.type = type;
+    this.datatype = datatype;
+    this.TRUE = TRUE;
+    this.FALSE = FALSE;
+  }
+
+  get(value: unknown) {
+    return value === this.TRUE;
+  }
+
+  set(value: boolean) {
+    if (typeof value !== "boolean")
+      throw "Value must be a boolean.";
+
+    return value ? this.TRUE : this.FALSE;
+  }
+}
 
 declare namespace Bool {
-  interface TinyInt extends Field<boolean> {
+  interface TinyInt extends BooleanColumn {
     readonly type: "tinyint"; 
   }
 
-  interface Char extends Field<boolean> {
+  interface Char extends BooleanColumn {
     readonly type: "varchar";
-    either: [true: string, false: string];
+    either?: [true: string, false: string];
   }
 
   type Type = TinyInt | Char;
-
   type Options = Partial<Type>;
 }
 
-function Bool<T extends Bool.Options>(opts?: T): Field.Specify<T, Bool.Type>;
-function Bool<T extends Bool.Options>(opts = {} as T){
-  let type = "tinyint";
-  let datatype = "tinyint";
-  let YES: string | number = 1;
-  let NO: string | number = 0;
+interface Bool extends BooleanColumn {}
 
-  if("either" in opts && opts.either){
-    [ YES, NO ] = opts.either;
-    type = "varchar";
-    datatype = `varchar(${Math.max(YES.length, NO.length)})`;
-  }
-
-  return Field({
-    type,
-    datatype,
-    ...opts as any,
-    get(value: unknown){
-      return value === YES;
-    },
-    set(value: boolean){
-      if(typeof value == "boolean")
-        return value ? YES : NO;
-
-      throw "Value must be a boolean.";
-    }
-  });
+function Bool<T extends Bool.Options>(opts?: T){
+  return new BooleanColumn(opts) as Field.Specify<T, Bool.Type>;
 }
 
-export { Bool }
+Bool.Type = BooleanColumn;
+
+export { Bool };

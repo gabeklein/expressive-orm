@@ -4,7 +4,6 @@ import { capitalize, create, escape, freeze, getOwnPropertyDescriptor, underscor
 import { Type } from './Type';
 
 const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
-const FIELD = new Map<symbol, (key: string, parent: Type.EntityType) => Partial<Field> | void>();
 
 type Nullable = { nullable: true };
 type Optional = { optional: true };
@@ -51,16 +50,16 @@ declare namespace Field {
   }
 }
 
-interface Field<T = unknown> {
-  type: string;
-  unique: boolean;
-  nullable: boolean;
-  optional: boolean;
-  increment: boolean;
+class Field<T = unknown> {
+  type = "";
+  unique = false;
+  nullable = false;
+  optional = false;
+  increment = false;
   fallback?: unknown;
 
-  property: string;
-  parent: Type.EntityType;
+  property!: string;
+  parent!: Type.EntityType;
   
   table?: Query.Table;
   query?: Query.Builder;
@@ -69,50 +68,15 @@ interface Field<T = unknown> {
   foreignTable?: string;
 
   /** Real datatype of this field in database. */
-  datatype: string;
+  datatype!: string;
 
-  column: string;
+  column!: string;
 
-  /**
-   * Optional method generates value of property this Field is applied to when accessed inside a query.
-   * If not defined, the value will be the Field itself.
-   * 
-   * @returns {T} Value to be used in context of query, interfacing with this Field.
-   */
-  use?(query: Query.Builder): unknown;
+  constructor(private options?: Field.Opts){}
 
-  /**
-   * This method dictates behavior of this field when converted from a javascript context to SQL.
-   * 
-   * Use this method to validate, sanitize or convert data before it is inserted into the database.
-   */
-  set(value: T): any;
-
-  /**
-   * This method dictates behavior of this field when converted from a SQL context to javascript.
-   * 
-   * Use this method to parse data incoming from the database itself. For example, you might convert
-   * a TINYINT(1) field to a boolean, or a DATETIME field to a Date object.
-   */
-  get(value: any): T;
-
-  raw(value: T): string;
-
-  /**
-   * This method is used to compare this field with another value in a query.
-   * 
-   * @param acc Set of comparisons to be added to if not part of a group.
-   */
-  where(): Field.Compare<T>;
-}
-
-function Field<T extends Field>(options?: Field.Init<T>): T
-function Field<T extends Field>(options?: Partial<T> ): T
-function Field<T extends Field>(options?: Field.Opts<T>){
-  const placeholder = Symbol('field');
-  
-  FIELD.set(placeholder, (property, parent) => {
-    const field = create(Field.prototype) as T;
+  init(property: string, parent: Type.EntityType): this {
+    let options = this.options;
+    const field = create(this);
 
     field.parent = parent;
     field.property = property;
@@ -131,38 +95,51 @@ function Field<T extends Field>(options?: Field.Opts<T>){
     if(!field.datatype)
       field.datatype = field.type;
 
-    freeze(field);
-    parent.fields.set(property, field);
-  });
+    return field;
+  }
 
-  return placeholder as unknown as T;
-}
+  /**
+   * Optional method generates value of property this Field is applied to when accessed inside a query.
+   * If not defined, the value will be the Field itself.
+   * 
+   * @returns {T} Value to be used in context of query, interfacing with this Field.
+   */
+  use?(query: Query.Builder): unknown;
 
-Field.prototype = <Field> {
-  type: "",
-  unique: false,
-  nullable: false,
-  optional: false,
-  increment: false,
-  fallback: undefined,
-  toString(): string {
-    throw new Error("This requires a table to be set.");
-  },
-  get(value: any){
+  /**
+   * This method dictates behavior of this field when converted from a javascript context to SQL.
+   * 
+   * Use this method to validate, sanitize or convert data before it is inserted into the database.
+   */
+  set(value: T): any {
     return value;
-  },
-  set(value: any){
+  };
+
+  /**
+   * This method dictates behavior of this field when converted from a SQL context to javascript.
+   * 
+   * Use this method to parse data incoming from the database itself. For example, you might convert
+   * a TINYINT(1) field to a boolean, or a DATETIME field to a Date object.
+   */
+  get(value: any): T {
     return value;
-  },
-  raw(value: any){
+  };
+
+  raw(value: T): string {
     return escape(this.set(value));
-  },
-  where(){
+  };
+
+  /**
+   * This method is used to compare this field with another value in a query.
+   * 
+   * @param acc Set of comparisons to be added to if not part of a group.
+   */
+  where(): Field.Compare<T> {
     const use = (op: string) =>
       (right: unknown, orEqual?: boolean) =>
         this.query!.where(this, op + (orEqual ? '=' : ''), right)
 
-    return {
+    return <any> {
       is: use("="),
       in: use("IN"),
       not: use("<>"),
@@ -184,16 +161,17 @@ function fields(from: Type.EntityType){
     
     for(const key in reference){
       const { value } = getOwnPropertyDescriptor(reference, key)!;
-      const instruction = FIELD.get(value);    
   
-      if(!instruction)
+      if(!(value instanceof Field))
         throw new Error(
           `Entities do not support normal values, only fields. ` +
           `Did you forget to import \`${capitalize(typeof value)}\`?`
         );
   
-      FIELD.delete(value);
-      instruction(key, from);
+      const instance = value.init(key, from);
+
+      from.fields.set(key, instance);
+      freeze(instance);
     }
   }
 

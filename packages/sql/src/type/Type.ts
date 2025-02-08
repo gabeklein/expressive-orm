@@ -38,7 +38,7 @@ abstract class Type {
    * Primary key of this entity.
    * May be any name in the actual database, however requred to be `id` as property of this type.
    */
-  id = Primary();
+  id = new Primary();
 
   static schema = "";
 
@@ -176,20 +176,13 @@ function digest<T extends Type>(
   return values;
 }
 
-interface Primary extends Field<number> {
-  readonly increment: true;
-  readonly optional: true;
-  readonly nullable: false;
-  readonly primary: true;
-}
-
-function Primary() {
-  return Field<Primary>({
-    type: "int",
-    increment: true,
-    primary: true,
-    unique: true,
-  });
+class Primary extends Field<number> {
+  readonly type = "int";
+  readonly increment = true;
+  readonly optional = true;
+  readonly nullable = false;
+  readonly primary = true;
+  readonly unique = true;
 }
 
 export { Type }
