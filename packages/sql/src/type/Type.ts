@@ -44,6 +44,10 @@ abstract class Type {
 
   static connection?: Connection;
 
+  static get fields(){
+    return fields(this);
+  }
+
   static get table(){
     // chop off trailing numbers from transpiled class name
     return this.table = underscore(this.name.replace(/\d+$/, ""));
@@ -61,8 +65,43 @@ abstract class Type {
     return typeof obj === 'function' && obj.prototype instanceof Type;
   }
 
-  static get fields(){
-    return fields(this);
+  static digest<T extends Type>(
+    data: Type.Insert<T>,
+    index?: number,
+    array?: Type.Insert<T>[]){
+  
+    const values: Record<string, any> = {};
+  
+    for(const [key, field] of this.fields)
+      try {
+        let value = data[key as Type.Fields<T>];
+        
+        if (value != null)
+          value = field.set(value);
+        else if (!field.nullable && !field.optional && !field.increment)
+          throw new Error(`Column ${field.column} requires a value but got ${value}.`);
+      
+        if (value === undefined)
+          continue;
+  
+        values[field.column] = value;
+      }
+      catch(err: unknown){
+        const which = array && array.length > 1 ? ` at [${index}]` : "";
+        let message = `Provided value for ${this.name}.${key}${which} but not acceptable for type ${field.datatype}.`;
+  
+        if(err instanceof Error){
+          err.message = message + "\n" + err.message;
+          throw err;
+        }
+  
+        if(typeof err == "string")
+          message += "\n" + err;
+  
+        throw new Error(message);
+      }
+  
+    return values;
   }
 
   static insert<T extends Type>(this: Type.EntityType<T>, entries: Type.Insert<T> | Type.Insert<T>[]): Type.InsertOp;
@@ -90,7 +129,7 @@ abstract class Type {
     else
       throw new Error("Invalid input for insert method.");
     
-    const rows = data.map(digest, this);
+    const rows = data.map(this.digest, this);
 
     if(!this.connection)
       throw new Error("No connection found for type");
@@ -133,47 +172,6 @@ abstract class Type {
       return self;
     }).one(true);
   }
-}
-
-function digest<T extends Type>(
-  this: Type.EntityType<T>,
-  data: Type.Insert<T>,
-  index?: number,
-  array?: Type.Insert<T>[]){
-
-  const values: Record<string, any> = {};
-
-  this.fields.forEach((field, key) => {
-    try {
-      let value = data[key as Type.Fields<T>];
-      
-      if (value != null)
-        value = field.set(value);
-      else if (!field.nullable && !field.optional && !field.increment)
-        throw new Error(`Column ${field.column} requires a value but got ${value}.`);
-    
-      if (value === undefined)
-        return;
-
-      values[field.column] = value;
-    }
-    catch(err: unknown){
-      const which = array && array.length > 1 ? ` at [${index}]` : "";
-      let message = `Provided value for ${this.name}.${key}${which} but not acceptable for type ${field.datatype}.`;
-
-      if(err instanceof Error){
-        err.message = message + "\n" + err.message;
-        throw err;
-      }
-
-      if(typeof err == "string")
-        message += "\n" + err;
-
-      throw new Error(message);
-    }
-  });
-
-  return values;
 }
 
 class Primary extends Field<number> {
