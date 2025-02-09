@@ -9,7 +9,7 @@ declare namespace Builder {
     toString(): string;
     name: string;
     proxy: Query.From<T>;
-    fields: Record<string, Field>;
+    fields: Map<string, Field>;
     alias?: string;
     optional?: boolean;
     joins: Cond[];
@@ -110,7 +110,7 @@ class Builder {
         const inserts = new Map<Field, unknown>();
 
         Object.entries(data).forEach(([key, value]) => {
-          const field = target.fields[key] as Field;
+          const field = target.fields.get(key)!;
 
           if(value instanceof DataField)
             value.datatype = field.datatype;
@@ -167,8 +167,8 @@ class Builder {
     const proxy = {} as Query.From<T>;
     const table: Builder.Table = {
       name: type.table,
+      fields: new Map(),
       joins: [],
-      fields: {},
       proxy,
       optional: arg2 === true,
       toString(){
@@ -189,11 +189,9 @@ class Builder {
       field = create(field);
       field.query = this;
       field.table = table;
-      field.toString = () => {
-        return `${table.alias || table.name}.${field.column}`;
-      }
+      field.toString = () => `${table.alias || table.name}.${field.column}`;
 
-      defineProperty(table.fields, key, { value: field });
+      table.fields.set(key, field);
 
       let value: any;
 
@@ -208,7 +206,7 @@ class Builder {
       const inserts = new Map<Field, unknown>();
 
       Object.entries(arg2).forEach(([key, value]) => {
-        const field = table.fields[key] as Field
+        const field = table.fields.get(key)!;
 
         if(value instanceof DataField)
           value.datatype = field.datatype;
@@ -344,7 +342,7 @@ class DataTable<T extends Record<string, unknown> = any>
   used = new Map<keyof T & string, DataField>();
   joins: Cond[] = [];
   optional = false;
-  fields = {};
+  fields = new Map<string, Field>();
   name = "input";
 
   constructor(public input: Iterable<T>, index: number){
@@ -358,6 +356,7 @@ class DataTable<T extends Record<string, unknown> = any>
     ).forEach(key => {
       const value = new DataField(key, this);
       defineProperty(this.proxy, key, {
+        enumerable: true,
         get: () => {
           this.used.set(key, value);
           return value;

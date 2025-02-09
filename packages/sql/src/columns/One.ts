@@ -29,6 +29,7 @@ class ForeignColumn<T extends Type> extends Field<Type.Values<T>> {
   }
 
   use(query: Query.Builder) {
+    // TODO: avoid any here?
     const table = query.use(this.entity) as any;
     query.where(table.id, "=", this);
     return table;
