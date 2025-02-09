@@ -404,6 +404,48 @@ describe("query", () => {
 
     expect(await query).toEqual([1, 2, 3]);
   });
+
+  it("will insert iterable data", async () => {
+    class Users extends Type {
+      name = Str();
+    }
+  
+    await new TestConnection([Users]);
+  
+    const data = [
+      { name: "John" },
+      { name: "Jane" },
+      { name: "Joe" },
+    ]
+  
+    const query = Query(where => {
+      where(Users, ...data);
+    });
+
+    expect(query).toMatchInlineSnapshot(`
+      WITH
+        "input" AS (
+          SELECT
+            *
+          FROM
+            JSON_TO_RECORDSET($1) AS x ("name" VARCHAR(255))
+        )
+      INSERT INTO
+        "users" ("name")
+      SELECT
+        "input"."name"
+      FROM
+        "input"
+    `);
+
+    expect(await query).toBe(3);
+
+    expect(await Users.get()).toEqual([
+      { id: 1, name: "John" },
+      { id: 2, name: "Jane" },
+      { id: 3, name: "Joe" },
+    ]);
+  });
 })
 
 it("will update from data", async () => {

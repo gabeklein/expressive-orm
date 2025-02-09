@@ -29,7 +29,10 @@ declare namespace Query {
 
   /** Main callback for adding instructions to a Query. */
   type Where = {
-    <T extends Type>(entity: Type.EntityType<T>, inserts: Insert<T>): Query.From<T>;
+    /**
+     * Declare inserts to be made into a given table.
+     */
+    <T extends Type>(entity: Type.EntityType<T>, ...inserts: Insert<T>[]): Query.From<T>;
 
     /**
      * Create a reference to the primary table, returned
@@ -137,9 +140,9 @@ function Query<T extends {}>(from: Query.Function<T>): Query.Selects<T>;
 function Query(from: Query.Function<void>): Query<number>;
 
 function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>){
-  function where(arg1: any, arg2?: any): any {
+  function where(arg1: any): any {
     if(Type.is(arg1))
-      return builder.use(arg1, arg2);
+      return builder.use(arg1, ...Array.from(arguments).slice(1));
 
     if(arg1 instanceof Field)
       return builder.field(arg1);

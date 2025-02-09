@@ -151,8 +151,8 @@ class Builder {
 
   use<T extends Type>(type: Type.EntityType<T>, optional?: false): Query.From<T>;
   use<T extends Type>(type: Type.EntityType<T>, optional: boolean): Query.Join<T>;
-  use<T extends Type>(type: Type.EntityType<T>, inserts: Type.Insert<T>): Query.From<T>;
-  use<T extends Type>(type: Type.EntityType<T>, arg2?: boolean | Type.Insert<T>){
+  use<T extends Type>(type: Type.EntityType<T>, ...inserts: Type.Insert<T>[]): Query.From<T>;
+  use<T extends Type>(type: Type.EntityType<T>, arg2?: boolean | Type.Insert<T>, ...rest: Type.Insert<T>[]){
     const { fields, schema } = type;
     const { tables } = this;
 
@@ -177,6 +177,9 @@ class Builder {
           : this.name;
       }
     };
+
+    if(rest.length)
+      arg2 = this.with<any>([arg2, ...rest]) as any;
 
     // TODO: also support self-joins
     if(schema){
@@ -250,13 +253,13 @@ class Builder {
     return this.filters.add(left, op, right);
   }
 
-  with(data: Iterable<Record<string, any>>){
+  with<T extends Record<string, any>>(data: Iterable<T>){
     const param = new DataTable(data, this.params.length);
 
     this.params.push(param);
     this.tables.set(param.proxy, param);
 
-    return param.proxy;
+    return param.proxy as { [K in keyof T]: Field<T[K]> };
   }
 
   accept(args: unknown[]){
