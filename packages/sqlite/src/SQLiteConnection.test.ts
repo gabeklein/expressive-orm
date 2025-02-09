@@ -361,11 +361,12 @@ it("will update from data", async () => {
     { name: "Joe", age: 0 },
   ])
 
-  const query = Query.from(data, (where, input) => {
+  const query = Query(where => {
+    const { name, age } = where(data);
     const user = where(User);
 
-    where(user.name).is(input.name);
-    where(user).update({ age: input.age });
+    where(user.name).is(name);
+    where(user).update({ age });
   });
 
   expect(query).toMatchInlineSnapshot(`

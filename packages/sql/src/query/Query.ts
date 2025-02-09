@@ -71,8 +71,6 @@ declare namespace Query {
 
   type Function<R> = (this: Builder, where: Where) => R;
 
-  type FunctionFrom<T extends {}, R> = (this: Builder, where: Where, data: FromData<T>) => R;
-
   type Factory<R, A extends any[]> = (this: Builder, where: Where) => (...args: A) => R;
   
   interface Template<A extends any[]> {
@@ -216,17 +214,6 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   return runner();
 }
 
-function from<I extends {}, O extends {}>(data: Iterable<I>, query: Query.FunctionFrom<I, O>): Query.Selects<O>;
-
-function from<I extends {}>(data: Iterable<I>, query: Query.FunctionFrom<I, void>): Query;
-
-function from<I extends {}>(data: Iterable<I>, query: Query.FunctionFrom<I, any>): any {
-  return Query(function(where){
-    return query.call(this, where, where(data));
-  })
-}
-
-Query.from = from;
 Query.Builder = QB;
 
 export { Query };

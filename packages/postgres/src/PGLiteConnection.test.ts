@@ -425,11 +425,12 @@ it("will update from data", async () => {
     { name: "Jane", age: 25 },
   ];
 
-  const query = Query.from(data, (where, input) => {
+  const query = Query(where => {
+    const { age, name } = where(data);
     const user = where(Users);
 
-    where(user.name).is(input.name);
-    where(user).update({ age: input.age });
+    where(user.name).is(name);
+    where(user).update({ age });
   });
 
   expect(query).toMatchInlineSnapshot(`
@@ -438,7 +439,7 @@ it("will update from data", async () => {
         SELECT
           *
         FROM
-          JSON_TO_RECORDSET($1) AS x ("name" VARCHAR(255), "age" INT)
+          JSON_TO_RECORDSET($1) AS x ("age" INT, "name" VARCHAR(255))
       )
     UPDATE
       "users"
