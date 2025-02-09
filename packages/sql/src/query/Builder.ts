@@ -137,10 +137,10 @@ class Builder {
     this.filters.add(local);
 
     for(const eq of args){
-      if(eq instanceof Cond && eq.restricted){
-        const name = `${eq.left} ${eq.op} ${eq.right}`;
-        throw new Error(`Cannot use ${name} in a group.`);
-      }
+      if(eq instanceof Cond && eq.restricted)
+        throw new Error(
+          `Cannot use ${eq.left} ${eq.op} ${eq.right} in a group.`
+        );
 
       this.filters.delete(eq)
       local.add(eq); 
@@ -386,12 +386,12 @@ class Group {
   children = new Set<Cond | Group>();
 
   add(left: Field | Group | Cond, op?: string, right?: unknown){
-    const cond = left instanceof Field
-      ? new Cond(left, op!, right!) : left;
+    if(left instanceof Field)
+      left = new Cond(left, op!, right!);
     
-    this.children.add(cond);
+    this.children.add(left);
 
-    return cond;
+    return left;
   }
 
   delete(child: Cond | Group){
