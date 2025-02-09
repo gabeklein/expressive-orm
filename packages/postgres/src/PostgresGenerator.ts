@@ -2,6 +2,24 @@ import { DataTable, Generator } from '@expressive/sql';
 import { Parameter } from 'packages/sql/src/query/Builder';
 
 export class PostgresGenerator extends Generator {
+  toString(): string {
+    const { returns, inserts } = this.query;
+    const query = super.toString();
+
+    if(inserts && returns)
+      return query + (
+        ' RETURNING ' + (
+        returns instanceof Map
+          ? Array
+              .from(returns.entries())
+              .map(([alias, field]) => `${this.toReference(field)} AS "${alias}"`)
+          : this.toReference(returns)
+        )
+      )
+
+    return query;
+  }
+
   protected toJsonTable(table: DataTable){
     const param = this.toParam(table);
     const types = Array.from(table.used.entries())
@@ -18,6 +36,32 @@ export class PostgresGenerator extends Generator {
 
   protected toParam(from: Parameter): string {
     return '$' + (this.query.params.indexOf(from) + 1);
+  }
+
+  protected toInsert() {
+    const { inserts, tables } = this.query;
+
+    if (!inserts)
+      return false;
+
+    const [table, data] = inserts;
+
+    const keys: string[] = [];
+    const values: string[] = [];
+
+    for (const [field, value] of data) {
+      keys.push(this.escape(field.column));
+      values.push(this.toReference(value as any) as string);
+    }
+
+    return [
+      'INSERT INTO',
+      this.escape(table.name),
+      `(${keys})`,
+      'SELECT',
+      values.join(', '),
+      tables.size > 1 && this.toFrom()
+    ];
   }
 
   protected toUpdate() {

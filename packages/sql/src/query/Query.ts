@@ -23,19 +23,25 @@ declare namespace Query {
 
   type Value<T = any> = T | Field<T> | Computed<T>
 
+  type Insert<T extends Type> = 
+    & { [K in Type.Required<T>]: Field.Assigns<T[K]> | Field; }
+    & { [K in Type.Fields<T>]?: Field.Assigns<T[K]> | Field } 
+
   /** Main callback for adding instructions to a Query. */
   type Where = {
+    <T extends Type>(entity: Type.EntityType<T>, inserts: Insert<T>): Query.From<T>;
+
     /**
      * Create a reference to the primary table, returned
      * object can be used to query against that table.
      */
-    <T extends Type>(entity: Type.EntityType<T>, optional?: false): Query.From<T>;
+    <T extends Type>(entity: Type.EntityType<T>): Query.From<T>;
 
     /**
      * Registers a type as a left join, returned object has optional
      * properties which may be undefined where the join is not present.
      */
-    <T extends Type>(entity: Type.EntityType<T>, optional?: boolean): Query.Join<T>;
+    <T extends Type>(entity: Type.EntityType<T>, optional: true): Query.Join<T>;
 
     /**
      * Select a table for comparison or write operations.

@@ -11,6 +11,7 @@ export class Generator {
   toString() {
     const parts = [
       this.toWith(),
+      this.toInsert() ||
       this.toUpdate() ||
       this.toDelete() ||
       this.toSelect(),
@@ -19,11 +20,20 @@ export class Generator {
       this.toLimit()
     ];
 
-    return parts.flat().filter(Boolean).join(' ');
+    return parts.flat(Infinity).filter(Boolean).join(' ');
   }
 
   escape(name: unknown){
     return String(name).split('.').map(x => `\`${x}\``).join('.');
+  }
+
+  protected toInsert(): false | unknown[] {
+    const { inserts } = this.query;
+
+    if (inserts)
+      throw new Error("Insert not implemented, do you have an adapter?");
+
+    return false;
   }
 
   protected toWith(){
@@ -92,13 +102,11 @@ export class Generator {
       return output.join(' ');
   }
 
-  protected toSet(updates: Map<Query.Table, Query.Update<any>>){
+  protected toSet(updates: Map<Query.Table, Builder.Insert>){
     const sets: string[] = [];
 
-    for(const [table, data] of updates)
-      for(let [col, value] of Object.entries(data)){
-        const field = table.reference[col] as Field; 
-
+    for(const [_table, data] of updates)
+      for(let [field, value] of data){
         if(value === undefined)
           continue;
 
@@ -155,7 +163,10 @@ export class Generator {
     return ['DELETE', target, 'FROM', this.escape(name), this.toJoins(main)]
   }
 
-  protected toReference(from: Field | Value){
+  protected toReference(from: Field | Value | Parameter | string | number){
+    if(typeof from === "string")
+      return `'${from.replace(/'/g, "\\'")}'`;
+
     if(from instanceof DataField)
       return this.escape(from.table.name + '.' + from.column);
 
@@ -196,10 +207,16 @@ export class Generator {
     return [
       "SELECT",
       selection,
-      main && `FROM ${this.escape(main.name)}`,
-      main && main.alias,
+      this.toFrom(),
       this.toJoins(main)
     ]
+  }
+
+  protected toFrom(){
+    const [ main ] = this.query.tables.values();
+    
+    if(main)
+      return ["FROM", this.escape(main.name), main.alias]
   }
 
   protected toParam(from: Parameter){
@@ -253,7 +270,8 @@ export class Generator {
     const { order } = this.query;
 
     if(order.size)
-      return ['ORDER BY', Array.from(order, ([x, y]) => `${this.toReference(x)} ${y}`)];
+      return 'ORDER BY ' +
+        Array.from(order, ([x, y]) => `${this.toReference(x)} ${y}`);
   }
 
   protected toLimit(){

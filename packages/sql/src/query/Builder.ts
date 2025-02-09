@@ -16,6 +16,8 @@ declare namespace Builder {
   }
 
   type Using<T extends Type> = (self: Query.From<T>, where: Query.Where) => void;
+
+  type Insert = Map<Field, unknown>;
 }
 
 class Builder {
@@ -31,10 +33,12 @@ class Builder {
   filters = new Group();
   pending = new Set<() => void>();
   order = new Map<Field, "asc" | "desc">();
-  tables = new Map<{}, Builder.Table>();
+  tables = new Map<{}, Query.Table>();
 
   deletes = new Set<Query.Table>();
-  updates = new Map<Query.Table, Query.Update<any>>();
+  updates = new Map<Query.Table, Builder.Insert>();
+  
+  inserts?: readonly [Query.Table, Builder.Insert];
   returns?: Map<string, Field | Value> | Field | Value;
   limit?: number;
 
@@ -60,21 +64,15 @@ class Builder {
       function scan(obj: any, path?: string) {
         getOwnPropertyNames(obj).forEach(key => {
           const use = path ? `${path}.${key}` : key;
-          const selects = obj[key];
+          let selects = obj[key];
+
+          if(typeof selects == 'function')
+            selects = selects();
   
-          if (selects instanceof Field || selects instanceof Value)
+          if (selects instanceof Field || selects instanceof Value || typeof selects != 'object')
             columns.set(use, selects);
-          else if (typeof selects === 'object')
+          else
             scan(selects, use);
-          else {
-            columns.set(use, 
-              typeof selects === 'function' ?
-                selects() :
-              typeof selects === 'string' ?
-                `'${selects.replace(/'/g, "\\'")}'` :
-              selects
-            );
-          }
         })
       }
   
@@ -109,12 +107,18 @@ class Builder {
         this.deletes.add(target);
       },
       update: (data: Query.Update<any>) => {
+        const inserts = new Map<Field, unknown>();
+
         Object.entries(data).forEach(([key, value]) => {
+          const field = target.reference[key] as Field;
+
           if(value instanceof DataField)
-            value.datatype = target.reference[key].datatype;
+            value.datatype = field.datatype;
+
+          inserts.set(field, value);
         })
 
-        this.updates.set(target, data);
+        this.updates.set(target, inserts);
       }
     }
   }
@@ -147,7 +151,8 @@ class Builder {
 
   use<T extends Type>(type: Type.EntityType<T>, optional?: false): Query.From<T>;
   use<T extends Type>(type: Type.EntityType<T>, optional: boolean): Query.Join<T>;
-  use<T extends Type>(type: Type.EntityType<T>, optional?: boolean){
+  use<T extends Type>(type: Type.EntityType<T>, inserts: Type.Insert<T>): Query.From<T>;
+  use<T extends Type>(type: Type.EntityType<T>, arg2?: boolean | Type.Insert<T>){
     const { fields, schema } = type;
     const { tables } = this;
 
@@ -166,7 +171,7 @@ class Builder {
       joins: [],
       reference,
       proxy,
-      optional,
+      optional: arg2 === true,
       toString(){
         return this.alias
           ? this.name + " " + this.alias
@@ -199,6 +204,21 @@ class Builder {
         )
       });
     });
+
+    if(typeof arg2 == "object"){
+      const inserts = new Map<Field, unknown>();
+
+      Object.entries(arg2).forEach(([key, value]) => {
+        const field = table.reference[key] as Field
+
+        if(value instanceof DataField)
+          value.datatype = field.datatype;
+
+        inserts.set(field, value);
+      })
+
+      this.inserts = [table, inserts];
+    }
 
     freeze(proxy);
     

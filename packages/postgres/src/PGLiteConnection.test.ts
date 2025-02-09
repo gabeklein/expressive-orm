@@ -338,6 +338,74 @@ it("will insert procedurally generated rows", async () => {
   ]);
 })
 
+describe("query", () => {
+  it("will insert a single row", async () => {
+    class Users extends Type {
+      name = Str();
+    }
+
+    await new TestConnection([Users]);
+    
+    const query = Query(where => {
+      return where(Users, { name: "John" }).id;
+    });
+
+    expect(query).toMatchInlineSnapshot(`
+      INSERT INTO
+        "users" ("name")
+      SELECT
+        'John'
+      RETURNING
+        "users"."id"
+    `);
+
+    expect(await query).toEqual([1]);
+  });
+  
+  it("will insert", async () => {
+    class Users extends Type {
+      name = Str();
+    }
+  
+    class Info extends Type {
+      user = One(Users);
+      color = Str();
+    }
+  
+    await new TestConnection([Users, Info]);
+  
+    await Users.insert([
+      { name: "John" },
+      { name: "Jane" },
+      { name: "Joe" },
+    ]);
+  
+    const query = Query(where => {
+      const user = where(Users);
+      const info = where(Info, {
+        user: user.id,
+        color: "blue",
+      });
+  
+      return info.id;
+    });
+  
+    expect(query).toMatchInlineSnapshot(`
+      INSERT INTO
+        "info" ("user_id", "color")
+      SELECT
+        "users"."id",
+        'blue'
+      FROM
+        "users"
+      RETURNING
+        "info"."id"
+    `);
+
+    expect(await query).toEqual([1, 2, 3]);
+  });
+})
+
 it("will update from data", async () => {
   class Users extends Type {
     name = Str();
