@@ -9,7 +9,7 @@ declare namespace Builder {
     toString(): string;
     name: string;
     proxy: Query.From<T>;
-    reference: Record<string, Field>;
+    fields: Record<string, Field>;
     alias?: string;
     optional?: boolean;
     joins: Cond[];
@@ -110,7 +110,7 @@ class Builder {
         const inserts = new Map<Field, unknown>();
 
         Object.entries(data).forEach(([key, value]) => {
-          const field = target.reference[key] as Field;
+          const field = target.fields[key] as Field;
 
           if(value instanceof DataField)
             value.datatype = field.datatype;
@@ -164,12 +164,11 @@ class Builder {
       throw new Error(`Joined entity ${type} does not share a connection with main table ${main}.`);
     }
 
-    const reference = {} as Record<string, Field>;
     const proxy = {} as Query.From<T>;
     const table: Builder.Table = {
       name: type.table,
       joins: [],
-      reference,
+      fields: {},
       proxy,
       optional: arg2 === true,
       toString(){
@@ -194,7 +193,7 @@ class Builder {
         return `${table.alias || table.name}.${field.column}`;
       }
 
-      defineProperty(reference, key, { value: field });
+      defineProperty(table.fields, key, { value: field });
 
       let value: any;
 
@@ -209,7 +208,7 @@ class Builder {
       const inserts = new Map<Field, unknown>();
 
       Object.entries(arg2).forEach(([key, value]) => {
-        const field = table.reference[key] as Field
+        const field = table.fields[key] as Field
 
         if(value instanceof DataField)
           value.datatype = field.datatype;
@@ -345,7 +344,7 @@ class DataTable<T extends Record<string, unknown> = any>
   used = new Map<keyof T & string, DataField>();
   joins: Cond[] = [];
   optional = false;
-  reference = {};
+  fields = {};
   name = "input";
 
   constructor(public input: Iterable<T>, index: number){
