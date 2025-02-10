@@ -317,14 +317,35 @@ it("will insert procedurally generated rows", async () => {
   }));
 
   expect(insert).toMatchInlineSnapshot(`
+    WITH
+      "input" AS (
+        SELECT
+          *
+        FROM
+          JSON_TO_RECORDSET($1) AS x (
+            "name" VARCHAR(255),
+            "email" VARCHAR(255),
+            "age" INT
+          )
+      )
     INSERT INTO
-      users (name, email, age)
-    VALUES
-      ('john', 'john@email.org', 25),
-      ('jane', 'jane@email.org', 26),
-      ('bob', 'bob@email.org', 27),
-      ('alice', 'alice@email.org', 28)
+      "users" ("name", "email", "age")
+    SELECT
+      "input"."name",
+      "input"."email",
+      "input"."age"
+    FROM
+      "input"
   `);
+
+  expect(insert.params).toEqual([
+    [
+      {"name": "john",  "email": "john@email.org",  "age": 25 },
+      {"name": "jane",  "email": "jane@email.org",  "age": 26 },
+      {"name": "bob",   "email": "bob@email.org",   "age": 27 },
+      {"name": "alice", "email": "alice@email.org", "age": 28 }
+    ]
+  ])
 
   await insert;
 

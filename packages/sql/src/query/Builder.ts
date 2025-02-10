@@ -111,7 +111,7 @@ class Builder {
           const field = target.fields.get(key)!;
 
           if(value instanceof DataField)
-            value.datatype = field.datatype;
+            value.field = field;
 
           inserts.set(field, value);
         })
@@ -203,24 +203,57 @@ class Builder {
       });
     });
 
-    if(typeof arg2 == "object"){
-      const inserts = new Map<Field, unknown>();
-
-      Object.entries(arg2).forEach(([key, value]) => {
-        const field = table.fields.get(key)!;
-
-        if(value instanceof DataField)
-          value.datatype = field.datatype;
-
-        inserts.set(field, value);
-      })
-
-      this.inserts = [table, inserts];
-    }
+    if(typeof arg2 == "object")
+      this.insert(table, arg2);
 
     freeze(proxy);
     
     return table.proxy;
+  }
+
+  insert<T extends Type>(
+    table: Builder.Table<T>,
+    input: Type.Insert<T>){
+
+    const inserts = new Map<Field, unknown>();
+      
+    for(const [key, field] of table.fields){
+      let value = (input as any)[key];
+
+      if(value instanceof DataField)
+        value.field = field;
+      else
+        value = this.digest(value, field);
+
+      if(value !== undefined)
+        inserts.set(field, value);
+    }
+
+    this.inserts = [table, inserts];
+  }
+
+  digest(value: any, field: Field){
+    if (value != null)
+      try {
+        return field.set(value);
+      }
+      catch(err: unknown){
+        let message = `Provided value for ${field.parent}.${field.column} but not acceptable for type ${field.datatype}.`;
+
+        if(err instanceof Error){
+          err.message = message + "\n" + err.message;
+          throw err;
+        }
+
+        if(typeof err == "string")
+          message += "\n" + err;
+
+        throw new Error(message);
+      }
+    else if (!field.nullable && !field.optional && !field.increment)
+      throw new Error(
+        `Can't assign to \`${field.parent}.${field.property}\`. A value is required but got ${value}.`
+      );
   }
 
   where(left: Field, op: string, right: unknown){
@@ -235,7 +268,7 @@ class Builder {
 
       if(right instanceof DataField){
         // TODO: should generator handle this?
-        right.datatype = left.datatype;
+        right.field = left;
         right.table.joins.push(where);
       }
       else
@@ -252,12 +285,7 @@ class Builder {
   }
 
   with<T extends Record<string, any>>(data: Iterable<T>){
-    const param = new DataTable(data, this.params.length);
-
-    this.params.push(param);
-    this.tables.set(param.proxy, param);
-
-    return param.proxy as { [K in keyof T]: Field<T[K]> };
+    return new DataTable(this, data).proxy;
   }
 
   accept(args: unknown[]){
@@ -303,16 +331,6 @@ class Builder {
 
 class Value {}
 
-export class DataField extends Value {
-  datatype = "";
-
-  constructor(
-    public column: string,
-    public table: DataTable){
-    super();
-  }
-}
-
 class Parameter extends Value {
   index = -1;
 
@@ -336,39 +354,95 @@ class Parameter extends Value {
   }
 }
 
+export class DataField extends Value {
+  field?: Field;
+
+  constructor(
+    public column: string,
+    public table: DataTable){
+    super();
+  }
+
+  get datatype(){
+    return this.field?.datatype || "";
+  }
+}
+
 class DataTable<T extends Record<string, unknown> = any>
   extends Parameter implements Builder.Table {
 
-  proxy: T;
-  used = new Map<keyof T & string, DataField>();
+  proxy: { [K in keyof T]: Field<T[K]> };
+  output: { [K in keyof T]: unknown }[] = [];
+
+  used = new Set<DataField>();
   joins: Cond[] = [];
   optional = false;
   fields = new Map<string, Field>();
   name = "input";
 
-  constructor(public input: Iterable<T>, index: number){
+  constructor(
+    public parent: Builder,
+    input: Iterable<T>){
+
     super();
 
-    this.proxy = {} as T;
-    this.index = index;
+    const proxy: any = {};
+    const keys = new Set<string>();
 
-    new Set(([] as string[]).concat(
-      ...Array.from(input, Object.keys))
-    ).forEach(key => {
+    for(const item of input)
+      Object.keys(item).forEach(keys.add, keys);
+    
+    for(const key of keys){
       const value = new DataField(key, this);
-      defineProperty(this.proxy, key, {
+
+      defineProperty(proxy, key, {
         enumerable: true,
         get: () => {
-          this.used.set(key, value);
+          this.used.add(value);
           return value;
         }
+      });
+    }
+
+    this.proxy = proxy;
+    this.index = parent.params.length;
+
+    parent.params.push(this);
+    parent.tables.set(proxy, this);
+    parent.pending.add(() => {
+      Array.from(input, (entry, index) => {
+        const emit = {} as any;
+  
+        for(const { column, field } of this.used){
+          if(!field)
+            throw new Error(`Field for input ${column} is not defined.`);
+
+          try {
+            emit[column] = this.parent.digest(entry[column], field);
+          }
+          catch(err: unknown){
+            let message = `A provided value at \`${column}\` at index [${index}] is not acceptable.`;
+      
+            if(err instanceof Error){
+              err.message = message + "\n" + err.message;
+              throw err;
+            }
+      
+            if(typeof err == "string")
+              message += "\n" + err;
+      
+            throw new Error(message);
+          }
+        }
+
+        this.output.push(emit);
       });
     });
   }
 
   toParam(): any {
-    return Array.from(this.input, row => (
-      Array.from(this.used, ([key]) => row[key])
+    return Array.from(this.output, row => (
+      Array.from(this.used, field => row[field.column])
     ))
   }
 }

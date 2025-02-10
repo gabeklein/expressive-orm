@@ -22,46 +22,17 @@ export class PostgresGenerator extends Generator {
 
   protected toJsonTable(table: DataTable){
     const param = this.toParam(table);
-    const types = Array.from(table.used.entries())
-      .map(([key, field]) => `"${key}" ${field.datatype}`);
-
-    table.toParam = () => Array.from(table.input).map(x => {
-      const subset = {} as Record<string, any>;
-      for (const [key] of table.used) subset[key as string] = x[key];
-      return subset;
+    const types = Array.from(table.used, field => {
+      return `"${field.column}" ${field.datatype}`;
     });
+
+    table.toParam = () => table.output;
     
     return `SELECT * FROM json_to_recordset(${param}) AS x(${types})`;
   }
 
   protected toParam(from: Parameter): string {
     return '$' + (this.query.params.indexOf(from) + 1);
-  }
-
-  protected toInsert() {
-    const { inserts, tables } = this.query;
-
-    if (!inserts)
-      return false;
-
-    const [table, data] = inserts;
-
-    const keys: string[] = [];
-    const values: string[] = [];
-
-    for (const [field, value] of data) {
-      keys.push(this.escape(field.column));
-      values.push(this.toReference(value as any) as string);
-    }
-
-    return [
-      'INSERT INTO',
-      this.escape(table.name),
-      `(${keys})`,
-      'SELECT',
-      values.join(', '),
-      tables.size > 1 && this.toFrom()
-    ];
   }
 
   protected toUpdate() {

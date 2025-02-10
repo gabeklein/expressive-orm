@@ -2,7 +2,7 @@ import { format } from 'sql-formatter';
 
 import { Type } from '..';
 import { Generator } from '../connection/Generator';
-import { escape, values } from '../utils';
+import { values } from '../utils';
 
 declare namespace Connection {
   type Types =
@@ -58,22 +58,6 @@ abstract class Connection {
     all: (args?: any[]) => Promise<T[]>;
     get: (args?: any[]) => Promise<T | undefined>;
     run: (args?: any[]) => Promise<number>;
-  }
-
-  /**
-   * @deprecated eventually superseded by `Query` class.
-   */
-  insert(table: string, data: Record<string, any>[]){
-    const keys = Object.keys(data[0]);
-    const values = data.map(row => `(${Object.values(row).map(escape)})`);
-    const query = `INSERT INTO ${table} (${keys}) VALUES ${values}`;
-
-    return {
-      then: (resolve: (res: any) => any, reject: (err: any) => any) => {
-        return this.prepare(query).run().then(resolve).catch(reject);
-      },
-      toString: () => pretty(query)
-    }
   }
 }
 

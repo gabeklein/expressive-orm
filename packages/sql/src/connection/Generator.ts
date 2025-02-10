@@ -27,13 +27,29 @@ export class Generator {
     return String(name).split('.').map(x => `\`${x}\``).join('.');
   }
 
-  protected toInsert(): false | unknown[] {
-    const { inserts } = this.query;
+  protected toInsert() {
+    const { inserts, tables } = this.query;
 
-    if (inserts)
-      throw new Error("Insert not implemented, do you have an adapter?");
+    if (!inserts)
+      return false;
 
-    return false;
+    const [table, data] = inserts;
+
+    const keys: string[] = [];
+    const values: string[] = [];
+
+    for (const [field, value] of data) {
+      keys.push(this.escape(field.column));
+      values.push(this.toValue(value));
+    }
+
+    return [
+      'INSERT INTO',
+      this.escape(table.name),
+      `(${keys})`,
+      `SELECT ${values}`,
+      tables.size > 1 && this.toFrom()
+    ];
   }
 
   protected toWith(){
@@ -46,6 +62,16 @@ export class Generator {
 
     if(cte.length)
       return 'WITH ' + cte.join();
+  }
+
+  protected toValue(input: unknown){
+    if(input instanceof Value || input instanceof Field)
+      return this.toReference(input as any) as string;
+
+    if(typeof input === "string")
+      return `'${input.replace(/'/g, "\\'")}'`;
+
+    return String(input);
   }
 
   protected toJsonTable(table: DataTable){
@@ -163,10 +189,7 @@ export class Generator {
     return ['DELETE', target, 'FROM', this.escape(name), this.toJoins(main)]
   }
 
-  protected toReference(from: Field | Value | Parameter | string | number){
-    if(typeof from === "string")
-      return `'${from.replace(/'/g, "\\'")}'`;
-
+  protected toReference(from: Field | Value){
     if(from instanceof DataField)
       return this.escape(from.table.name + '.' + from.column);
 
@@ -175,9 +198,6 @@ export class Generator {
 
     if(from instanceof Parameter)
       return this.toParam(from);
-
-    if(from instanceof Value)
-      return from.toString();
 
     if(from instanceof Field){
       const column = this.escape(from.column);
@@ -198,7 +218,7 @@ export class Generator {
       returns instanceof Map ?
         // TODO: simplify this
         Array.from(returns)
-          .map(([alias, field]) => this.toReference(field) + ` AS "${alias}"`)
+          .map(([alias, field]) => this.toValue(field) + ` AS "${alias}"`)
           .join(', ') :
       returns ?
         this.toReference(returns as Field) :

@@ -90,8 +90,9 @@ describe("types", () => {
     expect(insert).toMatchInlineSnapshot(`
       INSERT INTO
         test (value1, value2)
-      VALUES
-        (1, 'YES')
+      SELECT
+        1,
+        'YES'
     `);
     
     await insert;
@@ -316,13 +317,23 @@ it("will insert procedurally generated rows", async () => {
   }));
 
   expect(insert).toMatchInlineSnapshot(`
+    WITH
+      input AS (
+        SELECT
+          value ->> 0 name,
+          value ->> 1 email,
+          value ->> 2 age
+        FROM
+          JSON_EACH(?)
+      )
     INSERT INTO
       users (name, email, age)
-    VALUES
-      ('john', 'john@email.org', 25),
-      ('jane', 'jane@email.org', 26),
-      ('bob', 'bob@email.org', 27),
-      ('alice', 'alice@email.org', 28)
+    SELECT
+      input.name,
+      input.email,
+      input.age
+    FROM
+      input
   `);
 
   await insert;
