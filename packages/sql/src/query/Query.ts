@@ -1,6 +1,8 @@
-import { Field, Type } from '..';
+import { Connection } from '../connection/Connection';
+import { Field } from '../type/Field';
+import { Type } from '../type/Type';
 import { assign, create } from '../utils';
-import { Cond, Group, Builder as QB } from './Builder';
+import { Builder as QB, Cond, Group } from './Builder';
 import { Computed } from './Computed';
 
 declare namespace Query {
@@ -173,8 +175,12 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     result = (result as Function)(...params);
   }
 
-  const template = builder.commit(result);
-  const statement = builder.connection.prepare(template);
+  builder.commit(result);
+
+  const { connection } = builder;
+  const self = connection.constructor as typeof Connection;
+  const template = new self.generator(builder).toString();
+  const statement = connection.prepare(template);
   const runner = (...params: any[]) => { 
     const get = () => statement.all(params).then(a => a.map(x => builder.parse(x)));
     const query = create(Query.prototype) as Query;

@@ -80,8 +80,6 @@ class Builder {
   
       this.returns = columns;
     }
-
-    return this.connection!.stringify(this);
   }
 
   inject(args: number){

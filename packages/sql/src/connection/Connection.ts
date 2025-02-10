@@ -2,7 +2,6 @@ import { format } from 'sql-formatter';
 
 import { Type } from '..';
 import { Generator } from '../connection/Generator';
-import { Builder } from '../query/Builder';
 import { escape, values } from '../utils';
 
 declare namespace Connection {
@@ -59,11 +58,6 @@ abstract class Connection {
     all: (args?: any[]) => Promise<T[]>;
     get: (args?: any[]) => Promise<T | undefined>;
     run: (args?: any[]) => Promise<number>;
-  }
-
-  stringify(builder: Builder){
-    const self = this.constructor as typeof Connection;
-    return new self.generator(builder).toString();
   }
 
   /**
