@@ -30,10 +30,10 @@ export class Generator {
   protected toInsert() {
     const { inserts, tables } = this.query;
 
-    if (!inserts)
+    if (!inserts.size)
       return false;
 
-    const [table, data] = inserts;
+    const [[table, data]] = inserts;
 
     const keys: string[] = [];
     const values: string[] = [];

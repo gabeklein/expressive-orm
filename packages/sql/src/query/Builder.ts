@@ -34,8 +34,8 @@ class Builder {
 
   deletes = new Set<Query.Table>();
   updates = new Map<Query.Table, Builder.Insert>();
+  inserts = new Map<Query.Table, Builder.Insert>();
   
-  inserts?: readonly [Query.Table, Builder.Insert];
   returns?: Map<string, Field | Value> | Field | Value;
   limit?: number;
 
@@ -215,7 +215,7 @@ class Builder {
         inserts.set(field, value);
     }
 
-    this.inserts = [table, inserts];
+    this.inserts.set(table, inserts);
   }
 
   digest(value: any, field: Field){

@@ -5,7 +5,7 @@ export class PostgresGenerator extends Generator {
     const { returns, inserts } = this.query;
     const query = super.toString();
 
-    if(inserts && returns)
+    if(inserts.size && returns)
       return query + (
         ' RETURNING ' + (
         returns instanceof Map
