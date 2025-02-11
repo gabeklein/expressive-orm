@@ -34,6 +34,33 @@ export class PostgresGenerator extends Generator {
     return '$' + (this.query.params.indexOf(from) + 1);
   }
 
+  protected toWith(): string | undefined {
+    if(this.query.updates.size)
+      return super.toWith();
+    
+    return undefined;
+  }
+
+  protected toFrom(){
+    const [main] = this.query.tables.values();
+
+    if(main instanceof DataTable){
+      const param = this.toParam(main);
+      const types = Array.from(main.used, field => {
+        return `"${field.column}" ${field.datatype}`;
+      });
+
+      main.toParam = () => main.output;
+      
+      return [
+        `FROM json_to_recordset(${param})`,
+        `AS "input" (${types})`
+      ];
+    }
+
+    return super.toFrom();
+  }
+
   protected toUpdate() {
     const { updates, tables } = this.query;
     const [main] = updates.keys();
@@ -47,7 +74,8 @@ export class PostgresGenerator extends Generator {
     ]
 
     if (tables.size > 1) {
-      const using = Array.from(tables.values())
+      const using = Array
+        .from(tables.values())
         .filter(table => table !== main)
         .map(table => ({
           table,
@@ -58,8 +86,7 @@ export class PostgresGenerator extends Generator {
 
       if (using.length)
         output.push(
-          'FROM', using.map(({ table }) => {
-            const { alias, name } = table;
+          'FROM', using.map(({ table: { alias, name} }) => {
             return this.escape(alias ? `${name} ${alias}` : name);
           }).join(', '),
           'WHERE', using.map(x => x.conditions).join(' AND ')

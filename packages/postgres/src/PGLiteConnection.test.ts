@@ -317,17 +317,6 @@ it("will insert procedurally generated rows", async () => {
   }));
 
   expect(insert).toMatchInlineSnapshot(`
-    WITH
-      "input" AS (
-        SELECT
-          *
-        FROM
-          JSON_TO_RECORDSET($1) AS x (
-            "name" VARCHAR(255),
-            "email" VARCHAR(255),
-            "age" INT
-          )
-      )
     INSERT INTO
       "users" ("name", "email", "age")
     SELECT
@@ -335,7 +324,11 @@ it("will insert procedurally generated rows", async () => {
       "input"."email",
       "input"."age"
     FROM
-      "input"
+      JSON_TO_RECORDSET($1) AS "input" (
+        "name" VARCHAR(255),
+        "email" VARCHAR(255),
+        "age" INT
+      )
   `);
 
   expect(insert.params).toEqual([
@@ -473,19 +466,12 @@ describe("query", () => {
     });
 
     expect(query).toMatchInlineSnapshot(`
-      WITH
-        "input" AS (
-          SELECT
-            *
-          FROM
-            JSON_TO_RECORDSET($1) AS x ("name" VARCHAR(255))
-        )
       INSERT INTO
         "users" ("name")
       SELECT
         "input"."name"
       FROM
-        "input"
+        JSON_TO_RECORDSET($1) AS "input" ("name" VARCHAR(255))
     `);
 
     expect(await query).toBe(3);
