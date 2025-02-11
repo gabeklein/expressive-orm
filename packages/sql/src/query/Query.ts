@@ -1,7 +1,7 @@
 import { Connection } from '../connection/Connection';
 import { Field } from '../type/Field';
 import { Type } from '../type/Type';
-import { assign, create } from '../utils';
+import { assign, create, defineProperty } from '../utils';
 import { Builder as QB, Cond, Group } from './Builder';
 import { Computed } from './Computed';
 
@@ -70,6 +70,8 @@ declare namespace Query {
 
     /** Specify the limit of results returned. */
     (limit: number): void;
+
+    connection: Connection.Ready;
   }
 
   type Updates<T> = Field.Updates<T> | T | Field;
@@ -142,9 +144,19 @@ function Query<T extends {}>(from: Query.Function<T>): Query.Selects<T>;
 function Query(from: Query.Function<void>): Query<number>;
 
 function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>){
+  let connection: Connection | undefined = undefined;
+  
   function where(arg1: any): any {
-    if(Type.is(arg1))
+    if(Type.is(arg1)){
+      if(!connection)
+        connection = arg1.connection;
+      else if(connection !== arg1.connection)
+        throw new Error(
+          `Joined entity ${arg1} does not share a connection with other tables in Query.`
+        );
+      
       return builder.use(arg1, ...Array.from(arguments).slice(1));
+    }
 
     if(arg1 instanceof Field)
       return builder.field(arg1);
@@ -166,8 +178,13 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     throw new Error(`Argument ${arg1} is not a query argument.`);
   }
 
+  defineProperty(where, "connection", {
+    get(){ return connection },
+    set(conn){ connection = conn }
+  })
+
   const builder = new QB();
-  let result = factory.call(builder, where);
+  let result = factory.call(builder, where as Query.Where);
   let args: number | undefined;
 
   if(typeof result === 'function'){
@@ -177,9 +194,10 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
 
   builder.commit(result);
 
-  const { connection } = builder;
-  const self = connection.constructor as typeof Connection;
-  const template = new self.generator(builder).toString();
+  if(!connection)
+    connection = Connection.None;
+
+  const template = connection.generate(builder);
   const statement = connection.prepare(template);
   const runner = (...params: any[]) => { 
     const get = () => statement.all(params).then(a => a.map(x => builder.parse(x)));
@@ -189,11 +207,11 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     
     assign(query, <Query>{
       params,
+      toString: statement.toString,
       then(resolve, reject){
         const run = builder.returns ? get() : statement.run(params);
         return run.then(resolve).catch(reject);
-      },
-      toString: statement.toString
+      }
     });
 
     if (builder.returns)

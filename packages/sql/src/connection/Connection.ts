@@ -1,6 +1,6 @@
 import { format } from 'sql-formatter';
 
-import { Type } from '..';
+import { Builder, Type } from '..';
 import { Generator } from '../connection/Generator';
 import { values } from '../utils';
 
@@ -10,6 +10,8 @@ declare namespace Connection {
     | { [key: string | number]: typeof Type }
 
   type Using = { [key: string | number]: typeof Type };
+
+  type Ready<T extends Connection = Connection> = Omit<T, "then">;
 
   let None: Connection;
 }
@@ -30,8 +32,13 @@ abstract class Connection {
     }))
   }
 
+  generate(builder: Builder){
+    const { generator } = this.constructor as typeof Connection;
+    return new generator(builder).toString();
+  }
+
   async then(
-    onfulfilled?: (value: Omit<this, "then">) => any,
+    onfulfilled?: (value: Connection.Ready<this>) => any,
     onrejected?: (reason: any) => any) {
 
     return (this.ready ? Promise.resolve() : this.sync(true))

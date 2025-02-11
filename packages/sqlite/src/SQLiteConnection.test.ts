@@ -270,9 +270,8 @@ describe("template", () => {
   
   it("will select a parameter value", async () => {
     const conn = await new TestConnection([]);
-    const query = Query(function(){
-      // TODO: assign connection to Query itself?
-      this.connection = conn as any;
+    const query = Query(where => {
+      where.connection = conn;
       return (color: string) => color;
     });
 
@@ -286,8 +285,8 @@ describe("template", () => {
   
   it("will select a parameter in property", async () => {
     const conn = await new TestConnection([]);
-    const query = Query(function(){
-      this.connection = conn as any;
+    const query = Query(where => {
+      where.connection = conn;
       return (color: string) => ({ color })
     });
   

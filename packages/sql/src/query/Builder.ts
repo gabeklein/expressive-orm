@@ -1,4 +1,3 @@
-import { Connection } from '../connection/Connection';
 import { Field } from '../type/Field';
 import { Type } from '../type/Type';
 import { create, defineProperty, freeze, getOwnPropertyNames, values } from '../utils';
@@ -21,8 +20,6 @@ declare namespace Builder {
 }
 
 class Builder {
-  connection!: Connection;
-
   /**
    * Parameters which will be sent with query.
    * May either be placeholders for a template, or values
@@ -48,9 +45,6 @@ class Builder {
 
     this.pending.forEach(fn => fn());
     this.pending.clear();
-
-    if(!this.connection)
-      this.connection = Connection.None;
 
     if(typeof returns === 'function')
       returns = returns();
@@ -153,14 +147,6 @@ class Builder {
   use<T extends Type>(type: Type.EntityType<T>, arg2?: boolean | Type.Insert<T>, ...rest: Type.Insert<T>[]){
     const { fields, schema } = type;
     const { tables } = this;
-
-    if(!this.connection && type.connection){
-      this.connection = type.connection;
-    }
-    else if(type.connection !== this.connection){
-      const [ main ] = tables.values();
-      throw new Error(`Joined entity ${type} does not share a connection with main table ${main}.`);
-    }
 
     const proxy = {} as Query.From<T>;
     const table: Builder.Table = {
