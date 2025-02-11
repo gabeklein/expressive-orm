@@ -187,16 +187,14 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
 
     params = builder.accept(params);
     
-    assign(query, {
+    assign(query, <Query>{
       params,
       then(resolve, reject){
         const run = builder.returns ? get() : statement.run(params);
         return run.then(resolve).catch(reject);
       },
-      toString(){
-        return String(statement);
-      }
-    } as Query);
+      toString: statement.toString
+    });
 
     if (builder.returns)
       assign(query, {
@@ -216,7 +214,7 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   };
 
   if(typeof args == "number"){
-    runner.toString = () => String(statement);
+    runner.toString = statement.toString;
     return runner;
   }
 
