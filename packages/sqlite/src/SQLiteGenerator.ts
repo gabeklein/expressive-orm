@@ -1,8 +1,8 @@
 import { DataTable, Generator } from '@expressive/sql';
 
 export class SQLiteGenerator extends Generator {
-  protected toJsonTable(table: DataTable): string {
-    const param = this.toParam(table);
+  protected jsonTable(table: DataTable): string {
+    const param = this.param(table);
     const fields = Array.from(table.used, (field, i) => {
       return `value ->> ${i} ${this.escape(field.column)}`;
     });
@@ -10,7 +10,7 @@ export class SQLiteGenerator extends Generator {
     return `SELECT ${fields.join(', ')} FROM json_each(${param})`;
   }
 
-  protected toUpdate(){
+  protected update(){
     const { updates, tables } = this.query;
 
     const [main] = updates.keys();
@@ -21,7 +21,7 @@ export class SQLiteGenerator extends Generator {
     const output = [
       'UPDATE',
       this.escape(main),
-      this.toSet(updates)
+      this.set(updates)
     ]
 
     if (tables.size > 1) {
@@ -33,7 +33,7 @@ export class SQLiteGenerator extends Generator {
             throw new Error(`Table ${table.name} has no joins.`);
 
           const conditions = table.joins
-            .map(x => this.toFilter(x.left, x.op, x.right))
+            .map(x => this.filter(x.left, x.op, x.right))
             .join(' AND ')
 
           return { conditions, table };

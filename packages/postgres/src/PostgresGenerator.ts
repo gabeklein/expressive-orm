@@ -11,16 +11,16 @@ export class PostgresGenerator extends Generator {
         returns instanceof Map
           ? Array
               .from(returns.entries())
-              .map(([alias, field]) => `${this.toReference(field)} AS "${alias}"`)
-          : this.toReference(returns)
+              .map(([alias, field]) => `${this.reference(field)} AS "${alias}"`)
+          : this.reference(returns)
         )
       )
 
     return query;
   }
 
-  protected toJsonTable(table: DataTable){
-    const param = this.toParam(table);
+  protected jsonTable(table: DataTable){
+    const param = this.param(table);
     const types = Array.from(table.used, field => {
       return `"${field.column}" ${field.datatype}`;
     });
@@ -30,22 +30,22 @@ export class PostgresGenerator extends Generator {
     return `SELECT * FROM json_to_recordset(${param}) AS x(${types})`;
   }
 
-  protected toParam(from: Parameter): string {
+  protected param(from: Parameter): string {
     return '$' + (this.query.params.indexOf(from) + 1);
   }
 
-  protected toWith(): string | undefined {
+  protected with(): string | undefined {
     if(this.query.updates.size)
-      return super.toWith();
+      return super.with();
     
     return undefined;
   }
 
-  protected toFrom(){
+  protected from(){
     const [main] = this.query.tables.values();
 
     if(main instanceof DataTable){
-      const param = this.toParam(main);
+      const param = this.param(main);
       const types = Array.from(main.used, field => {
         return `"${field.column}" ${field.datatype}`;
       });
@@ -58,10 +58,10 @@ export class PostgresGenerator extends Generator {
       ];
     }
 
-    return super.toFrom();
+    return super.from();
   }
 
-  protected toUpdate() {
+  protected update() {
     const { updates, tables } = this.query;
     const [main] = updates.keys();
 
@@ -70,7 +70,7 @@ export class PostgresGenerator extends Generator {
     const output = [
       'UPDATE',
       this.escape(main),
-      this.toSet(updates)
+      this.set(updates)
     ]
 
     if (tables.size > 1) {
@@ -80,7 +80,7 @@ export class PostgresGenerator extends Generator {
         .map(table => ({
           table,
           conditions: table.joins
-            .map(x => this.toFilter(x.left, x.op, x.right))
+            .map(x => this.filter(x.left, x.op, x.right))
             .join(' AND ')
         }));
 

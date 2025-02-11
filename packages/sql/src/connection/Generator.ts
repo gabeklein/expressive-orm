@@ -10,14 +10,14 @@ export class Generator {
 
   toString() {
     const parts = [
-      this.toWith(),
-      this.toInsert() ||
-      this.toUpdate() ||
-      this.toDelete() ||
-      this.toSelect(),
-      this.toWhere(),
-      this.toOrder(),
-      this.toLimit()
+      this.with(),
+      this.insert() ||
+      this.update() ||
+      this.delete() ||
+      this.select(),
+      this.where(),
+      this.order(),
+      this.limit()
     ];
 
     return parts.flat(Infinity).filter(Boolean).join(' ');
@@ -27,7 +27,7 @@ export class Generator {
     return String(name).split('.').map(x => `\`${x}\``).join('.');
   }
 
-  protected toInsert() {
+  protected insert() {
     const { inserts, tables } = this.query;
 
     if (!inserts.size)
@@ -40,7 +40,7 @@ export class Generator {
 
     for (const [field, value] of data) {
       keys.push(this.escape(field.column));
-      values.push(this.toValue(value));
+      values.push(this.value(value));
     }
 
     return [
@@ -48,25 +48,25 @@ export class Generator {
       this.escape(table.name),
       `(${keys})`,
       `SELECT ${values}`,
-      tables.size > 1 && this.toFrom()
+      tables.size > 1 && this.from()
     ];
   }
 
-  protected toWith(){
+  protected with(){
     const cte = [] as string[];
 
     this.query.tables.forEach((table) => {
       if (table instanceof DataTable)
-        cte.push(`${this.escape(table.name)} AS (${this.toJsonTable(table)})`);
+        cte.push(`${this.escape(table.name)} AS (${this.jsonTable(table)})`);
     });
 
     if(cte.length)
       return 'WITH ' + cte.join();
   }
 
-  protected toValue(input: unknown){
+  protected value(input: unknown){
     if(input instanceof Value || input instanceof Field)
-      return this.toReference(input as any) as string;
+      return this.reference(input as any) as string;
 
     if(typeof input === "string")
       return `'${input.replace(/'/g, "\\'")}'`;
@@ -74,15 +74,15 @@ export class Generator {
     return String(input);
   }
 
-  protected toJsonTable(table: DataTable){
+  protected jsonTable(table: DataTable){
     throw new Error("Not implemented.")
   }
 
-  toComputed(from: Computed<any>){
+  computed(from: Computed<any>){
     let { left, operator, right } = from;
 
     if(right instanceof Computed){
-      const value = this.toComputed(right);
+      const value = this.computed(right);
       right = right.rank <= from.rank ? `(${value})` : value;
     }
 
@@ -90,14 +90,14 @@ export class Generator {
       return `${operator}${right}`;
 
     if(left instanceof Computed){
-      const value = this.toComputed(left);
+      const value = this.computed(left);
       left = left.rank < from.rank ? `(${value})` : value;
     }
 
     return `${left} ${operator} ${right}`;
   }
 
-  protected toJoins(main: Builder.Table){
+  protected joins(main: Builder.Table){
     const output: string[] = [];
     const applied = new Set();
 
@@ -119,7 +119,7 @@ export class Generator {
 
       const mode = optional ? "LEFT" : "INNER";
       const as = name + (alias ? ` ${alias}` : "");
-      const conds = joins.map(x => this.toFilter(x.left, x.op, x.right));
+      const conds = joins.map(x => this.filter(x.left, x.op, x.right));
 
       output.push(`${mode} JOIN ${as} ON ${conds.join(' AND ')}`);
     }
@@ -128,7 +128,7 @@ export class Generator {
       return output.join(' ');
   }
 
-  protected toSet(updates: Map<Query.Table, Builder.Insert>){
+  protected set(updates: Map<Query.Table, Builder.Insert>){
     const sets: string[] = [];
 
     for(const [_table, data] of updates)
@@ -137,7 +137,7 @@ export class Generator {
           continue;
 
         if(value instanceof Field || value instanceof Value){
-          value = this.toReference(value);
+          value = this.reference(value);
         }
         else if(value === null){
           if(field.nullable)
@@ -157,7 +157,7 @@ export class Generator {
     return `SET ${sets}`;
   }
 
-  protected toUpdate(multiTableAllowed = false){
+  protected update(multiTableAllowed = false){
     const { updates } = this.query;
 
     if(!updates.size)
@@ -171,12 +171,12 @@ export class Generator {
     return [
       'UPDATE',
       this.escape(main),
-      this.toJoins(main),
-      this.toSet(updates)
+      this.joins(main),
+      this.set(updates)
     ]
   }
 
-  protected toDelete(){
+  protected delete(){
     const { query } = this;
     const [ main ] = this.query.deletes;
 
@@ -186,18 +186,18 @@ export class Generator {
     const { alias, name } = main;
     const target = query.tables.size > 1 && (alias || name);
 
-    return ['DELETE', target, 'FROM', this.escape(name), this.toJoins(main)]
+    return ['DELETE', target, 'FROM', this.escape(name), this.joins(main)]
   }
 
-  protected toReference(from: Field | Value){
+  protected reference(from: Field | Value){
     if(from instanceof DataField)
       return this.escape(from.table.name + '.' + from.column);
 
     if(from instanceof Computed)
-      return this.toComputed(from);
+      return this.computed(from);
 
     if(from instanceof Parameter)
-      return this.toParam(from);
+      return this.param(from);
 
     if(from instanceof Field){
       const column = this.escape(from.column);
@@ -210,7 +210,7 @@ export class Generator {
     return from;
   }
 
-  protected toSelect(){
+  protected select(){
     const { returns, tables } = this.query;
     const [ main ] = tables.values();
 
@@ -218,32 +218,32 @@ export class Generator {
       returns instanceof Map ?
         // TODO: simplify this
         Array.from(returns)
-          .map(([alias, field]) => this.toValue(field) + ` AS "${alias}"`)
+          .map(([alias, field]) => this.value(field) + ` AS "${alias}"`)
           .join(', ') :
       returns ?
-        this.toReference(returns as Field) :
+        this.reference(returns as Field) :
         'COUNT(*)';
 
     return [
       "SELECT",
       selection,
-      this.toFrom(),
-      this.toJoins(main)
+      this.from(),
+      this.joins(main)
     ]
   }
 
-  protected toFrom(){
+  protected from(){
     const [ main ] = this.query.tables.values();
     
     if(main)
       return ["FROM", this.escape(main.name), main.alias]
   }
 
-  protected toParam(from: Parameter){
+  protected param(from: Parameter){
     return "?";
   }
 
-  protected toFilter(left: Field, op: string, right: unknown){
+  protected filter(left: Field, op: string, right: unknown){
     if (right === null){
       right === "NULL";
 
@@ -257,14 +257,14 @@ export class Generator {
     else if(right instanceof Array)
       right = `(${right.map(left.raw, left)})`;
     else if (right instanceof Field || right instanceof Value)
-      right = this.toReference(right);
+      right = this.reference(right);
     else
       right = left.raw(right);
 
-    return `${this.toReference(left)} ${op} ${right}`;
+    return `${this.reference(left)} ${op} ${right}`;
   }
 
-  protected toWhere() {
+  protected where() {
     const { filters } = this.query;
 
     if (!filters.size) return;
@@ -278,7 +278,7 @@ export class Generator {
             return cond.size === 1 || first ? inner : `(${inner})`;
           }
           
-          return this.toFilter(cond.left, cond.op, cond.right);
+          return this.filter(cond.left, cond.op, cond.right);
         })
         .join(or ? ' OR ' : ' AND ');
     };
@@ -286,15 +286,15 @@ export class Generator {
     return ['WHERE', combine(filters)];
   }
 
-  protected toOrder(){
+  protected order(){
     const { order } = this.query;
 
     if(order.size)
       return 'ORDER BY ' +
-        Array.from(order, ([x, y]) => `${this.toReference(x)} ${y}`);
+        Array.from(order, ([x, y]) => `${this.reference(x)} ${y}`);
   }
 
-  protected toLimit(){
+  protected limit(){
     const { limit } = this.query;
 
     if(limit)
