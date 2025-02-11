@@ -1,5 +1,4 @@
-import { DataTable, Generator } from '@expressive/sql';
-import { Parameter } from 'packages/sql/src/query/Builder';
+import { DataTable, Generator, Parameter } from '@expressive/sql';
 
 export class PostgresGenerator extends Generator {
   toString(): string {
