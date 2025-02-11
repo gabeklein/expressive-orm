@@ -360,11 +360,11 @@ it("will insert procedurally generated rows", async () => {
 })
 
 describe("query", () => {
-  it("will insert a single row", async () => {
-    class Users extends Type {
-      name = Str();
-    }
+  class Users extends Type {
+    name = Str();
+  }
 
+  it("will insert a single row", async () => {
     await new TestConnection([Users]);
     
     const query = Query(where => {
@@ -382,12 +382,45 @@ describe("query", () => {
 
     expect(await query).toEqual([1]);
   });
+
+  it.skip("will chain inserts", async () => {
+    class Info extends Type {
+      user = One(Users);
+      color = Str();
+    }
+
+    await new TestConnection([Users, Info]);
+    
+    const query = Query(where => {
+      const user = where(Users, { name: "John" });
+      const info = where(Info, { user: user.id, color: "blue" });
+
+      return {
+        user: user.id,
+        info: info.id
+      }
+    });
+
+    expect(query).toMatchInlineSnapshot(`
+      WITH new_user AS (
+        INSERT INTO "users" ("name")
+        VALUES ('John')
+        RETURNING "id"
+      ),
+      new_info AS (
+        INSERT INTO "info" ("user_id", "color")
+        SELECT "id", 'blue'
+        FROM new_user
+        RETURNING "id"
+      )
+      SELECT 
+        new_user.id AS "user",
+        new_info.id AS "info"
+      FROM new_user, new_info;
+    `);
+  });
   
   it("will insert", async () => {
-    class Users extends Type {
-      name = Str();
-    }
-  
     class Info extends Type {
       user = One(Users);
       color = Str();
@@ -427,10 +460,6 @@ describe("query", () => {
   });
 
   it("will insert iterable data", async () => {
-    class Users extends Type {
-      name = Str();
-    }
-  
     await new TestConnection([Users]);
   
     const data = [
