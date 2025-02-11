@@ -1,6 +1,6 @@
 {
   "name": "@expressive/sql",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Query builder and ORM",
   "main": "src",
   "module": "src",

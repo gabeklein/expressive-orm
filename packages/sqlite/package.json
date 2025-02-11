@@ -1,6 +1,6 @@
 {
   "name": "@expressive/sqlite",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Query builder and ORM",
   "main": "src",
   "module": "src",
@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@expressive/sql": "workspace:*",
+    "@expressive/sql": "^0.1.0",
     "better-sqlite3": "^11.7.0",
 		"sql-formatter": "^10.7.2"
   },

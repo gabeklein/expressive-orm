@@ -24,10 +24,10 @@ importers:
   packages/mysql:
     dependencies:
       '@expressive/sql':
-        specifier: ^0.0.1
+        specifier: ^0.1.0
         version: link:../sql
       '@expressive/sql-import':
-        specifier: ^0.0.1
+        specifier: ^0.1.0
         version: link:../sql-import
     devDependencies:
       '@types/mysql':
@@ -40,7 +40,7 @@ importers:
   packages/postgres:
     dependencies:
       '@expressive/sql':
-        specifier: workspace:*
+        specifier: ^0.1.0
         version: link:../sql
       sql-formatter:
         specifier: ^10.7.2
@@ -55,10 +55,6 @@ importers:
       sql-formatter:
         specifier: ^10.7.2
         version: 10.7.2
-    devDependencies:
-      '@expressive/sqlite':
-        specifier: workspace:*
-        version: link:../sqlite
 
   packages/sql-import:
     dependencies:
@@ -79,7 +75,7 @@ importers:
   packages/sqlite:
     dependencies:
       '@expressive/sql':
-        specifier: workspace:*
+        specifier: ^0.1.0
         version: link:../sql
       better-sqlite3:
         specifier: ^11.7.0

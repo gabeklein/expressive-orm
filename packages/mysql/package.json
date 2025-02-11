@@ -1,15 +1,16 @@
 {
   "name": "@expressive/mysql",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "MySQL Adapter for Expressive SQL",
   "license": "ISC",
+  "private": "true",
   "main": "lib",
   "scripts": {
     "build": "tsc"
   },
   "dependencies": {
-    "@expressive/sql": "^0.0.1",
-    "@expressive/sql-import": "^0.0.1"
+    "@expressive/sql": "^0.1.0",
+    "@expressive/sql-import": "^0.1.0"
   },
   "devDependencies": {
     "@types/mysql": "^2.15.21",

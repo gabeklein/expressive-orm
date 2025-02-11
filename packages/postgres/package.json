@@ -1,6 +1,6 @@
 {
   "name": "@expressive/postgres",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Query builder and ORM",
   "type": "module",
   "main": "src",
@@ -11,7 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@expressive/sql": "workspace:*",
+    "@expressive/sql": "^0.1.0",
 		"sql-formatter": "^10.7.2"
   },
   "devDependencies": {
