@@ -1,6 +1,6 @@
 {
   "name": "@expressive/sqlite",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SQLite adapter for Expressive SQL.",
   "license": "ISC",
   "publishConfig": {
@@ -13,15 +13,17 @@
   },
   "main": "dist",
   "module": "dist",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm,cjs",
     "test": "vitest"
   },
   "dependencies": {
-    "@expressive/sql": "^0.1.0",
+    "@expressive/sql": "^0.1.1",
     "better-sqlite3": "^11.7.0",
-		"sql-formatter": "^10.7.2"
+    "sql-formatter": "^10.7.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",

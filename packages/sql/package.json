@@ -1,6 +1,6 @@
 {
   "name": "@expressive/sql",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Query builder and ORM",
   "license": "ISC",
   "publishConfig": {
@@ -13,7 +13,9 @@
   },
   "main": "dist",
   "module": "dist",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm,cjs",
     "test": "vitest"
