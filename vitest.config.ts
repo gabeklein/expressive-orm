@@ -15,6 +15,8 @@ export default defineConfig({
       }
     },
     globals: true,
-    setupFiles: ['./vitest.setup.ts']
+    setupFiles: [
+      `${__dirname}/vitest.setup.ts`
+    ]
   }
 })
