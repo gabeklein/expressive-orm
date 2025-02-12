@@ -1,6 +1,7 @@
 {
   "files.exclude": {
     "**/node_modules": true,
-    "**/tsconfig.json": true
+    "**/tsconfig.json": true,
+    "**/.turbo": true,
   }
 }
