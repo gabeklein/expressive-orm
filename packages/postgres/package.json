@@ -23,5 +23,13 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.16",
     "tsup": "^8.3.6"
+  },
+  "peerDependencies": {
+    "@electric-sql/pglite": "^0.2.16"
+  },
+  "peerDependenciesMeta": {
+    "@electric-sql/pglite": {
+      "optional": true
+    }
   }
 }
