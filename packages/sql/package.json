@@ -2,17 +2,24 @@
   "name": "@expressive/sql",
   "version": "0.1.0",
   "description": "Query builder and ORM",
-  "main": "src",
-  "module": "src",
+  "license": "ISC",
   "publishConfig": {
     "access": "public"
   },
-  "scripts": {
-    "build": "tsc"
+  "author": {
+    "name": "Gabe Klein",
+    "email": "gabe@expressive.dev",
+    "url": "https://github.com/gabeklein"
   },
-  "author": "",
-  "license": "ISC",
+  "main": "dist",
+  "module": "dist",
+  "scripts": {
+    "build": "tsup src/index.ts --dts --format esm,cjs"
+  },
   "dependencies": {
-		"sql-formatter": "^10.7.2"
+    "sql-formatter": "^10.7.2"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.6"
   }
 }

@@ -1,23 +1,28 @@
 {
   "name": "@expressive/sqlite",
   "version": "0.1.0",
-  "description": "Query builder and ORM",
-  "main": "src",
-  "module": "src",
+  "description": "SQLite adapter for Expressive SQL.",
+  "license": "ISC",
   "publishConfig": {
     "access": "public"
   },
-  "scripts": {
-    "build": "tsc"
+  "author": {
+    "name": "Gabe Klein",
+    "email": "gabe@expressive.dev",
+    "url": "https://github.com/gabeklein"
   },
-  "author": "",
-  "license": "ISC",
+  "main": "dist",
+  "module": "dist",
+  "scripts": {
+    "build": "tsup src/index.ts --dts --format esm,cjs"
+  },
   "dependencies": {
     "@expressive/sql": "^0.1.0",
     "better-sqlite3": "^11.7.0",
 		"sql-formatter": "^10.7.2"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12"
+    "@types/better-sqlite3": "^7.6.12",
+    "tsup": "^8.3.6"
   }
 }

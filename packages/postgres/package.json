@@ -1,23 +1,27 @@
 {
   "name": "@expressive/postgres",
   "version": "0.1.0",
-  "description": "Query builder and ORM",
-  "type": "module",
-  "main": "src",
-  "module": "src",
+  "description": "Postgres adapter for Expressive SQL.",
+  "license": "ISC",
   "publishConfig": {
     "access": "public"
   },
-  "scripts": {
-    "build": "tsc"
+  "author": {
+    "name": "Gabe Klein",
+    "email": "gabe@expressive.dev",
+    "url": "https://github.com/gabeklein"
   },
-  "author": "",
-  "license": "ISC",
+  "main": "dist",
+  "module": "dist",
+  "scripts": {
+    "build": "tsup src/index.ts --dts --format esm,cjs"
+  },
   "dependencies": {
     "@expressive/sql": "^0.1.0",
 		"sql-formatter": "^10.7.2"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.2.16"
+    "@electric-sql/pglite": "^0.2.16",
+    "tsup": "^8.3.6"
   }
 }

@@ -1,6 +1,6 @@
 {
 	"name": "expressive-mvc",
-	"license": "MIT",
+	"license": "ISC",
 	"private": true,
 	"devDependencies": {
 		"@changesets/cli": "^2.27.12",
