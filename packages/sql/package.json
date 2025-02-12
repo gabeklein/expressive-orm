@@ -4,6 +4,9 @@
   "description": "Query builder and ORM",
   "main": "src",
   "module": "src",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc"
   },
