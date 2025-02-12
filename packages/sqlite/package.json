@@ -14,7 +14,8 @@
   "main": "dist",
   "module": "dist",
   "scripts": {
-    "build": "tsup src/index.ts --dts --format esm,cjs"
+    "build": "tsup src/index.ts --dts --format esm,cjs",
+    "test": "vitest"
   },
   "dependencies": {
     "@expressive/sql": "^0.1.0",

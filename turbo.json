@@ -8,6 +8,14 @@
     "test": {
       "dependsOn": ["build"],
       "outputs": ["coverage/**"]
+    },
+    "version": {
+      "dependsOn": ["build"],
+      "outputs": ["CHANGELOG.md", "package.json"]
+    },
+    "publish": {
+      "dependsOn": ["build", "test", "version"],
+      "outputs": []
     }
   }
 }
