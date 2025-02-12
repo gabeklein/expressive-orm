@@ -1,5 +1,5 @@
 import { Query } from '..';
-import { Cond } from '../query/Builder';
+import { Builder, Cond } from '../query/Builder';
 import { capitalize, create, escape, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
 import { Type } from './Type';
 
@@ -25,7 +25,7 @@ declare namespace Field {
 
   type Accepts<T> = Field & { set(value: T, data: unknown): void }
 
-  type Queries<T> = Field & { use(table: Query.Builder): T }
+  type Queries<T> = Field & { use(table: Builder): T }
 
   type Updates<T> =
     T extends Accepts<infer U> ?
@@ -62,7 +62,7 @@ class Field<T = unknown> {
   parent!: Type.EntityType;
   
   table?: Query.Table;
-  query?: Query.Builder;
+  query?: Builder;
 
   foreignKey?: string;
   foreignTable?: string;
@@ -104,7 +104,7 @@ class Field<T = unknown> {
    * 
    * @returns {T} Value to be used in context of query, interfacing with this Field.
    */
-  use?(query: Query.Builder): unknown;
+  use?(query: Builder): unknown;
 
   /**
    * This method dictates behavior of this field when converted from a javascript context to SQL.

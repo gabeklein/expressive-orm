@@ -1,4 +1,4 @@
-import { Nullable, Query, Type } from '..';
+import { Builder, Nullable, Type } from '..';
 import { Field } from '../type/Field';
 import { underscore } from '../utils';
 
@@ -28,7 +28,7 @@ class ForeignColumn<T extends Type> extends Field<Type.Values<T>> {
     return value;
   }
 
-  use(query: Query.Builder) {
+  use(query: Builder) {
     // TODO: avoid any here?
     const table = query.use(this.entity) as any;
     query.where(table.id, "=", this);

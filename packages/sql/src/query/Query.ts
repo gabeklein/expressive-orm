@@ -2,13 +2,10 @@ import { Connection } from '../connection/Connection';
 import { Field } from '../type/Field';
 import { Type } from '../type/Type';
 import { assign, create, defineProperty } from '../utils';
-import { Builder as QB, Cond, Group } from './Builder';
+import { Builder as QB, Cond, Group, Builder } from './Builder';
 import { Computed } from './Computed';
 
 declare namespace Query {
-  /** Internal state for this Query. */
-  type Builder = QB;
-
   type Table = QB.Table;
 
   type From<T extends Type = Type> = {
