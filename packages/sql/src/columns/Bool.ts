@@ -7,7 +7,7 @@ class BooleanColumn extends Field<boolean> {
   readonly TRUE: string | number = 1;
   readonly FALSE: string | number = 0;
 
-  constructor(opts: Bool.Options = {}) {
+  constructor(opts: Bool.Opts = {}) {
     let type: "tinyint" | "varchar" = "tinyint";
     let datatype = "tinyint";
     let TRUE: string | number = 1;
@@ -49,14 +49,14 @@ declare namespace Bool {
     either?: [true: string, false: string];
   }
 
-  type Type = TinyInt | Char;
-  type Options = Partial<Type>;
+  type Any = TinyInt | Char;
+  type Opts = Partial<Any>;
 }
 
 interface Bool extends BooleanColumn {}
 
-function Bool<T extends Bool.Options>(opts?: T){
-  return new BooleanColumn(opts) as Field.Specify<T, Bool.Type>;
+function Bool<T extends Bool.Opts>(opts?: T){
+  return new BooleanColumn(opts) as Field.Specify<T, Bool.Any>;
 }
 
 Bool.Type = BooleanColumn;

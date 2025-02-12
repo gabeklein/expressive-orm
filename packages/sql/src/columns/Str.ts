@@ -6,7 +6,7 @@ class StringColumn extends Field<string> {
   readonly type: "char" | "varchar" | "text" | "tinytext" | "mediumtext" | "longtext" = "varchar";
   readonly length = 255;
 
-  constructor(opts?: Str.Options) {
+  constructor(opts?: Str.Opts) {
     super(({ parent, property }) => {
       let { type = "varchar", length = 255, datatype } = opts || {};
 
@@ -59,15 +59,15 @@ declare namespace Str {
     readonly type: "longtext";
   }
 
-  type Type = Char | VarChar | Text | TinyText | MediumText | LongText;
+  type Any = Char | VarChar | Text | TinyText | MediumText | LongText;
 
-  type Options = Partial<Type>;
+  type Opts = Partial<Any>;
 }
 
 interface Str extends StringColumn {}
 
-function Str<T extends Str.Options>(opts?: T){
-  return new StringColumn(opts) as Field.Specify<T, Str.Type, Str.VarChar>; 
+function Str<T extends Str.Opts>(opts?: T){
+  return new StringColumn(opts) as Field.Specify<T, Str.Any, Str.VarChar>; 
 }
 
 Str.Type = StringColumn;

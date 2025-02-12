@@ -2,7 +2,7 @@ import { Field } from '../type/Field';
 
 class TimeColumn extends Field<Date> {
   readonly type: "datetime" = "datetime";
-  readonly fallback?: "NOW" | Date;
+  readonly fallback?: "NOW" | Date = undefined;
 
   get(value: string) {
     return new global.Date(value.replace(/[-]/g, '/') + "Z");

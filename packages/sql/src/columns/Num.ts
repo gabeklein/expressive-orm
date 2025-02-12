@@ -39,14 +39,14 @@ declare namespace Num {
     readonly type: "double";
   }
 
-  type Type = Int | TinyInt | SmallInt | BigInt | Float | Double;
-  type Options = Partial<Type>;
+  type Any = Int | TinyInt | SmallInt | BigInt | Float | Double;
+  type Opts = Partial<Any>;
 }
 
 interface Num extends NumericColumn {}
 
-function Num<T extends Num.Options>(opts?: T){
-  return new NumericColumn(opts) as Field.Specify<T, Num.Type, Num.Int>;
+function Num<T extends Num.Opts>(opts?: T){
+  return new NumericColumn(opts) as Field.Specify<T, Num.Any, Num.Int>;
 }
 
 Num.Type = NumericColumn;
