@@ -4,10 +4,6 @@
   "description": "MySQL Adapter for Expressive SQL",
   "license": "ISC",
   "private": "true",
-  "main": "lib",
-  "scripts": {
-    "build": "tsc"
-  },
   "dependencies": {
     "@expressive/sql": "^0.1.0",
     "@expressive/sql-import": "^0.1.0"

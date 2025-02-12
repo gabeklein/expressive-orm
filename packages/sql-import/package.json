@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "description": "Import tool for Expressive SQL",
   "private": true,
-  "module": "src",
   "dependencies": {
     "@expressive/estree": "^0.1.2",
     "astring": "^1.9.0",
