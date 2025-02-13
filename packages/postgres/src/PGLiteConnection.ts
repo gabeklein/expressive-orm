@@ -61,30 +61,33 @@ export class PGLiteConnection extends Connection {
     Object.defineProperty(this, 'ready', { value: true });
   }
 
+  private fetch<T>(query: string, params: unknown[]){
+    return this.engine.query(query, params).then(x => x.rows) as Promise<T[]>;
+  }
+
   async valid(type: Type.EntityType): Promise<boolean> {
     const { table } = type;
-    const fields = Array.from(type.fields.values());
     
-    const tableExists = await this.prepare<{exists: boolean}>(
-      'SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)'
-    ).get([table]);
+    const tableExists = await this.fetch(
+      'SELECT FROM information_schema.tables WHERE table_name = $1', [table]
+    );
 
-    if (!tableExists?.exists) return false;
+    if (!tableExists.length) return false;
 
-    const columns = await this.prepare<{
+    const rows = await this.fetch<{
       column_name: string;
       data_type: string;
       is_nullable: string;
       column_default: string;
     }>(
-      'SELECT column_name, data_type, is_nullable, column_default ' +
-      'FROM information_schema.columns WHERE table_name = $1'
-    ).all([table]);
+      'SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_name = $1',
+      [table]
+    );
 
-    for (const field of fields) {
+    for (const field of type.fields.values()) {
       if (!field.datatype) continue;
 
-      const columnInfo = columns.find(col => col.column_name === field.column);
+      const columnInfo = rows.find(col => col.column_name === field.column);
 
       if (!columnInfo)
         throw new Error(`Column ${field.column} does not exist in table ${table}`);
@@ -123,12 +126,12 @@ export class PGLiteConnection extends Connection {
         `Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`
       );
 
-    const foreignExists = await this.prepare<{exists: boolean}>(
-      'SELECT EXISTS (SELECT 1 FROM information_schema.columns ' +
-      'WHERE table_name = $1 AND column_name = $2)'
-    ).get([foreignTable, foreignKey]);
+    const foreignExists = await this.fetch(
+      'SELECT 1 FROM information_schema.columns WHERE table_name = $1 AND column_name = $2',
+      [foreignTable, foreignKey]
+    );
 
-    if (!foreignExists?.exists)
+    if (!foreignExists.length)
       throw new Error(
         `Referenced column ${foreignKey} does not exist in table ${foreignTable}`
       );
