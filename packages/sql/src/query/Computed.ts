@@ -30,7 +30,7 @@ function op(operator: string, rank: number, unary?: boolean) {
   };
 }
 
-export const math: MathOps = {
+export const MathOps: MathOps = {
   add: op('+', 4),
   sub: op('-', 4),
   mul: op('*', 5),
@@ -40,7 +40,7 @@ export const math: MathOps = {
   pos: op('+', 7, true),
 }
 
-export const bit: Bitwise = {
+export const BitWise: Bitwise = {
   not: op('~', 6, true),
   left: op('<<', 3),
   right: op('>>', 3),

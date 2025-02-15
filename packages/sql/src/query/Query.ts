@@ -2,8 +2,8 @@ import { Connection } from '../connection/Connection';
 import { Field } from '../type/Field';
 import { Type } from '../type/Type';
 import { assign, create, defineProperty } from '../utils';
-import { Builder as QB, Cond, Group, Builder } from './Builder';
-import { Computed } from './Computed';
+import { Builder as QB, Builder, Cond, Group } from './Builder';
+import { BitWise, Computed, MathOps } from './Computed';
 
 declare namespace Query {
   type Table = QB.Table;
@@ -24,7 +24,11 @@ declare namespace Query {
 
   type Insert<T extends Type> = 
     & { [K in Type.Required<T>]: Field.Assigns<T[K]> | Field; }
-    & { [K in Type.Fields<T>]?: Field.Assigns<T[K]> | Field } 
+    & { [K in Type.Fields<T>]?: Field.Assigns<T[K]> | Field };
+
+  interface Functions extends MathOps {
+    bit: Bitwise;
+  }
 
   /** Main callback for adding instructions to a Query. */
   type Where = {
@@ -78,7 +82,7 @@ declare namespace Query {
 
   type Updates<T> = Field.Updates<T> | T | Field;
 
-  type Function<R> = (this: Builder, where: Where) => R;
+  type Function<R> = (this: Builder, where: Where, fn: Query.Functions) => R;
 
   type Factory<R, A extends any[]> = Function<(...args: A) => R>;
   
@@ -176,7 +180,8 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   })
 
   const builder = new QB();
-  let result = factory.call(builder, where as Query.Where);
+
+  let result = factory.call(builder, where as Query.Where, Query.fn);
   let args: number | undefined;
 
   if(typeof result === 'function'){
@@ -230,5 +235,6 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
 }
 
 Query.Builder = QB;
+Query.fn = { ...MathOps, bit: BitWise } as Query.Functions;
 
 export { Query };

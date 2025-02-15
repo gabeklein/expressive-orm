@@ -1,4 +1,4 @@
-import { Num, Query, Type, math } from '..';
+import { Num, Query, Type } from '..';
 
 class Item extends Type  {
   number = Num();
@@ -6,8 +6,8 @@ class Item extends Type  {
 
 describe("arithmetic", () => {
   it("will select equation", () => {
-    const results = Query(where => {
-      const { add } = math;
+    const results = Query((where, fn) => {
+      const { add } = fn;
       const item = where(Item);
 
       return add(item.number, 2)
@@ -22,8 +22,8 @@ describe("arithmetic", () => {
   })
 
   it("will select multiple equations", () => {
-    const results = Query(where => {
-      const { add, sub, mul, div } = math;
+    const results = Query((where, fn) => {
+      const { add, sub, mul, div } = fn;
       const item = where(Item);
 
       return {
@@ -46,8 +46,8 @@ describe("arithmetic", () => {
   });
 
   it("will properly nest", async () => {
-    const results = Query((where) => {
-      const { add, mul, neg } = math;
+    const results = Query((where, fn) => {
+      const { add, mul, neg } = fn;
       const { number } = where(Item);
 
       return {
