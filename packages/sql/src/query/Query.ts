@@ -80,14 +80,9 @@ declare namespace Query {
 
   type Function<R> = (this: Builder, where: Where) => R;
 
-  type Factory<R, A extends any[]> = (this: Builder, where: Where) => (...args: A) => R;
+  type Factory<R, A extends any[]> = Function<(...args: A) => R>;
   
-  interface Template<A extends any[]> {
-    (...args: A): Query;
-
-    /** Prepared query for this template. */
-    toString(): string;
-  }
+  type Template<A extends any[]>  = (...args: A) => Query;
 
   type TemplateSelects<T, A extends any[]> = (...args: A) => Selects<T>;
 
@@ -228,10 +223,8 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     return query;
   };
 
-  if(typeof args == "number"){
-    runner.toString = statement.toString;
+  if(typeof args == "number")
     return runner;
-  }
 
   return runner();
 }
