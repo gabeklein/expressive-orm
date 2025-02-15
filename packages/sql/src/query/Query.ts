@@ -29,6 +29,13 @@ declare namespace Query {
   /** Main callback for adding instructions to a Query. */
   type Where = {
     /**
+     * Accepts other where() assertions for nesting in parenthesis.
+     * 
+     * Will alternate between AND-OR depending on depth, starting with OR.
+     */
+    (...orWhere: (Cond | Group)[]): Group;
+
+    /**
      * Declare inserts to be made into a given table.
      */
     <T extends Type>(entity: Type.EntityType<T>, ...inserts: Insert<T>[]): From<T>;
@@ -58,18 +65,16 @@ declare namespace Query {
 
     <T extends {}>(data: Iterable<T>): { [K in keyof T]: Field<T[K]> };
 
-    /**
-     * Accepts other where() assertions for nesting in parenthesis.
-     * 
-     * Will alternate between AND-OR depending on depth, starting with OR.
-     */
-    (...orWhere: (Cond | Group)[]): Group;
-
     /** Specify the limit of results returned. */
     (limit: number): void;
 
     connection: Connection.Ready;
   }
+
+  type Asserts<T extends Field> = ReturnType<T["where"]> & {
+    asc(): void;
+    desc(): void;
+  };
 
   type Updates<T> = Field.Updates<T> | T | Field;
 
@@ -91,11 +96,6 @@ declare namespace Query {
     T extends From<infer U> ? { [J in Type.Fields<U>]: Returns<U[J]> } :
     T extends {} ? { [K in keyof T]: Returns<T[K]> } :
     T;
-
-  type Asserts<T extends Field> = ReturnType<T["where"]> & {
-    asc(): void;
-    desc(): void;
-  };
 
   interface Verbs <T extends Type> {
     delete(): void;
