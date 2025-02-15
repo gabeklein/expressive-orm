@@ -31,30 +31,30 @@ declare namespace Query {
     /**
      * Declare inserts to be made into a given table.
      */
-    <T extends Type>(entity: Type.EntityType<T>, ...inserts: Insert<T>[]): Query.From<T>;
+    <T extends Type>(entity: Type.EntityType<T>, ...inserts: Insert<T>[]): From<T>;
 
     /**
      * Create a reference to the primary table, returned
      * object can be used to query against that table.
      */
-    <T extends Type>(entity: Type.EntityType<T>): Query.From<T>;
+    <T extends Type>(entity: Type.EntityType<T>): From<T>;
 
     /**
      * Registers a type as a left join, returned object has optional
      * properties which may be undefined where the join is not present.
      */
-    <T extends Type>(entity: Type.EntityType<T>, optional: true): Query.Join<T>;
+    <T extends Type>(entity: Type.EntityType<T>, optional: true): Join<T>;
 
     /**
      * Select a table for comparison or write operations.
      */
-    <T extends Type>(field: Query.From<T> | Query.Join<T>): Query.Verbs<T>;
+    <T extends Type>(field: From<T> | Join<T>): Verbs<T>;
 
     /**
      * Prepare comparison against a particilar field,
      * returns operations for the given type.
      */
-    <T extends Field>(field: T | undefined):  Query.Asserts<T>;
+    <T extends Field>(field: T | undefined): Asserts<T>;
 
     <T extends {}>(data: Iterable<T>): { [K in keyof T]: Field<T[K]> };
 
@@ -99,7 +99,7 @@ declare namespace Query {
 
   interface Verbs <T extends Type> {
     delete(): void;
-    update(values: Query.Update<T>): void;
+    update(values: Update<T>): void;
   }
   
   interface Selects<T> extends Query<Extract<T>[]> {
