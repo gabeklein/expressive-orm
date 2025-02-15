@@ -112,7 +112,7 @@ abstract class Type {
     });
   }
 
-  static one<T extends Type, R extends {}>(this: Type.EntityType<T>, query: Type.Query<T, R>): Promise<Query.Extract<R>>;
+  static one<T extends Type, R extends {}>(this: Type.EntityType<T>, query: Type.Query<T, R>): Promise<Query.Returns<R>>;
   static one<T extends Type>(this: Type.EntityType<T>, query?: Type.Query<T, void>): Promise<Type.Values<T>>;
   static one<T extends Type>(this: Type.EntityType<T>, id: number): Promise<Type.Values<T>>;
   static one(this: Type.EntityType, query?: Type.Query<Type, any> | number){

@@ -86,10 +86,10 @@ declare namespace Query {
 
   type TemplateSelects<T, A extends any[]> = (...args: A) => Selects<T>;
 
-  type Extract<T> =
+  type Returns<T> =
     T extends Field.Returns<infer R> ? R :
-    T extends From<infer U> ? { [J in Type.Fields<U>]: Extract<U[J]> } :
-    T extends {} ? { [K in keyof T]: Extract<T[K]> } :
+    T extends From<infer U> ? { [J in Type.Fields<U>]: Returns<U[J]> } :
+    T extends {} ? { [K in keyof T]: Returns<T[K]> } :
     T;
 
   type Asserts<T extends Field> = ReturnType<T["where"]> & {
@@ -102,18 +102,18 @@ declare namespace Query {
     update(values: Update<T>): void;
   }
   
-  interface Selects<T> extends Query<Extract<T>[]> {
+  interface Selects<T> extends Query<Returns<T>[]> {
     /**
      * Returns rows which match creteria.
      */
-    get(): Promise<Extract<T>[]>;
+    get(): Promise<Returns<T>[]>;
   
     /**
      * Returns the first row that matches creteria.
      * 
      * @param orFail If true, will throw an error if no match is found.
      */
-    one(orFail?: boolean): Promise<Extract<T>>;
+    one(orFail?: boolean): Promise<Returns<T>>;
   }
 }
 
