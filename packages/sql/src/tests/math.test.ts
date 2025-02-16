@@ -67,3 +67,38 @@ describe("arithmetic", () => {
     `);
   });
 })
+
+describe("templates", () => {
+  it("will select", async () => {
+    const results = Query((where, fn) => {
+      const { number } = where(Item);
+
+      return {
+        a: fn(`${number} * (${number} + 5)`),
+        b: fn(`${number} * 5 + ${number}`),
+        c: fn(`-(${number} + 100)`)
+      }
+    });
+
+    expect(results).toMatchInlineSnapshot(`
+      SELECT
+        item.number * (item.number + 5) AS "a",
+        item.number * 5 + item.number AS "b",
+        - (item.number + 100) AS "c"
+      FROM
+        item
+    `);
+  });
+
+  // it("will filter", async () => {
+  //   const results = Query((where) => {
+  //     const { number } = where(Item);
+
+  //     where(`${number} * (${number} + 5)`).over(5);
+  //     where(`${number} * 5 + ${number}`).under(5);
+  //     where(`-(${number} + 100)`).under(-100);
+  //   });
+
+  //   expect(results).toMatchInlineSnapshot();
+  // });
+})

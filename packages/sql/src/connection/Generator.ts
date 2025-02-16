@@ -1,4 +1,4 @@
-import { Builder, DataField, DataTable, Group, Parameter, Value } from '../query/Builder';
+import { Builder, DataField, DataTable, Group, Parameter, QueryTemplate, Value } from '../query/Builder';
 import { Computed } from '../query/Computed';
 import { Query } from '../query/Query';
 import { Field } from '../type/Field';
@@ -46,8 +46,7 @@ export class Generator {
     return [
       'INSERT INTO',
       this.escape(table.name),
-      `(${keys})`,
-      `SELECT ${values}`,
+      `(${keys}) SELECT ${values}`,
       tables.size > 1 && this.from()
     ];
   }
@@ -189,9 +188,12 @@ export class Generator {
     return ['DELETE', target, 'FROM', this.escape(name), this.joins(main)]
   }
 
-  protected reference(from: Field | Value){
+  protected reference(from: unknown): string {
     if(from instanceof DataField)
       return this.escape(from.table.name + '.' + from.column);
+
+    if(from instanceof QueryTemplate)
+      return from.parts.map((x) => String(this.reference(x))).join('');
 
     if(from instanceof Computed)
       return this.computed(from);
@@ -207,7 +209,7 @@ export class Generator {
         return this.escape(table.alias || table.name) + "." + column;
     }
 
-    return from;
+    return String(from);
   }
 
   protected select(){

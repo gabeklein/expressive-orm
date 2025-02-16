@@ -35,6 +35,7 @@ class Builder {
   deletes = new Set<Query.Table>();
   updates = new Map<Query.Table, Builder.Insert>();
   inserts = new Map<Query.Table, Builder.Insert>();
+  register = new Map<string, Field>();
   
   returns?: Map<string, Field | Value> | Field | Value;
   limit?: number;
@@ -179,6 +180,7 @@ class Builder {
       field.toString = () => `${table.alias || table.name}.${field.column}`;
 
       table.fields.set(key, field);
+      this.register.set(uid(), field);
 
       let value: any;
 
@@ -463,4 +465,27 @@ class Group {
   }
 }
 
-export { Builder, Parameter, Group, Value, DataTable };
+class QueryTemplate extends Value {
+  parts: unknown[];
+
+  constructor(public from: string, parent: Builder){
+    super();
+    this.parts = from
+      .split(/(\0[a-zA-Z0-9]+)/)
+      .filter(Boolean)
+      .map(part => parent.register.get(part) || part);
+  }
+}
+
+function uid(){
+  return "\0" + Math.random().toString(32).slice(2, 7);
+}
+
+export {
+  Builder,
+  DataTable,
+  Group,
+  Parameter,
+  QueryTemplate,
+  Value,
+};

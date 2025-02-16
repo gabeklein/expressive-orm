@@ -2,8 +2,8 @@ import { Connection } from '../connection/Connection';
 import { Field } from '../type/Field';
 import { Type } from '../type/Type';
 import { assign, create, defineProperty } from '../utils';
-import { Builder as QB, Builder, Cond, Group } from './Builder';
-import { BitWise, Computed, MathOps } from './Computed';
+import { Builder as QB, Cond, Group, Builder, QueryTemplate } from './Builder';
+import { Bitwise, BitWise, Computed, MathOps } from './Computed';
 
 declare namespace Query {
   type Table = QB.Table;
@@ -27,11 +27,18 @@ declare namespace Query {
     & { [K in Type.Fields<T>]?: Field.Assigns<T[K]> | Field };
 
   interface Functions extends MathOps {
+    (template: string): QueryTemplate;
     bit: Bitwise;
   }
 
   /** Main callback for adding instructions to a Query. */
   type Where = {
+    /** Specify the limit of results returned. */
+    (limit: number): void;
+
+    /** Evaluate an expression */
+    (template: string): Compare<Field<unknown>>;
+
     /**
      * Accepts other where() assertions for nesting in parenthesis.
      * 
@@ -69,13 +76,12 @@ declare namespace Query {
 
     <T extends {}>(data: Iterable<T>): { [K in keyof T]: Field<T[K]> };
 
-    /** Specify the limit of results returned. */
-    (limit: number): void;
-
     connection: Connection.Ready;
   }
 
-  type Asserts<T extends Field> = ReturnType<T["where"]> & {
+  type Compare<T extends Field> = ReturnType<T["where"]>;
+
+  type Asserts<T extends Field> = Compare<T> & {
     asc(): void;
     desc(): void;
   };
@@ -167,6 +173,9 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
       builder.limit = arg1;
       return;
     }
+
+    if(typeof arg1 == "string")
+      return new QueryTemplate(arg1, builder) ;
   
     if(Symbol.iterator in arg1) 
       return builder.with(arg1);
@@ -181,7 +190,11 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
 
   const builder = new QB();
 
-  let result = factory.call(builder, where as Query.Where, Query.fn);
+  const fn = factory.length > 1
+    ? assign((template: string) => new QueryTemplate(template, builder), Query.fn) as Query.Functions
+    : undefined;
+
+  let result = factory.call(builder, where as Query.Where, fn!);
   let args: number | undefined;
 
   if(typeof result === 'function'){
