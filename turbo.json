@@ -6,7 +6,7 @@
       "outputs": ["dist/**"]
     },
     "test": {
-      "dependsOn": ["build"],
+      "dependsOn": [],
       "outputs": ["coverage/**"]
     },
     "version": {
@@ -14,7 +14,7 @@
       "outputs": ["CHANGELOG.md", "package.json"]
     },
     "publish": {
-      "dependsOn": ["build", "test", "version"],
+      "dependsOn": ["test", "build", "version"],
       "outputs": []
     }
   }
