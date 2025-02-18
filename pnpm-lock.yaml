@@ -46,8 +46,8 @@ importers:
   packages/postgres:
     dependencies:
       '@expressive/sql':
-        specifier: ^0.1.0
-        version: link:../sql
+        specifier: ^0.1.1
+        version: 0.1.1
       sql-formatter:
         specifier: ^10.7.2
         version: 10.7.2
@@ -57,7 +57,7 @@ importers:
         version: 0.2.16
       tsup:
         specifier: ^8.3.6
-        version: 8.3.6(typescript@4.9.5)
+        version: 8.3.6
 
   packages/sql:
     dependencies:
@@ -730,6 +730,12 @@ packages:
 
   /@expressive/estree@0.1.2:
     resolution: {integrity: sha512-QENiK4pidhH52Zyo5jm4BI3dDuJIBxXNf1J+LfHHeaBMh5tmQkfqZr5sx2ftNi+OQ70nGxA2FZQufoVFp758wQ==}
+    dev: false
+
+  /@expressive/sql@0.1.1:
+    resolution: {integrity: sha512-/pw4uicGyj0uTgROzupunSE1TsuPeJXMhMaDAtGtVlCvHDcm51FipgtQdcCmXkm1EBSf551RCE3IgG6eAIjOuQ==}
+    dependencies:
+      sql-formatter: 10.7.2
     dev: false
 
   /@isaacs/cliui@8.0.2:
@@ -2532,6 +2538,48 @@ packages:
 
   /tslib@2.7.0:
     resolution: {integrity: sha512-gLXCKdN1/j47AiHiOkJN69hJmcbGTHI0ImLmbYLHykhgeN0jVGola9yVjFgzCUklsZQMW55o+dW7IXv3RCXDzA==}
+    dev: true
+
+  /tsup@8.3.6:
+    resolution: {integrity: sha512-XkVtlDV/58S9Ye0JxUUTcrQk4S+EqlOHKzg6Roa62rdjL1nGWNUstG0xgI4vanHdfIpjP448J8vlN0oK6XOJ5g==}
+    engines: {node: '>=18'}
+    hasBin: true
+    peerDependencies:
+      '@microsoft/api-extractor': ^7.36.0
+      '@swc/core': ^1
+      postcss: ^8.4.12
+      typescript: '>=4.5.0'
+    peerDependenciesMeta:
+      '@microsoft/api-extractor':
+        optional: true
+      '@swc/core':
+        optional: true
+      postcss:
+        optional: true
+      typescript:
+        optional: true
+    dependencies:
+      bundle-require: 5.1.0(esbuild@0.24.2)
+      cac: 6.7.14
+      chokidar: 4.0.3
+      consola: 3.4.0
+      debug: 4.3.7
+      esbuild: 0.24.2
+      joycon: 3.1.1
+      picocolors: 1.1.1
+      postcss-load-config: 6.0.1
+      resolve-from: 5.0.0
+      rollup: 4.31.0
+      source-map: 0.8.0-beta.0
+      sucrase: 3.35.0
+      tinyexec: 0.3.2
+      tinyglobby: 0.2.10
+      tree-kill: 1.2.2
+    transitivePeerDependencies:
+      - jiti
+      - supports-color
+      - tsx
+      - yaml
     dev: true
 
   /tsup@8.3.6(typescript@4.9.5):
