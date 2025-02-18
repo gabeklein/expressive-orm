@@ -221,11 +221,13 @@ describe("template", () => {
   });
 
   it("will create a template", async () => {
-    const query = Query(where => (color: string) => {
+    const template = Query(where => (color: string) => {
       const foo = where(Foo);
       where(foo.color).is(color);
       return foo.first;
     });
+
+    const query = template("red");
   
     expect(query).toMatchInlineSnapshot(`
       SELECT
@@ -236,12 +238,12 @@ describe("template", () => {
         foo.color = ?
     `);
   
-    expect(await query("red")).toEqual(["John"]);
-    expect(await query("blue")).toEqual(["Jane"]);
+    expect(await query).toEqual(["John"]);
+    expect(await template("blue")).toEqual(["Jane"]);
   })
   
   it("will preserve params order", async () => {
-    const query = Query(where => (
+    const template = Query(where => (
       color: string, firstname: string
     ) => {
       const foo = where(Foo);
@@ -253,6 +255,8 @@ describe("template", () => {
       
       return foo.last;
     });
+
+    const query = template("red", "John");
   
     expect(query).toMatchInlineSnapshot(`
       SELECT
@@ -264,38 +268,42 @@ describe("template", () => {
         AND foo.color = ?
     `);
   
-    expect(await query("red", "John")).toEqual(["Doe"]);
-    expect(await query("blue", "Jane")).toEqual(["Smith"]);
+    expect(await template("red", "John")).toEqual(["Doe"]);
+    expect(await template("blue", "Jane")).toEqual(["Smith"]);
   })
   
   it("will select a parameter value", async () => {
     const conn = await new TestConnection([]);
-    const query = Query(where => {
+    const template = Query(where => {
       where.connection = conn;
       return (color: string) => color;
     });
+
+    const query = template("red");
 
     expect(query).toMatchInlineSnapshot(`
       SELECT
         ?
     `);
 
-    expect(await query("red")).toEqual(["red"]);
+    expect(await template("red")).toEqual(["red"]);
   });
   
   it("will select a parameter in property", async () => {
     const conn = await new TestConnection([]);
-    const query = Query(where => {
+    const template = Query(where => {
       where.connection = conn;
       return (color: string) => ({ color })
     });
+
+    const query = template("red");
   
     expect(query).toMatchInlineSnapshot(`
       SELECT
         ? AS "color"
     `);
 
-    expect(await query("red")).toEqual([{ color: "red" }]);
+    expect(await query).toEqual([{ color: "red" }]);
   });
 })
 
