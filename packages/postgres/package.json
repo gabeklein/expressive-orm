@@ -18,7 +18,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm,cjs",
-    "test": "vitest"
+    "test": "vitest run"
   },
   "dependencies": {
     "@expressive/sql": "^0.1.1",

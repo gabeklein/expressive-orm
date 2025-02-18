@@ -18,7 +18,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm,cjs",
-    "test": "vitest"
+    "test": "vitest run"
   },
   "dependencies": {
     "sql-formatter": "^10.7.2"

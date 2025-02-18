@@ -14,7 +14,7 @@
       "outputs": ["CHANGELOG.md", "package.json"]
     },
     "publish": {
-      "dependsOn": ["test", "build", "version"],
+      "dependsOn": ["^test", "^version"],
       "outputs": []
     }
   }
