@@ -241,8 +241,10 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     return query;
   };
 
-  if(typeof args == "number")
+  if(typeof args == "number"){
+    runner.toString = statement.toString;
     return runner;
+  }
 
   return runner();
 }
