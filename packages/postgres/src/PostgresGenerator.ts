@@ -53,8 +53,7 @@ export class PostgresGenerator extends Generator {
       main.toParam = () => main.output;
       
       return [
-        `FROM json_to_recordset(${param})`,
-        `AS "input" (${types})`
+        `FROM json_to_recordset(${param}) AS "input" (${types})`
       ];
     }
 

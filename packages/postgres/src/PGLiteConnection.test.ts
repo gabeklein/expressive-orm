@@ -1,6 +1,26 @@
-import { Bool, Num, One, Query, Str, Time, Type } from '@expressive/sql';
+import { PGlite } from '@electric-sql/pglite';
+import { Bool, Connection, Num, One, Query, Str, Time, Type } from '@expressive/sql';
 
-import { TestConnection } from './TestConnection';
+import { PGLiteConnection } from './PGLiteConnection';
+
+const shared = new PGlite();
+let current: TestConnection | undefined;
+
+afterEach(async () => {
+  // clear the database
+  await shared.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
+
+  if(current)
+    for(const type of current.using)
+      delete type.connection;
+});
+
+class TestConnection extends PGLiteConnection {
+  constructor(using: Connection.Types){
+    super(using, shared);
+    current = this;
+  }
+}
 
 describe("schema", () => {
   it("will create a table", async () => {
