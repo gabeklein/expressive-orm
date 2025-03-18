@@ -1,16 +1,88 @@
 import { Connection, Field, Type } from '@expressive/sql';
 import { format } from 'sql-formatter';
-
 import { PostgresGenerator } from './PostgresGenerator';
 
-export abstract class PostgresConnection extends Connection {
+import type { Pool, PoolConfig } from 'pg';
+import type { PGlite, PGliteOptions } from '@electric-sql/pglite';
+
+/**
+ * Unified PostgresConnection that supports both node-postgres (pg) and PGlite
+ */
+export class PostgresConnection extends Connection {
   static generator = PostgresGenerator;
 
   protected engine: unknown;
+  protected engineType: 'pg' | 'pglite';
 
-  constructor(using: Connection.Types, engine: unknown) {
+  /**
+   * Create a PostgresConnection with auto-detection of available drivers
+   */
+  constructor(using: Connection.Types);
+  
+  /**
+   * Create a PostgresConnection with PG Pool
+   */
+  constructor(using: Connection.Types, pool: Pool);
+  
+  /**
+   * Create a PostgresConnection with PG connection string
+   */
+  constructor(using: Connection.Types, connectionString: string);
+  
+  /**
+   * Create a PostgresConnection with PG pool config
+   */
+  constructor(using: Connection.Types, config: PoolConfig);
+  
+  /**
+   * Create a PostgresConnection from existing PGlite instance
+   */
+  constructor(using: Connection.Types, engine: PGlite);
+  
+  /**
+   * Create a PostgresConnection with PGlite data directory and options
+   */
+  constructor(using: Connection.Types, dataDir: string, config: PGliteOptions);
+  
+  constructor(
+    using: Connection.Types, 
+    arg2?: string | PoolConfig | Pool | PGlite, 
+    arg3?: PGliteOptions
+  ) {
     super(using);
-    this.engine = engine;
+
+    if(
+      typeof arg2 === 'object' &&
+      "query" in arg2 &&
+      "exec" in arg2 &&
+      "close" in arg2
+    ){
+      this.engine = arg2;
+      this.engineType = 'pglite';
+      return;
+    }
+
+    const pg = pgPool(arg2);
+
+    if(pg){
+      this.engine = pg;
+      this.engineType = 'pg';
+      return;
+    }
+
+    if(typeof arg2 !== "object"){
+      const pglite = pgLite(arg2, arg3);
+
+      if(pglite){
+        this.engine = pglite;
+        this.engineType = 'pglite';
+        return;
+      }
+    }
+
+    throw new Error(
+      'No PostgreSQL adapter found. You can install either "pg" or "@electric-sql/pglite" to resolve this issue.'
+    );
   }
 
   get schema() {
@@ -38,9 +110,31 @@ export abstract class PostgresConnection extends Connection {
     };
   }
 
-  abstract query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }>;
-  abstract execScript(sql: string): Promise<void>;
-  abstract closeConnection(): Promise<void>;
+  async query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }> {
+    if (this.engineType === 'pg') {
+      const result = await (this.engine as Pool).query(sql, params);
+      return {
+        rows: result.rows,
+        affectedRows: result.rowCount || undefined
+      };
+    } else {
+      return (this.engine as PGlite).query(sql, params);
+    }
+  }
+
+  async execScript(sql: string): Promise<void> {
+    await (
+      this.engineType === 'pg' ?
+        (this.engine as Pool).query(sql) :
+        (this.engine as PGlite).exec(sql)
+    );
+  }
+
+  async closeConnection(): Promise<void> {
+    return this.engineType === 'pg' ?
+      (this.engine as Pool).end() :
+      (this.engine as PGlite).close();
+  }
 
   async close() {
     super.close();
@@ -199,5 +293,31 @@ export abstract class PostgresConnection extends Connection {
 
     const baseType = datatype.split('(')[0].toLowerCase();
     return typeMap[baseType] || datatype;
+  }
+}
+
+function pgLite(dataDir?: string, options?: PGliteOptions){
+  try {
+    const pglite = require('@electric-sql/pglite') as { PGlite: typeof PGlite };
+    return new pglite.PGlite(dataDir, options);
+  } catch (e) {
+    return null;
+  }
+}
+
+function pgPool(arg?: PoolConfig | Pool | string){
+  try {
+    const pg = require('pg') as { Pool: typeof Pool };
+
+    if(arg instanceof pg.Pool)
+      return arg;
+
+    if(typeof arg === 'string')
+      arg = { connectionString: arg };
+
+    return new pg.Pool(arg);
+    return;
+  } catch (e) {
+    return null;
   }
 }
