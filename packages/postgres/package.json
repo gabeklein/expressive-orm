@@ -1,6 +1,6 @@
 {
   "name": "@expressive/postgres",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Postgres adapter for Expressive SQL.",
   "license": "ISC",
   "publishConfig": {
