@@ -16,8 +16,7 @@ export class PGConnection extends PostgresConnection {
       pg = require('pg');
     } catch (e) {
       throw new Error(
-        'The "pg" module is required but not installed. ' +
-        'Please install it by running: npm install pg'
+        'The "pg" module is required but not installed. Please install it by running: npm install pg'
       );
     }
 
