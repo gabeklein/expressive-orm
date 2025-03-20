@@ -6,7 +6,8 @@
 	"scripts": {
     "build": "turbo run build",
 		"version": "changeset version",
-    "push": "changeset publish"
+    "push": "changeset publish",
+		"change": "changeset"
   },
 	"devDependencies": {
 		"@changesets/cli": "^2.27.12",
