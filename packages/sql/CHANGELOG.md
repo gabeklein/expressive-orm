@@ -1,5 +1,11 @@
 # @expressive/sql
 
+## 0.2.1
+
+### Patch Changes
+
+- f5c7c31: Allow any number as Str length
+
 ## 0.2.0
 
 ### Minor Changes
