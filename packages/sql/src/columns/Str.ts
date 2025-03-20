@@ -4,7 +4,7 @@ const VARIABLE_TYPE = new Set(["char", "varchar", "text"]);
 
 class StringColumn extends Field<string> {
   readonly type: "char" | "varchar" | "text" | "tinytext" | "mediumtext" | "longtext" = "varchar";
-  readonly length = 255;
+  readonly length: number = 255;
 
   constructor(opts?: Str.Opts) {
     super(({ parent, property }) => {
