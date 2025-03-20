@@ -1,5 +1,11 @@
 # @expressive/postgres
 
+## 0.2.2
+
+### Patch Changes
+
+- 3db0a08: bump @expressive/sql
+
 ## 0.2.1
 
 ### Patch Changes
