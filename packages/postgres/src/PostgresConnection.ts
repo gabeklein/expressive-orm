@@ -51,15 +51,27 @@ export abstract class PostgresConnection extends Connection {
     if (this.ready)
       throw new Error("Connection is already active.");
 
-    for (const type of this.using) {
+    const required = new Set(this.using);
+
+    for (const type of required) {
       const valid = await this.valid(type);
 
-      if (!valid && fix !== true)
+      if(valid)
+        required.delete(type);
+
+      else if (fix !== true)
         throw new Error(`Table ${type.table} does not exist.`);
     }
 
-    await this.createSchema(this.using);
+    if(required.size)
+      if(fix === true)
+        await this.createSchema(required);
+      else
+        throw new Error(`Tables ${Array.from(required).map(t => t.table).join(', ')} are expected Types do not exist.`);
+
     Object.defineProperty(this, 'ready', { value: true });
+
+    return this;
   }
 
   protected fetch<T>(query: string, params: unknown[]) {

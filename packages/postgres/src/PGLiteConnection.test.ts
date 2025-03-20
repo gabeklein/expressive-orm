@@ -22,6 +22,65 @@ class TestConnection extends PGLiteConnection {
   }
 }
 
+describe("persistence", () => {
+  it('will not try to recreate database tables', async () => {
+    class Users extends Type {
+      name = Str();
+    }
+    
+    const pg = new PGlite();
+
+    await new PGLiteConnection([ Users ], pg);
+    await Users.insert({ name: "Gabe" });
+
+    // reinitialize with same db, simulating persistence
+    delete Users.connection;
+    await new PGLiteConnection([ Users ], pg);
+
+    const user = await Users.one();
+
+    expect(user).toEqual({ id: 1, name: "Gabe" });
+  });
+
+  it('will throw if missing table', async () => {
+    class User extends Type {
+      name = Str();
+    }
+    
+    class FooBar extends Type {
+      name = Str();
+    }
+    
+    const pg = new PGlite();
+
+    await new PGLiteConnection([ User ], pg).sync(true);
+
+    await expect(() => {
+      delete User.connection;
+      return new PGLiteConnection([ User, FooBar ], pg).sync(false);
+    }).rejects.toThrow("Table foo_bar does not exist.");
+  });
+
+  it('will throw if table missing column', async () => {
+    const User1 = class User extends Type {
+      name = Str();
+    }
+    
+    const User2 = class User extends Type {
+      name = Str();
+      rank = Num();
+    }
+    
+    const pg = new PGlite();
+
+    await new PGLiteConnection([ User1 ], pg);
+
+    await expect(() => {
+      return new PGLiteConnection([ User2 ], pg);
+    }).rejects.toThrow("Column rank does not exist in table user");
+  });
+});
+
 describe("schema", () => {
   it("will create a table", async () => {
     class Users extends Type {

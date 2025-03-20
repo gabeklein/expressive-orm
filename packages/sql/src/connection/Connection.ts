@@ -41,7 +41,7 @@ abstract class Connection {
     onfulfilled?: (value: Connection.Ready<this>) => any,
     onrejected?: (reason: any) => any) {
 
-    return (this.ready ? Promise.resolve() : this.sync(true))
+    return (this.ready ? Promise.resolve() : this.sync())
       .then(() => {
         Object.defineProperty(this, 'then', { value: undefined });
 
@@ -58,7 +58,7 @@ abstract class Connection {
       delete type.connection;
   }
   
-  abstract sync(fix?: boolean): Promise<void>;
+  abstract sync(fix?: boolean): Promise<this>;
   abstract valid(type: Type.EntityType): Promise<boolean>;
 
   abstract prepare<T = any>(query: string): {
@@ -93,7 +93,7 @@ class NoConnection extends Connection {
   }
 
   async sync(){
-    return;
+    return this;
   }
 
   async valid(){

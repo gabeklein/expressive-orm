@@ -5,12 +5,32 @@ import { PostgresConnection } from './PostgresConnection';
 
 export class PGLiteConnection extends PostgresConnection {
   protected engine!: PGlite;
+  readonly dataDir: string;
 
   constructor(using: Connection.Types, engine: PGlite)
   constructor(using: Connection.Types, dataDir?: string, config?: PGliteOptions)
   constructor(using: Connection.Types, arg2?: string | PGlite, config?: PGliteOptions) {
-    const pglite = arg2 instanceof PGlite ? arg2 : new PGlite(arg2, config);
-    super(using, pglite);
+    let engine: PGlite;
+    let dataDir: string;
+
+    if(arg2 instanceof PGlite) {
+      engine = arg2;
+      dataDir = arg2.dataDir || ":memory:";
+    }
+    else {
+      engine = new PGlite(arg2 as string, config);
+      dataDir = arg2 as string;
+    }
+    
+    super(using, engine);
+    this.dataDir = dataDir;
+  }
+
+  async sync(fix?: boolean): Promise<this> {
+    if(this.dataDir === ":memory:")
+      fix = fix !== false;
+
+    return super.sync(fix);
   }
 
   async query(sql: string, params?: any[]) {
