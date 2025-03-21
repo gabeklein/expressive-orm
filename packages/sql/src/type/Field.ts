@@ -74,7 +74,7 @@ class Field<T = unknown> {
 
   constructor(private options?: Field.Opts){}
 
-  init(property: string, parent: Type.EntityType): this {
+  create(property: string, parent: Type.EntityType): this {
     let options = this.options;
     const field = create(this);
 
@@ -88,7 +88,7 @@ class Field<T = unknown> {
     for(const key in options){
       const value = (options as any)[key];
 
-      if(value !== undefined)
+      if(value !== undefined && value !== (this as any)[key])
         (field as any)[key] = value;
     }
 
@@ -168,7 +168,7 @@ function fields(from: Type.EntityType){
           `Did you forget to import \`${capitalize(typeof value)}\`?`
         );
   
-      const instance = value.init(key, from);
+      const instance = value.create(key, from);
 
       from.fields.set(key, instance);
       freeze(instance);
