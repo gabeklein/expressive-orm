@@ -61,6 +61,8 @@ export class SQLiteConnection extends Connection {
 
     this.createSchema(this.using);
     Object.defineProperty(this, 'ready', { value: true });
+
+    return this;
   }
 
   async valid(type: Type.EntityType){
