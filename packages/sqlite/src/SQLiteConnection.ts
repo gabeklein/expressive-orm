@@ -139,14 +139,14 @@ export class SQLiteConnection extends Connection {
       );
   }
 
+  protected createSchema(types: Iterable<typeof Type>): void {
+    this.engine.exec(this.generateSchema(types));
+  }
+
   protected generateSchema(types: Iterable<typeof Type>): string {
     return Array.from(types)
       .map(type => this.generateTableSchema(type))
       .join('\n');
-  }
-
-  protected createSchema(types: Iterable<typeof Type>): void {
-    this.engine.exec(this.generateSchema(types));
   }
 
   protected generateTableSchema(type: Type.EntityType): string {
@@ -185,7 +185,7 @@ export class SQLiteConnection extends Connection {
     };
 
     const baseType = datatype.split('(')[0].toLowerCase();
-    return typeMap[baseType] || datatype;
+    return typeMap[baseType] || datatype.toUpperCase();
   }
 }
 

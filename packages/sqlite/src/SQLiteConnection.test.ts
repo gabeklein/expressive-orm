@@ -29,7 +29,7 @@ describe("schema", () => {
       CREATE TABLE
         foo_bar (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
-          foo_bar tinyint NOT NULL
+          foo_bar TINYINT NOT NULL
         );
     `);
   });
@@ -77,7 +77,7 @@ describe("types", () => {
       CREATE TABLE
         test (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
-          value1 tinyint NOT NULL,
+          value1 TINYINT NOT NULL,
           value2 TEXT NOT NULL
         );
     `);
