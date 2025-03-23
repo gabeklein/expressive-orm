@@ -266,7 +266,7 @@ class Builder {
     }
 
     if(right instanceof Parameter){
-      right.digest = left.set.bind(this);
+      right.digest = left.set.bind(left);
     }
 
     return this.filters.add(left, op, right);
