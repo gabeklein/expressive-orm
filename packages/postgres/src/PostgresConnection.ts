@@ -130,7 +130,7 @@ export class PostgresConnection extends Connection {
       column_default: string;
     }
   ) {
-    const { column, datatype, nullable, parent, foreignTable, foreignKey } = field;
+    const { column, datatype, nullable, parent, reference } = field;
 
     if (this.mapDataType(datatype).toLowerCase() !== info.data_type.toLowerCase())
       throw new Error(
@@ -142,7 +142,14 @@ export class PostgresConnection extends Connection {
         `Column ${column} in table ${parent.table} has incorrect nullable value`
       );
 
-    if (!foreignTable || !foreignKey) return;
+    if (!reference) return;
+
+    const {
+      column: foreignKey,
+      parent: {
+        table: foreignTable
+      }
+    } = reference;
 
     if (field.parent.connection !== this)
       throw new Error(
@@ -181,15 +188,14 @@ export class PostgresConnection extends Connection {
     const constraints: string[] = [];
     const columns = Array.from(fields.values()).map(field => {
       const {
-        column, datatype, fallback, foreignKey,
-        foreignTable, increment, nullable, unique,
+        column,
+        datatype,
+        fallback,
+        reference,
+        increment,
+        nullable,
+        unique,
       } = field;
-   
-      if (foreignKey && foreignTable)
-        constraints.push(
-          `ALTER TABLE "${table}" ADD CONSTRAINT "${table}_${column}_fk" ` +
-          `FOREIGN KEY ("${column}") REFERENCES "${foreignTable}"("${foreignKey}");`
-        );
 
       let parts = `"${column}" ${this.mapDataType(datatype!)}`;
    
@@ -197,6 +203,12 @@ export class PostgresConnection extends Connection {
       if (increment) parts += ' GENERATED ALWAYS AS IDENTITY'; 
       if (unique) parts += ' UNIQUE';
       if (fallback !== undefined) parts += ' DEFAULT ' + field.set(fallback);
+   
+      if (reference)
+        constraints.push(
+          `ALTER TABLE "${table}" ADD CONSTRAINT "${table}_${column}_fk" ` +
+          `FOREIGN KEY ("${column}") REFERENCES "${reference.parent.table}"("${reference.column}");`
+        );
    
       return parts;
     });

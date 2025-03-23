@@ -4,8 +4,6 @@ import { underscore } from '../utils';
 
 class ForeignColumn<T extends Type> extends Field<Type.Values<T>> {
   readonly entity: Type.EntityType<T>;
-  readonly foreignKey: string = "id";
-  readonly foreignTable: string;
   readonly nullable: boolean = false;
 
   constructor(type: Type.EntityType<T>, nullable?: boolean) {
@@ -15,15 +13,13 @@ class ForeignColumn<T extends Type> extends Field<Type.Values<T>> {
 
     this.entity = type;
     this.type = "int";
-    this.foreignKey = "id";
-    this.foreignTable = type.table;
-    this.foreignTable = type.table;
+    this.reference = type.fields.get("id");
     this.nullable = nullable || false;
   }
 
   set(value: Type.Values<T> | number) {
     if (this.query?.tables.has(value))
-      return (value as any)[this.foreignKey];
+      return (value as any)[this.reference!.column];
     
     return value;
   }

@@ -75,8 +75,8 @@ class Field<T = unknown> {
   table?: Query.Table;
   query?: Builder;
 
-  foreignKey?: string;
-  foreignTable?: string;
+  /** If column has a reference constraint, applicable field is listed here. */
+  reference?: Field;
 
   /** Real datatype of this field in database. */
   datatype!: string;

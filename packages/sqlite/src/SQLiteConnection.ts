@@ -100,7 +100,7 @@ export class SQLiteConnection extends Connection {
   }
 
   protected checkIntegrity(field: Field, info: TableInfo){
-    const { column, datatype, nullable, parent, foreignTable, foreignKey } = field;
+    const { column, datatype, nullable, parent, reference } = field;
 
     // Check datatype
     if (info.type !== this.mapDataType(datatype).toLowerCase())
@@ -114,9 +114,15 @@ export class SQLiteConnection extends Connection {
         `Column ${column} in table ${parent.table} has incorrect nullable value`
       );
 
-    // Check foreign key if present
-    if (!foreignTable || !foreignKey)
+    if (!reference)
       return;
+
+    const {
+      column: foreignKey,
+      parent: {
+        table: foreignTable
+      }
+    } = reference;
 
     if (field.parent.connection !== this)
       throw new Error(
@@ -165,8 +171,11 @@ export class SQLiteConnection extends Connection {
       if (field.fallback !== undefined)
         parts += ' DEFAULT ' + field.set(field.fallback);
 
-      if (field.foreignKey && field.foreignTable)
-        parts += ` REFERENCES ${field.foreignTable}(${field.foreignKey})`;
+      if (field.reference){
+        const { parent, column } = field.reference;
+
+        parts += ` REFERENCES ${parent.table}(${column})`;
+      }
 
       return parts;
     });
