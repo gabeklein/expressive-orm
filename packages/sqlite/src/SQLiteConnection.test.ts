@@ -308,53 +308,101 @@ describe("template", () => {
   });
 })
 
-it("will insert procedurally generated rows", async () => {
-  class Users extends Type {
+describe("insert", () => {
+  class Foo extends Type {
     name = Str();
-    email = Str();
-    age = Num();
+    color = Str();
   }
   
-  await new TestConnection([Users]);
+  it("will throw for bad value", async () => {
+    const insert = () => (
+      Foo.insert({
+        name: "foobar",
+        // @ts-expect-error
+        color: 3
+      }) 
+    )
+  
+    expect(insert).toThrowErrorMatchingInlineSnapshot(`
+      Provided value for Foo.color but not acceptable for type text.
+      Value must be a string.
+    `);
+  })
+  
+  it("will throw for no value non-nullable", async () => {
+    const insert = () => {
+      // @ts-expect-error
+      Foo.insert({ name: "foobar" }) 
+    }
+  
+    expect(insert).toThrowErrorMatchingInlineSnapshot(
+      `Can't assign to \`Foo.color\`. A value is required but got undefined.`
+    );
+  })
+  
+  it("will add index to specify error", async () => {
+    const insert = () => {
+      Foo.insert([
+        { name: "foo", color: "red" },
+        // @ts-expect-error
+        { name: "bar" }
+      ]) 
+    }
+  
+    expect(insert).toThrowErrorMatchingInlineSnapshot(`
+      A provided value at \`color\` at index [1] is not acceptable.
+      Can't assign to \`Foo.color\`. A value is required but got undefined.
+    `);
+  })
 
-  const names = ["john", "jane", "bob", "alice"];
-  const insert = Users.insert(names, (name, i) => ({
-    name,
-    age: i + 25,
-    email: `${name.toLowerCase()}@email.org`
-  }));
-
-  expect(insert).toMatchInlineSnapshot(`
-    WITH
-      input AS (
-        SELECT
-          value ->> 0 name,
-          value ->> 1 email,
-          value ->> 2 age
-        FROM
-          JSON_EACH(?)
-      )
-    INSERT INTO
-      users (name, email, age)
-    SELECT
-      input.name,
-      input.email,
-      input.age
-    FROM
-      input
-  `);
-
-  await insert;
-
-  const results = Users.get();
-
-  expect(await results).toMatchObject([
-    { "id": 1, "name": "john",  "email": "john@email.org",  "age": 25 },
-    { "id": 2, "name": "jane",  "email": "jane@email.org",  "age": 26 },
-    { "id": 3, "name": "bob",   "email": "bob@email.org",   "age": 27 },
-    { "id": 4, "name": "alice", "email": "alice@email.org", "age": 28 }
-  ]);
-})
+  it("will insert procedurally generated rows", async () => {
+    class Users extends Type {
+      name = Str();
+      email = Str();
+      age = Num();
+    }
+    
+    await new TestConnection([Users]);
+  
+    const names = ["john", "jane", "bob", "alice"];
+    const insert = Users.insert(names, (name, i) => ({
+      name,
+      age: i + 25,
+      email: `${name.toLowerCase()}@email.org`
+    }));
+  
+    expect(insert).toMatchInlineSnapshot(`
+      WITH
+        input AS (
+          SELECT
+            value ->> 0 name,
+            value ->> 1 email,
+            value ->> 2 age
+          FROM
+            JSON_EACH(?)
+        )
+      INSERT INTO
+        users (name, email, age)
+      SELECT
+        input.name,
+        input.email,
+        input.age
+      FROM
+        input
+    `);
+  
+    await insert;
+  
+    const results = Users.get();
+  
+    expect(await results).toMatchObject([
+      { "id": 1, "name": "john",  "email": "john@email.org",  "age": 25 },
+      { "id": 2, "name": "jane",  "email": "jane@email.org",  "age": 26 },
+      { "id": 3, "name": "bob",   "email": "bob@email.org",   "age": 27 },
+      { "id": 4, "name": "alice", "email": "alice@email.org", "age": 28 }
+    ]);
+  })
+});
 
 it("will update from data", async () => {
   class User extends Type {
