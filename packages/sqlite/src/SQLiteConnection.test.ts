@@ -274,7 +274,6 @@ describe("template", () => {
   it("will select a parameter value", async () => {
     const conn = await new TestConnection([]);
     const template = Query(where => {
-      // @ts-expect-error
       where.connection = conn;
       return (color: string) => color;
     });
@@ -292,7 +291,6 @@ describe("template", () => {
   it("will select a parameter in property", async () => {
     const conn = await new TestConnection([]);
     const template = Query(where => {
-      // @ts-expect-error
       where.connection = conn;
       return (color: string) => ({ color })
     });
