@@ -79,7 +79,9 @@ class Field<T = unknown> {
   reference?: Field;
 
   /** Real datatype of this field in database. */
-  datatype!: string;
+  get datatype(){
+    return this.type;
+  }
 
   column!: string;
 
@@ -102,9 +104,6 @@ class Field<T = unknown> {
       if(value !== undefined && value !== (this as any)[key])
         (field as any)[key] = value;
     }
-
-    if(!field.datatype)
-      field.datatype = field.type;
 
     return field;
   }

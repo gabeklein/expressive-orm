@@ -14,13 +14,8 @@ declare module "@expressive/sql" {
 }
 
 class StringColumn extends Str.Type implements Str.Base {
+  readonly type: Str.Type = "text";
   readonly length?: number = undefined;
-
-  constructor(opts?: Str.Opts) {
-    let { type = "text", datatype = type, length } = opts || {};
-    super({ ...opts, type, datatype });
-    this.length = length;
-  }
 }
 
 Str.Type = StringColumn;

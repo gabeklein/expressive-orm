@@ -2,29 +2,26 @@ import { Field } from '../type/Field';
 
 class BooleanColumn extends Field<boolean> {
   readonly type: "tinyint" | "varchar" = "tinyint";
-  readonly datatype: string;
 
-  readonly TRUE: string | number = 1;
-  readonly FALSE: string | number = 0;
+  readonly either?: [true: string, false: string];
+
+  protected readonly TRUE: string | number | boolean = 1;
+  protected readonly FALSE: string | number | boolean = 0;
 
   constructor(opts: Bool.Opts = {}) {
-    let type: "tinyint" | "varchar" = "tinyint";
-    let datatype = "tinyint";
-    let TRUE: string | number = 1;
-    let FALSE: string | number = 0;
-
-    if ("either" in opts && opts.either) {
-      [TRUE, FALSE] = opts.either;
-      type = "varchar";
-      datatype = `varchar(${Math.max(TRUE.length, FALSE.length)})`;
-    }
-
     super(opts);
 
-    this.type = type;
-    this.datatype = datatype;
-    this.TRUE = TRUE;
-    this.FALSE = FALSE;
+    if(opts.either)
+      [this.TRUE, this.FALSE] = opts.either;
+  }
+
+  get datatype() {
+    if(this.either){
+      const [TRUE, FALSE] = this.either;
+      return `varchar(${Math.max(TRUE.length, FALSE.length)})`;
+    }
+
+    return this.type;
   }
 
   get(value: unknown) {
