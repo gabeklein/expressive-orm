@@ -1,5 +1,4 @@
-import { Bool, Num, One, Query, Str, Time, Type } from '@expressive/sql';
-
+import { Bool, Num, One, Query, Str, Time, Type } from '.';
 import { TestConnection } from './TestConnection';
 
 describe("schema", () => {
@@ -275,6 +274,7 @@ describe("template", () => {
   it("will select a parameter value", async () => {
     const conn = await new TestConnection([]);
     const template = Query(where => {
+      // @ts-expect-error
       where.connection = conn;
       return (color: string) => color;
     });
@@ -292,6 +292,7 @@ describe("template", () => {
   it("will select a parameter in property", async () => {
     const conn = await new TestConnection([]);
     const template = Query(where => {
+      // @ts-expect-error
       where.connection = conn;
       return (color: string) => ({ color })
     });

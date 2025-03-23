@@ -1,6 +1,7 @@
 import { PGlite } from '@electric-sql/pglite';
 import { Bool, Connection, Num, One, Query, Str, Time, Type } from '@expressive/sql';
 
+import { Bool, Connection, Num, One, Query, Str, Time, Type } from '.';
 import { PGLiteConnection } from './PGLiteConnection';
 
 const shared = new PGlite();
