@@ -3,15 +3,12 @@ import { format } from 'sql-formatter';
 
 import { PostgresGenerator } from './PostgresGenerator';
 
-export abstract class PostgresConnection extends Connection {
+const NOT_IMPL = "Not implemented, use PGConnection or PGLiteConnection instead.";
+
+export class PostgresConnection extends Connection {
   static generator = PostgresGenerator;
 
   protected engine: unknown;
-
-  constructor(using: Connection.Types, engine: unknown) {
-    super(using);
-    this.engine = engine;
-  }
 
   get schema() {
     return format(this.generateSchema(this.using));
@@ -38,9 +35,17 @@ export abstract class PostgresConnection extends Connection {
     };
   }
 
-  abstract query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }>;
-  abstract execScript(sql: string): Promise<void>;
-  abstract closeConnection(): Promise<void>;
+  query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }> {
+    throw new Error(NOT_IMPL);
+  }
+
+  execScript(sql: string): Promise<void> {
+    throw new Error(NOT_IMPL);
+  }
+
+  closeConnection(): Promise<void> {
+    throw new Error(NOT_IMPL);
+  }
 
   async close() {
     super.close();
@@ -48,6 +53,9 @@ export abstract class PostgresConnection extends Connection {
   }
 
   async sync(fix?: boolean) {
+    if(!this.engine)
+      throw new Error("Connection engine is not initialized.");
+
     if (this.ready)
       throw new Error("Connection is already active.");
 

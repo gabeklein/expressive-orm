@@ -20,12 +20,12 @@ export class PGConnection extends PostgresConnection {
       );
     }
 
-    const pool =
+    super(using);
+
+    this.engine =
       typeof arg2 === 'string' ? new pg.Pool({ connectionString: arg2 }) :
       arg2 instanceof pg.Pool ? arg2 :
       new pg.Pool(arg2);
-   
-    super(using, pool);
   }
 
   async query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }> {

@@ -10,20 +10,16 @@ export class PGLiteConnection extends PostgresConnection {
   constructor(using: Connection.Types, engine: PGlite)
   constructor(using: Connection.Types, dataDir?: string, config?: PGliteOptions)
   constructor(using: Connection.Types, arg2?: string | PGlite, config?: PGliteOptions) {
-    let engine: PGlite;
-    let dataDir: string;
+    super(using);
 
     if(arg2 instanceof PGlite) {
-      engine = arg2;
-      dataDir = arg2.dataDir || ":memory:";
+      this.engine = arg2;
+      this.dataDir = arg2.dataDir || ":memory:";
     }
     else {
-      engine = new PGlite(arg2 as string, config);
-      dataDir = arg2 as string;
+      this.dataDir = arg2 as string;
+      this.engine = new PGlite(this.dataDir, config);
     }
-    
-    super(using, engine);
-    this.dataDir = dataDir;
   }
 
   async sync(fix?: boolean): Promise<this> {
