@@ -450,11 +450,7 @@ describe("insert", () => {
         "input"."email",
         "input"."age"
       FROM
-        JSON_TO_RECORDSET($1) AS "input" (
-          "name" VARCHAR(255),
-          "email" VARCHAR(255),
-          "age" INT
-        )
+        JSON_TO_RECORDSET($1) AS "input" ("name" TEXT, "email" TEXT, "age" INT)
     `);
   
     expect(insert.params).toEqual([
@@ -598,7 +594,7 @@ describe("query", () => {
       SELECT
         "input"."name"
       FROM
-        JSON_TO_RECORDSET($1) AS "input" ("name" VARCHAR(255))
+        JSON_TO_RECORDSET($1) AS "input" ("name" TEXT)
     `);
 
     expect(await query).toBe(3);
@@ -644,7 +640,7 @@ it("will update from data", async () => {
         SELECT
           *
         FROM
-          JSON_TO_RECORDSET($1) AS x ("age" INT, "name" VARCHAR(255))
+          JSON_TO_RECORDSET($1) AS x ("age" INT, "name" TEXT)
       )
     UPDATE
       "users"

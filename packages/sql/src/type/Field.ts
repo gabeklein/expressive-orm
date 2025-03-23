@@ -18,8 +18,19 @@ declare namespace Field {
     T extends { fallback?: any, increment?: true } ? TT & Optional :
     TT;
 
+  /** @deprecated */
   type Specify<T, TT extends Field, D extends Field = TT> =
     Modifier<T, T extends { type: infer U } ? Extract<TT, { type: U }> : D>;
+
+  type FieldOnly<T> = T extends Field ? T : never;
+
+  type Choose<T, TS> = 
+    FieldOnly<
+      T extends { type: infer U } ? (U extends keyof TS ? TS[U] : never) :
+        TS extends { default: infer U } ? U : unknown
+    >;
+
+  type Type<T, TT> = Modifier<T, Choose<T, TT>>;
 
   type Returns<T> = Field & { get(value: any): T }
 

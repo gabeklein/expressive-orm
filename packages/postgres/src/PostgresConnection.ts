@@ -1,3 +1,5 @@
+import "./columns/Str";
+
 import { Connection, Field, Type } from '@expressive/sql';
 import { format } from 'sql-formatter';
 
@@ -207,7 +209,6 @@ export class PostgresConnection extends Connection {
 
   protected mapDataType(datatype: string): string {
     const typeMap: Record<string, string> = {
-      'varchar': 'TEXT',
       'int': 'INTEGER',
       'float': 'REAL',
       'double': 'DOUBLE PRECISION',

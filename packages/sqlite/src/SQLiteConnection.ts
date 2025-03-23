@@ -1,3 +1,5 @@
+import "./columns/Str";
+
 import { Connection, Field, Type } from '@expressive/sql';
 import Database from 'better-sqlite3';
 import { format } from 'sql-formatter';
