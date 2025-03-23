@@ -6,10 +6,12 @@ class ForeignColumn<T extends Type> extends Field<Type.Values<T>> {
   readonly entity: Type.EntityType<T>;
   readonly nullable: boolean = false;
 
+  get column() {
+    return underscore(this.property) + "_id";
+  }
+
   constructor(type: Type.EntityType<T>, nullable?: boolean) {
-    super(({ property }) => ({
-      column: underscore(property) + "_id"
-    }));
+    super();
 
     this.entity = type;
     this.type = "int";

@@ -11,7 +11,7 @@ type Optional = { optional: true };
 declare namespace Field {
   type Init<T extends Field = Field> = (self: T) => Partial<T> | void;
 
-  type Opts<T extends Field = Field> = Partial<T> | Init<T>;
+  type Opts<T extends Field = Field> = Partial<T>;
 
   type Modifier<T, TT extends Field> =
     T extends { nullable: true } ? TT & Nullable :
@@ -83,27 +83,26 @@ class Field<T = unknown> {
     return this.type;
   }
 
-  column!: string;
+  get column(){
+    return underscore(this.property);
+  }
 
   constructor(private options?: Field.Opts){}
 
   create(property: string, parent: Type.EntityType): this {
-    let options = this.options;
+    const { options } = this;
     const field = create(this);
+
+    if(options)
+      for(const key in options){
+        const value = (options as any)[key];
+
+        if(value !== undefined && value !== (this as any)[key])
+          (this as any)[key] = value;
+      }
 
     field.parent = parent;
     field.property = property;
-    field.column = underscore(property);
-
-    if (typeof options === "function")
-      options = options(field) || {};
-
-    for(const key in options){
-      const value = (options as any)[key];
-
-      if(value !== undefined && value !== (this as any)[key])
-        (field as any)[key] = value;
-    }
 
     return field;
   }
