@@ -89,6 +89,10 @@ class Field<T = unknown> {
     return underscore(this.property);
   }
 
+  set column(value: string){
+    Object.defineProperty(this, "column", { value });
+  }
+
   static new<T extends Field>(
     this: new (...args: any[]) => T,
     options?: Field.Opts<T>): Field {
