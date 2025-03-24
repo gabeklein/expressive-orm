@@ -29,7 +29,7 @@ describe("schema", () => {
       CREATE TABLE
         foo_bar (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
-          foo_bar TINYINT NOT NULL
+          foo_bar INTEGER NOT NULL
         );
     `);
   });
@@ -66,7 +66,7 @@ describe("types", () => {
     class Test extends Type {
       value1 = Bool();
       value2 = Bool({
-        type: "varchar",
+        type: "text",
         either: ["YES", "NO"]
       });
     }
@@ -77,7 +77,7 @@ describe("types", () => {
       CREATE TABLE
         test (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
-          value1 TINYINT NOT NULL,
+          value1 INTEGER NOT NULL,
           value2 TEXT NOT NULL
         );
     `);

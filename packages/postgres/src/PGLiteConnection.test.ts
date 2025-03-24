@@ -109,7 +109,7 @@ describe("schema", () => {
       CREATE TABLE
         "foo_bar" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "foo_bar" tinyint NOT NULL
+          "foo_bar" integer NOT NULL
         );
     `);
   });
