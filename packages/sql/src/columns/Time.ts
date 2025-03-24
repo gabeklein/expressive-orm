@@ -1,27 +1,68 @@
 import { Field } from '../type/Field';
 
 class TimeColumn extends Field<Date> {
-  readonly type: "datetime" = "datetime";
-  readonly fallback?: "NOW" | Date = undefined;
+  readonly type!: Time.DataType;
+  readonly precision?: number;
+  readonly fallback?: "NOW" | Date;
 
-  get(value: string) {
-    return new global.Date(value.replace(/[-]/g, '/') + "Z");
+  get(value: string | Date) {
+    if (value instanceof Date)
+      return value;
+    return new Date(value.replace(/[-]/g, '/'));
   }
 
-  set(value: string | Date) {
+  set(value: string | Date): string | number {
     if (value === "NOW")
       return "CURRENT_TIMESTAMP";
     else if (value instanceof Date)
       return value.toISOString().slice(0, 19).replace("T", " ");
+    else if (typeof value === "string")
+      return value;
     else
-      throw "Value must be a Date or 'NOW'.";
+      throw "Value must be a Date, string, or 'NOW'.";
   }
 }
 
-interface Time extends TimeColumn {}
+declare namespace Time {
+  /**
+   * Defines all available types of Time columns.
+   * Each type represents a different way to store date/time values.
+   * SQL adapters will implement these types and add to interface using type as key.
+   * "default" is what should be returned when no type is specified by `Time({ ... })`.
+   * 
+   * @example
+   * declare module "@expressive/sql" {
+   *   namespace Time {
+   *     interface Timestamp extends Time {
+   *       readonly type: "timestamp";
+   *       readonly precision?: number;
+   *     }
+   * 
+   *     interface Types {
+   *       default: Timestamp;
+   *       timestamp: Timestamp;
+   *     }
+   *   }
+   * }
+   */
+  interface Types {}
 
-function Time(options?: Partial<Time>): Time {
-  return new TimeColumn(options);
+  /** Base class for a Time Field. */
+  interface Type extends TimeColumn {}
+
+  /** All available type identifiers for Time */
+  type DataType = keyof Types;
+
+  /** All available database types for Time */
+  type Any = Types[keyof Types] | Type;
+
+  type Options = Partial<Any>;
+}
+
+type Time = Time.Any;
+
+function Time<T extends Time.Options>(opts?: T){
+  return new Time.Type(opts) as Field.Type<T, Time.Types>;
 }
 
 Time.Type = TimeColumn;
