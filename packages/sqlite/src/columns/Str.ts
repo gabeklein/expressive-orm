@@ -2,7 +2,7 @@ import { Str } from '@expressive/sql';
 
 declare module "@expressive/sql" {
   namespace Str {
-    interface Text extends Base {
+    interface Text extends Type {
       readonly type: "text";
     }
 
@@ -13,8 +13,8 @@ declare module "@expressive/sql" {
   }
 }
 
-class StringColumn extends Str.Type implements Str.Base {
-  readonly type: Str.Type = "text";
+class StringColumn extends Str.Type {
+  readonly type: keyof Str.Types = "text";
   readonly length?: number = undefined;
 }
 

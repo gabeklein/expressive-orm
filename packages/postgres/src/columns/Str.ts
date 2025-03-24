@@ -2,22 +2,16 @@ import { Str } from '@expressive/sql';
 
 declare module "@expressive/sql" {
   namespace Str {
-    type Something = 4;
-
-    interface Base {
-      readonly collate?: string;
-    }
-
-    interface Text extends Base {
+    interface Text extends StringColumn {
       readonly type: "text";
     }
     
-    interface VarChar extends Base {
+    interface VarChar extends StringColumn {
       readonly type: "varchar";
       readonly length: number;
     }
     
-    interface Char extends Base {
+    interface Char extends StringColumn {
       readonly type: "char";
       readonly length: number;
     }
@@ -31,8 +25,8 @@ declare module "@expressive/sql" {
   }
 }
 
-class StringColumn extends Str.Type implements Str.Base {
-  readonly type: Str.Type = "text";
+class StringColumn extends Str.Type {
+  readonly type: Str.DataType = "text";
   readonly collate?: string;
 
   get datatype() {
