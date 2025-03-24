@@ -2,7 +2,7 @@ import { Field } from '../type/Field';
 
 class StringColumn extends Field<string> {
   readonly type!: Str.DataType;
-  readonly length?: number = 255;
+  readonly length?: number;
 
   set(value: string) {
     if (typeof value !== 'string')

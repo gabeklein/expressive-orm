@@ -14,8 +14,12 @@ declare module "@expressive/sql" {
 }
 
 class StringColumn extends Str.Type {
-  readonly type: keyof Str.Types = "text";
+  readonly type!: keyof Str.Types;
   readonly length?: number = undefined;
+
+  get datatype() {
+    return this.type || "text";
+  }
 }
 
 Str.Type = StringColumn;

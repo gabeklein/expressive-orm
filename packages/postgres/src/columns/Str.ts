@@ -26,19 +26,19 @@ declare module "@expressive/sql" {
 }
 
 class StringColumn extends Str.Type {
-  readonly type: Str.DataType = "text";
+  readonly type!: Str.DataType;
   readonly collate?: string;
 
   get datatype() {
-    let datatype = this.type;
+    let { type } = this;
 
-    if(datatype.endsWith("char") && this.length)
-      datatype += `(${this.length})`;
+    if(type.endsWith("char") && this.length)
+      type += `(${this.length})`;
 
     if (this.collate)
-      datatype += ` COLLATE "${this.collate}"`;
+      type += ` COLLATE "${this.collate}"`;
 
-    return datatype;
+    return type || "text";
   }
 
   set(value: string) {

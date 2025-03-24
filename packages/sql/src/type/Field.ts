@@ -3,7 +3,7 @@ import { Builder, Cond } from '../query/Builder';
 import { capitalize, create, defineProperty, escape, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
 import { Type } from './Type';
 
-const REGISTER = new Map<Type.EntityType, Map<string, Field | Callback>>();
+const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
 
 type Nullable = { nullable: true };
 type Optional = { optional: true };
@@ -89,7 +89,9 @@ class Field<T = unknown> {
     return underscore(this.property);
   }
 
-  constructor(private options?: Field.Opts){}
+  constructor(private options?: Field.Opts){
+    Object.assign(this, options);
+  }
 
   create(property: string, parent: Type.EntityType): this {
     const { options } = this;
