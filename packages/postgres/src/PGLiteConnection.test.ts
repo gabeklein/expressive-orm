@@ -135,7 +135,7 @@ describe("schema", () => {
       CREATE TABLE
         "bar" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "value" INTEGER NOT NULL
+          "value" integer NOT NULL
         );
 
       ALTER TABLE
@@ -450,7 +450,7 @@ describe("insert", () => {
         "input"."email",
         "input"."age"
       FROM
-        JSON_TO_RECORDSET($1) AS "input" ("name" TEXT, "email" TEXT, "age" INT)
+        JSON_TO_RECORDSET($1) AS "input" ("name" TEXT, "email" TEXT, "age" INTEGER)
     `);
   
     expect(insert.params).toEqual([
@@ -640,7 +640,7 @@ it("will update from data", async () => {
         SELECT
           *
         FROM
-          JSON_TO_RECORDSET($1) AS x ("age" INT, "name" TEXT)
+          JSON_TO_RECORDSET($1) AS x ("age" INTEGER, "name" TEXT)
       )
     UPDATE
       "users"

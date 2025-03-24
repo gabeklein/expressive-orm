@@ -1,54 +1,63 @@
 import { Field } from '../type/Field';
 
 class NumericColumn extends Field<number> {
-  readonly type: "int" | "tinyint" | "smallint" | "bigint" | "float" | "double" = "int";
+  readonly type!: Num.DataType;
+  readonly precision?: number;
+  readonly scale?: number;
 
   set(value: number) {
-    if (typeof value !== "number" || isNaN(value))
+    if (typeof value !== 'number' || isNaN(value))
       throw `Got '${value}' but value must be a number.`;
-
-    if (this.type === "int" && value !== Math.floor(value))
-      throw `Got '${value}' but datatype is integer.`;
 
     return value;
   }
 }
 
 declare namespace Num {
-  interface Int extends Num {
-    readonly type: "int";
-  }
-  
-  interface TinyInt extends Num {
-    readonly type: "tinyint";
-  }
-  
-  interface SmallInt extends Num {
-    readonly type: "smallint";
-  }
-  
-  interface BigInt extends Num {
-    readonly type: "bigint";
-  }
-  
-  interface Float extends Num {
-    readonly type: "float";
-  }
-  
-  interface Double extends Num {
-    readonly type: "double";
-  }
+  /**
+   * Defines all available types of numeric columns.
+   * Each type represents a different kind of numeric data storage.
+   * SQL adapters will implement these types and add to interface using type as key.
+   * "default" is what should be returned when no type is specified by `Num({ ... })`.
+   * 
+   * @example
+   * declare module "@expressive/sql" {
+   *   namespace Num {
+   *     interface Integer extends Num {
+   *       readonly type: "integer";
+   *     }
+   * 
+   *     interface Decimal extends Num {
+   *       readonly type: "decimal";
+   *       readonly precision: number;
+   *       readonly scale: number;
+   *     }
+   * 
+   *     interface Types {
+   *       default: Integer;
+   *       integer: Integer;
+   *       decimal: Decimal;
+   *     }
+   *   }
+   * }
+   */
+  interface Types {}
 
-  type Any = Int | TinyInt | SmallInt | BigInt | Float | Double;
+  /** All available type identifiers for Num */
+  type DataType = keyof Types;
+
+  /** All available database types for Num */
+  type Any = Types[keyof Types];
+
   type Opts = Partial<Any>;
 }
 
-interface Num extends NumericColumn {}
+type Num = Num.Any;
 
 function Num<T extends Num.Opts>(opts?: T){
-  return new NumericColumn(opts) as Field.Specify<T, Num.Any, Num.Int>;
+  return new Num.Super(opts) as Field.Type<T, Num.Types>;
 }
 
-Num.Type = NumericColumn;
+Num.Super = NumericColumn;
 
-export { Num };
+export { Num }
