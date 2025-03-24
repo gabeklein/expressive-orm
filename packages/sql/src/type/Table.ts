@@ -4,7 +4,7 @@ import { Type } from './Type';
 
 namespace Table {
   export interface Options {
-    name?: string;
+    table?: string;
     schema?: string;
   }
 }
@@ -12,19 +12,14 @@ namespace Table {
 function Table(name: string, opts?: Table.Options): Type.EntityType;
 function Table(opts: Table.Options): Type.EntityType;
 function Table(arg1: string | Table.Options, arg2?: Table.Options){
-  return new Field(({ parent }) => {
+  return Field.does((parent) => {
     if(typeof arg1 == "string"){
-      const [name, schema] = arg1.split(".").reverse();
+      const [table, schema] = arg1.split(".").reverse();
 
-      arg1 = { schema, ...arg2, name };
+      arg1 = { schema, ...arg2, table };
     }
 
-    const { name, ...rest } = arg1;
-
-    if(name)
-      parent.table = name;
-
-    assign(parent, rest);
+    assign(parent, arg1);
   }) as any;
 }
 

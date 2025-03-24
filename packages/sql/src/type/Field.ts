@@ -1,9 +1,9 @@
 import { Query } from '..';
 import { Builder, Cond } from '../query/Builder';
-import { capitalize, create, escape, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
+import { capitalize, create, defineProperty, escape, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
 import { Type } from './Type';
 
-const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
+const REGISTER = new Map<Type.EntityType, Map<string, Field | Callback>>();
 
 type Nullable = { nullable: true };
 type Optional = { optional: true };
@@ -27,7 +27,7 @@ declare namespace Field {
   type Choose<T, TS> = 
     FieldOnly<
       T extends { type: infer U } ? (U extends keyof TS ? TS[U] : never) :
-        TS extends { default: infer U } ? U : unknown
+        TS extends { default: infer U } ? U : T extends Partial<infer U> ? U : never
     >;
 
   type Type<T, TT> = Modifier<T, Choose<T, TT>>;
@@ -59,6 +59,8 @@ declare namespace Field {
     under(value: Query.Value<T>, orEqual?: boolean): Cond;
     in(value: Query.Value<T>[]): Cond;
   }
+
+  const does: (callback: Callback) => void;
 }
 
 class Field<T = unknown> {
@@ -158,6 +160,12 @@ class Field<T = unknown> {
   }
 }
 
+type Callback = (parent: Type.EntityType, property: string) => void;
+
+defineProperty(Field, "does", {
+  value: (callback: Callback) => callback
+});
+
 function fields(from: Type.EntityType){
   let fields = REGISTER.get(from);
 
@@ -171,16 +179,19 @@ function fields(from: Type.EntityType){
     for(const key in reference){
       const { value } = getOwnPropertyDescriptor(reference, key)!;
   
-      if(!(value instanceof Field))
-        throw new Error(
-          `Entities do not support normal values, only fields. ` +
-          `Did you forget to import \`${capitalize(typeof value)}\`?`
-        );
-  
-      const instance = value.create(key, from);
+      if(value instanceof Field){
+        const instance = value.create(key, from);
 
-      from.fields.set(key, instance);
-      freeze(instance);
+        from.fields.set(key, instance);
+        freeze(instance);
+      }
+      else if(typeof value === "function"){
+        value(from, key);
+      }
+      else throw new Error(
+        `Entities do not support normal values, only fields. ` +
+        `Did you forget to import \`${capitalize(typeof value)}\`?`
+      ); 
     }
   }
 
