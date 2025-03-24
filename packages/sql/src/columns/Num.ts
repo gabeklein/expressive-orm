@@ -43,11 +43,13 @@ declare namespace Num {
    */
   interface Types {}
 
+  interface Type extends NumericColumn {}
+
   /** All available type identifiers for Num */
   type DataType = keyof Types;
 
   /** All available database types for Num */
-  type Any = Types[keyof Types];
+  type Any = Types[keyof Types] | Type;
 
   type Opts = Partial<Any>;
 }
