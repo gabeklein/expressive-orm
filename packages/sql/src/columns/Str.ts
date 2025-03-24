@@ -58,7 +58,7 @@ declare namespace Str {
 type Str = Str.Any;
 
 function Str<T extends Str.Options>(opts?: T){
-  return new Str.Type(opts) as Field.Type<T, Str.Types>;
+  return Str.Type.new(opts) as Field.Type<T, Str.Types>;
 }
 
 Str.Type = StringColumn;

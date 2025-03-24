@@ -26,7 +26,7 @@ declare module "@expressive/sql" {
 }
 
 class StringColumn extends Str.Type {
-  readonly type!: Str.DataType;
+  readonly type: Str.DataType = "text";
   readonly collate?: string;
 
   get datatype() {
@@ -38,7 +38,7 @@ class StringColumn extends Str.Type {
     if (this.collate)
       type += ` COLLATE "${this.collate}"`;
 
-    return type || "text";
+    return type;
   }
 
   set(value: string) {

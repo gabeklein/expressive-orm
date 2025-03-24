@@ -36,18 +36,17 @@ declare module "@expressive/sql" {
 }
 
 class TimeColumn extends Time.Type {
+  readonly type: keyof Time.Types = "text";
+  
   get datatype() {
     // SQLite has only 5 storage classes: NULL, INTEGER, REAL, TEXT, and BLOB
     // We'll map the various time types to these storage classes
     const { type } = this;
     
-    if (type === "integer")
-      return "INTEGER"; // Store as Unix timestamp
-    
     if (["date", "time", "timestamp", "datetime"].includes(type))
-      return "TEXT"; // Store as ISO string
+      return "text"; // Store as ISO string
     
-    return type || "TEXT";
+    return type;
   }
   
   get(value: string | number | Date) {

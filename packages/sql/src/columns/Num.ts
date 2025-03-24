@@ -57,7 +57,7 @@ declare namespace Num {
 type Num = Num.Any;
 
 function Num<T extends Num.Opts>(opts?: T){
-  return new Num.Type(opts) as Field.Type<T, Num.Types>;
+  return Num.Type.new(opts) as Field.Type<T, Num.Types>;
 }
 
 Num.Type = NumericColumn;

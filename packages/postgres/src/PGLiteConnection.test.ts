@@ -109,7 +109,7 @@ describe("schema", () => {
       CREATE TABLE
         "foo_bar" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "foo_bar" integer NOT NULL
+          "foo_bar" BOOLEAN NOT NULL
         );
     `);
   });
@@ -129,7 +129,7 @@ describe("schema", () => {
       CREATE TABLE
         "foo" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "bar_id" INTEGER NOT NULL
+          "bar_id" integer NOT NULL
         );
 
       CREATE TABLE

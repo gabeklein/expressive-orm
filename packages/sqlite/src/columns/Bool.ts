@@ -20,14 +20,7 @@ declare module "@expressive/sql" {
 }
 
 class BooleanColumn extends Bool.Type {
-  readonly type!: Bool.DataType;
-  
-  get datatype() {
-    if (this.type === "text" && this.either)
-      return "text";
-    
-    return "integer";
-  }
+  readonly type: Bool.DataType = "integer";
 }
 
 Bool.Type = BooleanColumn;

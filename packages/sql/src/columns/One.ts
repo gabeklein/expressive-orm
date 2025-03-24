@@ -3,20 +3,12 @@ import { Field } from '../type/Field';
 import { underscore } from '../utils';
 
 class ForeignColumn<T extends Type> extends Field<Type.Values<T>> {
-  readonly entity: Type.EntityType<T>;
+  readonly entity!: Type.EntityType<T>;
   readonly nullable: boolean = false;
+  readonly type = "integer";
 
   get column() {
     return underscore(this.property) + "_id";
-  }
-
-  constructor(type: Type.EntityType<T>, nullable?: boolean) {
-    super();
-
-    this.entity = type;
-    this.type = "int";
-    this.reference = type.fields.get("id");
-    this.nullable = nullable || false;
   }
 
   set(value: Type.Values<T> | number) {
@@ -39,7 +31,11 @@ interface One<T extends Type> extends ForeignColumn<T> {}
 function One<T extends Type>(type: Type.EntityType<T>, nullable?: false): One<T>;
 function One<T extends Type>(type: Type.EntityType<T>, nullable: boolean): One<T> & Nullable;
 function One<T extends Type>(type: Type.EntityType<T>, nullable?: boolean){
-  return new ForeignColumn(type, nullable);
+  return ForeignColumn.new({
+    nullable,
+    entity: type,
+    reference: type.fields.get("id"),
+  }) as One<T>;
 }
 
 One.Type = ForeignColumn;

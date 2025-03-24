@@ -26,6 +26,8 @@ declare module "@expressive/sql" {
 }
 
 class NumericColumn extends Num.Type {
+  readonly type: Num.DataType = "integer";
+
   get datatype(){
     let { type } = this;
 
@@ -35,14 +37,14 @@ class NumericColumn extends Num.Type {
     if (["float", "double", "decimal", "numeric"].includes(type))
       return "real";
 
-    return type || "integer";
+    return type;
   }
 
   set(value: number) {
     if (typeof value !== 'number' || isNaN(value))
       throw `Got '${value}' but value must be a number.`;
 
-    if (this.type === "integer" && value !== Math.floor(value))
+    if (this.type.includes("int") && value !== Math.floor(value))
       throw `Got '${value}' but datatype is integer.`;
 
     return value;

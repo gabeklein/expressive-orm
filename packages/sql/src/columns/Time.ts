@@ -62,7 +62,7 @@ declare namespace Time {
 type Time = Time.Any;
 
 function Time<T extends Time.Options>(opts?: T){
-  return new Time.Type(opts) as Field.Type<T, Time.Types>;
+  return Time.Type.new(opts) as Field.Type<T, Time.Types>;
 }
 
 Time.Type = TimeColumn;

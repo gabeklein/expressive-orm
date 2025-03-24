@@ -20,7 +20,7 @@ declare module "@expressive/sql" {
 }
 
 class BooleanColumn extends Bool.Type {
-  readonly type!: Bool.DataType;
+  readonly type: Bool.DataType = "boolean";
   
   get datatype() {
     if (this.type === "varchar" && this.either) {
@@ -28,7 +28,7 @@ class BooleanColumn extends Bool.Type {
       return `varchar(${Math.max(TRUE.length, FALSE.length)})`;
     }
     
-    return this.type || "integer";
+    return this.type;
   }
 }
 

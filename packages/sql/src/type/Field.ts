@@ -89,25 +89,17 @@ class Field<T = unknown> {
     return underscore(this.property);
   }
 
-  constructor(private options?: Field.Opts){
-    Object.assign(this, options);
+  static new<T extends Field>(
+    this: new (...args: any[]) => T,
+    options?: Field.Opts<T>): Field {
+
+    return Object.assign(new this, options);
   }
 
   create(property: string, parent: Type.EntityType): this {
-    const { options } = this;
     const field = create(this);
-
-    if(options)
-      for(const key in options){
-        const value = (options as any)[key];
-
-        if(value !== undefined && value !== (this as any)[key])
-          (this as any)[key] = value;
-      }
-
     field.parent = parent;
     field.property = property;
-
     return field;
   }
 

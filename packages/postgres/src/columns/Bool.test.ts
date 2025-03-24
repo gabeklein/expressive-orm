@@ -28,8 +28,8 @@ describe("schema", () => {
       CREATE TABLE
         "flags" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "active" integer NOT NULL,
-          "optional" integer,
+          "active" BOOLEAN NOT NULL,
+          "optional" BOOLEAN,
           "custom" varchar(3) NOT NULL
         );
     `);

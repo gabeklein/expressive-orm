@@ -59,7 +59,7 @@ declare namespace Bool {
 type Bool = Bool.Any;
 
 function Bool<T extends Bool.Opts>(opts?: T){
-  return new Bool.Type(opts) as Field.Type<T, Bool.Types>;
+  return Bool.Type.new(opts) as Field.Type<T, Bool.Types>;
 }
 
 Bool.Type = BooleanColumn;
