@@ -25,7 +25,7 @@ declare module "@expressive/sql" {
   }
 }
 
-class NumericColumn extends Num.Super {
+class NumericColumn extends Num.Type {
   get datatype(){
     let { type } = this;
 
@@ -49,4 +49,4 @@ class NumericColumn extends Num.Super {
   }
 }
 
-Num.Super = NumericColumn;
+Num.Type = NumericColumn;

@@ -57,9 +57,9 @@ declare namespace Num {
 type Num = Num.Any;
 
 function Num<T extends Num.Opts>(opts?: T){
-  return new Num.Super(opts) as Field.Type<T, Num.Types>;
+  return new Num.Type(opts) as Field.Type<T, Num.Types>;
 }
 
-Num.Super = NumericColumn;
+Num.Type = NumericColumn;
 
 export { Num }
