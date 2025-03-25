@@ -16,24 +16,6 @@ declare module "@expressive/sql" {
 
 class ForeignColumn<T extends Entity = Entity> extends One.Type<T> {
   type: One.DataType = "integer";
-  
-  constraints?: string;
-
-  get datatype() {
-    const { onDelete, onUpdate } = this;
-    
-    // Add constraint information if needed
-    if (onDelete || onUpdate) {
-      const constraints = [];
-      if (onDelete) constraints.push(`ON DELETE ${onDelete}`);
-      if (onUpdate) constraints.push(`ON UPDATE ${onUpdate}`);
-      
-      // This would be used in schema generation
-      this.constraints = constraints.join(' ');
-    }
-    
-    return this.type;
-  }
 }
 
 One.Type = ForeignColumn;

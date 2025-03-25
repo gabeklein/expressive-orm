@@ -51,9 +51,8 @@ function One<T extends Entity>(entity: Entity.EntityType<T>, arg2?: One.Options 
   
   const opts: One.Options = Object.assign({}, arg2);
   const reference = entity.fields.get("id");
-  const field = One.Type.new({ entity, reference, ...opts });
 
-  return field as Field.Type<typeof arg2, One.Types> & ForeignColumn<T>;
+  return One.Type.new({ entity, reference, ...opts });
 }
 
 One.Type = ForeignColumn;
