@@ -1,9 +1,10 @@
 import { Field } from '../type/Field';
 
 class TimeColumn extends Field<Date> {
-  readonly type!: Time.DataType;
+  declare readonly type: Time.DataType;
+  declare readonly fallback?: "NOW" | Date;
+
   readonly precision?: number;
-  readonly fallback?: "NOW" | Date;
 
   get(value: string | Date) {
     if (value instanceof Date)
@@ -47,14 +48,11 @@ declare namespace Time {
    */
   interface Types {}
 
-  /** Base class for a Time Field. */
-  interface Type extends TimeColumn {}
-
   /** All available type identifiers for Time */
   type DataType = keyof Types;
 
   /** All available database types for Time */
-  type Any = Types[keyof Types] | Type;
+  type Any = Types[keyof Types] | TimeColumn;
 
   type Options = Partial<Any>;
 }
@@ -62,7 +60,7 @@ declare namespace Time {
 type Time = Time.Any;
 
 function Time<T extends Time.Options>(opts?: T){
-  return Time.Type.new(opts) as Field.Type<T, Time.Types>;
+  return Time.Type.new(opts) as Field.Infer<T, Time.Types, Time>;
 }
 
 Time.Type = TimeColumn;

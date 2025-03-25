@@ -13,24 +13,17 @@ declare namespace Field {
 
   type Opts<T extends Field = Field> = Partial<T>;
 
-  type Modifier<T, TT extends Field> =
+  type Modifier<T, TT> =
     T extends { nullable: true } ? TT & Nullable :
     T extends { fallback?: any, increment?: true } ? TT & Optional :
     TT;
 
-  /** @deprecated */
-  type Specify<T, TT extends Field, D extends Field = TT> =
-    Modifier<T, T extends { type: infer U } ? Extract<TT, { type: U }> : D>;
+  type Choose<T, TS, D extends Field = any> = 
+    T extends { type: infer U } ? (U extends keyof TS ? TS[U] : D) :
+    TS extends { default: infer U } ? U :
+    D
 
-  type FieldOnly<T> = T extends Field ? T : never;
-
-  type Choose<T, TS> = 
-    FieldOnly<
-      T extends { type: infer U } ? (U extends keyof TS ? TS[U] : never) :
-        TS extends { default: infer U } ? U : T extends Partial<infer U> ? U : never
-    >;
-
-  type Type<T, TT> = Modifier<T, Choose<T, TT>>;
+  type Infer<T, TT, D extends Field = any> = Modifier<T, Choose<T, TT, D>>;
 
   type Returns<T> = Field & { get(value: any): T }
 

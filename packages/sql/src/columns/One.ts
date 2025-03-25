@@ -4,7 +4,7 @@ import { underscore } from '../utils';
 
 class ForeignColumn<T extends Entity = Entity> extends Field<Entity.Values<T>> {
   readonly entity!: Entity.EntityType<T>;
-  readonly type!: One.DataType;
+  declare readonly type: One.DataType;
   readonly nullable: boolean = false;
   readonly onDelete?: string;
   readonly onUpdate?: string;
@@ -30,11 +30,12 @@ class ForeignColumn<T extends Entity = Entity> extends Field<Entity.Values<T>> {
 
 declare namespace One {
   interface Types {}
-  interface Type<T extends Entity = Entity> extends ForeignColumn<T> {}
+
   type DataType = keyof Types;
+
   type Any<T extends Entity = Entity> = 
-    | { [K in keyof Types]: Types[K] extends Type<infer U> ? Types[K] & ForeignColumn<T> : never }[keyof Types]
-    | Type<T>;
+    | { [K in keyof Types]: Types[K] extends ForeignColumn<any> ? Types[K] & ForeignColumn<T> : never }[keyof Types]
+    | ForeignColumn<T>;
   
   type Options = Omit<Partial<ForeignColumn<any>>, 'entity'>;
 }
@@ -44,7 +45,7 @@ interface One<T extends Entity> extends ForeignColumn<T> {}
 // Modified function with flexible second parameter
 function One<T extends Entity>(entity: Entity.EntityType<T>): One<T>;
 function One<T extends Entity>(entity: Entity.EntityType<T>, nullable: boolean): One<T> & (boolean extends true ? Nullable : {});
-function One<T extends Entity, O extends One.Options>(entity: Entity.EntityType<T>, options: O): Field.Type<O, One.Types> & ForeignColumn<T>;
+function One<T extends Entity, O extends One.Options>(entity: Entity.EntityType<T>, options: O): Field.Infer<O, One.Types, One<T>> & ForeignColumn<T>;
 function One<T extends Entity>(entity: Entity.EntityType<T>, arg2?: One.Options | boolean) {
   if (typeof arg2 === 'boolean')
     arg2 = { nullable: arg2 };

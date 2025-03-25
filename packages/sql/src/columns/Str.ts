@@ -1,7 +1,7 @@
 import { Field } from '../type/Field';
 
 class StringColumn extends Field<string> {
-  readonly type!: Str.DataType;
+  declare readonly type: Str.DataType;
   readonly length?: number;
 
   set(value: string) {
@@ -43,14 +43,11 @@ declare namespace Str {
    */
   interface Types {}
 
-  /** Base class for a Str Field. */
-  interface Type extends StringColumn {}
-
   /** All available types of Str */
   type DataType = keyof Types;
 
   /** All available database types for Str */
-  type Any = Types[keyof Types] | Type;
+  type Any = Types[keyof Types] | StringColumn;
 
   type Options = Partial<Any>;
 }
@@ -58,7 +55,7 @@ declare namespace Str {
 type Str = Str.Any;
 
 function Str<T extends Str.Options>(opts?: T){
-  return Str.Type.new(opts) as Field.Type<T, Str.Types>;
+  return Str.Type.new(opts) as Field.Infer<T, Str.Types, Str>;
 }
 
 Str.Type = StringColumn;

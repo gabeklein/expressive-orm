@@ -3,7 +3,7 @@
 import { Field } from '../type/Field';
 
 class BooleanColumn extends Field<boolean> {
-  readonly type!: Bool.DataType;
+  declare readonly type: Bool.DataType;
   readonly either?: readonly [true: string, false: string];
 
   get(value: unknown) {
@@ -44,14 +44,11 @@ declare namespace Bool {
    */
   interface Types {}
 
-  /** Base class for a Bool Field. */
-  interface Type extends BooleanColumn {}
-
   /** All available type identifiers for Bool */
   type DataType = keyof Types;
 
   /** All available database types for Bool */
-  type Any = Types[keyof Types] | Type;
+  type Any = Types[keyof Types] | BooleanColumn;
 
   type Opts = Partial<Any>;
 }
@@ -59,7 +56,7 @@ declare namespace Bool {
 type Bool = Bool.Any;
 
 function Bool<T extends Bool.Opts>(opts?: T){
-  return Bool.Type.new(opts) as Field.Type<T, Bool.Types>;
+  return Bool.Type.new(opts) as Field.Infer<T, Bool.Types, Bool>;
 }
 
 Bool.Type = BooleanColumn;

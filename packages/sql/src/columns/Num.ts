@@ -1,7 +1,7 @@
 import { Field } from '../type/Field';
 
 class NumericColumn extends Field<number> {
-  readonly type!: Num.DataType;
+  declare readonly type: Num.DataType;
   readonly precision?: number;
   readonly scale?: number;
 
@@ -43,13 +43,11 @@ declare namespace Num {
    */
   interface Types {}
 
-  interface Type extends NumericColumn {}
-
   /** All available type identifiers for Num */
   type DataType = keyof Types;
 
   /** All available database types for Num */
-  type Any = Types[keyof Types] | Type;
+  type Any = Types[keyof Types] | NumericColumn;
 
   type Opts = Partial<Any>;
 }
@@ -57,7 +55,7 @@ declare namespace Num {
 type Num = Num.Any;
 
 function Num<T extends Num.Opts>(opts?: T){
-  return Num.Type.new(opts) as Field.Type<T, Num.Types>;
+  return Num.Type.new(opts) as Field.Infer<T, Num.Types, Num>;
 }
 
 Num.Type = NumericColumn;
