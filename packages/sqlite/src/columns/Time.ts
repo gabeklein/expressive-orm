@@ -36,7 +36,7 @@ declare module "@expressive/sql" {
 }
 
 class TimeColumn extends Time.Type {
-  readonly type: keyof Time.Types = "text";
+  readonly type: Time.DataType = "text";
   
   get datatype() {
     // SQLite has only 5 storage classes: NULL, INTEGER, REAL, TEXT, and BLOB
