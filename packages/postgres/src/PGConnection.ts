@@ -4,7 +4,7 @@ import type { Pool, PoolConfig } from 'pg';
 import { PostgresConnection } from './PostgresConnection';
 
 export class PGConnection extends PostgresConnection {
-  protected engine!: Pool;
+  protected declare engine: Pool;
 
   constructor(using: Connection.Types, connectionString: string)
   constructor(using: Connection.Types, config: PoolConfig)

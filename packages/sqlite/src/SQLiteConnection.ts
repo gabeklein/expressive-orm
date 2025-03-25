@@ -20,7 +20,7 @@ type TableInfo = {
 export class SQLiteConnection extends Connection {
   static generator = SQLiteGenerator;
 
-  protected engine: Database.Database;
+  protected declare engine: Database.Database;
 
   constructor(using: Connection.Types, filename?: string) {
     super(using);

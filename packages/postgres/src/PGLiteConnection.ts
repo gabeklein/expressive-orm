@@ -4,7 +4,7 @@ import { Connection } from '@expressive/sql';
 import { PostgresConnection } from './PostgresConnection';
 
 export class PGLiteConnection extends PostgresConnection {
-  protected engine!: PGlite;
+  protected declare engine: PGlite;
   readonly dataDir: string;
 
   constructor(using: Connection.Types, engine: PGlite)
