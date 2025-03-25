@@ -6,10 +6,15 @@ describe("schema", () => {
   it("will create basic boolean columns", async () => {
     class Flags extends Type {
       active = Bool();
-      optional = Bool({ nullable: true });
+      optional = Bool(true);
       custom = Bool({ 
         type: "varchar", 
         either: ["YES", "NO"] 
+      });
+      optionalCustom = Bool({
+        type: "varchar",
+        either: ["ENABLED", "DISABLED"],
+        nullable: true
       });
     }
 
@@ -17,6 +22,7 @@ describe("schema", () => {
       active: Bool.Boolean;
       optional: Bool.Boolean & Nullable;
       custom: Bool.VarChar;
+      optionalCustom: Bool.VarChar & Nullable;
     }
     
     // type-error if expected types are not present
@@ -30,7 +36,8 @@ describe("schema", () => {
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "active" BOOLEAN NOT NULL,
           "optional" BOOLEAN,
-          "custom" VARCHAR(3) NOT NULL
+          "custom" VARCHAR(3) NOT NULL,
+          "optional_custom" VARCHAR(8)
         );
     `);
   });

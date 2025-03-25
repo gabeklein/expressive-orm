@@ -59,8 +59,10 @@ declare namespace Time {
 
 type Time = Time.Any;
 
+function Time<T extends boolean>(nullable: T): Field.Infer<T, Time.Types, Time>;
+function Time<T extends Time.Options>(opts?: T): Field.Infer<T, Time.Types, Time>;
 function Time<T extends Time.Options>(opts?: T){
-  return Time.Type.new(opts) as Field.Infer<T, Time.Types, Time>;
+  return Time.Type.new(opts);
 }
 
 Time.Type = TimeColumn;

@@ -14,7 +14,7 @@ declare namespace Field {
   type Opts<T extends Field = Field> = Partial<T>;
 
   type Modifier<T, TT> =
-    T extends { nullable: true } ? TT & Nullable :
+    T extends { nullable: true } | true ? TT & Nullable :
     T extends { fallback?: any, increment?: true } ? TT & Optional :
     TT;
 
@@ -88,7 +88,10 @@ class Field<T = unknown> {
 
   static new<T extends Field>(
     this: new (...args: any[]) => T,
-    options?: Field.Opts<T>): Field {
+    options?: Field.Opts<T> | boolean): Field {
+
+    if(typeof options === "boolean")
+      options = { nullable: options } as Field.Opts<T>;
 
     return Object.assign(new this, options);
   }

@@ -54,8 +54,10 @@ declare namespace Str {
 
 type Str = Str.Any;
 
+function Str<T extends boolean>(nullable: T): Field.Infer<T, Str.Types, Str>;
+function Str<T extends Str.Options>(opts?: T): Field.Infer<T, Str.Types, Str>;
 function Str<T extends Str.Options>(opts?: T){
-  return Str.Type.new(opts) as Field.Infer<T, Str.Types, Str>;
+  return Str.Type.new(opts);
 }
 
 Str.Type = StringColumn;

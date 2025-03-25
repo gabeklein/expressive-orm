@@ -54,8 +54,10 @@ declare namespace Num {
 
 type Num = Num.Any;
 
-function Num<T extends Num.Opts>(opts?: T){
-  return Num.Type.new(opts) as Field.Infer<T, Num.Types, Num>;
+function Num<T extends boolean>(nullable: T): Field.Infer<T, Num.Types, Num>;
+function Num<T extends Num.Opts>(opts?: T): Field.Infer<T, Num.Types, Num>;
+function Num(opts: Num.Opts = {}){
+  return Num.Type.new(opts);
 }
 
 Num.Type = NumericColumn;
