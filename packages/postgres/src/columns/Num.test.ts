@@ -31,12 +31,12 @@ describe("schema", () => {
       CREATE TABLE
         "numbers" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "int" integer NOT NULL,
-          "real" real NOT NULL,
-          "smallint" smallint NOT NULL,
-          "bigint" bigint NOT NULL,
+          "int" INTEGER NOT NULL,
+          "real" REAL NOT NULL,
+          "smallint" SMALLINT NOT NULL,
+          "bigint" BIGINT NOT NULL,
           "double" DOUBLE PRECISION NOT NULL,
-          "optional" integer
+          "optional" INTEGER
         );
     `);
   });
@@ -62,9 +62,9 @@ describe("schema", () => {
       CREATE TABLE
         "financial_data" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "price" numeric(10, 2) NOT NULL,
-          "total" numeric(15, 4) NOT NULL,
-          "percentage" numeric(5, 2) NOT NULL
+          "price" NUMERIC(10, 2) NOT NULL,
+          "total" NUMERIC(15, 4) NOT NULL,
+          "percentage" NUMERIC(5, 2) NOT NULL
         );
     `);
   });
@@ -86,7 +86,7 @@ describe("schema", () => {
       CREATE TABLE
         "counter" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "value" serial NOT NULL
+          "value" SERIAL NOT NULL
         );
     `);
   });

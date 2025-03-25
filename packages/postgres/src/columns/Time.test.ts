@@ -32,8 +32,8 @@ describe("schema", () => {
           "created" TIMESTAMP NOT NULL,
           "updated" TIMESTAMP,
           "birth_date" DATE NOT NULL,
-          "start_time" time NOT NULL,
-          "duration" interval NOT NULL
+          "start_time" TIME NOT NULL,
+          "duration" INTERVAL NOT NULL
         );
     `);
   });
@@ -76,10 +76,10 @@ describe("schema", () => {
       CREATE TABLE
         "event_log" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "timestamp" timestamptz (6) NOT NULL,
-          "duration" interval (3) DAY TO SECOND NOT NULL,
-          "local_time" time(3) NOT NULL,
-          "utc_time" timetz (3) NOT NULL
+          "timestamp" TIMESTAMPTZ (6) NOT NULL,
+          "duration" INTERVAL (3) DAY TO SECOND NOT NULL,
+          "local_time" TIME(3) NOT NULL,
+          "utc_time" TIMETZ (3) NOT NULL
         );
     `);
   });

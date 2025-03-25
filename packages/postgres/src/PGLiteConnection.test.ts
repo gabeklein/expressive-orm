@@ -134,13 +134,13 @@ describe("schema", () => {
       CREATE TABLE
         "foo" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "bar_id" integer NOT NULL
+          "bar_id" INTEGER NOT NULL
         );
 
       CREATE TABLE
         "bar" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "value" integer NOT NULL
+          "value" INTEGER NOT NULL
         );
 
       ALTER TABLE

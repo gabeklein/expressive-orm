@@ -2,6 +2,7 @@ import "./columns/Str";
 import "./columns/Num";
 import "./columns/Bool";
 import "./columns/Time";
+import "./columns/One";
 
 import { Connection, Field, Type } from '@expressive/sql';
 import { format } from 'sql-formatter';
@@ -135,7 +136,7 @@ export class PostgresConnection extends Connection {
   ) {
     const { column, datatype, nullable, parent, reference } = field;
 
-    if (this.mapDataType(datatype).toLowerCase() !== info.data_type.toLowerCase())
+    if (datatype.toLowerCase() !== info.data_type.toLowerCase())
       throw new Error(
         `Column ${column} in table ${parent.table} has type ${info.data_type}, expected ${datatype}`
       );
@@ -200,12 +201,13 @@ export class PostgresConnection extends Connection {
         unique,
       } = field;
 
-      let parts = `"${column}" ${this.mapDataType(datatype!)}`;
+      const type = datatype.toUpperCase();
+      let parts = `"${column}" ${type}`;
    
       if (!nullable) parts += ' NOT NULL';
       if (increment) parts += ' GENERATED ALWAYS AS IDENTITY'; 
-      if (unique) parts += ' UNIQUE';
-      if (fallback !== undefined) parts += ' DEFAULT ' + field.set(fallback);
+      if (unique)    parts += ' UNIQUE';
+      if (fallback)  parts += ' DEFAULT ' + field.set(fallback);
    
       if (reference)
         constraints.push(
@@ -220,20 +222,5 @@ export class PostgresConnection extends Connection {
       table: `CREATE TABLE "${table}" (${columns.join(", ")});`,
       constraints: constraints.join('\n')
     };
-  }
-
-  protected mapDataType(datatype: string): string {
-    const typeMap: Record<string, string> = {
-      'int': 'INTEGER',
-      'float': 'REAL',
-      'double': 'DOUBLE PRECISION',
-      'boolean': 'BOOLEAN',
-      'date': 'DATE',
-      'datetime': 'TIMESTAMP',
-      'timestamp': 'TIMESTAMP'
-    };
-
-    const baseType = datatype.split('(')[0].toLowerCase();
-    return typeMap[baseType] || datatype;
   }
 }

@@ -25,7 +25,7 @@ class BooleanColumn extends Bool.Type {
   get datatype() {
     if (this.type === "varchar" && this.either) {
       const [TRUE, FALSE] = this.either;
-      return `varchar(${Math.max(TRUE.length, FALSE.length)})`;
+      return `VARCHAR(${Math.max(TRUE.length, FALSE.length)})`;
     }
     
     return this.type;

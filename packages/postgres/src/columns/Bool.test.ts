@@ -30,7 +30,7 @@ describe("schema", () => {
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "active" BOOLEAN NOT NULL,
           "optional" BOOLEAN,
-          "custom" varchar(3) NOT NULL
+          "custom" VARCHAR(3) NOT NULL
         );
     `);
   });
@@ -61,8 +61,8 @@ describe("schema", () => {
       CREATE TABLE
         "settings" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "enabled" varchar(5) NOT NULL,
-          "consent" varchar(8)
+          "enabled" VARCHAR(5) NOT NULL,
+          "consent" VARCHAR(8)
         );
     `);
   });
@@ -110,7 +110,7 @@ describe("serialization", () => {
       either: ["ENABLED", "DISABLED"] 
     });
 
-    expect(shortField.datatype).toBe("varchar(1)");
-    expect(longField.datatype).toBe("varchar(8)");
+    expect(shortField.datatype).toBe("VARCHAR(1)");
+    expect(longField.datatype).toBe("VARCHAR(8)");
   });
 });

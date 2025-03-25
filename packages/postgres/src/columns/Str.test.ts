@@ -22,8 +22,8 @@ describe("schema", () => {
       CREATE TABLE
         "users" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "name" text NOT NULL,
-          "email" text
+          "name" TEXT NOT NULL,
+          "email" TEXT
         );
     `);
   });
@@ -47,8 +47,8 @@ describe("schema", () => {
       CREATE TABLE
         "profiles" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "username" varchar(50) NOT NULL,
-          "bio" varchar(200)
+          "username" VARCHAR(50) NOT NULL,
+          "bio" VARCHAR(200)
         );
     `);
   });
@@ -64,7 +64,7 @@ describe("schema", () => {
       CREATE TABLE
         "settings" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "code" char(10) NOT NULL
+          "code" CHAR(10) NOT NULL
         );
     `);
   });
@@ -84,7 +84,7 @@ describe("schema", () => {
       CREATE TABLE
         "localized" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "name" varchar(100) COLLATE "en_US.utf8" NOT NULL
+          "name" VARCHAR(100) COLLATE "EN_US.UTF8" NOT NULL
         );
     `);
   });

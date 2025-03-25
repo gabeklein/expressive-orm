@@ -2,6 +2,7 @@ import "./columns/Str";
 import "./columns/Num";
 import "./columns/Bool";
 import "./columns/Time";
+import "./columns/One";
 
 import { Connection, Field, Type } from '@expressive/sql';
 import Database from 'better-sqlite3';
@@ -106,7 +107,7 @@ export class SQLiteConnection extends Connection {
     const { column, datatype, nullable, parent, reference } = field;
 
     // Check datatype
-    if (info.type !== this.mapDataType(datatype).toLowerCase())
+    if (info.type !== datatype.toLowerCase())
       throw new Error(
         `Column ${column} in table ${parent.table} has type ${info.type}, expected ${datatype}`
       );
@@ -162,44 +163,30 @@ export class SQLiteConnection extends Connection {
 
   protected generateTableSchema(type: Type.EntityType): string {
     const fields = Array.from(type.fields.values()).map(field => {
-      let parts = `\`${field.column}\` ${this.mapDataType(field.datatype!)}`;
+      const {
+        column,
+        datatype,
+        fallback,
+        reference,
+        increment,
+        nullable,
+        unique,
+      } = field;
 
-      if (!field.nullable)
-        parts += ' NOT NULL';
-      if (field.increment)
-        parts += ' PRIMARY KEY AUTOINCREMENT';
-      if (field.unique)
-        parts += ' UNIQUE';
+      let parts = `\`${column}\` ${datatype.toUpperCase()}`;
 
-      if (field.fallback !== undefined)
-        parts += ' DEFAULT ' + field.set(field.fallback);
+      if (!nullable) parts += ' NOT NULL';
+      if (increment) parts += ' PRIMARY KEY AUTOINCREMENT';
+      if (unique)    parts += ' UNIQUE';
+      if (fallback)  parts += ' DEFAULT ' + field.set(fallback);
 
-      if (field.reference){
-        const { parent, column } = field.reference;
-
-        parts += ` REFERENCES ${parent.table}(${column})`;
-      }
+      if (reference)
+        parts += ` REFERENCES ${reference.parent.table}(${reference.column})`;
 
       return parts;
     });
 
     return `CREATE TABLE ${type.table} (${fields.join(', ')});`;
-  }
-
-  private mapDataType(datatype: string): string {
-    const typeMap: Record<string, string> = {
-      'varchar': 'TEXT',
-      'int': 'INTEGER',
-      'float': 'REAL',
-      'double': 'REAL',
-      'boolean': 'INTEGER',
-      'date': 'TEXT',
-      'datetime': 'TEXT',
-      'timestamp': 'TEXT'
-    };
-
-    const baseType = datatype.split('(')[0].toLowerCase();
-    return typeMap[baseType] || datatype.toUpperCase();
   }
 }
 

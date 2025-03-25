@@ -133,7 +133,7 @@ abstract class Type {
 }
 
 class Primary extends Field<number> {
-  readonly type = "int";
+  readonly type = "integer";
   readonly increment = true;
   readonly optional = true;
   readonly nullable = false;

@@ -47,11 +47,16 @@ declare module "@expressive/sql" {
 }
 
 class NumericColumn extends Num.Type {
+  type: Num.DataType = "integer";
+  
   get datatype() {
     const { type, precision, scale } = this;
 
+    if(type === "double")
+      return "double precision";
+
     if(type !== "numeric" || precision === undefined)
-      return type || "integer";
+      return type;
 
     if(scale !== undefined)
       return `numeric(${precision},${scale})`;
