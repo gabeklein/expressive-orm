@@ -1,6 +1,5 @@
 import { One, Type as Entity } from "@expressive/sql";
 
-// Postgres package
 declare module "@expressive/sql" {
   namespace One {
     interface Integer<T extends Entity = Entity> extends ForeignColumn<T> {
@@ -12,7 +11,6 @@ declare module "@expressive/sql" {
     }
     
     interface Types {
-      default: Integer;
       integer: Integer;
       bigint: BigInt;
     }
