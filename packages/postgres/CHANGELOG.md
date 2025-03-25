@@ -1,5 +1,16 @@
 # @expressive/postgres
 
+## 0.3.0
+
+### Minor Changes
+
+- aa94a15: Generic fields
+
+### Patch Changes
+
+- Updated dependencies [aa94a15]
+  - @expressive/sql@0.3.0
+
 ## 0.2.2
 
 ### Patch Changes

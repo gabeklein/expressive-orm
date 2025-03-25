@@ -1,5 +1,11 @@
 # @expressive/sql
 
+## 0.3.0
+
+### Minor Changes
+
+- aa94a15: Generic fields
+
 ## 0.2.1
 
 ### Patch Changes
