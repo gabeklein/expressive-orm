@@ -3,6 +3,8 @@ import { PGlite } from '@electric-sql/pglite';
 import { Bool, Connection, Num, One, Query, Str, Time, Type } from '.';
 import { PGLiteConnection } from './PGLiteConnection';
 
+const isWatchMode = process.env.VITEST_MODE === 'WATCH';
+
 const shared = new PGlite();
 let current: TestConnection | undefined;
 
@@ -23,6 +25,9 @@ class TestConnection extends PGLiteConnection {
 }
 
 describe("persistence", () => {
+  // Expensive so do not run in watch mode
+  const it = isWatchMode ? test.skip : test;
+
   it('will not try to recreate database tables', async () => {
     class Users extends Type {
       name = Str();
