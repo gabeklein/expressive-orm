@@ -10,10 +10,6 @@ class ForeignColumn<T extends Entity = Entity> extends Field<Entity.Values<T>> {
   readonly onDelete?: string;
   readonly onUpdate?: string;
 
-  get column() {
-    return underscore(this.property) + "_id";
-  }
-
   set(value: Entity.Values<T> | number) {
     if (this.query?.tables.has(value))
       return (value as any)[this.reference!.column];
@@ -41,7 +37,6 @@ declare namespace One {
 
 interface One<T extends Entity> extends ForeignColumn<T> {}
 
-// Modified function with flexible second parameter
 function One<T extends Entity>(entity: Entity.EntityType<T>, nullable?: false): One<T>;
 function One<T extends Entity>(entity: Entity.EntityType<T>, nullable: boolean): One<T> & Nullable;
 function One<T extends Entity, O extends One.Options>(entity: Entity.EntityType<T>, options: O): Field.Modifier<O, One<T>>;
@@ -50,9 +45,10 @@ function One<T extends Entity>(entity: Entity.EntityType<T>, arg2?: One.Options 
     arg2 = { nullable: arg2 };
   
   const opts: One.Options = Object.assign({}, arg2);
+  const column = opts.column || underscore(entity.name) + "_id";
   const reference = entity.fields.get("id");
 
-  return One.Type.new({ entity, reference, ...opts });
+  return One.Type.new({ entity, reference, column, ...opts });
 }
 
 One.Type = ForeignColumn;
