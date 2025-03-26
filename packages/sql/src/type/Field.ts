@@ -55,7 +55,8 @@ class Field<T = unknown> {
   optional = false;
   increment = false;
   fallback?: unknown;
-
+  
+  column!: string;
   property!: string;
   parent!: Type.EntityType;
   
@@ -68,14 +69,6 @@ class Field<T = unknown> {
   /** Real datatype of this field in database. */
   get datatype(){
     return this.type;
-  }
-
-  get column(){
-    return underscore(this.property);
-  }
-
-  set column(value: string){
-    Object.defineProperty(this, "column", { value });
   }
 
   static new<T extends Field>(
@@ -92,6 +85,10 @@ class Field<T = unknown> {
     const field = create(this);
     field.parent = parent;
     field.property = property;
+
+    if(!field.column)
+      field.column = underscore(property);
+
     return field;
   }
 
