@@ -1,6 +1,10 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
+    "lint": {
+      "outputs": [],
+      "cache": true
+    },
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
@@ -9,7 +13,7 @@
       "dependsOn": []
     },
     "version": {
-      "dependsOn": ["build"],
+      "dependsOn": ["lint", "build"],
       "outputs": ["CHANGELOG.md", "package.json"]
     },
     "publish": {
