@@ -1,5 +1,5 @@
 import { Query } from '..';
-import { Builder, Cond } from '../query/Builder';
+import { Builder } from '../query/Builder';
 import { capitalize, create, defineProperty, escape, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
 import { Type } from './Type';
 
@@ -18,12 +18,12 @@ declare namespace Field {
     T extends { fallback?: any, increment?: true } ? TT & Optional :
     TT;
 
-  type Choose<T, TS, D extends Field = any> = 
-    T extends { type: infer U } ? (U extends keyof TS ? TS[U] : D) :
-    TS extends { default: infer U } ? U :
+  type Type<T, A, D extends Field = any> = 
+    T extends { type: infer U } ? (U extends keyof A ? A[U] : D) :
+    A extends { default: infer U } ? U :
     D
 
-  type Infer<T, TT, D extends Field = any> = Modifier<T, Choose<T, TT, D>>;
+  type Infer<T, A, D extends Field = any> = Modifier<T, Type<T, A, D>>;
 
   type Returns<T> = Field & { get(value: any): T }
 
@@ -44,14 +44,6 @@ declare namespace Field {
     never;
 
   type Output = Record<string, string | number>;
-
-  type Compare<T> = {
-    is(value: Query.Value<T>): Cond;
-    not(value: Query.Value<T>): Cond;
-    over(value: Query.Value<T>, orEqual?: boolean): Cond;
-    under(value: Query.Value<T>, orEqual?: boolean): Cond;
-    in(value: Query.Value<T>[]): Cond;
-  }
 
   const does: (callback: Callback) => void;
 }
@@ -133,25 +125,6 @@ class Field<T = unknown> {
   raw(value: T): string {
     return escape(this.set(value));
   };
-
-  /**
-   * This method is used to compare this field with another value in a query.
-   * 
-   * @param acc Set of comparisons to be added to if not part of a group.
-   */
-  where(): Field.Compare<T> {
-    const use = (op: string) =>
-      (right: unknown, orEqual?: boolean) =>
-        this.query!.where(this, op + (orEqual ? '=' : ''), right)
-
-    return <any> {
-      is: use("="),
-      in: use("IN"),
-      not: use("<>"),
-      over: use(">"),
-      under: use("<")
-    };
-  }
 }
 
 type Callback = (parent: Type.EntityType, property: string) => void;

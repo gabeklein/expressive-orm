@@ -20,7 +20,7 @@ declare namespace Query {
 
   type FromData<T extends {}> = { [K in keyof T]: Field<T[K]> };
 
-  type Value<T = any> = T | Field<T> | Computed<T>
+  type Match<T = any> = T | (T extends Field<infer U> ? Match<U> : Field<T> | Computed<T>);
 
   type Insert<T extends Type> = 
     & { [K in Type.Required<T>]: Field.Assigns<T[K]> | Field; }
@@ -79,7 +79,13 @@ declare namespace Query {
     connection: Connection.Ready;
   }
 
-  type Compare<T extends Field> = ReturnType<T["where"]>;
+  type Compare<T> = {
+    is(value: Match<T>): Cond;
+    not(value: Match<T>): Cond;
+    over(value: Match<T>, orEqual?: boolean): Cond;
+    under(value: Match<T>, orEqual?: boolean): Cond;
+    in(value: Match<T>[]): Cond;
+  }
 
   type Asserts<T extends Field> = Compare<T> & {
     asc(): void;
@@ -88,7 +94,7 @@ declare namespace Query {
 
   type Updates<T> = Field.Updates<T> | T | Field;
 
-  type Function<R> = (this: Builder, where: Where, fn: Query.Functions) => R;
+  type Function<R> = (this: Builder, where: Where, fn: Functions) => R;
 
   type Factory<R, A extends any[]> = Function<(...args: A) => R>;
   

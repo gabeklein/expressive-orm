@@ -116,9 +116,23 @@ class Builder {
     }
   }
 
+  compare<T extends Field>(field: T){
+    const use = (op: string) =>
+      (right: unknown, orEqual?: boolean) =>
+        this.where(field, op + (orEqual ? '=' : ''), right)
+
+    return {
+      is: use("="),
+      in: use("IN"),
+      not: use("<>"),
+      over: use(">"),
+      under: use("<")
+    }
+  }
+
   field<T extends Field>(field: T){
     return {
-      ...field.where(),
+      ...this.compare(field),
       asc: () => { this.order.set(field, "asc") },
       desc: () => { this.order.set(field, "desc") }
     }
