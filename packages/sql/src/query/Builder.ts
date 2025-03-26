@@ -119,7 +119,7 @@ class Builder {
   compare<T extends Field>(field: T){
     const use = (op: string) =>
       (right: unknown, orEqual?: boolean) =>
-        this.where(field, op + (orEqual ? '=' : ''), right)
+        this.where(field, orEqual ? op + '=' : op, right)
 
     return {
       is: use("="),
@@ -138,7 +138,7 @@ class Builder {
     }
   }
 
-  andOr(...args: (Cond | Group)[]){
+  andOr(...args: Expression[]){
     const local = new Group();
 
     this.filters.add(local);
@@ -449,6 +449,8 @@ class DataTable<T extends Record<string, unknown> = any>
   }
 }
 
+export type Expression = Cond | Group;
+
 export class Cond {
   constructor(
     public readonly left: Field, 
@@ -459,9 +461,9 @@ export class Cond {
 }
 
 class Group {
-  children = new Set<Cond | Group>();
+  children = new Set<Expression>();
 
-  add(left: Field | Group | Cond, op?: string, right?: unknown){
+  add(left: Field | Expression, op?: string, right?: unknown){
     if(left instanceof Field)
       left = new Cond(left, op!, right!);
     
@@ -470,7 +472,7 @@ class Group {
     return left;
   }
 
-  delete(child: Cond | Group){
+  delete(child: Expression){
     this.children.delete(child);
   }
 

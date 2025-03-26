@@ -2,7 +2,7 @@ import { Connection } from '../connection/Connection';
 import { Field } from '../type/Field';
 import { Type } from '../type/Type';
 import { assign, create, defineProperty } from '../utils';
-import { Builder as QB, Cond, Group, Builder, QueryTemplate } from './Builder';
+import { Builder as QB, Cond, Group, Builder, QueryTemplate, Expression } from './Builder';
 import { Bitwise, BitWise, Computed, MathOps } from './Computed';
 
 declare namespace Query {
@@ -44,7 +44,7 @@ declare namespace Query {
      * 
      * Will alternate between AND-OR depending on depth, starting with OR.
      */
-    (...orWhere: (Cond | Group)[]): Group;
+    (...orWhere: Expression[]): Group;
 
     /**
      * Declare inserts to be made into a given table.
@@ -80,11 +80,11 @@ declare namespace Query {
   }
 
   type Compare<T> = {
-    is(value: Match<T>): Cond;
-    not(value: Match<T>): Cond;
-    over(value: Match<T>, orEqual?: boolean): Cond;
-    under(value: Match<T>, orEqual?: boolean): Cond;
-    in(value: Match<T>[]): Cond;
+    is(value: Match<T>): Expression;
+    not(value: Match<T>): Expression;
+    over(value: Match<T>, orEqual?: boolean): Expression;
+    under(value: Match<T>, orEqual?: boolean): Expression;
+    in(value: Match<T>[]): Expression;
   }
 
   type Asserts<T extends Field> = Compare<T> & {
