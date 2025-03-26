@@ -39,12 +39,10 @@ class TimeColumn extends Time.Type {
   readonly type: Time.DataType = "text";
   
   get datatype() {
-    // SQLite has only 5 storage classes: NULL, INTEGER, REAL, TEXT, and BLOB
-    // We'll map the various time types to these storage classes
     const { type } = this;
     
     if (["date", "time", "timestamp", "datetime"].includes(type))
-      return "text"; // Store as ISO string
+      return "text";
     
     return type;
   }
@@ -86,8 +84,7 @@ class TimeColumn extends Time.Type {
       if (this.type === "time")
         return value.toISOString().slice(11, 19);
       
-      // Store full ISO string for timestamp/datetime
-      // This preserves timezone information
+      // Storing full ISO string for timestamp/datetime preserves timezone information
       return value.toISOString();
     }
     
