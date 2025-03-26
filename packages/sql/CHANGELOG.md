@@ -1,5 +1,11 @@
 # @expressive/sql
 
+## 0.3.1
+
+### Patch Changes
+
+- 857a18c: Improved types for One
+
 ## 0.3.0
 
 ### Minor Changes
