@@ -1,6 +1,6 @@
 import { Query } from '..';
 import { Builder } from '../query/Builder';
-import { capitalize, create, defineProperty, escape, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
+import { capitalize, create, defineProperty, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
 import { Type } from './Type';
 
 const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
@@ -117,10 +117,6 @@ class Field<T = unknown> {
    */
   get(value: any): T {
     return value;
-  };
-
-  raw(value: T): string {
-    return escape(this.set(value));
   };
 }
 

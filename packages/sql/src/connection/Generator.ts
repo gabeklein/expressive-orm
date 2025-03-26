@@ -2,6 +2,7 @@ import { Builder, DataField, DataTable, Group, Parameter, QueryTemplate, Value }
 import { Computed } from '../query/Computed';
 import { Query } from '../query/Query';
 import { Field } from '../type/Field';
+import { escape } from '../utils';
 
 export class Generator {
   cte = new Map<string, string>();
@@ -145,7 +146,7 @@ export class Generator {
             throw new Error(`Column ${field} is not nullable.`);
         }
         else
-          value = field.raw(value);
+          value = escape(field.set(value));
 
         sets.push(`${this.escape(field.column)} = ${value}`);
       }
@@ -246,6 +247,8 @@ export class Generator {
   }
 
   protected filter(left: Field, op: string, right: unknown){
+    const raw = (value: unknown) => escape(left.set(value));
+    
     if (right === null){
       right === "NULL";
 
@@ -257,11 +260,11 @@ export class Generator {
         throw new Error('Cannot compare NULL with ' + op);
     }
     else if(right instanceof Array)
-      right = `(${right.map(left.raw, left)})`;
+      right = `(${right.map(raw)})`;
     else if (right instanceof Field || right instanceof Value)
       right = this.reference(right);
     else
-      right = left.raw(right);
+      right = raw(right);
 
     return `${this.reference(left)} ${op} ${right}`;
   }
