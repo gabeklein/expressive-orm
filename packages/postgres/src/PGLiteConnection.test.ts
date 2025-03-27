@@ -481,24 +481,24 @@ describe("insert", () => {
 });
 
 describe("query", () => {
-  class Users extends Type {
+  class User extends Type {
     name = Str();
   }
 
   it("will insert a single row", async () => {
-    await new TestConnection([Users]);
+    await new TestConnection([User]);
     
     const query = Query(where => {
-      return where(Users, { name: "John" }).id;
+      return where(User, { name: "John" }).id;
     });
 
     expect(query).toMatchInlineSnapshot(`
       INSERT INTO
-        "users" ("name")
+        "user" ("name")
       SELECT
         'John'
       RETURNING
-        "users"."id"
+        "user"."id"
     `);
 
     expect(await query).toEqual([1]);
@@ -506,14 +506,14 @@ describe("query", () => {
 
   it.skip("will chain inserts", async () => {
     class Info extends Type {
-      user = One(Users);
+      user = One(User);
       color = Str();
     }
 
-    await new TestConnection([Users, Info]);
+    await new TestConnection([User, Info]);
     
     const query = Query(where => {
-      const user = where(Users, { name: "John" });
+      const user = where(User, { name: "John" });
       const info = where(Info, { user: user.id, color: "blue" });
 
       return {
@@ -524,7 +524,7 @@ describe("query", () => {
 
     expect(query).toMatchInlineSnapshot(`
       WITH new_user AS (
-        INSERT INTO "users" ("name")
+        INSERT INTO "user" ("name")
         VALUES ('John')
         RETURNING "id"
       ),
@@ -543,20 +543,20 @@ describe("query", () => {
   
   it("will insert", async () => {
     class Info extends Type {
-      user = One(Users);
+      user = One(User);
       color = Str();
     }
   
-    await new TestConnection([Users, Info]);
+    await new TestConnection([User, Info]);
   
-    await Users.insert([
+    await User.insert([
       { name: "John" },
       { name: "Jane" },
       { name: "Joe" },
     ]);
   
     const query = Query(where => {
-      const user = where(Users);
+      const user = where(User);
       const info = where(Info, {
         user: user.id,
         color: "blue",
@@ -569,10 +569,10 @@ describe("query", () => {
       INSERT INTO
         "info" ("user_id", "color")
       SELECT
-        "users"."id",
+        "user"."id",
         'blue'
       FROM
-        "users"
+        "user"
       RETURNING
         "info"."id"
     `);
@@ -581,7 +581,7 @@ describe("query", () => {
   });
 
   it("will insert iterable data", async () => {
-    await new TestConnection([Users]);
+    await new TestConnection([User]);
   
     const data = [
       { name: "John" },
@@ -590,12 +590,12 @@ describe("query", () => {
     ]
   
     const query = Query(where => {
-      where(Users, ...data);
+      where(User, ...data);
     });
 
     expect(query).toMatchInlineSnapshot(`
       INSERT INTO
-        "users" ("name")
+        "user" ("name")
       SELECT
         "input"."name"
       FROM
@@ -604,7 +604,7 @@ describe("query", () => {
 
     expect(await query).toBe(3);
 
-    expect(await Users.get()).toEqual([
+    expect(await User.get()).toEqual([
       { id: 1, name: "John" },
       { id: 2, name: "Jane" },
       { id: 3, name: "Joe" },
