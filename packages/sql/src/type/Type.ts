@@ -1,6 +1,8 @@
 import { Connection, Query } from '..';
-import { defineProperty, isIterable, underscore } from '../utils';
-import { Field, fields, Nullable, Optional } from './Field';
+import { capitalize, defineProperty, freeze, getOwnPropertyDescriptor, isIterable, underscore } from '../utils';
+import { Field, Nullable, Optional } from './Field';
+
+export const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
 
 declare namespace Type {
   type EntityType<T extends Type = Type> =
@@ -45,7 +47,35 @@ abstract class Type {
   static connection?: Connection;
 
   static get fields(){
-    return fields(this);
+    let fields = REGISTER.get(this);
+  
+    if(!fields){
+      fields = new Map<string, Field>();
+  
+      const reference = new (this as any)();
+      
+      for(const key in reference){
+        const { value } = getOwnPropertyDescriptor(reference, key)!;
+    
+        if(value instanceof Field){
+          const instance = value.create(key, this);
+  
+          fields.set(key, instance);
+          freeze(instance);
+        }
+        else if(typeof value === "function"){
+          value(this, key);
+        }
+        else throw new Error(
+          `Entities do not support normal values, only fields. ` +
+          `Did you forget to import \`${capitalize(typeof value)}\`?`
+        ); 
+      }
+    }
+
+    defineProperty(this, "fields", { value: fields });
+  
+    return fields;
   }
 
   static get table(){

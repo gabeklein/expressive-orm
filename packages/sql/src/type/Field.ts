@@ -1,9 +1,7 @@
 import { Query } from '..';
 import { Builder } from '../query/Builder';
-import { capitalize, create, defineProperty, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
+import { create, defineProperty, underscore } from '../utils';
 import { Type } from './Type';
-
-const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
 
 type Nullable = { nullable: true };
 type Optional = { optional: true };
@@ -126,40 +124,7 @@ defineProperty(Field, "does", {
   value: (callback: Callback) => callback
 });
 
-function fields(from: Type.EntityType){
-  let fields = REGISTER.get(from);
-
-  if(!fields){
-    fields = new Map<string, Field>();
-
-    REGISTER.set(from, fields);
-    
-    const reference = new (from as any)();
-    
-    for(const key in reference){
-      const { value } = getOwnPropertyDescriptor(reference, key)!;
-  
-      if(value instanceof Field){
-        const instance = value.create(key, from);
-
-        from.fields.set(key, instance);
-        freeze(instance);
-      }
-      else if(typeof value === "function"){
-        value(from, key);
-      }
-      else throw new Error(
-        `Entities do not support normal values, only fields. ` +
-        `Did you forget to import \`${capitalize(typeof value)}\`?`
-      ); 
-    }
-  }
-
-  return fields;
-}
-
 export {
-  fields,
   Field,
   Nullable,
   Optional
