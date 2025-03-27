@@ -68,6 +68,7 @@ export class PostgresConnection extends Connection {
     const required = new Set(this.using);
 
     for (const type of required) {
+      void type.fields;
       const valid = await this.valid(type);
 
       if(valid)
@@ -93,7 +94,7 @@ export class PostgresConnection extends Connection {
   }
 
   async valid(type: Type.EntityType): Promise<boolean> {
-    const { table } = type;
+    const { fields, table } = type;
     
     const tableExists = await this.fetch(
       'SELECT FROM information_schema.tables WHERE table_name = $1', [table]
@@ -111,7 +112,7 @@ export class PostgresConnection extends Connection {
       [table]
     );
 
-    for (const field of type.fields.values()) {
+    for (const field of fields.values()) {
       if (!field.datatype) continue;
 
       const columnInfo = rows.find(col => col.column_name === field.column);

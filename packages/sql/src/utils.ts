@@ -18,7 +18,7 @@ function escape(value: any){
   if(typeof value != "string")
     return value;
 
-  value = value
+  const escaped = value
     .replace(/[\0\n\r\b\t\\'"\x1a]/g, s => (
       s == "\0" ? "\\0" :
       s == "\n" ? "\\n" :
@@ -30,9 +30,9 @@ function escape(value: any){
     ))
     .replace(/[\x00-\x1f\x7f-\x9f]/g, ch => (
       '\\x' + ch.charCodeAt(0).toString(16).padStart(2, '0')
-    ));
+    ))
 
-  return `'${value}'`;
+  return `'${escaped}'`;
 }
 
 const {
