@@ -10,6 +10,24 @@ import { format } from 'sql-formatter';
 import { PostgresGenerator } from './PostgresGenerator';
 
 const NOT_IMPL = "Not implemented, use PGConnection or PGLiteConnection instead.";
+const TYPE_SYNONYMS: Record<string, string> = {
+  "int2": "smallint",
+  "int4": "integer",
+  "int8": "bigint",
+  "real": "float",
+  "double precision": "double",
+  "character varying": "varchar",
+  "character": "char",
+  "numeric": "decimal",
+  "timestamp without time zone": "timestamp",
+  "timestamp with time zone": "timestamptz",
+  "time without time zone": "time",
+  "time with time zone": "timetz",
+  "interval without time zone": "interval",
+  "interval with time zone": "interval",
+  "boolean": "bool",
+  "bytea": "binary"
+}
 
 export class PostgresConnection extends Connection {
   static generator = PostgresGenerator;
@@ -137,14 +155,17 @@ export class PostgresConnection extends Connection {
   ) {
     const { column, datatype, nullable, parent, reference } = field;
 
-    if (datatype.toLowerCase() !== info.data_type.toLowerCase())
-      throw new Error(
-        `Column ${column} in table ${parent.table} has type ${info.data_type}, expected ${datatype}`
-      );
-
     if ((info.is_nullable === 'YES') === !nullable)
       throw new Error(
         `Column ${column} in table ${parent.table} has incorrect nullable value`
+      );
+
+    const A = info.data_type.toLowerCase();
+    const B = datatype.toLowerCase();
+
+    if (A !== B && A !== TYPE_SYNONYMS[B] && B !== TYPE_SYNONYMS[A])
+      throw new Error(
+        `Column ${column} in table ${parent.table} has type "${A}", expected "${B}"`
       );
 
     if (!reference) return;

@@ -666,3 +666,4 @@ it("will update from data", async () => {
 })
 
 it.todo("will prevent reserved words as table names");
+it.todo("will handle type synonyms");
