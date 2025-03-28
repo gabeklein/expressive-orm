@@ -49,7 +49,7 @@ function One<T extends Entity>(entity: Entity.EntityType<T>, arg2?: One.Options 
   const column = opts.column || underscore(entity.name) + "_" + field;
   const reference = entity.fields.get(field);
 
-  return One.Type.new({ entity, reference, column, ...opts });
+  return One.Type.new({ ...opts, entity, reference, column });
 }
 
 One.Type = ForeignColumn;
