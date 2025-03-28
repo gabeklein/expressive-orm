@@ -130,37 +130,40 @@ export class PostgresConnection extends Connection {
       [table]
     );
 
-    for (const field of fields.values()) {
-      if (!field.datatype) continue;
-
-      const columnInfo = rows.find(col => col.column_name === field.column);
-
-      if (!columnInfo)
-        throw new Error(`Column ${field.column} does not exist in table ${table}`);
-
-      await this.checkIntegrity(field, columnInfo);
-    }
+    await Promise.all(Array.from(fields.values(), field => {
+      return this.checkIntegrity(field, 
+        rows.find(col => col.column_name === field.column)
+      );
+    }));
 
     return true;
   }
 
   protected async checkIntegrity(
     field: Field,
-    info: {
+    info: undefined | {
       column_name: string;
       data_type: string;
       is_nullable: string;
       column_default: string;
     }
   ) {
-    const { column, datatype, nullable, parent, reference } = field;
+    const { column, datatype, nullable, parent, reference, table } = field;
 
-    if ((info.is_nullable === 'YES') === !nullable)
+    if(!datatype)
+      return;
+
+    if (!info)
+      throw new Error(`Column ${field.column} does not exist in table ${table}`);
+
+    const { is_nullable, data_type } = info;
+
+    if ((is_nullable === 'YES') === !nullable)
       throw new Error(
         `Column ${column} in table ${parent.table} has incorrect nullable value`
       );
 
-    const A = info.data_type.toLowerCase();
+    const A = data_type.toLowerCase();
     const B = datatype.toLowerCase();
 
     if (A !== B && A !== TYPE_SYNONYMS[B] && B !== TYPE_SYNONYMS[A])
