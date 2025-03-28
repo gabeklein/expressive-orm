@@ -118,7 +118,7 @@ export class Generator {
       });
 
       const mode = optional ? "LEFT" : "INNER";
-      const as = name + (alias ? ` ${alias}` : "");
+      const as = this.escape(name) + (alias ? ` ${this.escape(alias)}` : "");
       const conds = joins.map(x => this.filter(x.left, x.op, x.right));
 
       output.push(`${mode} JOIN ${as} ON ${conds.join(' AND ')}`);
