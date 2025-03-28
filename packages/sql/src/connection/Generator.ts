@@ -221,6 +221,9 @@ export class Generator {
       returns instanceof Map ?
         // TODO: simplify this
         Array.from(returns)
+          .filter(([_alias, field]) => {
+            return field instanceof Field ? !field.absent : true;
+          })
           .map(([alias, field]) => this.value(field) + ` AS "${alias}"`)
           .join(', ') :
       returns ?

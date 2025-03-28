@@ -154,7 +154,13 @@ export class PostgresConnection extends Connection {
       return;
 
     if (!info)
-      throw new Error(`Column ${field.column} does not exist in table ${table}`);
+      if(field.optional){
+        field.absent = true;
+        field.get = () => undefined;
+        return;
+      }
+      else
+        throw new Error(`Column ${field.column} does not exist in table ${table}`);
 
     const { is_nullable, data_type } = info;
 

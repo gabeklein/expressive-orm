@@ -84,6 +84,9 @@ describe("persistence", () => {
       return new PGLiteConnection([ User2 ], pg);
     }).rejects.toThrow("Column rank does not exist in table user");
   });
+  
+  it.todo('will ignore type mismatch if synonomous');
+  it.todo('will ignore missing column if marked as optional');
 });
 
 describe("schema", () => {

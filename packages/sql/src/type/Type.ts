@@ -1,5 +1,5 @@
 import { Connection, Query } from '..';
-import { capitalize, defineProperty, freeze, getOwnPropertyDescriptor, isIterable, underscore } from '../utils';
+import { capitalize, defineProperty, getOwnPropertyDescriptor, isIterable, underscore } from '../utils';
 import { Field, Nullable, Optional } from './Field';
 
 export const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
@@ -61,7 +61,8 @@ abstract class Type {
           const instance = value.create(key, this);
   
           fields.set(key, instance);
-          freeze(instance);
+          // TODO: absent assignment makes this not possible
+          // freeze(instance);
         }
         else if(typeof value === "function"){
           value(this, key);

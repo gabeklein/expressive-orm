@@ -19,7 +19,8 @@ declare namespace Field {
 
   type Mod<T extends any[], TT> = 
     T extends [infer First, ...infer Rest] ?
-      First extends { nullable: true } | true ? TT & Nullable :
+      // TODO: should this be conflated with Optional?
+      First extends { nullable?: true, optional?: true } | true ? TT & Nullable :
       First extends { fallback?: any, increment?: true } ? TT & Optional :
       Mod<Rest, TT> :
     TT;
@@ -54,6 +55,7 @@ class Field<T = unknown> {
   unique = false;
   nullable = false;
   optional = false;
+  absent = false;
   increment = false;
   fallback?: unknown;
   
