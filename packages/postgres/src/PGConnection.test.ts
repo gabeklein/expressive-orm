@@ -1,6 +1,6 @@
-import { Type } from '@expressive/sql';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { Type } from '.';
 import { PGConnection } from './PGConnection';
 
 describe('PGConnection', () => {
