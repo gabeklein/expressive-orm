@@ -171,4 +171,4 @@ class Primary extends Field<number> {
   readonly unique = true;
 }
 
-export { Type }
+export { Type, Primary }

@@ -10,4 +10,4 @@ export { Field, Nullable, Optional } from './type/Field';
 export { Generator } from './connection/Generator';
 export { Query } from './query/Query';
 export { Table } from './type/Table';
-export { Type } from './type/Type';
+export { Type, Primary } from './type/Type';
