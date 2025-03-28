@@ -4,13 +4,23 @@ import { PostgresConnection } from '../PostgresConnection';
 describe("schema", () => {
   it("will create columns", async () => {
     class Users extends Type {
-      name = Str();
-      email = Str({ nullable: true });
+      text = Str();
+      optional = Str({ nullable: true });
+      varchar = Str({ type: "varchar", length: 100 });
+      optionalVarchar = Str({ type: "varchar", length: 50, nullable: true });
+      optionalShorthand = Str(true);
+      optionalVarcharCombined = Str({ type: "varchar" }, { nullable: true });
+      optionalVarcharCombinedShorthand = Str({ type: "varchar" }, true);
     }
 
     interface Signature {
-      name: Str.Text;
-      email: Str.Text & Nullable;
+      text: Str.Text;
+      optional: Str.Text & Nullable;
+      varchar: Str.VarChar;
+      optionalVarchar: Str.VarChar & Nullable;
+      optionalShorthand: Str.Text & Nullable;
+      optionalVarcharCombined: Str.VarChar & Nullable;
+      optionalVarcharCombinedShorthand: Str.VarChar & Nullable;
     }
     
     // type-error if expected types are not present.
@@ -22,8 +32,13 @@ describe("schema", () => {
       CREATE TABLE
         "users" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "name" TEXT NOT NULL,
-          "email" TEXT
+          "text" TEXT NOT NULL,
+          "optional" TEXT,
+          "varchar" VARCHAR(100) NOT NULL,
+          "optional_varchar" VARCHAR(50),
+          "optional_shorthand" TEXT,
+          "optional_varchar_combined" VARCHAR,
+          "optional_varchar_combined_shorthand" VARCHAR
         );
     `);
   });

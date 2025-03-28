@@ -9,19 +9,22 @@ type Optional = { optional: true };
 declare namespace Field {
   type Init<T extends Field = Field> = (self: T) => Partial<T> | void;
 
-  type Opts<T extends Field = Field> = Partial<T>;
+  type Args<T extends Field = Field> = (Partial<T> | boolean | string)[];
 
-  type Modifier<T, TT> =
-    T extends { nullable: true } | true ? TT & Nullable :
-    T extends { fallback?: any, increment?: true } ? TT & Optional :
+  type Type<T extends any[], A, D extends Field = any> = 
+    T extends [infer First, ...infer Rest] ?
+      First extends { type: infer I } ? (I extends keyof A ? A[I] : D) :
+      Type<Rest, A, D> :
+    A extends { default: infer V } ? V : D;
+
+  type Mod<T extends any[], TT> = 
+    T extends [infer First, ...infer Rest] ?
+      First extends { nullable: true } | true ? TT & Nullable :
+      First extends { fallback?: any, increment?: true } ? TT & Optional :
+      Mod<Rest, TT> :
     TT;
 
-  type Type<T, A, D extends Field = any> = 
-    T extends { type: infer U } ? (U extends keyof A ? A[U] : D) :
-    A extends { default: infer U } ? U :
-    D
-
-  type Infer<T, A, D extends Field = any> = Modifier<T, Type<T, A, D>>;
+  type Infer<T extends any[], A, D extends Field = any> = Mod<T, Type<T, A, D>>;
 
   type Returns<T> = Field & { get(value: any): T }
 
@@ -70,13 +73,13 @@ class Field<T = unknown> {
   }
 
   static new<T extends Field>(
-    this: new (...args: any[]) => T,
-    options?: Field.Opts<T> | boolean): Field {
+    this: new (...args: any[]) => T, ...options: Field.Args<T>): Field {
 
-    if(typeof options === "boolean")
-      options = { nullable: options } as Field.Opts<T>;
-
-    return Object.assign(new this, options);
+    return Object.assign(new this, ...options.map(x => (
+      typeof x === "string" ? { column: x } :
+      typeof x === "boolean" ? { nullable: x } :
+      x
+    )));
   }
 
   create(property: string, parent: Type.EntityType): this {

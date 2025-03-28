@@ -50,15 +50,13 @@ declare namespace Bool {
   /** All available database types for Bool */
   type Any = Types[keyof Types] | BooleanColumn;
 
-  type Opts = Partial<Any>;
+  type Options = Field.Args<Any>;
 }
 
 type Bool = Bool.Any;
 
-function Bool<T extends boolean>(nullable: T): Field.Infer<T, Bool.Types, Bool>;
-function Bool<T extends Bool.Opts>(opts?: T): Field.Infer<T, Bool.Types, Bool>;
-function Bool<T extends Bool.Opts>(opts?: T){
-  return Bool.Type.new(opts);
+function Bool<T extends Bool.Options>(...opts: T){
+  return Bool.Type.new(...opts) as Field.Infer<T, Bool.Types, Bool>;;
 }
 
 Bool.Type = BooleanColumn;

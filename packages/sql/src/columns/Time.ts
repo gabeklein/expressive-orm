@@ -54,15 +54,13 @@ declare namespace Time {
   /** All available database types for Time */
   type Any = Types[keyof Types] | TimeColumn;
 
-  type Options = Partial<Any>;
+  type Options = Field.Args<Any>;
 }
 
 type Time = Time.Any;
 
-function Time<T extends boolean>(nullable: T): Field.Infer<T, Time.Types, Time>;
-function Time<T extends Time.Options>(opts?: T): Field.Infer<T, Time.Types, Time>;
-function Time<T extends Time.Options>(opts?: T){
-  return Time.Type.new(opts);
+function Time<T extends Time.Options>(...opts: T){
+  return Time.Type.new(...opts) as Field.Infer<T, Time.Types, Time>;
 }
 
 Time.Type = TimeColumn;

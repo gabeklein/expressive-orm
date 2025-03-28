@@ -39,7 +39,7 @@ interface One<T extends Entity> extends ForeignColumn<T> {}
 
 function One<T extends Entity>(entity: Entity.EntityType<T>, nullable?: false): One<T>;
 function One<T extends Entity>(entity: Entity.EntityType<T>, nullable: boolean): One<T> & Nullable;
-function One<T extends Entity, O extends One.Options>(entity: Entity.EntityType<T>, options: O): Field.Modifier<O, One<T>>;
+function One<T extends Entity, O extends One.Options>(entity: Entity.EntityType<T>, options: O): Field.Mod<[O], One<T>>;
 function One<T extends Entity>(entity: Entity.EntityType<T>, arg2?: One.Options | boolean) {
   if (typeof arg2 === 'boolean')
     arg2 = { nullable: arg2 };
