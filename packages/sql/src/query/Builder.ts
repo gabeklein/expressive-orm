@@ -310,7 +310,11 @@ class Builder {
 
         const value = raw[column];
 
+        if(value === undefined)
+          return;
+
         target[property] = 
+          value === null && field instanceof Field && field.nullable ? null :
           field instanceof Field ? field.get(value) :
           selects instanceof Parameter ? selects.digest(value) :
           value;
