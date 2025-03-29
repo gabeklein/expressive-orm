@@ -51,6 +51,8 @@ abstract class Type {
   
     if(!fields){
       fields = new Map<string, Field>();
+
+      defineProperty(this, "fields", { value: fields });
   
       const reference = new (this as any)();
       
@@ -73,8 +75,6 @@ abstract class Type {
         ); 
       }
     }
-
-    defineProperty(this, "fields", { value: fields });
   
     return fields;
   }
