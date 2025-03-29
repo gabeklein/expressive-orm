@@ -16,11 +16,16 @@ declare module "@expressive/sql" {
       readonly length: number;
     }
 
+    interface UUID extends StringColumn {
+      readonly type: "uuid";
+    }
+
     interface Types {
       default: Text;
       text: Text;
       varchar: VarChar;
       char: Char;
+      uuid: UUID;
     }
   }
 }
