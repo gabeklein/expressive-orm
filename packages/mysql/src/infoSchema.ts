@@ -1,6 +1,6 @@
-import { Bool, Type, Num, Primary, Str } from '@expressive/sql';
+import { Bool, Num, Primary, Str, Table } from '@expressive/sql';
 
-export class Column extends Type {
+export class Column extends Table {
   id = Primary({
     tableName: "COLUMNS",
     tableSchema: "information_schema"
@@ -137,7 +137,7 @@ export class Column extends Type {
   });
 }
 
-export class Constraint extends Type {
+export class Constraint extends Table {
   id = Primary({
     tableName: "TABLE_CONSTRAINTS",
     tableSchema: "information_schema"
@@ -187,7 +187,7 @@ export class Constraint extends Type {
   })
 }
 
-export class KeyColumnUsage extends Type {
+export class KeyColumnUsage extends Table {
   id = Primary({
     tableName: "KEY_COLUMN_USAGE",
     tableSchema: "information_schema"
@@ -264,7 +264,7 @@ export class KeyColumnUsage extends Type {
   })
 }
 
-export class ReferentialConstraints extends Type {
+export class ReferentialConstraints extends Table {
   id = Primary({
     name: "REFERENTIAL_CONSTRAINTS",
     tableSchema: "information_schema"
