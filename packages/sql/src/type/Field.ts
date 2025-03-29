@@ -9,7 +9,7 @@ type Optional = { optional: true };
 declare namespace Field {
   type Init<T extends Field = Field> = (self: T) => Partial<T> | void;
 
-  type Args<T extends Field = Field> = (Partial<T> | boolean | string)[];
+  type Args<T extends Field = Field> = (Partial<T> | null | string)[];
 
   type Type<T extends any[], A, D extends Field = any> = 
     T extends [infer First, ...infer Rest] ?
@@ -20,7 +20,7 @@ declare namespace Field {
   type Mod<T extends any[], TT> = 
     T extends [infer First, ...infer Rest] ?
       // TODO: should this be conflated with Optional?
-      First extends { nullable?: true, optional?: true } | true ? TT & Nullable :
+      First extends { nullable?: true, optional?: true } | null ? TT & Nullable :
       First extends { fallback?: any, increment?: true } ? TT & Optional :
       Mod<Rest, TT> :
     TT;
@@ -79,7 +79,7 @@ class Field<T = unknown> {
 
     return Object.assign(new this, ...options.map(x => (
       typeof x === "string" ? { column: x } :
-      typeof x === "boolean" ? { nullable: x } :
+      x === null ? { nullable: true } :
       x
     )));
   }
