@@ -8,9 +8,9 @@ describe("schema", () => {
       optional = Str({ nullable: true });
       varchar = Str({ type: "varchar", length: 100 });
       optionalVarchar = Str({ type: "varchar", length: 50, nullable: true });
-      optionalShorthand = Str(true);
+      optionalShorthand = Str(null);
       optionalVarcharCombined = Str({ type: "varchar" }, { nullable: true });
-      optionalVarcharCombinedShorthand = Str({ type: "varchar" }, true);
+      optionalVarcharCombinedShorthand = Str({ type: "varchar" }, null);
     }
 
     interface Signature {

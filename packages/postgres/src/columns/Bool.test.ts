@@ -6,7 +6,7 @@ describe("schema", () => {
   it("will create basic boolean columns", async () => {
     class Flags extends Type {
       active = Bool();
-      optional = Bool(true);
+      optional = Bool(null);
       custom = Bool({ 
         type: "varchar", 
         either: ["YES", "NO"] 
