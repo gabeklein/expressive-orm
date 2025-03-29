@@ -1,6 +1,7 @@
 import { Connection, Query } from '..';
 import { capitalize, defineProperty, getOwnPropertyDescriptor, isIterable, underscore } from '../utils';
 import { Field, Nullable, Optional } from './Field';
+import { Primary } from './Primary';
 
 export const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
 
@@ -40,7 +41,7 @@ abstract class Type {
    * Primary key of this entity.
    * May be any name in the actual database, however requred to be `id` as property of this type.
    */
-  id = new Primary();
+  id = Primary();
 
   static schema = "";
 
@@ -163,13 +164,4 @@ abstract class Type {
   }
 }
 
-class Primary extends Field<number> {
-  readonly type = "integer";
-  readonly increment = true;
-  readonly optional = true;
-  readonly nullable = false;
-  readonly primary = true;
-  readonly unique = true;
-}
-
-export { Type, Primary }
+export { Type }

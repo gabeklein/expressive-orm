@@ -1,7 +1,9 @@
-import { Query, Str, Table, Type } from '..';
+import { Primary, Query, Str, Type } from '..';
 it("will alias types with a schema", () => {
   class Foo extends Type {
-    this = Table({ schema: "foobar" });
+    id = Primary({
+      tableSchema: "foobar",
+    });
 
     name = Str();
     color = Str();
