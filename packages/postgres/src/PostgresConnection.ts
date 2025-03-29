@@ -131,7 +131,7 @@ export class PostgresConnection extends Connection {
     );
 
     await Promise.all(Array.from(fields.values(), field => {
-      return this.checkIntegrity(field, 
+      return this.checkIntegrity(table, field, 
         rows.find(col => col.column_name === field.column)
       );
     }));
@@ -140,6 +140,7 @@ export class PostgresConnection extends Connection {
   }
 
   protected async checkIntegrity(
+    table: string,
     field: Field,
     info: undefined | {
       column_name: string;
@@ -148,7 +149,7 @@ export class PostgresConnection extends Connection {
       column_default: string;
     }
   ) {
-    const { column, datatype, nullable, parent, reference, table } = field;
+    const { column, datatype, nullable, parent, reference } = field;
 
     if(!datatype)
       return;
