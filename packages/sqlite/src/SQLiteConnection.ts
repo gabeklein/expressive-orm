@@ -1,8 +1,8 @@
-import "./columns/Str";
-import "./columns/Num";
-import "./columns/Bool";
-import "./columns/Time";
-import "./columns/One";
+import './columns/Bool';
+import './columns/Num';
+import './columns/One';
+import './columns/Str';
+import './columns/Time';
 
 import { Connection, Field, Table } from '@expressive/sql';
 import Database from 'better-sqlite3';
