@@ -1,10 +1,10 @@
 // packages/postgres/src/columns/Num.test.ts
-import { Nullable, Num, Type } from '..';
+import { Nullable, Num, Table } from '..';
 import { PostgresConnection } from '../PostgresConnection';
 
 describe("schema", () => {
   it("will create basic numeric columns", async () => {
-    class Numbers extends Type {
+    class Numbers extends Table {
       int = Num();
       real = Num({ type: "real" });
       smallint = Num({ type: "smallint" });
@@ -42,7 +42,7 @@ describe("schema", () => {
   });
   
   it("will create numeric columns with precision and scale", async () => {
-    class FinancialData extends Type {
+    class FinancialData extends Table {
       price = Num({ type: "numeric", precision: 10, scale: 2 });
       total = Num({ type: "numeric", precision: 15, scale: 4 });
       percentage = Num({ type: "numeric", precision: 5, scale: 2 });
@@ -70,7 +70,7 @@ describe("schema", () => {
   });
   
   it("will create serial columns", async () => {
-    class Counter extends Type {
+    class Counter extends Table {
       value = Num({ type: "serial" });
     }
 

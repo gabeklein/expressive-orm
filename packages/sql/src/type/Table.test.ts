@@ -1,6 +1,6 @@
-import { Type, Num } from '..';
+import { Num, Table } from '..';
 
-class Item extends Type  {
+class Item extends Table  {
   number = Num();
 }
 

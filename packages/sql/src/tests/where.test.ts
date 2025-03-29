@@ -1,6 +1,6 @@
-import { Type, Num, Query, Str, Bool } from '..';
+import { Bool, Num, Query, Str, Table } from '..';
 
-class Item extends Type  {
+class Item extends Table  {
   number = Num();
 }
 
@@ -72,7 +72,7 @@ it("will add IN clause", () => {
 
 describe("grouping", () => {
   it("will chain clauses", () => {
-    class Test extends Type {
+    class Test extends Table {
       a = Num();
       b = Num();
       c = Num();
@@ -102,7 +102,7 @@ describe("grouping", () => {
   })
 
   it("will group clauses", () => {
-    class Foo extends Type {
+    class Foo extends Table {
       name = Str();
       color = Str();
     }
@@ -136,7 +136,7 @@ describe("grouping", () => {
   })
 
   it("will group recursively", () => {
-    class Foo extends Type {
+    class Foo extends Table {
       name = Str();
       color = Str();
     }
@@ -184,7 +184,7 @@ describe("grouping", () => {
 });
 
 describe("complex grouping", () => {
-  class Item extends Type {
+  class Item extends Table {
     name = Str();
     price = Num();
     color = Str();
@@ -298,7 +298,7 @@ describe("complex grouping", () => {
 });
 
 describe("sort", () => {
-  class Test extends Type {
+  class Test extends Table {
     name = Str();
     rating = Num();
   }

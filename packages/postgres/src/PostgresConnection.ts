@@ -1,10 +1,10 @@
-import "./columns/Str";
-import "./columns/Num";
-import "./columns/Bool";
-import "./columns/Time";
-import "./columns/One";
+import './columns/Bool';
+import './columns/Num';
+import './columns/One';
+import './columns/Str';
+import './columns/Time';
 
-import { Connection, Field, Type } from '@expressive/sql';
+import { Connection, Field, Table } from '@expressive/sql';
 import { format } from 'sql-formatter';
 
 import { PostgresGenerator } from './PostgresGenerator';
@@ -111,7 +111,7 @@ export class PostgresConnection extends Connection {
     return this.query(query, params).then(x => x.rows) as Promise<T[]>;
   }
 
-  async valid(type: Type.EntityType): Promise<boolean> {
+  async valid(type: Table.Type): Promise<boolean> {
     const { fields, table } = type;
     
     const tableExists = await this.fetch(
@@ -202,12 +202,12 @@ export class PostgresConnection extends Connection {
       );
   }
 
-  protected async createSchema(types: Iterable<typeof Type>): Promise<void> {
+  protected async createSchema(types: Iterable<typeof Table>): Promise<void> {
     const schema = this.generateSchema(types);
     await this.execScript(schema);
   }
 
-  protected generateSchema(types: Iterable<typeof Type>): string {
+  protected generateSchema(types: Iterable<typeof Table>): string {
     const schemas = Array.from(types).map(type => this.generateTableSchema(type));
     const statements = [
       ...schemas.map(s => s.table),
@@ -217,7 +217,7 @@ export class PostgresConnection extends Connection {
     return statements.join('\n');
   }
 
-  protected generateTableSchema(type: Type.EntityType) {
+  protected generateTableSchema(type: Table.Type) {
     const { table, fields } = type;
 
     const constraints: string[] = [];

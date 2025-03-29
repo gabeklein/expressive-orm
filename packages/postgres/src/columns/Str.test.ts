@@ -1,9 +1,9 @@
-import { Nullable, Str, Type } from '..';
+import { Nullable, Str, Table } from '..';
 import { PostgresConnection } from '../PostgresConnection';
 
 describe("schema", () => {
   it("will create columns", async () => {
-    class Users extends Type {
+    class Users extends Table {
       text = Str();
       optional = Str({ nullable: true });
       varchar = Str({ type: "varchar", length: 100 });
@@ -44,7 +44,7 @@ describe("schema", () => {
   });
   
   it("will create varchar columns with length", async () => {
-    class Profiles extends Type {
+    class Profiles extends Table {
       username = Str({ type: "varchar", length: 50 });
       bio = Str({ type: "varchar", length: 200, nullable: true });
     }
@@ -69,7 +69,7 @@ describe("schema", () => {
   });
   
   it("will create char columns", async () => {
-    class Settings extends Type {
+    class Settings extends Table {
       code = Str({ type: "char", length: 10 });
     }
   
@@ -85,7 +85,7 @@ describe("schema", () => {
   });
   
   it("will apply collation", async () => {
-    class Localized extends Type {
+    class Localized extends Table {
       name = Str({
         type: "varchar",
         length: 100,

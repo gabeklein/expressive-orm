@@ -1,9 +1,9 @@
-import { Bool, Num, One, Query, Str, Time, Type } from '.';
+import { Bool, Num, One, Query, Str, Time, Table } from '.';
 import { TestConnection } from './TestConnection';
 
 describe("schema", () => {
   it("will create a table", async () => {
-    class Users extends Type {
+    class Users extends Table {
       name = Str();
       email = Str();
       age = Num();
@@ -19,7 +19,7 @@ describe("schema", () => {
   })
   
   it("will convert camelCase names to underscore", async () => {
-    class FooBar extends Type {
+    class FooBar extends Table {
       fooBar = Bool();
     }
   
@@ -35,11 +35,11 @@ describe("schema", () => {
   });
   
   it("will create FK constraints", async () => {
-    class Foo extends Type {
+    class Foo extends Table {
       bar = One(Bar);
     }
   
-    class Bar extends Type {
+    class Bar extends Table {
       value = Num();
     }
   
@@ -63,7 +63,7 @@ describe("schema", () => {
 
 describe("types", () => {
   it("will insert and retrieve a Bool", async () => {
-    class Test extends Type {
+    class Test extends Table {
       value1 = Bool();
       value2 = Bool({
         type: "text",
@@ -101,7 +101,7 @@ describe("types", () => {
   });
 
   it("will insert and retrieve a Date", async () => {
-    class Test extends Type {
+    class Test extends Table {
       date = Time();
     }
 
@@ -135,7 +135,7 @@ describe("types", () => {
 })
 
 describe("select", () => {
-  class Foo extends Type {
+  class Foo extends Table {
     bar = Str();
     baz = Str();
   }
@@ -206,7 +206,7 @@ describe("select", () => {
 })
 
 describe("template", () => {
-  class Foo extends Type {
+  class Foo extends Table {
     first = Str();
     last = Str();
     color = Str();
@@ -307,7 +307,7 @@ describe("template", () => {
 })
 
 describe("insert", () => {
-  class Foo extends Type {
+  class Foo extends Table {
     name = Str();
     color = Str();
   }
@@ -354,7 +354,7 @@ describe("insert", () => {
   })
 
   it("will insert procedurally generated rows", async () => {
-    class Users extends Type {
+    class Users extends Table {
       name = Str();
       email = Str();
       age = Num();
@@ -403,7 +403,7 @@ describe("insert", () => {
 });
 
 it("will update from data", async () => {
-  class User extends Type {
+  class User extends Table {
     name = Str();
     age = Num();
   }

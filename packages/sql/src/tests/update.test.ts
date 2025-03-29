@@ -1,11 +1,11 @@
-import { Query, Str, Type } from '..';
+import { Query, Str, Table } from '..';
 
-class Foo extends Type {
+class Foo extends Table {
   value = Str();
   color = Str();
 }
 
-class Bar extends Type {
+class Bar extends Table {
   value = Str();
   color = Str();
 }
@@ -54,7 +54,7 @@ it("will update with joins", () => {
 })
 
 it("will complain about nullable mismatch", () => {
-  class Baz extends Type {
+  class Baz extends Table {
     nullable = Str({ nullable: true });
     nonNullable = Str();
   }

@@ -1,10 +1,10 @@
 // packages/postgres/src/columns/Time.test.ts
-import { Nullable, Time, Type } from '..';
+import { Nullable, Table, Time } from '..';
 import { PostgresConnection } from '../PostgresConnection';
 
 describe("schema", () => {
   it("will create basic time columns", async () => {
-    class TimeRecords extends Type {
+    class TimeRecords extends Table {
       created = Time();
       updated = Time({ nullable: true });
       birthDate = Time({ type: "date" });
@@ -39,7 +39,7 @@ describe("schema", () => {
   });
   
   it("will create time columns with precision and timezone", async () => {
-    class EventLog extends Type {
+    class EventLog extends Table {
       timestamp = Time({ 
         type: "timestamp", 
         precision: 6, 

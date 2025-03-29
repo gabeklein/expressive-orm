@@ -1,30 +1,30 @@
 import { Connection } from '../connection/Connection';
 import { Field } from '../type/Field';
-import { Type } from '../type/Type';
+import { Table } from '../type/Table';
 import { assign, create, defineProperty } from '../utils';
-import { Builder as QB, Cond, Group, Builder, QueryTemplate, Expression } from './Builder';
-import { Bitwise, BitWise, Computed, MathOps } from './Computed';
+import { Builder as QB, Builder, Cond, Expression, Group, QueryTemplate } from './Builder';
+import { BitWise, Bitwise, Computed, MathOps } from './Computed';
 
 declare namespace Query {
-  type Table = QB.Table;
+  type ITable = QB.ITable;
 
-  type From<T extends Type = Type> = {
-    [K in Type.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
+  type From<T extends Table = Table> = {
+    [K in Table.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
   }
 
-  type Join<T extends Type = Type> = {
-    [K in Type.Fields<T>]?: T[K] extends Field.Queries<infer U> ? U : T[K];
+  type Join<T extends Table = Table> = {
+    [K in Table.Fields<T>]?: T[K] extends Field.Queries<infer U> ? U : T[K];
   }
 
-  type Update<T extends Type> = { [K in Type.Fields<T>]?: Updates<T[K]> };
+  type Update<T extends Table> = { [K in Table.Fields<T>]?: Updates<T[K]> };
 
   type FromData<T extends {}> = { [K in keyof T]: Field<T[K]> };
 
   type Match<T = any> = T | (T extends Field<infer U> ? Match<U> : Field<T> | Computed<T>);
 
-  type Insert<T extends Type> = 
-    & { [K in Type.Required<T>]: Field.Assigns<T[K]> | Field; }
-    & { [K in Type.Fields<T>]?: Field.Assigns<T[K]> | Field };
+  type Insert<T extends Table> = 
+    & { [K in Table.Required<T>]: Field.Assigns<T[K]> | Field; }
+    & { [K in Table.Fields<T>]?: Field.Assigns<T[K]> | Field };
 
   interface Functions extends MathOps {
     (template: string): QueryTemplate;
@@ -49,24 +49,24 @@ declare namespace Query {
     /**
      * Declare inserts to be made into a given table.
      */
-    <T extends Type>(entity: Type.EntityType<T>, ...inserts: Insert<T>[]): From<T>;
+    <T extends Table>(entity: Table.Type<T>, ...inserts: Insert<T>[]): From<T>;
 
     /**
      * Create a reference to the primary table, returned
      * object can be used to query against that table.
      */
-    <T extends Type>(entity: Type.EntityType<T>): From<T>;
+    <T extends Table>(entity: Table.Type<T>): From<T>;
 
     /**
      * Registers a type as a left join, returned object has optional
      * properties which may be undefined where the join is not present.
      */
-    <T extends Type>(entity: Type.EntityType<T>, optional: true): Join<T>;
+    <T extends Table>(entity: Table.Type<T>, optional: true): Join<T>;
 
     /**
      * Select a table for comparison or write operations.
      */
-    <T extends Type>(field: From<T> | Join<T>): Verbs<T>;
+    <T extends Table>(field: From<T> | Join<T>): Verbs<T>;
 
     /**
      * Prepare comparison against a particilar field,
@@ -104,11 +104,11 @@ declare namespace Query {
 
   type Returns<T> =
     T extends Field.Returns<infer R> ? R :
-    T extends From<infer U> ? { [J in Type.Fields<U>]: Returns<U[J]> } :
+    T extends From<infer U> ? { [J in Table.Fields<U>]: Returns<U[J]> } :
     T extends {} ? { [K in keyof T]: Returns<T[K]> } :
     T;
 
-  interface Verbs <T extends Type> {
+  interface Verbs <T extends Table> {
     delete(): void;
     update(values: Update<T>): void;
   }
@@ -155,7 +155,7 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   let connection: Connection | undefined = undefined;
   
   function where(arg1: any): any {
-    if(Type.is(arg1)){
+    if(Table.is(arg1)){
       if(!connection)
         connection = arg1.connection;
       else if(connection !== arg1.connection)

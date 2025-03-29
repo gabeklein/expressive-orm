@@ -97,7 +97,7 @@ export class Generator {
     return `${left} ${operator} ${right}`;
   }
 
-  protected joins(main: Builder.Table){
+  protected joins(main: Builder.ITable){
     const output: string[] = [];
     const applied = new Set();
 
@@ -128,7 +128,7 @@ export class Generator {
       return output.join(' ');
   }
 
-  protected set(updates: Map<Query.Table, Builder.Insert>){
+  protected set(updates: Map<Query.ITable, Builder.Insert>){
     const sets: string[] = [];
 
     for(const [_table, data] of updates)

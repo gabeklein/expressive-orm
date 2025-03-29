@@ -1,6 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
 
-import { Bool, Connection, Num, One, Query, Str, Time, Type } from '.';
+import { Bool, Connection, Num, One, Query, Str, Table, Time } from '.';
 import { PGLiteConnection } from './PGLiteConnection';
 
 const isWatchMode = process.env.VITEST_MODE === 'WATCH';
@@ -29,7 +29,7 @@ describe("persistence", () => {
   const it = isWatchMode ? test.skip : test;
 
   it('will not try to recreate database tables', async () => {
-    class Users extends Type {
+    class Users extends Table {
       name = Str();
     }
     
@@ -48,11 +48,11 @@ describe("persistence", () => {
   });
 
   it('will throw if missing table', async () => {
-    class User extends Type {
+    class User extends Table {
       name = Str();
     }
     
-    class FooBar extends Type {
+    class FooBar extends Table {
       name = Str();
     }
     
@@ -67,11 +67,11 @@ describe("persistence", () => {
   });
 
   it('will throw if table missing column', async () => {
-    const User1 = class User extends Type {
+    const User1 = class User extends Table {
       name = Str();
     }
     
-    const User2 = class User extends Type {
+    const User2 = class User extends Table {
       name = Str();
       rank = Num();
     }
@@ -91,7 +91,7 @@ describe("persistence", () => {
 
 describe("schema", () => {
   it("will create a table", async () => {
-    class Users extends Type {
+    class Users extends Table {
       name = Str();
       email = Str();
       age = Num();
@@ -107,7 +107,7 @@ describe("schema", () => {
   })
   
   it("will convert camelCase names to underscore", async () => {
-    class FooBar extends Type {
+    class FooBar extends Table {
       fooBar = Bool();
     }
   
@@ -123,11 +123,11 @@ describe("schema", () => {
   });
   
   it("will create FK constraints", async () => {
-    class Foo extends Type {
+    class Foo extends Table {
       bar = One(Bar);
     }
   
-    class Bar extends Type {
+    class Bar extends Table {
       value = Num();
     }
   
@@ -154,7 +154,7 @@ describe("schema", () => {
 
 describe.skip("types", () => {
   it("will insert and retrieve a Bool", async () => {
-    class Test extends Type {
+    class Test extends Table {
       value1 = Bool();
       value2 = Bool({
         type: "varchar",
@@ -186,7 +186,7 @@ describe.skip("types", () => {
   });
 
   it("will insert and retrieve a Date", async () => {
-    class Test extends Type {
+    class Test extends Table {
       date = Time();
     }
 
@@ -216,7 +216,7 @@ describe.skip("types", () => {
 })
 
 describe("select", () => {
-  class Foo extends Type {
+  class Foo extends Table {
     bar = Str();
     baz = Str();
   }
@@ -295,7 +295,7 @@ describe("select", () => {
 })
 
 describe("template", () => {
-  class Foo extends Type {
+  class Foo extends Table {
     first = Str();
     last = Str();
     color = Str();
@@ -388,7 +388,7 @@ describe("template", () => {
 })
 
 describe("insert", () => {
-  class Foo extends Type {
+  class Foo extends Table {
     name = Str();
     color = Str();
   }
@@ -435,7 +435,7 @@ describe("insert", () => {
   })
 
   it("will insert procedurally generated rows", async () => {
-    class Users extends Type {
+    class Users extends Table {
       name = Str();
       email = Str();
       age = Num();
@@ -484,7 +484,7 @@ describe("insert", () => {
 });
 
 describe("query", () => {
-  class User extends Type {
+  class User extends Table {
     name = Str();
   }
 
@@ -508,7 +508,7 @@ describe("query", () => {
   });
 
   it.skip("will chain inserts", async () => {
-    class Info extends Type {
+    class Info extends Table {
       user = One(User);
       color = Str();
     }
@@ -545,7 +545,7 @@ describe("query", () => {
   });
   
   it("will insert", async () => {
-    class Info extends Type {
+    class Info extends Table {
       user = One(User);
       color = Str();
     }
@@ -616,7 +616,7 @@ describe("query", () => {
 })
 
 it("will update from data", async () => {
-  class Users extends Type {
+  class Users extends Table {
     name = Str();
     age = Num();
   }

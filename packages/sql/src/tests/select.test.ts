@@ -1,12 +1,12 @@
-import { Query, Str, Type } from '..';
+import { Query, Str, Table } from '..';
 
-class Foo extends Type {
+class Foo extends Table {
   bar = Str();
   baz = Str();
 }
 
 it("will count query by default", () => {
-  class Foo extends Type {}
+  class Foo extends Table {}
 
   const query = Query(where => void where(Foo));
 

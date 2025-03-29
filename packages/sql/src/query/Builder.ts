@@ -1,10 +1,10 @@
 import { Field } from '../type/Field';
-import { Type } from '../type/Type';
+import { Table } from '../type/Table';
 import { create, defineProperty, freeze, getOwnPropertyNames, values } from '../utils';
 import { Query } from './Query';
 
 declare namespace Builder {
-  interface Table<T extends Type = any> {
+  interface ITable<T extends Table = any> {
     toString(): string;
     name: string;
     proxy: Query.From<T>;
@@ -14,7 +14,7 @@ declare namespace Builder {
     joins: Cond[];
   }
 
-  type Using<T extends Type> = (self: Query.From<T>, where: Query.Where) => void;
+  type Using<T extends Table> = (self: Query.From<T>, where: Query.Where) => void;
 
   type Insert = Map<Field, unknown>;
 }
@@ -30,11 +30,11 @@ class Builder {
   filters = new Group();
   pending = new Set<() => void>();
   order = new Map<Field, "asc" | "desc">();
-  tables = new Map<{}, Query.Table>();
+  tables = new Map<{}, Query.ITable>();
 
-  deletes = new Set<Query.Table>();
-  updates = new Map<Query.Table, Builder.Insert>();
-  inserts = new Map<Query.Table, Builder.Insert>();
+  deletes = new Set<Query.ITable>();
+  updates = new Map<Query.ITable, Builder.Insert>();
+  inserts = new Map<Query.ITable, Builder.Insert>();
   register = new Map<string, Field>();
   
   returns?: Map<string, Field | Value> | Field | Value;
@@ -95,7 +95,7 @@ class Builder {
   table(table: Query.From){
     const target = this.tables.get(table)!;
 
-    return <Query.Verbs<Type>> {
+    return <Query.Verbs<Table>> {
       delete: () => {
         this.deletes.add(target);
       },
@@ -156,15 +156,15 @@ class Builder {
     return local;
   }
 
-  use<T extends Type>(type: Type.EntityType<T>, optional?: false): Query.From<T>;
-  use<T extends Type>(type: Type.EntityType<T>, optional: boolean): Query.Join<T>;
-  use<T extends Type>(type: Type.EntityType<T>, ...inserts: Type.Insert<T>[]): Query.From<T>;
-  use<T extends Type>(type: Type.EntityType<T>, arg2?: boolean | Type.Insert<T>, ...rest: Type.Insert<T>[]){
+  use<T extends Table>(type: Table.Type<T>, optional?: false): Query.From<T>;
+  use<T extends Table>(type: Table.Type<T>, optional: boolean): Query.Join<T>;
+  use<T extends Table>(type: Table.Type<T>, ...inserts: Table.Insert<T>[]): Query.From<T>;
+  use<T extends Table>(type: Table.Type<T>, arg2?: boolean | Table.Insert<T>, ...rest: Table.Insert<T>[]){
     const { fields, schema } = type;
     const { tables } = this;
 
     const proxy = {} as Query.From<T>;
-    const table: Builder.Table = {
+    const table: Builder.ITable = {
       name: type.table,
       fields: new Map(),
       joins: [],
@@ -213,9 +213,9 @@ class Builder {
     return table.proxy;
   }
 
-  insert<T extends Type>(
-    table: Builder.Table<T>,
-    input: Type.Insert<T>){
+  insert<T extends Table>(
+    table: Builder.ITable<T>,
+    input: Table.Insert<T>){
 
     const inserts = new Map<Field, unknown>();
       
@@ -375,7 +375,7 @@ export class DataField extends Value {
 }
 
 class DataTable<T extends Record<string, unknown> = any>
-  extends Parameter implements Builder.Table {
+  extends Parameter implements Builder.ITable {
 
   proxy: { [K in keyof T]: Field<T[K]> };
   output: { [K in keyof T]: unknown }[] = [];

@@ -1,7 +1,7 @@
-import { Query, Type, Time } from '..';
+import { Query, Table, Time } from '..';
 
 it("will preprocess params", async () => {
-  class Thing extends Type {
+  class Thing extends Table {
     created = Time();
   }
 

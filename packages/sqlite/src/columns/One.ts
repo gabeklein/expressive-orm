@@ -1,9 +1,9 @@
-import { One, Type as Entity } from "@expressive/sql";
+import { One, Table } from "@expressive/sql";
 
 // Postgres package
 declare module "@expressive/sql" {
   namespace One {
-    interface Integer<T extends Entity = Entity> extends ForeignColumn<T> {
+    interface Integer<T extends Table = Table> extends ForeignColumn<T> {
       readonly type: "integer";
     }
     
@@ -14,7 +14,7 @@ declare module "@expressive/sql" {
   }
 }
 
-class ForeignColumn<T extends Entity = Entity> extends One.Type<T> {
+class ForeignColumn<T extends Table = Table> extends One.Type<T> {
   type: One.DataType = "integer";
 }
 

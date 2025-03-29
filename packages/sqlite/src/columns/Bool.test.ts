@@ -1,9 +1,9 @@
-import { Bool, Nullable, Type } from '..';
+import { Bool, Nullable, Table } from '..';
 import { TestConnection } from '../TestConnection';
 
 describe("schema", () => {
   it("will create basic boolean columns", async () => {
-    class Flags extends Type {
+    class Flags extends Table {
       active = Bool();
       optional = Bool({ nullable: true });
       custom = Bool({ 
@@ -35,7 +35,7 @@ describe("schema", () => {
   });
   
   it("will handle either values correctly", async () => {
-    class Settings extends Type {
+    class Settings extends Table {
       enabled = Bool({ 
         type: "text", 
         either: ["TRUE", "FALSE"]

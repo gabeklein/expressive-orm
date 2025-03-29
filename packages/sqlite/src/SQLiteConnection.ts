@@ -4,7 +4,7 @@ import "./columns/Bool";
 import "./columns/Time";
 import "./columns/One";
 
-import { Connection, Field, Type } from '@expressive/sql';
+import { Connection, Field, Table } from '@expressive/sql';
 import Database from 'better-sqlite3';
 import { format } from 'sql-formatter';
 
@@ -71,7 +71,7 @@ export class SQLiteConnection extends Connection {
     return this;
   }
 
-  async valid(type: Type.EntityType){
+  async valid(type: Table.Type){
     const { table } = type;
     const fields = Array.from(type.fields.values());
     
@@ -151,17 +151,17 @@ export class SQLiteConnection extends Connection {
       );
   }
 
-  protected createSchema(types: Iterable<typeof Type>): void {
+  protected createSchema(types: Iterable<typeof Table>): void {
     this.engine.exec(this.generateSchema(types));
   }
 
-  protected generateSchema(types: Iterable<typeof Type>): string {
+  protected generateSchema(types: Iterable<typeof Table>): string {
     return Array.from(types)
       .map(type => this.generateTableSchema(type))
       .join('\n');
   }
 
-  protected generateTableSchema(type: Type.EntityType): string {
+  protected generateTableSchema(type: Table.Type): string {
     const fields = Array.from(type.fields.values()).map(field => {
       const {
         column,

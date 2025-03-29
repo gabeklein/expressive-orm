@@ -1,9 +1,9 @@
-import { Nullable, Str, Type } from '..';
+import { Nullable, Str, Table } from '..';
 import { TestConnection } from '../TestConnection';
 
 describe("schema", () => {
   it("will create columns", async () => {
-    class Users extends Type {
+    class Users extends Table {
       name = Str();
       email = Str({ nullable: true });
     }

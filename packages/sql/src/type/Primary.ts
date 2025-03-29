@@ -1,19 +1,19 @@
-import { Field } from "./Field";
-import { Type } from "./Type";
+import { Field } from './Field';
+import { Table } from './Table';
 
 class PrimaryColumn extends Field<number> {
   readonly type = "integer";
-  readonly optional = false;
   readonly nullable = false;
+  readonly optional = true;
   readonly primary = true;
   readonly unique = true;
 
   readonly increment: boolean = true;
 
-  readonly tableName?: string | ((self: Type.EntityType) => string);
-  readonly tableSchema?: string | ((self: Type.EntityType) => string);;
+  readonly tableName?: string | ((self: Table.Type) => string);
+  readonly tableSchema?: string | ((self: Table.Type) => string);;
 
-  create(property: string, parent: Type.EntityType){
+  create(property: string, parent: Table.Type){
     const { tableName, tableSchema } = this;
 
     if(tableName)

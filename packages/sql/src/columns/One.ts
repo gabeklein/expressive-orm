@@ -1,16 +1,16 @@
-import { Builder, Type as Entity, Query } from '..';
+import { Builder, Table, Query } from '..';
 import { Field } from '../type/Field';
 import { underscore } from '../utils';
 
-class ForeignColumn<T extends Entity = Entity> extends Field<Entity.Values<T>> {
+class ForeignColumn<T extends Table = Table> extends Field<Table.Values<T>> {
   declare readonly type: One.DataType;
 
-  readonly entity!: Entity.EntityType<T>;
+  readonly entity!: Table.Type<T>;
   readonly nullable: boolean = false;
   readonly onDelete?: string;
   readonly onUpdate?: string;
 
-  set(value: Entity.Values<T> | number) {
+  set(value: Table.Values<T> | number) {
     if (this.query?.tables.has(value))
       return (value as any)[this.reference!.column];
     
@@ -35,10 +35,10 @@ declare namespace One {
   })[]
 }
 
-interface One<T extends Entity> extends ForeignColumn<T> {}
+interface One<T extends Table> extends ForeignColumn<T> {}
 
-function One<T extends Entity, O extends One.Options>(
-  entity: Entity.EntityType<T>, ...options: O){
+function One<T extends Table, O extends One.Options>(
+  entity: Table.Type<T>, ...options: O){
   
   const field = "id";
   const column = underscore(entity.name) + "_" + field;

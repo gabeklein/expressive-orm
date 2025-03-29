@@ -1,15 +1,15 @@
 import { format } from 'sql-formatter';
 
-import { Builder, Type } from '..';
+import { Builder, Table } from '..';
 import { Generator } from '../connection/Generator';
 import { values } from '../utils';
 
 declare namespace Connection {
   type Types =
-    | typeof Type[]
-    | { [key: string | number]: typeof Type }
+    | typeof Table[]
+    | { [key: string | number]: typeof Table }
 
-  type Using = { [key: string | number]: typeof Type };
+  type Using = { [key: string | number]: typeof Table };
 
   type Ready<T extends Connection = Connection> = Omit<T, "then">;
 
@@ -19,7 +19,7 @@ declare namespace Connection {
 abstract class Connection {
   static generator = Generator;
 
-  readonly using: Readonly<Set<typeof Type>>;
+  readonly using: Readonly<Set<typeof Table>>;
   readonly ready: boolean = false;
 
   constructor(using: Connection.Types){
@@ -59,7 +59,7 @@ abstract class Connection {
   }
   
   abstract sync(fix?: boolean): Promise<this>;
-  abstract valid(type: Type.EntityType): Promise<boolean>;
+  abstract valid(type: Table.Type): Promise<boolean>;
 
   abstract prepare<T = any>(query: string): {
     all: (args?: any[]) => Promise<T[]>;

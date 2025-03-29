@@ -1,10 +1,10 @@
 // packages/sqlite/src/columns/Time.test.ts
-import { Nullable, Time, Type } from '..';
+import { Nullable, Table, Time } from '..';
 import { TestConnection } from '../TestConnection';
 
 describe("schema", () => {
   it("will create basic time columns", async () => {
-    class TimeRecords extends Type {
+    class TimeRecords extends Table {
       created = Time();
       updated = Time({ nullable: true });
       birthDate = Time({ type: "date" });
@@ -39,7 +39,7 @@ describe("schema", () => {
   });
   
   it("will map all datetime-related types to TEXT except integer", async () => {
-    class DateTimeTypes extends Type {
+    class DateTimeTypes extends Table {
       timestamp = Time({ type: "timestamp" });
       datetime = Time({ type: "datetime" });
       date = Time({ type: "date" });

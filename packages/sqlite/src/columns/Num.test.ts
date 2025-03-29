@@ -1,10 +1,10 @@
 // packages/sqlite/src/columns/Num.test.ts
-import { Nullable, Num, Type } from '..';
+import { Nullable, Num, Table } from '..';
 import { TestConnection } from '../TestConnection';
 
 describe("schema", () => {
   it("will create basic numeric columns", async () => {
-    class Numbers extends Type {
+    class Numbers extends Table {
       int = Num();
       real = Num({ type: "real" });
       nullable = Num({ nullable: true });
@@ -33,7 +33,7 @@ describe("schema", () => {
   });
   
   it("will map other numeric types to INTEGER or REAL", async () => {
-    class CompatibilityTypes extends Type {
+    class CompatibilityTypes extends Table {
       smallint = Num({ type: "smallint" });
       bigint = Num({ type: "bigint" });
       serial = Num({ type: "serial" });

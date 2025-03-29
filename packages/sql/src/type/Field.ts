@@ -1,7 +1,7 @@
 import { Query } from '..';
 import { Builder } from '../query/Builder';
 import { create, defineProperty, underscore } from '../utils';
-import { Type } from './Type';
+import { Table } from './Table';
 
 type Nullable = { nullable: true };
 type Optional = { optional: true };
@@ -61,9 +61,9 @@ class Field<T = unknown> {
   
   column!: string;
   property!: string;
-  parent!: Type.EntityType;
+  parent!: Table.Type;
   
-  table?: Query.Table;
+  table?: Query.ITable;
   query?: Builder;
 
   /** If column has a reference constraint, applicable field is listed here. */
@@ -84,7 +84,7 @@ class Field<T = unknown> {
     )));
   }
 
-  create(property: string, parent: Type.EntityType): this {
+  create(property: string, parent: Table.Type): this {
     const field = create(this);
     field.parent = parent;
     field.property = property;
@@ -123,7 +123,7 @@ class Field<T = unknown> {
   };
 }
 
-type Callback = (parent: Type.EntityType, property: string) => void;
+type Callback = (parent: Table.Type, property: string) => void;
 
 defineProperty(Field, "does", {
   value: (callback: Callback) => callback

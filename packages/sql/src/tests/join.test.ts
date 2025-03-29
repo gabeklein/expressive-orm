@@ -1,17 +1,17 @@
-import { Num, Query, Str, Table, Type } from '..';
+import { Num, Primary, Query, Str, Table } from '..';
 
-class Foo extends Type {
+class Foo extends Table {
   name = Str();
   color = Str();
 }
 
-class Bar extends Type {
+class Bar extends Table {
   name = Str();
   color = Str();
   rating = Num();
 }
 
-class Baz extends Type {
+class Baz extends Table {
   color = Str();
   rating = Num();
 }
@@ -109,8 +109,8 @@ it.skip("will filter for comparisons to later tables", async () => {
 })
 
 it("will join a table with alias", async () => {
-  class Baz extends Type {
-    this = Table({ "schema": "other" });
+  class Baz extends Table {
+    is = Primary({ tableSchema: "other" });
 
     color = Str();
     rating = Num();
@@ -137,13 +137,13 @@ it("will join a table with alias", async () => {
 it.todo("will self join");
 
 it("will select left join", async () => {
-  class Bar extends Type {
+  class Bar extends Table {
     name = Str();
     color = Str();
     rating = Num();
   }
   
-  class Baz extends Type {
+  class Baz extends Table {
     rating = Num();
     name = Str();
   }
@@ -208,12 +208,12 @@ it("will assert a joined property's value", () => {
 })
 
 it("will sort by joined table", async () => {
-  class Test extends Type {
+  class Test extends Table {
     name = Str();
     rating = Num();
   }
 
-  class Other extends Type {
+  class Other extends Table {
     name = Str();
     rank = Num();
   }
