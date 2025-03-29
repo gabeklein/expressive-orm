@@ -11,10 +11,11 @@ class PrimaryColumn extends Field<number> {
   readonly increment: boolean = true;
 
   readonly tableName?: string | ((self: Table.Type) => string);
-  readonly tableSchema?: string | ((self: Table.Type) => string);;
+  readonly tableSchema?: string | ((self: Table.Type) => string);
+  readonly columnName?: (property: string, column: Field, self: Table.Type) => string;
 
-  create(property: string, parent: Table.Type){
-    const { tableName, tableSchema } = this;
+  init(property: string, parent: Table.Type){
+    const { tableName, tableSchema, columnName } = this;
 
     if(tableName)
       parent.table = typeof tableName == "function"
@@ -26,7 +27,10 @@ class PrimaryColumn extends Field<number> {
         ? tableSchema(parent)
         : tableSchema;
 
-    return super.create(property, parent) as this;
+    if(columnName)
+      parent.fields.forEach((field, property) => {
+        field.column = columnName(property, field, parent);
+      });
   }
 }
 

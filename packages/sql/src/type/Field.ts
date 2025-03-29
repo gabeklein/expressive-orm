@@ -1,6 +1,6 @@
 import { Query } from '..';
 import { Builder } from '../query/Builder';
-import { create, defineProperty, underscore } from '../utils';
+import { defineProperty } from '../utils';
 import { Table } from './Table';
 
 type Nullable = { nullable: true };
@@ -84,16 +84,7 @@ class Field<T = unknown> {
     )));
   }
 
-  create(property: string, parent: Table.Type): this {
-    const field = create(this);
-    field.parent = parent;
-    field.property = property;
-
-    if(!field.column)
-      field.column = underscore(property);
-
-    return field;
-  }
+  init?(property: string, parent: Table.Type): void;
 
   /**
    * Optional method generates value of property this Field is applied to when accessed inside a query.

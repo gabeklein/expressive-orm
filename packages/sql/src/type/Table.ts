@@ -61,20 +61,24 @@ abstract class Table {
         const { value } = getOwnPropertyDescriptor(reference, key)!;
     
         if(value instanceof Field){
-          const instance = value.create(key, this);
-  
-          fields.set(key, instance);
-          // TODO: absent assignment makes this not possible
-          // freeze(instance);
-        }
-        else if(typeof value === "function"){
-          value(this, key);
+          fields.set(key, value);
+
+          if(!value.column)
+            value.column = underscore(key);
         }
         else throw new Error(
           `Entities do not support normal values, only fields. ` +
           `Did you forget to import \`${capitalize(typeof value)}\`?`
         ); 
       }
+
+      fields.forEach((field, key) => {
+        field.parent = this;
+        field.property = key;
+
+        if(field.init)
+          field.init(key, this);
+      })
     }
   
     return fields;
