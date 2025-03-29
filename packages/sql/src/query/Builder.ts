@@ -122,7 +122,7 @@ class Builder {
         this.where(field, orEqual ? op + '=' : op, right)
 
     return {
-      is: use("="),
+      equal: use("="),
       in: use("IN"),
       not: use("<>"),
       over: use(">"),

@@ -123,7 +123,7 @@ describe("types", () => {
     await Test.insert({ date: now })
   
     const date = await Test.one((foo, where) => {
-      where(foo.id).is(1);
+      where(foo.id).equal(1);
   
       return foo.date;
     });
@@ -222,7 +222,7 @@ describe("template", () => {
   it("will create a template", async () => {
     const template = Query(where => (color: string) => {
       const foo = where(Foo);
-      where(foo.color).is(color);
+      where(foo.color).equal(color);
       return foo.first;
     });
 
@@ -249,8 +249,8 @@ describe("template", () => {
   
       // Should sorts parameters by order of
       // usage despite the order of arguments.
-      where(foo.first).is(firstname);
-      where(foo.color).is(color);
+      where(foo.first).equal(firstname);
+      where(foo.color).equal(color);
       
       return foo.last;
     });
@@ -430,7 +430,7 @@ it("will update from data", async () => {
     const { name, age } = where(data);
     const user = where(User);
 
-    where(user.name).is(name);
+    where(user.name).equal(name);
     where(user).update({ age });
   });
 

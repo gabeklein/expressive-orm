@@ -80,7 +80,7 @@ declare namespace Query {
   }
 
   type Compare<T> = {
-    is(value: Match<T>): Expression;
+    equal(value: Match<T>): Expression;
     not(value: Match<T>): Expression;
     over(value: Match<T>, orEqual?: boolean): Expression;
     under(value: Match<T>, orEqual?: boolean): Expression;

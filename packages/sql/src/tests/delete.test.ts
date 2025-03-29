@@ -14,7 +14,7 @@ it("will generate query", () => {
   const query = Query(where => {
     const foo = where(Foo);
 
-    where(foo.value).is("Hello World!");
+    where(foo.value).equal("Hello World!");
     where(foo).delete();
   });
 
@@ -31,8 +31,8 @@ it("will include FROM statement where JOIN exists", () => {
     const foo = where(Foo);
     const bar = where(Bar);
 
-    where(bar.color).is(foo.color);
-    where(bar.value).is("Hello World!");
+    where(bar.color).equal(foo.color);
+    where(bar.value).equal("Hello World!");
 
     where(foo).delete();
   });

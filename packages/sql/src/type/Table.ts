@@ -155,7 +155,7 @@ abstract class Table {
         return query(self, where) || self;
 
       if(typeof query == "number")
-        where(self.id).is(query);
+        where(self.id).equal(query);
       else
         where(self.id).desc();
       

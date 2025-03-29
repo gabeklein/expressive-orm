@@ -54,7 +54,7 @@ it("will query nested relationships", () => {
   const query = Query(where => {
     const a = where(A);
 
-    where(a.b.c.value).is(100);
+    where(a.b.c.value).equal(100);
     
     return a.b.c.label;
   })
@@ -84,7 +84,7 @@ it("will query nested relationships", () => {
 //   const query = Query(where => {
 //     const foo = where(Foo);
 //     const bar = where(Bar, () => {
-//       where(bar.foo).is(foo);
+//       where(bar.foo).equal(foo);
 //     });
 
 //     where(bar.rating).over(50);
@@ -116,7 +116,7 @@ it("will assert a property-joined value", () => {
   const query = Query(where => {
     const bar = where(Bar);
 
-    where(bar.foo.color).is("blue");
+    where(bar.foo.color).equal("blue");
   });
   
   expect(query).toMatchInlineSnapshot(`

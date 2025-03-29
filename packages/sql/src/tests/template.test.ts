@@ -7,7 +7,7 @@ it("will preprocess params", async () => {
 
   const template = Query(where => (created: Date) => {
     const thing = where(Thing);
-    where(thing.created).is(created);
+    where(thing.created).equal(created);
   });
 
   const query = template(new Date("2020-01-01"));
