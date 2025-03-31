@@ -1,5 +1,13 @@
 # @expressive/postgres
 
+## 0.4.1
+
+### Patch Changes
+
+- b8b2195: fix: rebuild libraries
+- Updated dependencies [b8b2195]
+  - @expressive/sql@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes

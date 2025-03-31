@@ -1,5 +1,11 @@
 # @expressive/sql
 
+## 0.4.1
+
+### Patch Changes
+
+- b8b2195: fix: rebuild libraries
+
 ## 0.4.0
 
 ### Minor Changes

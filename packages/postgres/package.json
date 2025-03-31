@@ -1,6 +1,6 @@
 {
   "name": "@expressive/postgres",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Postgres adapter for Expressive SQL.",
   "license": "ISC",
   "publishConfig": {
@@ -23,7 +23,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@expressive/sql": "^0.4.0",
+    "@expressive/sql": "^0.4.1",
     "sql-formatter": "^10.7.2"
   },
   "devDependencies": {
