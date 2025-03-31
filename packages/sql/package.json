@@ -1,6 +1,6 @@
 {
   "name": "@expressive/sql",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Query builder and ORM",
   "license": "ISC",
   "publishConfig": {

@@ -1,5 +1,12 @@
 # @expressive/mysql
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [6f4c66b]
+  - @expressive/sql@0.4.0
+
 ## 0.2.0
 
 ### Minor Changes

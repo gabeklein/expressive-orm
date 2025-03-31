@@ -1,5 +1,11 @@
 # @expressive/sql
 
+## 0.4.0
+
+### Minor Changes
+
+- 6f4c66b: Major upgrade: generic Fields
+
 ## 0.3.1
 
 ### Patch Changes

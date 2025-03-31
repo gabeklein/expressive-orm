@@ -1,5 +1,16 @@
 # @expressive/postgres
 
+## 0.4.0
+
+### Minor Changes
+
+- 6f4c66b: Major upgrade: generic Fields
+
+### Patch Changes
+
+- Updated dependencies [6f4c66b]
+  - @expressive/sql@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes
