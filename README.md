@@ -31,11 +31,28 @@
 <br/>
 <h1 id="overview-section">Overview</h1>
 
-Classes which extend `Table` can manage your data with high safety and convenience. <br/><br/>
+Classes which extend `Table` can manage your data with high safety and convenience. This project aims to make using SQL in Javascript apps completely frictionless.
+
+<br/>
+
+## Benefits Over Other ORMs
+
+- **No DSL or magic** - Everything is plain JavaScript/TypeScript
+- **Type safety without decorators** - Full type inference without complex setup
+- **SQL-first approach** - The API closely follows SQL semantics
+- **Performance** - Very minimal overhead compared to raw SQL
+- **Developer experience** - Intuitive API with great IDE support
+- **Context agnostic** - The query system handles database syntax specifics for you.
+
+<br/>
+
+
 
 ## Define your schema
 
-With the base SQL module, we have a number of tools available to define an entire schema. With simple factories, you can customize the columns, set types default values, read, write, and validate functions. 
+With the base SQL module, we have a number of tools available to define an entire schema.
+
+With simple factories, you can customize the columns, set types default values, read, write, and validate functions. 
 
 ```bash
 npm i @expressive/sql
@@ -122,7 +139,6 @@ import * as tables from './tables';
 
 // Create a connection and link them to your tables
 export async function connect(){
-  // connections are awaitable (if you want to fully startup)
   return await new PostgresConnection(tables, {
     user: process.env.USER,
     password: process.env.PASSWORD,
@@ -219,12 +235,15 @@ const count = await Query(where => {
 // count === 10
 ```
 
+<br />
 
-## Key Concepts
+# Concepts
 
 ### Tables
 
-Tables are defined as classes that extend the `Table` base class. Each property represents a column in the database.
+Tables are defined as classes that extend the `Table` base class. Each property represents a piece of data, usually a column, in the database.
+
+<br />
 
 ```typescript
 class Product extends Table {
@@ -256,12 +275,15 @@ const query = Query(where => {
   const user = where(User);
   const post = where(Post);
   
+  // here, we declare a join by equating two fields.
   where(post.author).equal(user.id);
+
+  // these are our where clauses.
   where(user.name).equal('John');
   where(post.published).equal(true);
   
+  // this is our selection.
   return {
-    title: post.title,
     content: post.content,
     author: user.name
   };
@@ -269,6 +291,34 @@ const query = Query(where => {
 
 // Execute the query
 const results = await query;
+
+// Use results as needed.
+console.log(`Found ${results.length} results.`)
+
+// results are implicitly the types you returned in your Query factory.
+// The real selection knows where to put the values, even if deeply nested.
+for(const { content, author } of results)
+  console.log(`${author} said: ${content}`)
+
+/*
+  Found 5 results.
+  John said: Hello world!
+  John said: I love SQL!
+  John said: Expressive is next level!
+  John said: Wow I can do so much with this!
+  John said: SQL is the best!
+*/
+
+// You can also stringify a query to see generated SQL! 👀
+console.log(query);
+
+/*
+  SELECT "post"."content", "user"."name" AS "author"
+  FROM "post" AS "post"
+  JOIN "user" AS "user" ON "post"."author_id" = "user"."id"
+  WHERE "user"."name" = 'John'
+  AND "post"."published" = true
+*/
 ```
 
 ### Joins
@@ -278,8 +328,9 @@ The ORM makes it easy to join tables in your queries:
 ```typescript
 const query = Query(where => {
   const post = where(Post);
-  const user = where(User);
+  const user = where(User); // This defaults to an INNER JOIN.
   
+  // Direct comparions between fields are considered ON conditions.
   where(post.author).equal(user.id);
   
   return {
@@ -291,7 +342,7 @@ const query = Query(where => {
 
 ### Filtering
 
-You can filter your queries using various operators:
+You can filter your queries using various operators. Javascript values and in-engine values are converted based on how the column was defined in the class.
 
 ```typescript
 const query = Query(where => {
@@ -310,7 +361,7 @@ const query = Query(where => {
 You can build complex conditions using nested groups:
 
 ```typescript
-const query = Query(where => {
+Query(where => {
   const post = where(Post);
   
   where(
@@ -324,26 +375,19 @@ const query = Query(where => {
   return post;
 });
 ```
-
-## Adapters
-
-The library supports multiple database engines through adapters:
-
-- `@expressive/postgres` - PostgreSQL adapter
-- `@expressive/mysql` - MySQL adapter
-- `@expressive/sqlite` - SQLite adapter
-
-Each adapter provides specific implementations for the database engine, including field types, connection handling, and query generation.
-
-## Benefits Over Other ORMs
-
-- **No DSL or magic** - Everything is plain JavaScript/TypeScript
-- **Type safety without decorators** - Full type inference without complex setup
-- **SQL-first approach** - The API closely follows SQL semantics
-- **Performance** - Minimal overhead compared to raw SQL
-- **Developer experience** - Intuitive API with great IDE support
-
-## Advanced Features
+Translates to:
+```sql
+SELECT
+  post.*
+FROM
+  post
+WHERE
+  post.title = 'Hello'
+  OR (
+    post.published = true
+    AND post.created_at > '2023-01-01'
+  )
+```
 
 ### Custom Column Names
 
@@ -358,13 +402,13 @@ class User extends Table {
 
 ### Custom Table Names
 
-You can customize table names:
+You can customize the table using the Primary factory and overriding `id`:
 
 ```typescript
 class BlogPost extends Table {
-  static get table() {
-    return 'posts';
-  }
+  id = Primary({
+    tableName: "BasicBlogPost"
+  })
   
   title = Str();
   content = Str();
@@ -376,10 +420,13 @@ class BlogPost extends Table {
 Fields automatically validate data:
 
 ```typescript
-const numField = Num({ type: 'numeric', precision: 5, scale: 2 });
+class Info extends Table {
+  field = Num({ type: 'numeric', precision: 5, scale: 2 });
+}
 
 // Will throw validation error if value is out of range
-numField.set(1000.123); // Error: Value exceeds precision
+await Info.insert({ field: 1000.123 })
+// Error: Value of `field` exceeds precision
 ```
 
 ### Math Operations
@@ -398,10 +445,18 @@ const query = Query((where, fn) => {
 });
 ```
 
+<br/><br/>
+
+<h2 align="center"> 🚧 More Docs are on the way! 🏗 </h2>
+<p align="center">Documenation is actively being built out - stay tuned!</p>
+
+
+<br/><br/>
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
