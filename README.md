@@ -17,7 +17,7 @@
 
 <p align="center">
   Define classes to power your quries by extending <code>Table</code>.<br/>
-  The <code>Query</code> factory helps you compose one-to-one SQL and execture them.<br/>
+  The <code>Query</code> factory helps you compose one-to-one SQL and execute them.<br/>
   Columns you return are selected and ready for type-safe use!<br/>
 </p>
 
@@ -35,14 +35,14 @@ Classes which extend `Table` can manage your data with high safety and convenien
 
 <br/>
 
-## Benefits Over Other ORMs
+## Benefits over other ORMs
 
 - **No DSL or magic** - Everything is plain JavaScript/TypeScript
 - **Type safety without decorators** - Full type inference without complex setup
-- **SQL-first approach** - The API closely follows SQL semantics
-- **Performance** - Very minimal overhead compared to raw SQL
-- **Developer experience** - Intuitive API with great IDE support
+- **Declarative and SQL-first** - The API closely follows SQL semantics - No chaining! ⛓️‍💥
 - **Context agnostic** - The query system handles database syntax specifics for you.
+- **Uber Extensible** - Fields and Tables can be extended and customized to fit most needs.
+- **Performance** - Very minimal overhead over actual SQL clients, memory efficient at high volume. 
 
 <br/>
 
