@@ -139,7 +139,7 @@ import * as tables from './tables';
 
 // Create a connection and link them to your tables
 export async function connect(){
-  return await new PostgresConnection(tables, {
+  await new PostgresConnection(tables, {
     user: process.env.USER,
     password: process.env.PASSWORD,
     database: process.env.DATABASE,
