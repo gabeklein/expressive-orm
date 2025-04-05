@@ -1,8 +1,8 @@
 import { Query, Field } from "..";
 import { Value } from "./Builder";
 
-type ANumeric = Query.Value<string | number>;
-type Numeric = Query.Value<number>;
+type ANumeric = Query.Match<string | number>;
+type Numeric = Query.Match<number>;
 
 export interface Bitwise {
   not(value: Numeric): Numeric;
@@ -50,8 +50,8 @@ export const BitWise: Bitwise = {
 }
 
 export class Computed<T> extends Value {
-  readonly left?: Query.Value | Field<T> | Computed<T>;
-  readonly right: Query.Value | Field<T> | Computed<T>;
+  readonly left?: Query.Match | Field<T> | Computed<T>;
+  readonly right: Query.Match | Field<T> | Computed<T>;
 
   readonly operator: string;
   readonly rank: number;

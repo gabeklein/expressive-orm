@@ -1,10 +1,9 @@
-import { Bool, Num, One, Query, Str, Time, Type } from '@expressive/sql';
-
+import { Bool, Num, One, Query, Str, Time, Table } from '.';
 import { TestConnection } from './TestConnection';
 
 describe("schema", () => {
   it("will create a table", async () => {
-    class Users extends Type {
+    class Users extends Table {
       name = Str();
       email = Str();
       age = Num();
@@ -20,7 +19,7 @@ describe("schema", () => {
   })
   
   it("will convert camelCase names to underscore", async () => {
-    class FooBar extends Type {
+    class FooBar extends Table {
       fooBar = Bool();
     }
   
@@ -30,17 +29,17 @@ describe("schema", () => {
       CREATE TABLE
         foo_bar (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
-          foo_bar tinyint NOT NULL
+          foo_bar INTEGER NOT NULL
         );
     `);
   });
   
   it("will create FK constraints", async () => {
-    class Foo extends Type {
+    class Foo extends Table {
       bar = One(Bar);
     }
   
-    class Bar extends Type {
+    class Bar extends Table {
       value = Num();
     }
   
@@ -64,10 +63,10 @@ describe("schema", () => {
 
 describe("types", () => {
   it("will insert and retrieve a Bool", async () => {
-    class Test extends Type {
+    class Test extends Table {
       value1 = Bool();
       value2 = Bool({
-        type: "varchar",
+        type: "text",
         either: ["YES", "NO"]
       });
     }
@@ -78,7 +77,7 @@ describe("types", () => {
       CREATE TABLE
         test (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
-          value1 tinyint NOT NULL,
+          value1 INTEGER NOT NULL,
           value2 TEXT NOT NULL
         );
     `);
@@ -102,7 +101,7 @@ describe("types", () => {
   });
 
   it("will insert and retrieve a Date", async () => {
-    class Test extends Type {
+    class Test extends Table {
       date = Time();
     }
 
@@ -124,7 +123,7 @@ describe("types", () => {
     await Test.insert({ date: now })
   
     const date = await Test.one((foo, where) => {
-      where(foo.id).is(1);
+      where(foo.id).equal(1);
   
       return foo.date;
     });
@@ -136,7 +135,7 @@ describe("types", () => {
 })
 
 describe("select", () => {
-  class Foo extends Type {
+  class Foo extends Table {
     bar = Str();
     baz = Str();
   }
@@ -207,7 +206,7 @@ describe("select", () => {
 })
 
 describe("template", () => {
-  class Foo extends Type {
+  class Foo extends Table {
     first = Str();
     last = Str();
     color = Str();
@@ -223,7 +222,7 @@ describe("template", () => {
   it("will create a template", async () => {
     const template = Query(where => (color: string) => {
       const foo = where(Foo);
-      where(foo.color).is(color);
+      where(foo.color).equal(color);
       return foo.first;
     });
 
@@ -250,8 +249,8 @@ describe("template", () => {
   
       // Should sorts parameters by order of
       // usage despite the order of arguments.
-      where(foo.first).is(firstname);
-      where(foo.color).is(color);
+      where(foo.first).equal(firstname);
+      where(foo.color).equal(color);
       
       return foo.last;
     });
@@ -307,56 +306,104 @@ describe("template", () => {
   });
 })
 
-it("will insert procedurally generated rows", async () => {
-  class Users extends Type {
+describe("insert", () => {
+  class Foo extends Table {
     name = Str();
-    email = Str();
-    age = Num();
+    color = Str();
   }
   
-  await new TestConnection([Users]);
+  it("will throw for bad value", async () => {
+    const insert = () => (
+      Foo.insert({
+        name: "foobar",
+        // @ts-expect-error
+        color: 3
+      }) 
+    )
+  
+    expect(insert).toThrowErrorMatchingInlineSnapshot(`
+      Provided value for Foo.color but not acceptable for type text.
+      Value must be a string.
+    `);
+  })
+  
+  it("will throw for no value non-nullable", async () => {
+    const insert = () => {
+      // @ts-expect-error
+      Foo.insert({ name: "foobar" }) 
+    }
+  
+    expect(insert).toThrowErrorMatchingInlineSnapshot(
+      `Can't assign to \`Foo.color\`. A value is required but got undefined.`
+    );
+  })
+  
+  it("will add index to specify error", async () => {
+    const insert = () => {
+      Foo.insert([
+        { name: "foo", color: "red" },
+        // @ts-expect-error
+        { name: "bar" }
+      ]) 
+    }
+  
+    expect(insert).toThrowErrorMatchingInlineSnapshot(`
+      A provided value at \`color\` at index [1] is not acceptable.
+      Can't assign to \`Foo.color\`. A value is required but got undefined.
+    `);
+  })
 
-  const names = ["john", "jane", "bob", "alice"];
-  const insert = Users.insert(names, (name, i) => ({
-    name,
-    age: i + 25,
-    email: `${name.toLowerCase()}@email.org`
-  }));
-
-  expect(insert).toMatchInlineSnapshot(`
-    WITH
-      input AS (
-        SELECT
-          value ->> 0 name,
-          value ->> 1 email,
-          value ->> 2 age
-        FROM
-          JSON_EACH(?)
-      )
-    INSERT INTO
-      users (name, email, age)
-    SELECT
-      input.name,
-      input.email,
-      input.age
-    FROM
-      input
-  `);
-
-  await insert;
-
-  const results = Users.get();
-
-  expect(await results).toMatchObject([
-    { "id": 1, "name": "john",  "email": "john@email.org",  "age": 25 },
-    { "id": 2, "name": "jane",  "email": "jane@email.org",  "age": 26 },
-    { "id": 3, "name": "bob",   "email": "bob@email.org",   "age": 27 },
-    { "id": 4, "name": "alice", "email": "alice@email.org", "age": 28 }
-  ]);
-})
+  it("will insert procedurally generated rows", async () => {
+    class Users extends Table {
+      name = Str();
+      email = Str();
+      age = Num();
+    }
+    
+    await new TestConnection([Users]);
+  
+    const names = ["john", "jane", "bob", "alice"];
+    const insert = Users.insert(names, (name, i) => ({
+      name,
+      age: i + 25,
+      email: `${name.toLowerCase()}@email.org`
+    }));
+  
+    expect(insert).toMatchInlineSnapshot(`
+      WITH
+        input AS (
+          SELECT
+            value ->> 0 name,
+            value ->> 1 email,
+            value ->> 2 age
+          FROM
+            JSON_EACH(?)
+        )
+      INSERT INTO
+        users (name, email, age)
+      SELECT
+        input.name,
+        input.email,
+        input.age
+      FROM
+        input
+    `);
+  
+    await insert;
+  
+    const results = Users.get();
+  
+    expect(await results).toMatchObject([
+      { "id": 1, "name": "john",  "email": "john@email.org",  "age": 25 },
+      { "id": 2, "name": "jane",  "email": "jane@email.org",  "age": 26 },
+      { "id": 3, "name": "bob",   "email": "bob@email.org",   "age": 27 },
+      { "id": 4, "name": "alice", "email": "alice@email.org", "age": 28 }
+    ]);
+  })
+});
 
 it("will update from data", async () => {
-  class User extends Type {
+  class User extends Table {
     name = Str();
     age = Num();
   }
@@ -383,7 +430,7 @@ it("will update from data", async () => {
     const { name, age } = where(data);
     const user = where(User);
 
-    where(user.name).is(name);
+    where(user.name).equal(name);
     where(user).update({ age });
   });
 

@@ -1,4 +1,4 @@
-import { Connection, Type } from '@expressive/sql';
+import { Connection, Table } from '@expressive/sql';
 
 import * as schema from './infoSchema';
 
@@ -20,7 +20,7 @@ class MySQLConnection extends Connection {
 
   constructor(
     using: Connection.Types,
-    opts: Connection.MySQLConfig = {}){
+    opts: MySQLConnection.Config = {}){
 
     super(using, {
       client: 'mysql',
@@ -34,7 +34,7 @@ class MySQLConnection extends Connection {
     opts.multipleStatements = true;
 
     Object
-      .values<Type.EntityType>(schema)
+      .values<Table.Type>(schema)
       .forEach(entity => {
         entity.connection = this;
         entity.fields;

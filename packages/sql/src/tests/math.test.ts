@@ -1,6 +1,6 @@
-import { Num, Query, Type } from '..';
+import { Num, Query, Table } from '..';
 
-class Item extends Type  {
+class Item extends Table  {
   number = Num();
 }
 

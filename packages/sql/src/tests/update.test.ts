@@ -1,11 +1,11 @@
-import { Query, Str, Type } from '..';
+import { Query, Str, Table } from '..';
 
-class Foo extends Type {
+class Foo extends Table {
   value = Str();
   color = Str();
 }
 
-class Bar extends Type {
+class Bar extends Table {
   value = Str();
   color = Str();
 }
@@ -14,7 +14,7 @@ it("will generate query", () => {
   const query = Query(where => {
     const foo = where(Foo);
 
-    where(foo.color).is("red");
+    where(foo.color).equal("red");
     where(foo).update({
       value: "new!",
       color: "blue"
@@ -37,8 +37,8 @@ it("will update with joins", () => {
     const foo = where(Foo);
     const bar = where(Bar);
 
-    where(bar.color).is(foo.color);
-    where(foo.color).is("red");
+    where(bar.color).equal(foo.color);
+    where(foo.color).equal("red");
     where(foo).update({ value: bar.value });
   });
 
@@ -54,7 +54,7 @@ it("will update with joins", () => {
 })
 
 it("will complain about nullable mismatch", () => {
-  class Baz extends Type {
+  class Baz extends Table {
     nullable = Str({ nullable: true });
     nonNullable = Str();
   }

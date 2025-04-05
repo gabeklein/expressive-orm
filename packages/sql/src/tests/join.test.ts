@@ -1,17 +1,17 @@
-import { Num, Query, Str, Table, Type } from '..';
+import { Num, Primary, Query, Str, Table } from '..';
 
-class Foo extends Type {
+class Foo extends Table {
   name = Str();
   color = Str();
 }
 
-class Bar extends Type {
+class Bar extends Table {
   name = Str();
   color = Str();
   rating = Num();
 }
 
-class Baz extends Type {
+class Baz extends Table {
   color = Str();
   rating = Num();
 }
@@ -22,7 +22,7 @@ it("will join using function", async () => {
     const bar = where(Bar);
 
     where(bar.name).not(foo.name);
-    where(bar.color).is(foo.color);
+    where(bar.color).equal(foo.color);
 
     where(foo.name).not("Danny");
     where(bar.rating).over(50);
@@ -47,12 +47,12 @@ it("will join multiple", async () => {
     const bar = where(Bar);
     const baz = where(Baz);
 
-    where(bar.color).is(foo.color);
-    where(baz.rating).is(bar.rating);
+    where(bar.color).equal(foo.color);
+    where(baz.rating).equal(bar.rating);
 
     where(foo.name).not("Danny");
     where(bar.rating).over(50);
-    where(baz.color).is("blue");
+    where(baz.color).equal("blue");
   });
 
   type Returns = Query<number>;
@@ -77,7 +77,7 @@ it("will throw if joins are composed", async () => {
     const bar = where(Bar);
 
     where(
-      where(bar.color).is(foo.color)
+      where(bar.color).equal(foo.color)
     );
   });
 
@@ -91,8 +91,8 @@ it.skip("will filter for comparisons to later tables", async () => {
     const foo = where(Foo);
     const bar = where(Bar);
 
-    where(bar.color).is(foo.color);
-    where(foo.name).is(bar.name);
+    where(bar.color).equal(foo.color);
+    where(foo.name).equal(bar.name);
   });
 
   type Returns = Query<number>;
@@ -109,8 +109,8 @@ it.skip("will filter for comparisons to later tables", async () => {
 })
 
 it("will join a table with alias", async () => {
-  class Baz extends Type {
-    this = Table({ "schema": "other" });
+  class Baz extends Table {
+    is = Primary({ tableSchema: "other" });
 
     color = Str();
     rating = Num();
@@ -120,7 +120,7 @@ it("will join a table with alias", async () => {
     const foo = where(Foo);
     const bar = where(Baz);
 
-    where(bar.color).is(foo.color);
+    where(bar.color).equal(foo.color);
 
     return bar.rating;
   });
@@ -137,13 +137,13 @@ it("will join a table with alias", async () => {
 it.todo("will self join");
 
 it("will select left join", async () => {
-  class Bar extends Type {
+  class Bar extends Table {
     name = Str();
     color = Str();
     rating = Num();
   }
   
-  class Baz extends Type {
+  class Baz extends Table {
     rating = Num();
     name = Str();
   }
@@ -153,8 +153,8 @@ it("will select left join", async () => {
     const bar = where(Bar);
     const baz = where(Baz, true);
 
-    where(bar.color).is(foo.color);
-    where(baz.rating).is(bar.rating);
+    where(bar.color).equal(foo.color);
+    where(baz.rating).equal(bar.rating);
 
     where(foo.name).not("Danny");
     where(bar.rating).over(50);
@@ -192,8 +192,8 @@ it("will assert a joined property's value", () => {
     const foo = where(Foo);
     const bar = where(Bar);
 
-    where(bar.color).is(foo.color);
-    where(bar.rating).is(42);
+    where(bar.color).equal(foo.color);
+    where(bar.rating).equal(42);
   });
   
   expect(query).toMatchInlineSnapshot(`
@@ -208,12 +208,12 @@ it("will assert a joined property's value", () => {
 })
 
 it("will sort by joined table", async () => {
-  class Test extends Type {
+  class Test extends Table {
     name = Str();
     rating = Num();
   }
 
-  class Other extends Type {
+  class Other extends Table {
     name = Str();
     rank = Num();
   }
@@ -222,7 +222,7 @@ it("will sort by joined table", async () => {
     const test = where(Test);
     const other = where(Other);
 
-    where(other.name).is(test.name);
+    where(other.name).equal(test.name);
     where(other.rank).asc();
 
     return other.name;

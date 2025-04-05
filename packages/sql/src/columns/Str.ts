@@ -1,27 +1,8 @@
 import { Field } from '../type/Field';
 
-const VARIABLE_TYPE = new Set(["char", "varchar", "text"]);
-
 class StringColumn extends Field<string> {
-  readonly type: "char" | "varchar" | "text" | "tinytext" | "mediumtext" | "longtext" = "varchar";
-  readonly length = 255;
-
-  constructor(opts?: Str.Opts) {
-    super(({ parent, property }) => {
-      let { type = "varchar", length = 255, datatype } = opts || {};
-
-      if(VARIABLE_TYPE.has(type!))
-        if(length)
-          datatype = `${datatype || type}(${length})`;
-        else
-          throw `Can't determine datatype! Length is not specified for ${parent.name}.${property}.`
-  
-      return {
-        datatype,
-        ...opts
-      }
-    });
-  }
+  declare readonly type: Str.DataType;
+  readonly length?: number;
 
   set(value: string) {
     if (typeof value !== 'string')
@@ -35,39 +16,46 @@ class StringColumn extends Field<string> {
 }
 
 declare namespace Str {
-  interface Char extends Str {
-    readonly type: "char";
-  }
+  /**
+   * Defines all available types of Str.
+   * Each type is a different kind of string column.
+   * SQL adapters will implement these types and add to interface using type as key.
+   * "default" is what should be returned when no type is specified by `Str({ ... })`.
+   * 
+   * @example
+   * declare module "@expressive/sql" {
+   *   namespace Str {
+   *     interface Types {
+   *       default: Str.Text;
+   *       varchar: Str.VarChar;
+   *     }
+   * 
+   *     interface Text extends Str {
+   *       readonly type: "text";
+   *     }
+   * 
+   *     interface VarChar extends Str {
+   *       readonly type: "varchar";
+   *       readonly length: number;
+   *     }
+   *   }
+   * }
+   */
+  interface Types {}
 
-  interface VarChar extends Str {
-    readonly type: "varchar";
-  }
+  /** All available types of Str */
+  type DataType = keyof Types;
 
-  interface Text extends Str {
-    readonly type: "text";
-  }
+  /** All available database types for Str */
+  type Any = Types[keyof Types] | StringColumn;
 
-  interface TinyText extends Str {
-    readonly type: "tinytext";
-  }
-
-  interface MediumText extends Str {
-    readonly type: "mediumtext";
-  }
-
-  interface LongText extends Str {
-    readonly type: "longtext";
-  }
-
-  type Any = Char | VarChar | Text | TinyText | MediumText | LongText;
-
-  type Opts = Partial<Any>;
+  type Options = Field.Args<Any>;
 }
 
-interface Str extends StringColumn {}
+type Str = Str.Any;
 
-function Str<T extends Str.Opts>(opts?: T){
-  return new StringColumn(opts) as Field.Specify<T, Str.Any, Str.VarChar>; 
+function Str<T extends Str.Options>(...opts: T){
+  return Str.Type.new(...opts) as Field.Infer<T, Str.Types, Str>;
 }
 
 Str.Type = StringColumn;

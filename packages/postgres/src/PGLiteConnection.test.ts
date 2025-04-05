@@ -1,7 +1,9 @@
 import { PGlite } from '@electric-sql/pglite';
-import { Bool, Connection, Num, One, Query, Str, Time, Type } from '@expressive/sql';
 
+import { Bool, Connection, Num, One, Query, Str, Table, Time } from '.';
 import { PGLiteConnection } from './PGLiteConnection';
+
+const isWatchMode = process.env.VITEST_MODE === 'WATCH';
 
 const shared = new PGlite();
 let current: TestConnection | undefined;
@@ -22,9 +24,74 @@ class TestConnection extends PGLiteConnection {
   }
 }
 
+describe("persistence", () => {
+  // Expensive so do not run in watch mode
+  const it = isWatchMode ? test.skip : test;
+
+  it('will not try to recreate database tables', async () => {
+    class Users extends Table {
+      name = Str();
+    }
+    
+    const pg = new PGlite();
+
+    await new PGLiteConnection([ Users ], pg);
+    await Users.insert({ name: "Gabe" });
+
+    // reinitialize with same db, simulating persistence
+    delete Users.connection;
+    await new PGLiteConnection([ Users ], pg);
+
+    const user = await Users.one();
+
+    expect(user).toEqual({ id: 1, name: "Gabe" });
+  });
+
+  it('will throw if missing table', async () => {
+    class User extends Table {
+      name = Str();
+    }
+    
+    class FooBar extends Table {
+      name = Str();
+    }
+    
+    const pg = new PGlite();
+
+    await new PGLiteConnection([ User ], pg).sync(true);
+
+    await expect(() => {
+      delete User.connection;
+      return new PGLiteConnection([ User, FooBar ], pg).sync(false);
+    }).rejects.toThrow("Table foo_bar does not exist.");
+  });
+
+  it('will throw if table missing column', async () => {
+    const User1 = class User extends Table {
+      name = Str();
+    }
+    
+    const User2 = class User extends Table {
+      name = Str();
+      rank = Num();
+    }
+    
+    const pg = new PGlite();
+
+    await new PGLiteConnection([ User1 ], pg);
+
+    await expect(() => {
+      return new PGLiteConnection([ User2 ], pg);
+    }).rejects.toThrow("Column rank does not exist in table user");
+  });
+  
+  it.todo('will ignore type mismatch if synonomous');
+  it.todo('will ignore missing column if marked as optional');
+});
+
 describe("schema", () => {
   it("will create a table", async () => {
-    class Users extends Type {
+    class Users extends Table {
       name = Str();
       email = Str();
       age = Num();
@@ -40,7 +107,7 @@ describe("schema", () => {
   })
   
   it("will convert camelCase names to underscore", async () => {
-    class FooBar extends Type {
+    class FooBar extends Table {
       fooBar = Bool();
     }
   
@@ -50,17 +117,17 @@ describe("schema", () => {
       CREATE TABLE
         "foo_bar" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
-          "foo_bar" tinyint NOT NULL
+          "foo_bar" BOOLEAN NOT NULL
         );
     `);
   });
   
   it("will create FK constraints", async () => {
-    class Foo extends Type {
+    class Foo extends Table {
       bar = One(Bar);
     }
   
-    class Bar extends Type {
+    class Bar extends Table {
       value = Num();
     }
   
@@ -87,7 +154,7 @@ describe("schema", () => {
 
 describe.skip("types", () => {
   it("will insert and retrieve a Bool", async () => {
-    class Test extends Type {
+    class Test extends Table {
       value1 = Bool();
       value2 = Bool({
         type: "varchar",
@@ -119,7 +186,7 @@ describe.skip("types", () => {
   });
 
   it("will insert and retrieve a Date", async () => {
-    class Test extends Type {
+    class Test extends Table {
       date = Time();
     }
 
@@ -137,7 +204,7 @@ describe.skip("types", () => {
     await Test.insert({ date: now })
   
     const date = await Test.one((foo, where) => {
-      where(foo.id).is(1);
+      where(foo.id).equal(1);
   
       return foo.date;
     });
@@ -149,7 +216,7 @@ describe.skip("types", () => {
 })
 
 describe("select", () => {
-  class Foo extends Type {
+  class Foo extends Table {
     bar = Str();
     baz = Str();
   }
@@ -228,7 +295,7 @@ describe("select", () => {
 })
 
 describe("template", () => {
-  class Foo extends Type {
+  class Foo extends Table {
     first = Str();
     last = Str();
     color = Str();
@@ -247,7 +314,7 @@ describe("template", () => {
 
     const query = Query(where => (color: string) => {
       const foo = where(Foo);
-      where(foo.color).is(color);
+      where(foo.color).equal(color);
       return foo.first;
     });
   
@@ -274,8 +341,8 @@ describe("template", () => {
   
       // Should sorts parameters by order of
       // usage despite the order of arguments.
-      where(foo.first).is(firstname);
-      where(foo.color).is(color);
+      where(foo.first).equal(firstname);
+      where(foo.color).equal(color);
       
       return foo.last;
     });
@@ -320,92 +387,136 @@ describe("template", () => {
   });
 })
 
-it("will insert procedurally generated rows", async () => {
-  class Users extends Type {
+describe("insert", () => {
+  class Foo extends Table {
     name = Str();
-    email = Str();
-    age = Num();
+    color = Str();
   }
   
-  await new TestConnection({ Users });
+  it("will throw for bad value", async () => {
+    const insert = () => (
+      Foo.insert({
+        name: "foobar",
+        // @ts-expect-error
+        color: 3
+      }) 
+    )
+  
+    expect(insert).toThrowErrorMatchingInlineSnapshot(`
+      Provided value for Foo.color but not acceptable for type text.
+      Value must be a string.
+    `);
+  })
+  
+  it("will throw for no value non-nullable", async () => {
+    const insert = () => {
+      // @ts-expect-error
+      Foo.insert({ name: "foobar" }) 
+    }
+  
+    expect(insert).toThrowErrorMatchingInlineSnapshot(
+      `Can't assign to \`Foo.color\`. A value is required but got undefined.`
+    );
+  })
+  
+  it("will add index to specify error", async () => {
+    const insert = () => {
+      Foo.insert([
+        { name: "foo", color: "red" },
+        // @ts-expect-error
+        { name: "bar" }
+      ]) 
+    }
+  
+    expect(insert).toThrowErrorMatchingInlineSnapshot(`
+      A provided value at \`color\` at index [1] is not acceptable.
+      Can't assign to \`Foo.color\`. A value is required but got undefined.
+    `);
+  })
 
-  const names = ["john", "jane", "bob", "alice"];
-  const insert = Users.insert(names, (name, i) => ({
-    name,
-    age: i + 25,
-    email: `${name.toLowerCase()}@email.org`
-  }));
-
-  expect(insert).toMatchInlineSnapshot(`
-    INSERT INTO
-      "users" ("name", "email", "age")
-    SELECT
-      "input"."name",
-      "input"."email",
-      "input"."age"
-    FROM
-      JSON_TO_RECORDSET($1) AS "input" (
-        "name" VARCHAR(255),
-        "email" VARCHAR(255),
-        "age" INT
-      )
-  `);
-
-  expect(insert.params).toEqual([
-    [
-      {"name": "john",  "email": "john@email.org",  "age": 25 },
-      {"name": "jane",  "email": "jane@email.org",  "age": 26 },
-      {"name": "bob",   "email": "bob@email.org",   "age": 27 },
-      {"name": "alice", "email": "alice@email.org", "age": 28 }
-    ]
-  ])
-
-  await insert;
-
-  const results = Users.get();
-
-  expect(await results).toMatchObject([
-    { "id": 1, "name": "john",  "email": "john@email.org",  "age": 25 },
-    { "id": 2, "name": "jane",  "email": "jane@email.org",  "age": 26 },
-    { "id": 3, "name": "bob",   "email": "bob@email.org",   "age": 27 },
-    { "id": 4, "name": "alice", "email": "alice@email.org", "age": 28 }
-  ]);
-})
+  it("will insert procedurally generated rows", async () => {
+    class Users extends Table {
+      name = Str();
+      email = Str();
+      age = Num();
+    }
+    
+    await new TestConnection({ Users });
+  
+    const names = ["john", "jane", "bob", "alice"];
+    const insert = Users.insert(names, (name, i) => ({
+      name,
+      age: i + 25,
+      email: `${name.toLowerCase()}@email.org`
+    }));
+  
+    expect(insert).toMatchInlineSnapshot(`
+      INSERT INTO
+        "users" ("name", "email", "age")
+      SELECT
+        "input"."name",
+        "input"."email",
+        "input"."age"
+      FROM
+        JSON_TO_RECORDSET($1) AS "input" ("name" TEXT, "email" TEXT, "age" INTEGER)
+    `);
+  
+    expect(insert.params).toEqual([
+      [
+        {"name": "john",  "email": "john@email.org",  "age": 25 },
+        {"name": "jane",  "email": "jane@email.org",  "age": 26 },
+        {"name": "bob",   "email": "bob@email.org",   "age": 27 },
+        {"name": "alice", "email": "alice@email.org", "age": 28 }
+      ]
+    ])
+  
+    await insert;
+  
+    const results = Users.get();
+  
+    expect(await results).toMatchObject([
+      { "id": 1, "name": "john",  "email": "john@email.org",  "age": 25 },
+      { "id": 2, "name": "jane",  "email": "jane@email.org",  "age": 26 },
+      { "id": 3, "name": "bob",   "email": "bob@email.org",   "age": 27 },
+      { "id": 4, "name": "alice", "email": "alice@email.org", "age": 28 }
+    ]);
+  })
+});
 
 describe("query", () => {
-  class Users extends Type {
+  class User extends Table {
     name = Str();
   }
 
   it("will insert a single row", async () => {
-    await new TestConnection([Users]);
+    await new TestConnection([User]);
     
     const query = Query(where => {
-      return where(Users, { name: "John" }).id;
+      return where(User, { name: "John" }).id;
     });
 
     expect(query).toMatchInlineSnapshot(`
       INSERT INTO
-        "users" ("name")
+        "user" ("name")
       SELECT
         'John'
       RETURNING
-        "users"."id"
+        "user"."id"
     `);
 
     expect(await query).toEqual([1]);
   });
 
   it.skip("will chain inserts", async () => {
-    class Info extends Type {
-      user = One(Users);
+    class Info extends Table {
+      user = One(User);
       color = Str();
     }
 
-    await new TestConnection([Users, Info]);
+    await new TestConnection([User, Info]);
     
     const query = Query(where => {
-      const user = where(Users, { name: "John" });
+      const user = where(User, { name: "John" });
       const info = where(Info, { user: user.id, color: "blue" });
 
       return {
@@ -416,7 +527,7 @@ describe("query", () => {
 
     expect(query).toMatchInlineSnapshot(`
       WITH new_user AS (
-        INSERT INTO "users" ("name")
+        INSERT INTO "user" ("name")
         VALUES ('John')
         RETURNING "id"
       ),
@@ -434,21 +545,21 @@ describe("query", () => {
   });
   
   it("will insert", async () => {
-    class Info extends Type {
-      user = One(Users);
+    class Info extends Table {
+      user = One(User);
       color = Str();
     }
   
-    await new TestConnection([Users, Info]);
+    await new TestConnection([User, Info]);
   
-    await Users.insert([
+    await User.insert([
       { name: "John" },
       { name: "Jane" },
       { name: "Joe" },
     ]);
   
     const query = Query(where => {
-      const user = where(Users);
+      const user = where(User);
       const info = where(Info, {
         user: user.id,
         color: "blue",
@@ -461,10 +572,10 @@ describe("query", () => {
       INSERT INTO
         "info" ("user_id", "color")
       SELECT
-        "users"."id",
+        "user"."id",
         'blue'
       FROM
-        "users"
+        "user"
       RETURNING
         "info"."id"
     `);
@@ -473,7 +584,7 @@ describe("query", () => {
   });
 
   it("will insert iterable data", async () => {
-    await new TestConnection([Users]);
+    await new TestConnection([User]);
   
     const data = [
       { name: "John" },
@@ -482,21 +593,21 @@ describe("query", () => {
     ]
   
     const query = Query(where => {
-      where(Users, ...data);
+      where(User, ...data);
     });
 
     expect(query).toMatchInlineSnapshot(`
       INSERT INTO
-        "users" ("name")
+        "user" ("name")
       SELECT
         "input"."name"
       FROM
-        JSON_TO_RECORDSET($1) AS "input" ("name" VARCHAR(255))
+        JSON_TO_RECORDSET($1) AS "input" ("name" TEXT)
     `);
 
     expect(await query).toBe(3);
 
-    expect(await Users.get()).toEqual([
+    expect(await User.get()).toEqual([
       { id: 1, name: "John" },
       { id: 2, name: "Jane" },
       { id: 3, name: "Joe" },
@@ -505,7 +616,7 @@ describe("query", () => {
 })
 
 it("will update from data", async () => {
-  class Users extends Type {
+  class Users extends Table {
     name = Str();
     age = Num();
   }
@@ -527,7 +638,7 @@ it("will update from data", async () => {
     const { age, name } = where(data);
     const user = where(Users);
 
-    where(user.name).is(name);
+    where(user.name).equal(name);
     where(user).update({ age });
   });
 
@@ -537,7 +648,7 @@ it("will update from data", async () => {
         SELECT
           *
         FROM
-          JSON_TO_RECORDSET($1) AS x ("age" INT, "name" VARCHAR(255))
+          JSON_TO_RECORDSET($1) AS x ("age" INTEGER, "name" TEXT)
       )
     UPDATE
       "users"
@@ -558,3 +669,4 @@ it("will update from data", async () => {
 })
 
 it.todo("will prevent reserved words as table names");
+it.todo("will handle type synonyms");

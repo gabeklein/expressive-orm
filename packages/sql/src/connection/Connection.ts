@@ -1,15 +1,15 @@
 import { format } from 'sql-formatter';
 
-import { Builder, Type } from '..';
+import { Builder, Table } from '..';
 import { Generator } from '../connection/Generator';
 import { values } from '../utils';
 
 declare namespace Connection {
   type Types =
-    | typeof Type[]
-    | { [key: string | number]: typeof Type }
+    | typeof Table[]
+    | { [key: string | number]: typeof Table }
 
-  type Using = { [key: string | number]: typeof Type };
+  type Using = { [key: string | number]: typeof Table };
 
   type Ready<T extends Connection = Connection> = Omit<T, "then">;
 
@@ -19,7 +19,7 @@ declare namespace Connection {
 abstract class Connection {
   static generator = Generator;
 
-  readonly using: Readonly<Set<typeof Type>>;
+  readonly using: Readonly<Set<typeof Table>>;
   readonly ready: boolean = false;
 
   constructor(using: Connection.Types){
@@ -41,7 +41,7 @@ abstract class Connection {
     onfulfilled?: (value: Connection.Ready<this>) => any,
     onrejected?: (reason: any) => any) {
 
-    return (this.ready ? Promise.resolve() : this.sync(true))
+    return (this.ready ? Promise.resolve() : this.sync())
       .then(() => {
         Object.defineProperty(this, 'then', { value: undefined });
 
@@ -58,8 +58,8 @@ abstract class Connection {
       delete type.connection;
   }
   
-  abstract sync(fix?: boolean): Promise<void>;
-  abstract valid(type: Type.EntityType): Promise<boolean>;
+  abstract sync(fix?: boolean): Promise<this>;
+  abstract valid(type: Table.Type): Promise<boolean>;
 
   abstract prepare<T = any>(query: string): {
     all: (args?: any[]) => Promise<T[]>;
@@ -93,7 +93,7 @@ class NoConnection extends Connection {
   }
 
   async sync(){
-    return;
+    return this;
   }
 
   async valid(){

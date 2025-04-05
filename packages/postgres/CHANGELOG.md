@@ -1,5 +1,47 @@
 # @expressive/postgres
 
+## 0.4.1
+
+### Patch Changes
+
+- b8b2195: fix: rebuild libraries
+- Updated dependencies [b8b2195]
+  - @expressive/sql@0.4.1
+
+## 0.4.0
+
+### Minor Changes
+
+- 6f4c66b: Major upgrade: generic Fields
+
+### Patch Changes
+
+- Updated dependencies [6f4c66b]
+  - @expressive/sql@0.4.0
+
+## 0.3.0
+
+### Minor Changes
+
+- aa94a15: Generic fields
+
+### Patch Changes
+
+- Updated dependencies [aa94a15]
+  - @expressive/sql@0.3.0
+
+## 0.2.2
+
+### Patch Changes
+
+- 3db0a08: bump @expressive/sql
+
+## 0.2.1
+
+### Patch Changes
+
+- expose PGConnection
+
 ## 0.2.0
 
 ### Minor Changes

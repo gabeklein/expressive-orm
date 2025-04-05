@@ -1,10 +1,10 @@
-import { Type } from '@expressive/sql';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { Table } from '.';
 import { PGConnection } from './PGConnection';
 
 describe('PGConnection', () => {
-  class TestType extends Type {}
+  class TestType extends Table {}
 
   afterEach(() => {
     delete TestType.connection;

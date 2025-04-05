@@ -1,4 +1,10 @@
-import { Connection, Field, Type } from '@expressive/sql';
+import './columns/Bool';
+import './columns/Num';
+import './columns/One';
+import './columns/Str';
+import './columns/Time';
+
+import { Connection, Field, Table } from '@expressive/sql';
 import Database from 'better-sqlite3';
 import { format } from 'sql-formatter';
 
@@ -14,7 +20,7 @@ type TableInfo = {
 export class SQLiteConnection extends Connection {
   static generator = SQLiteGenerator;
 
-  protected engine: Database.Database;
+  protected declare engine: Database.Database;
 
   constructor(using: Connection.Types, filename?: string) {
     super(using);
@@ -61,9 +67,11 @@ export class SQLiteConnection extends Connection {
 
     this.createSchema(this.using);
     Object.defineProperty(this, 'ready', { value: true });
+
+    return this;
   }
 
-  async valid(type: Type.EntityType){
+  async valid(type: Table.Type){
     const { table } = type;
     const fields = Array.from(type.fields.values());
     
@@ -96,10 +104,10 @@ export class SQLiteConnection extends Connection {
   }
 
   protected checkIntegrity(field: Field, info: TableInfo){
-    const { column, datatype, nullable, parent, foreignTable, foreignKey } = field;
+    const { column, datatype, nullable, parent, reference } = field;
 
     // Check datatype
-    if (info.type !== this.mapDataType(datatype).toLowerCase())
+    if (info.type !== datatype.toLowerCase())
       throw new Error(
         `Column ${column} in table ${parent.table} has type ${info.type}, expected ${datatype}`
       );
@@ -110,9 +118,15 @@ export class SQLiteConnection extends Connection {
         `Column ${column} in table ${parent.table} has incorrect nullable value`
       );
 
-    // Check foreign key if present
-    if (!foreignTable || !foreignKey)
+    if (!reference)
       return;
+
+    const {
+      column: foreignKey,
+      parent: {
+        table: foreignTable
+      }
+    } = reference;
 
     if (field.parent.connection !== this)
       throw new Error(
@@ -137,53 +151,42 @@ export class SQLiteConnection extends Connection {
       );
   }
 
-  protected generateSchema(types: Iterable<typeof Type>): string {
+  protected createSchema(types: Iterable<typeof Table>): void {
+    this.engine.exec(this.generateSchema(types));
+  }
+
+  protected generateSchema(types: Iterable<typeof Table>): string {
     return Array.from(types)
       .map(type => this.generateTableSchema(type))
       .join('\n');
   }
 
-  protected createSchema(types: Iterable<typeof Type>): void {
-    this.engine.exec(this.generateSchema(types));
-  }
-
-  protected generateTableSchema(type: Type.EntityType): string {
+  protected generateTableSchema(type: Table.Type): string {
     const fields = Array.from(type.fields.values()).map(field => {
-      let parts = `\`${field.column}\` ${this.mapDataType(field.datatype!)}`;
+      const {
+        column,
+        datatype,
+        fallback,
+        reference,
+        increment,
+        nullable,
+        unique,
+      } = field;
 
-      if (!field.nullable)
-        parts += ' NOT NULL';
-      if (field.increment)
-        parts += ' PRIMARY KEY AUTOINCREMENT';
-      if (field.unique)
-        parts += ' UNIQUE';
+      let parts = `\`${column}\` ${datatype.toUpperCase()}`;
 
-      if (field.fallback !== undefined)
-        parts += ' DEFAULT ' + field.set(field.fallback);
+      if (!nullable) parts += ' NOT NULL';
+      if (increment) parts += ' PRIMARY KEY AUTOINCREMENT';
+      if (unique)    parts += ' UNIQUE';
+      if (fallback)  parts += ' DEFAULT ' + field.set(fallback);
 
-      if (field.foreignKey && field.foreignTable)
-        parts += ` REFERENCES ${field.foreignTable}(${field.foreignKey})`;
+      if (reference)
+        parts += ` REFERENCES ${reference.parent.table}(${reference.column})`;
 
       return parts;
     });
 
     return `CREATE TABLE ${type.table} (${fields.join(', ')});`;
-  }
-
-  private mapDataType(datatype: string): string {
-    const typeMap: Record<string, string> = {
-      'varchar': 'TEXT',
-      'int': 'INTEGER',
-      'float': 'REAL',
-      'double': 'REAL',
-      'boolean': 'INTEGER',
-      'date': 'TEXT',
-      'datetime': 'TEXT',
-      'timestamp': 'TEXT'
-    };
-
-    const baseType = datatype.split('(')[0].toLowerCase();
-    return typeMap[baseType] || datatype;
   }
 }
 

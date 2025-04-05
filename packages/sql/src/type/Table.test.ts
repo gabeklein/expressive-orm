@@ -1,24 +1,67 @@
-import { Query, Str, Table, Type } from '..';
-it("will alias types with a schema", () => {
-  class Foo extends Type {
-    this = Table({ schema: "foobar" });
+import { Num, Table } from '..';
 
-    name = Str();
-    color = Str();
-  }
+class Item extends Table  {
+  number = Num();
+}
 
-  const query = Query(where => {
-    const foo = where(Foo);
+describe("get method", () => {
+  it("will fetch rows", async () => {
+    const query = Item.get();
 
-    where(foo.color).is("red");
+    expect(query).toMatchInlineSnapshot(`
+      SELECT
+        item.id AS "id",
+        item.number AS "number"
+      FROM
+        item
+    `);
   })
 
-  expect(query).toMatchInlineSnapshot(`
-    SELECT
-      COUNT(*)
-    FROM
-      foobar.foo T0
-    WHERE
-      T0.color = 'red'
-  `);
+  it("will limit rows", async () => {
+    const query = Item.get(5);
+
+    expect(query).toMatchInlineSnapshot(`
+      SELECT
+        item.id AS "id",
+        item.number AS "number"
+      FROM
+        item
+      LIMIT
+        5
+    `);
+  })
+
+  it("will query rows", async () => {
+    const query = Item.get((item, where) => {
+      where(item.number).over(5);
+    });
+
+    expect(query).toMatchInlineSnapshot(`
+      SELECT
+        item.id AS "id",
+        item.number AS "number"
+      FROM
+        item
+      WHERE
+        item.number > 5
+    `);
+  })
+
+  it("will limit queried rows", async () => {
+    const query =  Item.get(2, (item, where) => {
+      where(item.number).over(5);
+    });
+
+    expect(query).toMatchInlineSnapshot(`
+      SELECT
+        item.id AS "id",
+        item.number AS "number"
+      FROM
+        item
+      WHERE
+        item.number > 5
+      LIMIT
+        2
+    `);
+  })
 })

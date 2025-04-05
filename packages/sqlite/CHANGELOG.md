@@ -1,5 +1,27 @@
 # @expressive/sqlite
 
+## 0.4.0
+
+### Minor Changes
+
+- 6f4c66b: Major upgrade: generic Fields
+
+### Patch Changes
+
+- Updated dependencies [6f4c66b]
+  - @expressive/sql@0.4.0
+
+## 0.3.0
+
+### Minor Changes
+
+- aa94a15: Generic fields
+
+### Patch Changes
+
+- Updated dependencies [aa94a15]
+  - @expressive/sql@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes

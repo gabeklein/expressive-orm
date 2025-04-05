@@ -11,7 +11,9 @@ export class PostgresGenerator extends Generator {
         returns instanceof Map
           ? Array
               .from(returns.entries())
-              .map(([alias, field]) => `${this.reference(field)} AS "${alias}"`)
+              .map(([alias, field]) => {
+                return `${this.reference(field)} AS "${alias}"`;
+              })
           : this.reference(returns)
         )
       )
@@ -62,7 +64,7 @@ export class PostgresGenerator extends Generator {
 
   protected update() {
     const { updates, tables } = this.query;
-    const [main] = updates.keys();
+    const [ main ] = updates.keys();
 
     if (!updates.size) return;
 

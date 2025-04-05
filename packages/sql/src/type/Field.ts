@@ -1,9 +1,7 @@
 import { Query } from '..';
-import { Builder, Cond } from '../query/Builder';
-import { capitalize, create, escape, freeze, getOwnPropertyDescriptor, underscore } from '../utils';
-import { Type } from './Type';
-
-const REGISTER = new Map<Type.EntityType, Map<string, Field>>();
+import { Builder } from '../query/Builder';
+import { defineProperty } from '../utils';
+import { Table } from './Table';
 
 type Nullable = { nullable: true };
 type Optional = { optional: true };
@@ -11,15 +9,23 @@ type Optional = { optional: true };
 declare namespace Field {
   type Init<T extends Field = Field> = (self: T) => Partial<T> | void;
 
-  type Opts<T extends Field = Field> = Partial<T> | Init<T>;
+  type Args<T extends Field = Field> = (Partial<T> | null | string)[];
 
-  type Modifier<T, TT extends Field> =
-    T extends { nullable: true } ? TT & Nullable :
-    T extends { fallback?: any, increment?: true } ? TT & Optional :
+  type Type<T extends any[], A, D extends Field = any> = 
+    T extends [infer First, ...infer Rest] ?
+      First extends { type: infer I } ? (I extends keyof A ? A[I] : D) :
+      Type<Rest, A, D> :
+    A extends { default: infer V } ? V : D;
+
+  type Mod<T extends any[], TT> = 
+    T extends [infer First, ...infer Rest] ?
+      // TODO: should this be conflated with Optional?
+      First extends { nullable?: true, optional?: true } | null ? TT & Nullable :
+      First extends { fallback?: any, increment?: true } ? TT & Optional :
+      Mod<Rest, TT> :
     TT;
 
-  type Specify<T, TT extends Field, D extends Field = TT> =
-    Modifier<T, T extends { type: infer U } ? Extract<TT, { type: U }> : D>;
+  type Infer<T extends any[], A, D extends Field = any> = Mod<T, Type<T, A, D>>;
 
   type Returns<T> = Field & { get(value: any): T }
 
@@ -41,13 +47,7 @@ declare namespace Field {
 
   type Output = Record<string, string | number>;
 
-  type Compare<T> = {
-    is(value: Query.Value<T>): Cond;
-    not(value: Query.Value<T>): Cond;
-    over(value: Query.Value<T>, orEqual?: boolean): Cond;
-    under(value: Query.Value<T>, orEqual?: boolean): Cond;
-    in(value: Query.Value<T>[]): Cond;
-  }
+  const does: (callback: Callback) => void;
 }
 
 class Field<T = unknown> {
@@ -55,48 +55,36 @@ class Field<T = unknown> {
   unique = false;
   nullable = false;
   optional = false;
+  absent = false;
   increment = false;
   fallback?: unknown;
-
-  property!: string;
-  parent!: Type.EntityType;
   
-  table?: Query.Table;
+  column!: string;
+  property!: string;
+  parent!: Table.Type;
+  
+  table?: Query.ITable;
   query?: Builder;
 
-  foreignKey?: string;
-  foreignTable?: string;
+  /** If column has a reference constraint, applicable field is listed here. */
+  reference?: Field;
 
   /** Real datatype of this field in database. */
-  datatype!: string;
-
-  column!: string;
-
-  constructor(private options?: Field.Opts){}
-
-  init(property: string, parent: Type.EntityType): this {
-    let options = this.options;
-    const field = create(this);
-
-    field.parent = parent;
-    field.property = property;
-    field.column = underscore(property);
-
-    if (typeof options === "function")
-      options = options(field) || {};
-
-    for(const key in options){
-      const value = (options as any)[key];
-
-      if(value !== undefined)
-        (field as any)[key] = value;
-    }
-
-    if(!field.datatype)
-      field.datatype = field.type;
-
-    return field;
+  get datatype(){
+    return this.type;
   }
+
+  static new<T extends Field>(
+    this: new (...args: any[]) => T, ...options: Field.Args<T>): Field {
+
+    return Object.assign(new this, ...options.map(x => (
+      typeof x === "string" ? { column: x } :
+      x === null ? { nullable: true } :
+      x
+    )));
+  }
+
+  init?(property: string, parent: Table.Type): void;
 
   /**
    * Optional method generates value of property this Field is applied to when accessed inside a query.
@@ -124,62 +112,15 @@ class Field<T = unknown> {
   get(value: any): T {
     return value;
   };
-
-  raw(value: T): string {
-    return escape(this.set(value));
-  };
-
-  /**
-   * This method is used to compare this field with another value in a query.
-   * 
-   * @param acc Set of comparisons to be added to if not part of a group.
-   */
-  where(): Field.Compare<T> {
-    const use = (op: string) =>
-      (right: unknown, orEqual?: boolean) =>
-        this.query!.where(this, op + (orEqual ? '=' : ''), right)
-
-    return <any> {
-      is: use("="),
-      in: use("IN"),
-      not: use("<>"),
-      over: use(">"),
-      under: use("<")
-    };
-  }
 }
 
-function fields(from: Type.EntityType){
-  let fields = REGISTER.get(from);
+type Callback = (parent: Table.Type, property: string) => void;
 
-  if(!fields){
-    fields = new Map<string, Field>();
-
-    REGISTER.set(from, fields);
-    
-    const reference = new (from as any)();
-    
-    for(const key in reference){
-      const { value } = getOwnPropertyDescriptor(reference, key)!;
-  
-      if(!(value instanceof Field))
-        throw new Error(
-          `Entities do not support normal values, only fields. ` +
-          `Did you forget to import \`${capitalize(typeof value)}\`?`
-        );
-  
-      const instance = value.init(key, from);
-
-      from.fields.set(key, instance);
-      freeze(instance);
-    }
-  }
-
-  return fields;
-}
+defineProperty(Field, "does", {
+  value: (callback: Callback) => callback
+});
 
 export {
-  fields,
   Field,
   Nullable,
   Optional

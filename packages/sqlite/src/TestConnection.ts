@@ -30,7 +30,8 @@ export class TestConnection extends SQLiteConnection {
   }
 
   async sync(fix?: boolean){
-    await super.sync(fix);
+    const self = await super.sync(fix);
     if(this.after) this.after();
+    return self;
   }
 }

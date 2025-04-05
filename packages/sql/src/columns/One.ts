@@ -1,34 +1,23 @@
-import { Builder, Nullable, Type } from '..';
+import { Builder, Table, Query } from '..';
 import { Field } from '../type/Field';
 import { underscore } from '../utils';
 
-class ForeignColumn<T extends Type> extends Field<Type.Values<T>> {
-  readonly entity: Type.EntityType<T>;
-  readonly foreignKey: string = "id";
-  readonly foreignTable: string;
+class ForeignColumn<T extends Table = Table> extends Field<Table.Values<T>> {
+  declare readonly type: One.DataType;
+
+  readonly entity!: Table.Type<T>;
   readonly nullable: boolean = false;
+  readonly onDelete?: string;
+  readonly onUpdate?: string;
 
-  constructor(type: Type.EntityType<T>, nullable?: boolean) {
-    super(({ property }) => ({
-      column: underscore(property) + "_id"
-    }));
-
-    this.entity = type;
-    this.type = "int";
-    this.foreignKey = "id";
-    this.foreignTable = type.table;
-    this.foreignTable = type.table;
-    this.nullable = nullable || false;
-  }
-
-  set(value: Type.Values<T> | number) {
+  set(value: Table.Values<T> | number) {
     if (this.query?.tables.has(value))
-      return (value as any)[this.foreignKey];
+      return (value as any)[this.reference!.column];
     
     return value;
   }
 
-  use(query: Builder) {
+  use(query: Builder): Query.From<T> {
     // TODO: avoid any here?
     const table = query.use(this.entity) as any;
     query.where(table.id, "=", this);
@@ -36,12 +25,26 @@ class ForeignColumn<T extends Type> extends Field<Type.Values<T>> {
   }
 }
 
-interface One<T extends Type> extends ForeignColumn<T> {}
+declare namespace One {
+  interface Types {}
 
-function One<T extends Type>(type: Type.EntityType<T>, nullable?: false): One<T>;
-function One<T extends Type>(type: Type.EntityType<T>, nullable: boolean): One<T> & Nullable;
-function One<T extends Type>(type: Type.EntityType<T>, nullable?: boolean){
-  return new ForeignColumn(type, nullable);
+  type DataType = keyof Types;
+  
+  type Options = (null | string | {
+    [K in Exclude<keyof ForeignColumn, 'entity'>]?: ForeignColumn[K];
+  })[]
+}
+
+interface One<T extends Table> extends ForeignColumn<T> {}
+
+function One<T extends Table, O extends One.Options>(
+  entity: Table.Type<T>, ...options: O){
+  
+  const field = "id";
+  const column = underscore(entity.name) + "_" + field;
+  const reference = entity.fields.get(field);
+
+  return One.Type.new({ column, reference }, ...options, { entity }) as Field.Mod<O, One<T>>;
 }
 
 One.Type = ForeignColumn;

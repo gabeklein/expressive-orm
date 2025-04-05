@@ -1,4 +1,10 @@
-import { Connection, Field, Type } from '@expressive/sql';
+import './columns/Bool';
+import './columns/Num';
+import './columns/One';
+import './columns/Str';
+import './columns/Time';
+
+import { Connection, Field, Table } from '@expressive/sql';
 import { format } from 'sql-formatter';
 import { PostgresGenerator } from './PostgresGenerator';
 
@@ -8,6 +14,25 @@ import type { PGlite, PGliteOptions } from '@electric-sql/pglite';
 /**
  * Unified PostgresConnection that supports both node-postgres (pg) and PGlite
  */
+const TYPE_SYNONYMS: Record<string, string> = {
+  "int2": "smallint",
+  "int4": "integer",
+  "int8": "bigint",
+  "real": "float",
+  "double precision": "double",
+  "character varying": "varchar",
+  "character": "char",
+  "numeric": "decimal",
+  "timestamp without time zone": "timestamp",
+  "timestamp with time zone": "timestamptz",
+  "time without time zone": "time",
+  "time with time zone": "timetz",
+  "interval without time zone": "interval",
+  "interval with time zone": "interval",
+  "boolean": "bool",
+  "bytea": "binary"
+}
+
 export class PostgresConnection extends Connection {
   static generator = PostgresGenerator;
 
@@ -142,26 +167,42 @@ export class PostgresConnection extends Connection {
   }
 
   async sync(fix?: boolean) {
+    if(!this.engine)
+      throw new Error("Connection engine is not initialized.");
+
     if (this.ready)
       throw new Error("Connection is already active.");
 
-    for (const type of this.using) {
+    const required = new Set(this.using);
+
+    for (const type of required) {
+      void type.fields;
       const valid = await this.valid(type);
 
-      if (!valid && fix !== true)
+      if(valid)
+        required.delete(type);
+
+      else if (fix !== true)
         throw new Error(`Table ${type.table} does not exist.`);
     }
 
-    await this.createSchema(this.using);
+    if(required.size)
+      if(fix === true)
+        await this.createSchema(required);
+      else
+        throw new Error(`Tables ${Array.from(required).map(t => t.table).join(', ')} are expected Types do not exist.`);
+
     Object.defineProperty(this, 'ready', { value: true });
+
+    return this;
   }
 
   protected fetch<T>(query: string, params: unknown[]) {
     return this.query(query, params).then(x => x.rows) as Promise<T[]>;
   }
 
-  async valid(type: Type.EntityType): Promise<boolean> {
-    const { table } = type;
+  async valid(type: Table.Type): Promise<boolean> {
+    const { fields, table } = type;
     
     const tableExists = await this.fetch(
       'SELECT FROM information_schema.tables WHERE table_name = $1', [table]
@@ -179,42 +220,62 @@ export class PostgresConnection extends Connection {
       [table]
     );
 
-    for (const field of type.fields.values()) {
-      if (!field.datatype) continue;
-
-      const columnInfo = rows.find(col => col.column_name === field.column);
-
-      if (!columnInfo)
-        throw new Error(`Column ${field.column} does not exist in table ${table}`);
-
-      await this.checkIntegrity(field, columnInfo);
-    }
+    await Promise.all(Array.from(fields.values(), field => {
+      return this.checkIntegrity(table, field, 
+        rows.find(col => col.column_name === field.column)
+      );
+    }));
 
     return true;
   }
 
   protected async checkIntegrity(
+    table: string,
     field: Field,
-    info: {
+    info: undefined | {
       column_name: string;
       data_type: string;
       is_nullable: string;
       column_default: string;
     }
   ) {
-    const { column, datatype, nullable, parent, foreignTable, foreignKey } = field;
+    const { column, datatype, nullable, parent, reference } = field;
 
-    if (this.mapDataType(datatype).toLowerCase() !== info.data_type.toLowerCase())
-      throw new Error(
-        `Column ${column} in table ${parent.table} has type ${info.data_type}, expected ${datatype}`
-      );
+    if(!datatype)
+      return;
 
-    if ((info.is_nullable === 'YES') === !nullable)
+    if (!info)
+      if(field.optional){
+        field.absent = true;
+        field.get = () => undefined;
+        return;
+      }
+      else
+        throw new Error(`Column ${field.column} does not exist in table ${table}`);
+
+    const { is_nullable, data_type } = info;
+
+    if ((is_nullable === 'YES') === !nullable)
       throw new Error(
         `Column ${column} in table ${parent.table} has incorrect nullable value`
       );
 
-    if (!foreignTable || !foreignKey) return;
+    const A = data_type.toLowerCase();
+    const B = datatype.toLowerCase();
+
+    if (A !== B && A !== TYPE_SYNONYMS[B] && B !== TYPE_SYNONYMS[A])
+      throw new Error(
+        `Column ${column} in table ${parent.table} has type "${A}", expected "${B}"`
+      );
+
+    if (!reference) return;
+
+    const {
+      column: foreignKey,
+      parent: {
+        table: foreignTable
+      }
+    } = reference;
 
     if (field.parent.connection !== this)
       throw new Error(
@@ -232,12 +293,12 @@ export class PostgresConnection extends Connection {
       );
   }
 
-  protected async createSchema(types: Iterable<typeof Type>): Promise<void> {
+  protected async createSchema(types: Iterable<typeof Table>): Promise<void> {
     const schema = this.generateSchema(types);
     await this.execScript(schema);
   }
 
-  protected generateSchema(types: Iterable<typeof Type>): string {
+  protected generateSchema(types: Iterable<typeof Table>): string {
     const schemas = Array.from(types).map(type => this.generateTableSchema(type));
     const statements = [
       ...schemas.map(s => s.table),
@@ -247,28 +308,34 @@ export class PostgresConnection extends Connection {
     return statements.join('\n');
   }
 
-  protected generateTableSchema(type: Type.EntityType) {
+  protected generateTableSchema(type: Table.Type) {
     const { table, fields } = type;
 
     const constraints: string[] = [];
     const columns = Array.from(fields.values()).map(field => {
       const {
-        column, datatype, fallback, foreignKey,
-        foreignTable, increment, nullable, unique,
+        column,
+        datatype,
+        fallback,
+        reference,
+        increment,
+        nullable,
+        unique,
       } = field;
-   
-      if (foreignKey && foreignTable)
-        constraints.push(
-          `ALTER TABLE "${table}" ADD CONSTRAINT "${table}_${column}_fk" ` +
-          `FOREIGN KEY ("${column}") REFERENCES "${foreignTable}"("${foreignKey}");`
-        );
 
-      let parts = `"${column}" ${this.mapDataType(datatype!)}`;
+      const type = datatype.toUpperCase();
+      let parts = `"${column}" ${type}`;
    
       if (!nullable) parts += ' NOT NULL';
       if (increment) parts += ' GENERATED ALWAYS AS IDENTITY'; 
-      if (unique) parts += ' UNIQUE';
-      if (fallback !== undefined) parts += ' DEFAULT ' + field.set(fallback);
+      if (unique)    parts += ' UNIQUE';
+      if (fallback)  parts += ' DEFAULT ' + field.set(fallback);
+   
+      if (reference)
+        constraints.push(
+          `ALTER TABLE "${table}" ADD CONSTRAINT "${table}_${column}_fk" ` +
+          `FOREIGN KEY ("${column}") REFERENCES "${reference.parent.table}"("${reference.column}");`
+        );
    
       return parts;
     });
@@ -277,22 +344,6 @@ export class PostgresConnection extends Connection {
       table: `CREATE TABLE "${table}" (${columns.join(", ")});`,
       constraints: constraints.join('\n')
     };
-  }
-
-  protected mapDataType(datatype: string): string {
-    const typeMap: Record<string, string> = {
-      'varchar': 'TEXT',
-      'int': 'INTEGER',
-      'float': 'REAL',
-      'double': 'DOUBLE PRECISION',
-      'boolean': 'BOOLEAN',
-      'date': 'DATE',
-      'datetime': 'TIMESTAMP',
-      'timestamp': 'TIMESTAMP'
-    };
-
-    const baseType = datatype.split('(')[0].toLowerCase();
-    return typeMap[baseType] || datatype;
   }
 }
 

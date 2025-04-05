@@ -4,13 +4,29 @@ import { Connection } from '@expressive/sql';
 import { PostgresConnection } from './PostgresConnection';
 
 export class PGLiteConnection extends PostgresConnection {
-  protected engine!: PGlite;
+  protected declare engine: PGlite;
+  readonly dataDir: string;
 
   constructor(using: Connection.Types, engine: PGlite)
   constructor(using: Connection.Types, dataDir?: string, config?: PGliteOptions)
   constructor(using: Connection.Types, arg2?: string | PGlite, config?: PGliteOptions) {
-    const pglite = arg2 instanceof PGlite ? arg2 : new PGlite(arg2, config);
-    super(using, pglite);
+    super(using);
+
+    if(arg2 instanceof PGlite) {
+      this.engine = arg2;
+      this.dataDir = arg2.dataDir || ":memory:";
+    }
+    else {
+      this.dataDir = arg2 as string;
+      this.engine = new PGlite(this.dataDir, config);
+    }
+  }
+
+  async sync(fix?: boolean): Promise<this> {
+    if(this.dataDir === ":memory:")
+      fix = fix !== false;
+
+    return super.sync(fix);
   }
 
   async query(sql: string, params?: any[]) {

@@ -1,5 +1,35 @@
 # @expressive/sql
 
+## 0.4.1
+
+### Patch Changes
+
+- b8b2195: fix: rebuild libraries
+
+## 0.4.0
+
+### Minor Changes
+
+- 6f4c66b: Major upgrade: generic Fields
+
+## 0.3.1
+
+### Patch Changes
+
+- 857a18c: Improved types for One
+
+## 0.3.0
+
+### Minor Changes
+
+- aa94a15: Generic fields
+
+## 0.2.1
+
+### Patch Changes
+
+- f5c7c31: Allow any number as Str length
+
 ## 0.2.0
 
 ### Minor Changes

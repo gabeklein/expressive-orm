@@ -1,2 +1,3 @@
 export * from "@expressive/sql";
-export { PGLiteConnection as Connection } from "./PGLiteConnection";
+export { PGLiteConnection } from "./PGLiteConnection";
+export { PGConnection } from "./PGConnection";

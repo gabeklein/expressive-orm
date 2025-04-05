@@ -1,9 +1,9 @@
-import { Bool, Type, Num, Str, Table } from '@expressive/sql';
+import { Bool, Num, Primary, Str, Table } from '@expressive/sql';
 
-export class Column extends Type {
-  this = Table({
-    name: "COLUMNS",
-    schema: "information_schema"
+export class Column extends Table {
+  id = Primary({
+    tableName: "COLUMNS",
+    tableSchema: "information_schema"
   });
 
   catalog = Str({
@@ -137,10 +137,10 @@ export class Column extends Type {
   });
 }
 
-export class Constraint extends Type {
-  this = Table({
-    name: "TABLE_CONSTRAINTS",
-    schema: "information_schema"
+export class Constraint extends Table {
+  id = Primary({
+    tableName: "TABLE_CONSTRAINTS",
+    tableSchema: "information_schema"
   });
 
   catalog = Str({
@@ -187,10 +187,10 @@ export class Constraint extends Type {
   })
 }
 
-export class KeyColumnUsage extends Type {
-  this = Table({
-    name: "KEY_COLUMN_USAGE",
-    schema: "information_schema"
+export class KeyColumnUsage extends Table {
+  id = Primary({
+    tableName: "KEY_COLUMN_USAGE",
+    tableSchema: "information_schema"
   })
 
   constraintCatalog = Str({
@@ -264,10 +264,10 @@ export class KeyColumnUsage extends Type {
   })
 }
 
-export class ReferentialConstraints extends Type {
-  this = Table({
+export class ReferentialConstraints extends Table {
+  id = Primary({
     name: "REFERENTIAL_CONSTRAINTS",
-    schema: "information_schema"
+    tableSchema: "information_schema"
   })
 
   constraintCatalog = Str({

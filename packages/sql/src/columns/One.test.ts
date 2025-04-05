@@ -1,16 +1,16 @@
-import { Num, One, Query, Str, Type } from '..';
+import { Num, One, Query, Str, Table } from '..';
 
-class A extends Type {
+class A extends Table {
   b = One(B);
   value = Str();
 }
 
-class B extends Type {
+class B extends Table {
   c = One(C);
   value = Str();
 }
 
-class C extends Type {
+class C extends Table {
   value = Num();
   label = Str();
 }
@@ -54,7 +54,7 @@ it("will query nested relationships", () => {
   const query = Query(where => {
     const a = where(A);
 
-    where(a.b.c.value).is(100);
+    where(a.b.c.value).equal(100);
     
     return a.b.c.label;
   })
@@ -72,11 +72,11 @@ it("will query nested relationships", () => {
 })
 
 // it("will join on id if type is passed", async () => {
-//   class Foo extends Type {
+//   class Foo extends Table {
 //     name = Str();
 //   }
 
-//   class Bar extends Type {
+//   class Bar extends Table {
 //     foo = One(Foo);
 //     rating = Num();
 //   }
@@ -84,7 +84,7 @@ it("will query nested relationships", () => {
 //   const query = Query(where => {
 //     const foo = where(Foo);
 //     const bar = where(Bar, () => {
-//       where(bar.foo).is(foo);
+//       where(bar.foo).equal(foo);
 //     });
 
 //     where(bar.rating).over(50);
@@ -104,19 +104,19 @@ it("will query nested relationships", () => {
 // });
 
 it("will assert a property-joined value", () => {
-  class Foo extends Type {
+  class Foo extends Table {
     name = Str();
     color = Str();
   }
 
-  class Bar extends Type {
+  class Bar extends Table {
     foo = One(Foo);
   }
 
   const query = Query(where => {
     const bar = where(Bar);
 
-    where(bar.foo.color).is("blue");
+    where(bar.foo.color).equal("blue");
   });
   
   expect(query).toMatchInlineSnapshot(`
