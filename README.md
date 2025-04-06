@@ -313,7 +313,7 @@ for(const { content, author } of results)
 console.log(query);
 
 /*
-  SELECT "post"."content", "user"."name" AS "author"
+  SELECT "post"."content" as "content", "user"."name" AS "author"
   FROM "post" AS "post"
   JOIN "user" AS "user" ON "post"."author_id" = "user"."id"
   WHERE "user"."name" = 'John'
