@@ -1,4 +1,13 @@
-import { defineConfig } from 'tsup';
+import { defineConfig, Options } from 'tsup';
+
+const esmConfig: Options = {
+  format: ['esm'],
+  outDir: "dist/esm",
+  outExtension: () => ({ js: '.js' }),
+  skipNodeModulesBundle: true,
+  sourcemap: true,
+  target: 'node16'
+}
 
 export default defineConfig([
   {
@@ -11,12 +20,18 @@ export default defineConfig([
     sourcemap: true,
   },
   {
-    entry: ["src/*.ts", "!src/**/*.test.ts"],
-    format: ['esm'],
-    outDir: "dist/esm",
-    outExtension: () => ({ js: '.js' }),
-    skipNodeModulesBundle: true,
-    sourcemap: "inline",
-    splitting: false,
+    ...esmConfig,
+    entry: [
+      "src/PostgresConnection.ts"
+    ]
+  },
+  {
+    ...esmConfig,
+    bundle: false,
+    entry: [
+      "src/index.ts",
+      "src/PGConnection.ts",
+      "src/PGLiteConnection.ts"
+    ]
   }
 ]);

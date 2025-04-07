@@ -63,7 +63,7 @@ export class PostgresConnection extends Connection {
     throw new Error(NOT_IMPL);
   }
 
-  execScript(sql: string): Promise<void> {
+  exec(sql: string): Promise<void> {
     throw new Error(NOT_IMPL);
   }
 
@@ -205,7 +205,7 @@ export class PostgresConnection extends Connection {
 
   protected async createSchema(types: Iterable<typeof Table>): Promise<void> {
     const schema = this.generateSchema(types);
-    await this.execScript(schema);
+    await this.exec(schema);
   }
 
   protected generateSchema(types: Iterable<typeof Table>): string {
