@@ -233,7 +233,7 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     if (builder.returns)
       assign(query, {
         get,
-        one: async (orFail?: boolean) => {
+        async one(orFail?: boolean){
           const res = await statement.get();
 
           if(res)
