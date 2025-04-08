@@ -1,32 +1,35 @@
 import { defineConfig, Options } from 'tsup';
 
-const esmConfig: Options = {
+const base: Options = {
   format: ['esm'],
   outDir: "dist/esm",
   outExtension: () => ({ js: '.js' }),
-  skipNodeModulesBundle: true,
   sourcemap: true,
-  target: 'node16'
+  target: 'node16',
+  external: [
+    "@electric-sql/pglite",
+    '@expressive/sql',
+    "pg",
+  ],
 }
 
 export default defineConfig([
   {
+    ...base,
     clean: true,
     dts: true,
     entry: ["src/index.ts"],
     format: ['cjs'],
     outDir: "dist",
-    skipNodeModulesBundle: true,
-    sourcemap: true,
   },
   {
-    ...esmConfig,
+    ...base,
     entry: [
       "src/PostgresConnection.ts"
     ]
   },
   {
-    ...esmConfig,
+    ...base,
     bundle: false,
     entry: [
       "src/index.ts",
