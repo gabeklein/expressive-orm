@@ -1,5 +1,11 @@
 # @expressive/postgres
 
+## 0.4.2
+
+### Patch Changes
+
+- Dynamic import for adapter engines
+
 ## 0.4.1
 
 ### Patch Changes
