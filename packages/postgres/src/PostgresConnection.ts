@@ -4,7 +4,7 @@ import './columns/One';
 import './columns/Str';
 import './columns/Time';
 
-import { Connection, Field, Table } from '@expressive/sql';
+import { Builder, Connection, Field, Table } from '@expressive/sql';
 import { format } from 'sql-formatter';
 
 import { PostgresGenerator } from './PostgresGenerator';
@@ -35,7 +35,9 @@ export abstract class PostgresConnection extends Connection {
     return format(this.generateSchema(this.using));
   }
 
-  prepare<T = any>(sql: string) {
+  prepare<T = any>(from: Builder | string) {
+    const sql = typeof from == "string" ? from : String(new PostgresGenerator(from));
+
     const send = async (params?: any[]) => {
       try {
         return await this.query(sql, params);

@@ -213,8 +213,7 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   if(!connection)
     connection = Connection.None;
 
-  const template = connection.generate(builder);
-  const statement = connection.prepare(template);
+  const statement = connection.prepare(builder);
   const runner = (...params: any[]) => { 
     const get = () => statement.all(params).then(a => a.map(x => builder.parse(x)));
     const query = create(Query.prototype) as Query;

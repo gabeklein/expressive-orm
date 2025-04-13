@@ -1,8 +1,8 @@
 import { format } from 'sql-formatter';
 
 import { Builder, Table } from '..';
-import { Generator } from '../connection/Generator';
 import { values } from '../utils';
+import { Generator } from './Generator';
 
 declare namespace Connection {
   type Types =
@@ -17,8 +17,6 @@ declare namespace Connection {
 }
 
 abstract class Connection {
-  static generator = Generator;
-
   readonly using: Readonly<Set<typeof Table>>;
   readonly ready: boolean = false;
 
@@ -30,11 +28,6 @@ abstract class Connection {
       type.connection = this;
       return type;
     }))
-  }
-
-  generate(builder: Builder){
-    const { generator } = this.constructor as typeof Connection;
-    return new generator(builder).toString();
   }
 
   async then(
@@ -61,7 +54,7 @@ abstract class Connection {
   abstract sync(fix?: boolean): Promise<this>;
   abstract valid(type: Table.Type): Promise<boolean>;
 
-  abstract prepare<T = any>(query: string): {
+  abstract prepare<T = any>(builder: Builder): {
     all: (args?: any[]) => Promise<T[]>;
     get: (args?: any[]) => Promise<T | undefined>;
     run: (args?: any[]) => Promise<number>;
@@ -77,7 +70,9 @@ class NoConnection extends Connection {
     throw new Error("No connection to generate schema.");
   }
 
-  prepare(template: string){
+  prepare(builder: Builder){
+    const template = String(new Generator(builder));
+
     async function run(): Promise<never> {
       throw new Error("No connection to run query.");
     }

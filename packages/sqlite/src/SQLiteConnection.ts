@@ -4,7 +4,7 @@ import './columns/One';
 import './columns/Str';
 import './columns/Time';
 
-import { Connection, Field, Table } from '@expressive/sql';
+import { Builder, Connection, Field, Table } from '@expressive/sql';
 import Database from 'better-sqlite3';
 import { format } from 'sql-formatter';
 
@@ -18,8 +18,6 @@ type TableInfo = {
 };
 
 export class SQLiteConnection extends Connection {
-  static generator = SQLiteGenerator;
-
   protected declare engine: Database.Database;
 
   constructor(using: Connection.Types, filename?: string) {
@@ -31,7 +29,9 @@ export class SQLiteConnection extends Connection {
     return pretty(this.generateSchema(this.using));
   }
 
-  prepare<T = any>(sql: string){
+  prepare<T = any>(builder: Builder){
+    const sql = String(new SQLiteGenerator(builder));
+
     try {
       const stmt = this.engine.prepare(sql);
       const string = (x?: unknown[]) => x
