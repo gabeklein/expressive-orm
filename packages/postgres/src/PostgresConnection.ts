@@ -9,7 +9,6 @@ import { format } from 'sql-formatter';
 
 import { PostgresGenerator } from './PostgresGenerator';
 
-const NOT_IMPL = "Not implemented, use PGConnection or PGLiteConnection instead.";
 const TYPE_SYNONYMS: Record<string, string> = {
   "int2": "smallint",
   "int4": "integer",
@@ -29,9 +28,7 @@ const TYPE_SYNONYMS: Record<string, string> = {
   "bytea": "binary"
 }
 
-export class PostgresConnection extends Connection {
-  static generator = PostgresGenerator;
-
+export abstract class PostgresConnection extends Connection {
   protected engine: unknown;
 
   get schema() {
@@ -59,13 +56,9 @@ export class PostgresConnection extends Connection {
     };
   }
 
-  query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }> {
-    throw new Error(NOT_IMPL);
-  }
+  abstract query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }>;
 
-  exec(sql: string): Promise<void> {
-    throw new Error(NOT_IMPL);
-  }
+  abstract exec(sql: string): Promise<void>;
 
   async sync(fix?: boolean) {
     if(!this.engine)
