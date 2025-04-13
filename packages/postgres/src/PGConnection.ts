@@ -25,7 +25,7 @@ export class PGConnection extends PostgresConnection {
     });
   }
 
-  async query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }> {
+  async execute(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }> {
     const engine = await this.engine;
     const result = await engine.query(sql, params);
     return {

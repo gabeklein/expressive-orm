@@ -32,7 +32,7 @@ export class PGLiteConnection extends PostgresConnection {
     return super.sync(fix);
   }
 
-  async query(sql: string, params?: any[]) {
+  async execute(sql: string, params?: any[]) {
     return (await this.engine).query(sql, params);
   }
 

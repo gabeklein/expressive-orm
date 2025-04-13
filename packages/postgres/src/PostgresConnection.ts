@@ -40,7 +40,7 @@ export abstract class PostgresConnection extends Connection {
 
     const send = async (params?: any[]) => {
       try {
-        return await this.query(sql, params);
+        return await this.execute(sql, params);
       }
       catch (error) {
         if(error instanceof Error && error.message.includes('syntax error'))
@@ -58,7 +58,7 @@ export abstract class PostgresConnection extends Connection {
     };
   }
 
-  abstract query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }>;
+  abstract execute(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }>;
 
   abstract exec(sql: string): Promise<void>;
 
@@ -94,7 +94,7 @@ export abstract class PostgresConnection extends Connection {
   }
 
   protected fetch<T>(query: string, params: unknown[]) {
-    return this.query(query, params).then(x => x.rows) as Promise<T[]>;
+    return this.execute(query, params).then(x => x.rows) as Promise<T[]>;
   }
 
   async valid(type: Table.Type): Promise<boolean> {
