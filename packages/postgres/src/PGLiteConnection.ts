@@ -40,7 +40,8 @@ export class PGLiteConnection extends PostgresConnection {
     await (await this.engine).exec(sql);
   }
 
-  async closeConnection(): Promise<void> {
+  async close(): Promise<void> {
     await (await this.engine).close();
+    await super.close();
   }
 }

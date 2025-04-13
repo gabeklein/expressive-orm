@@ -67,15 +67,6 @@ export class PostgresConnection extends Connection {
     throw new Error(NOT_IMPL);
   }
 
-  closeConnection(): Promise<void> {
-    throw new Error(NOT_IMPL);
-  }
-
-  async close() {
-    super.close();
-    await this.closeConnection();
-  }
-
   async sync(fix?: boolean) {
     if(!this.engine)
       throw new Error("Connection engine is not initialized.");

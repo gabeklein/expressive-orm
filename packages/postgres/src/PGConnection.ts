@@ -38,7 +38,8 @@ export class PGConnection extends PostgresConnection {
     await (await this.engine).query(sql);
   }
 
-  async closeConnection(): Promise<void> {
+  async close(): Promise<void> {
     await (await this.engine).end();
+    await super.close();
   }
 }

@@ -8,19 +8,19 @@ const isWatchMode = process.env.VITEST_MODE === 'WATCH';
 const shared = new PGlite();
 let current: TestConnection | undefined;
 
-afterEach(async () => {
-  // clear the database
-  await shared.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
-
-  if(current)
-    for(const type of current.using)
-      delete type.connection;
-});
+afterEach(async () => current?.close());
 
 class TestConnection extends PGLiteConnection {
   constructor(using: Connection.Types){
     super(using, shared);
     current = this;
+  }
+
+  async close(): Promise<void> {
+    await shared.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
+
+    for(const type of this.using)
+      delete type.connection;
   }
 }
 
