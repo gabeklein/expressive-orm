@@ -50,8 +50,10 @@ class StringColumn extends Str.Type {
     if (typeof value !== 'string')
       throw 'Value must be a string.';
 
-    if (this.type.endsWith("char") && this.length && value.length > this.length)
-      throw `Value length ${value.length} exceeds maximum of ${this.length}.`;
+    const { length, type } = this;
+
+    if (type.endsWith("char") && length && value.length > length)
+      throw `Value length ${value.length} exceeds maximum of ${length}.`;
 
     return value;
   }

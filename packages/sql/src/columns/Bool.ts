@@ -56,7 +56,7 @@ declare namespace Bool {
 type Bool = Bool.Any;
 
 function Bool<T extends Bool.Options>(...opts: T){
-  return Bool.Type.new(...opts) as Field.Infer<T, Bool.Types, Bool>;;
+  return Bool.Type.new(...opts) as Field.Infer<T, Bool.Types, Bool>;
 }
 
 Bool.Type = BooleanColumn;
