@@ -88,16 +88,16 @@ export abstract class PostgresConnection extends Connection {
           else
             throw new Error(`Column ${field.column} does not exist in table ${table}`);
 
-          const { parent, datatype, reference } = field;
-          const { nullable, type } = info;
+          const { parent, reference } = field;
+          const { nullable } = info;
 
           if ((nullable === 'YES') === !field.nullable)
             throw new Error(
-              `Column ${column} in table ${field.parent.table} has incorrect nullable value`
+              `Column ${column} in table ${parent.table} has incorrect nullable value`
             );
       
-          const A = type.toLowerCase();
-          const B = datatype.toLowerCase();
+          const A = info.type.toLowerCase();
+          const B = field.datatype.toLowerCase();
       
           if (A !== B && A !== TYPE_SYNONYMS[B] && B !== TYPE_SYNONYMS[A])
             throw new Error(
@@ -109,11 +109,12 @@ export abstract class PostgresConnection extends Connection {
           const {
             column: foreignKey,
             parent: {
-              table: foreignTable
+              table: foreignTable,
+              connection: foreignConnection
             }
           } = reference;
 
-          if (reference.parent.connection !== this)
+          if (foreignConnection !== this)
             throw new Error(
               `Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`
             );
