@@ -63,7 +63,7 @@ describe("persistence", () => {
     await expect(() => {
       delete User.connection;
       return new PGLiteConnection([ User, FooBar ], pg).sync(false);
-    }).rejects.toThrow("Table foo_bar does not exist.");
+    }).rejects.toThrow("Table foo_bar is expected but does not exist.");
   });
 
   it('will throw if table missing column', async () => {
