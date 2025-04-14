@@ -37,10 +37,10 @@ export class PostgresGenerator extends Generator {
   }
 
   protected with(): string | undefined {
-    if(this.query.updates.size)
-      return super.with();
-    
-    return undefined;
+    if(!this.query.updates.size)
+      return undefined;
+
+    return super.with();
   }
 
   protected from(){
