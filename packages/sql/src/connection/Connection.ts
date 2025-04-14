@@ -1,6 +1,6 @@
 import { format } from 'sql-formatter';
 
-import { Builder, Table } from '..';
+import { Builder, Query, Table } from '..';
 import { values } from '../utils';
 import { Generator } from './Generator';
 
@@ -30,6 +30,27 @@ abstract class Connection {
     }))
   }
 
+  query<T extends {}, A extends unknown[]>(from: Query.Factory<T, A>): Query.TemplateSelects<T, A>;
+
+  query<A extends unknown[]>(from: Query.Factory<void, A>): Query.Template<A>;
+
+  query<T extends {}>(from: Query.Function<T>): Query.Selects<T>;
+
+  /**
+   * Creates a new query.
+   * Will return the number of rows that would be selected or modified.
+   */
+  query(from: Query.Function<void>): Query<number>;
+
+  query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>): any {
+    const connection = this;
+    
+    return Query(function(where, fn){
+      where.connection = connection;
+      return factory.call(this, where, fn);
+    })
+  }
+
   async then(
     onfulfilled?: (value: Connection.Ready<this>) => any,
     onrejected?: (reason: any) => any) {
@@ -52,7 +73,6 @@ abstract class Connection {
   }
   
   abstract sync(fix?: boolean): Promise<this>;
-  abstract valid(type: Table.Type): Promise<boolean>;
 
   abstract prepare<T = any>(builder: Builder): {
     all: (args?: any[]) => Promise<T[]>;
@@ -89,10 +109,6 @@ class NoConnection extends Connection {
 
   async sync(){
     return this;
-  }
-
-  async valid(){
-    return true;
   }
 
   async close(){
