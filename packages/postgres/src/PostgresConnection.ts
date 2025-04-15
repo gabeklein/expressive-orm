@@ -66,6 +66,8 @@ export abstract class PostgresConnection extends Connection {
     const required = new Set(this.using);
     const tables = await getTableInformation.call(this);
 
+    const messages = [] as string[];
+
     for (const Type of required) {
       const { fields, table } = Type;
       const columns = tables[table];
@@ -85,25 +87,32 @@ export abstract class PostgresConnection extends Connection {
             field.get = () => undefined;
             continue;
           }
-          else
-            throw new Error(`Column ${field.column} does not exist in table ${table}`);
-
+          else {
+            messages.push(`Column "${field.column}" does not exist in table ${table}`);
+            continue;
+          }
+          
           const { parent, reference } = field;
           const { nullable } = info;
 
-          if ((nullable === 'YES') === !field.nullable)
-            throw new Error(
-              `Column ${column} in table ${parent.table} has incorrect nullable value`
+          if ((nullable === 'YES') === !field.nullable){
+            messages.push(
+              `Column "${field.column}" in table ${parent.table} has incorrect nullable value`
             );
+            continue;
+          }
+            
       
           const A = info.type.toLowerCase();
           const B = field.datatype.toLowerCase();
       
-          if (A !== B && A !== TYPE_SYNONYMS[B] && B !== TYPE_SYNONYMS[A])
-            throw new Error(
-              `Column ${column} in table ${parent.table} has type "${A}", expected "${B}"`
+          if (A !== B && A !== TYPE_SYNONYMS[B] && B !== TYPE_SYNONYMS[A]){
+            messages.push(
+              `Column "${field.column}" in table ${parent.table} has type "${A}", expected "${B}"`
             );
-      
+            continue;
+          }
+
           if (!reference) continue;
 
           const {
@@ -114,26 +123,35 @@ export abstract class PostgresConnection extends Connection {
             }
           } = reference;
 
-          if (foreignConnection !== this)
-            throw new Error(
-              `Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`
+          if (foreignConnection !== this){
+            messages.push(
+              `Column "${field.column}" in table ${parent.table} references a foreign connection`
             );
+            continue;
+          }
 
           const foreign = tables[foreignTable];
 
-          if (!foreign)
-            throw new Error(`Referenced table ${foreignTable} does not exist`);
+          if (!foreign){
+            messages.push(`Referenced table ${foreignTable} does not exist`);
+            continue;
+          }
 
           const foreignExists = foreign[foreignKey];
 
-          if (!foreignExists)
-            throw new Error(
+          if (!foreignExists){
+            messages.push(
               `Referenced column ${foreignKey} does not exist in table ${foreignTable}`
             );
+            continue;
+          }
       }
 
       required.delete(Type);
     }
+
+    if (messages.length)
+      throw new Error("Schema verification failed:\n" + messages.join('\n'));
 
     return required;
   }
