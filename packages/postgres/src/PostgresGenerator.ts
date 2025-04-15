@@ -6,8 +6,7 @@ export class PostgresGenerator extends Generator {
     const query = super.toString();
 
     if(inserts.size && returns)
-      return query + (
-        ' RETURNING ' + (
+      return query + ' RETURNING ' + (
         returns instanceof Map
           ? Array
               .from(returns.entries())
@@ -15,7 +14,6 @@ export class PostgresGenerator extends Generator {
                 return `${this.reference(field)} AS "${alias}"`;
               })
           : this.reference(returns)
-        )
       )
 
     return query;
