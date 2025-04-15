@@ -13,15 +13,25 @@ export class PGConnection extends PostgresConnection {
     super(using);
 
     this.engine = new Promise((resolve, reject) => {
-      import('pg').then(pg => {
+      import("pg").then(({ default: { Pool } }) => {
         resolve(
-          typeof arg2 === 'string' ? new pg.Pool({ connectionString: arg2 }) :
-          arg2 && arg2 instanceof pg.Pool ? arg2 :
-          new pg.Pool(arg2 as PoolConfig) as Pool
-        )
-      }).catch(err => {
+          arg2 instanceof Pool ? arg2 : new Pool(
+            typeof arg2 == "string" ? { connectionString: arg2 } : arg2
+          )
+        );
+      }).catch((err) => {
         reject(new Error(`Attempted to load pg but failed: ${err.message}`));
       });
+
+      // import('pg').then(pg => {
+      //   resolve(
+      //     typeof arg2 === 'string' ? new pg.Pool({ connectionString: arg2 }) :
+      //     arg2 && arg2 instanceof pg.Pool ? arg2 :
+      //     new pg.Pool(arg2 as PoolConfig) as Pool
+      //   )
+      // }).catch(err => {
+      //   reject(new Error(`Attempted to load pg but failed: ${err.message}`));
+      // });
     });
   }
 

@@ -1,5 +1,11 @@
 # @expressive/postgres
 
+## 0.4.4
+
+### Patch Changes
+
+- Fix pg init
+
 ## 0.4.3
 
 ### Patch Changes
