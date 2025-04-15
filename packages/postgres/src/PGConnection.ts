@@ -22,16 +22,6 @@ export class PGConnection extends PostgresConnection {
       }).catch((err) => {
         reject(new Error(`Attempted to load pg but failed: ${err.message}`));
       });
-
-      // import('pg').then(pg => {
-      //   resolve(
-      //     typeof arg2 === 'string' ? new pg.Pool({ connectionString: arg2 }) :
-      //     arg2 && arg2 instanceof pg.Pool ? arg2 :
-      //     new pg.Pool(arg2 as PoolConfig) as Pool
-      //   )
-      // }).catch(err => {
-      //   reject(new Error(`Attempted to load pg but failed: ${err.message}`));
-      // });
     });
   }
 

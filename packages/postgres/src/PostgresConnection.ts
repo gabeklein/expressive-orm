@@ -73,11 +73,11 @@ export abstract class PostgresConnection extends Connection {
       if(!columns)
         continue;
 
-      for(const [column, field] of fields) {
+      for(const [_column, field] of fields) {
         if(!field.datatype)
           continue;
 
-        const info = columns[column];
+        const info = columns[field.column];
 
         if(!info)
           if(field.optional){
