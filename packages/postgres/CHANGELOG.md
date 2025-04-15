@@ -1,5 +1,11 @@
 # @expressive/postgres
 
+## 0.4.3
+
+### Patch Changes
+
+- fix bad loader for pg
+
 ## 0.4.2
 
 ### Patch Changes
