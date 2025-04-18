@@ -7,8 +7,9 @@
 	"scripts": {
 		"build": "turbo run build",
 		"lint": "turbo run lint",
+		"test": "turbo run test",
 		"version": "changeset version",
-		"push": "changeset publish",
+		"publish": "changeset publish",
 		"change": "changeset"
 	},
 	"devDependencies": {
