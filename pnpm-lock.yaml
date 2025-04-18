@@ -33,7 +33,7 @@ importers:
   packages/postgres:
     dependencies:
       '@expressive/sql':
-        specifier: ^0.4.1
+        specifier: ^0.4.2
         version: link:../sql
       sql-formatter:
         specifier: ^10.7.2
