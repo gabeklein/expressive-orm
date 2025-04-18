@@ -1,5 +1,13 @@
 # @expressive/postgres
 
+## 0.4.6
+
+### Patch Changes
+
+- 2acdeb2: primary and fields with defaults are now Optional
+- Updated dependencies [2acdeb2]
+  - @expressive/sql@0.4.2
+
 ## 0.4.5
 
 ### Patch Changes
