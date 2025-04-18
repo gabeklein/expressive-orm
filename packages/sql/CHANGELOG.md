@@ -1,5 +1,11 @@
 # @expressive/sql
 
+## 0.4.2
+
+### Patch Changes
+
+- 2acdeb2: primary and fields with defaults are now Optional
+
 ## 0.4.1
 
 ### Patch Changes
