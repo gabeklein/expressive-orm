@@ -1,5 +1,13 @@
 # @expressive/postgres
 
+## 0.4.7
+
+### Patch Changes
+
+- fix: failed to build previous change
+- Updated dependencies
+  - @expressive/sql@0.4.3
+
 ## 0.4.6
 
 ### Patch Changes

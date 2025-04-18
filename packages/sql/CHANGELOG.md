@@ -1,5 +1,11 @@
 # @expressive/sql
 
+## 0.4.3
+
+### Patch Changes
+
+- fix: failed to build previous change
+
 ## 0.4.2
 
 ### Patch Changes
