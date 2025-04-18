@@ -21,7 +21,7 @@ declare namespace Field {
     T extends [infer First, ...infer Rest] ?
       // TODO: should this be conflated with Optional?
       First extends { nullable?: true, optional?: true } | null ? TT & Nullable :
-      First extends { fallback?: any, increment?: true } ? TT & Optional :
+      First extends { fallback?: any, increment?: true, primary?: true, default?: true } ? TT & Optional :
       Mod<Rest, TT> :
     TT;
 
