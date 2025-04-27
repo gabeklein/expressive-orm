@@ -4,16 +4,13 @@ import { Value } from "./Builder";
 type ANumeric = Query.Match<string | number>;
 type Numeric = Query.Match<number>;
 
-export interface Bitwise {
-  not(value: Numeric): Numeric;
-  and(left: Numeric, right: Numeric): Numeric;
-  or(left: Numeric, right: Numeric): Numeric;
-  xor(left: Numeric, right: Numeric): Numeric;
-  left(value: Numeric, shift: Numeric): Numeric;
-  right(value: Numeric, shift: Numeric): Numeric;
+function op(operator: string, rank: number, unary?: boolean) {
+  return (left: Value, right?: Value) => {
+    return new Computed(operator, left, unary ? undefined : right, rank);
+  };
 }
 
-export interface MathOps {
+interface MathOps {
   add(left: Numeric, right: Numeric): Numeric;
   add(left: ANumeric, right: ANumeric): ANumeric;
   sub(left: Numeric, right: Numeric): Numeric;
@@ -24,13 +21,7 @@ export interface MathOps {
   pos(value: Numeric): Numeric;
 }
 
-function op(operator: string, rank: number, unary?: boolean) {
-  return (left: Value, right?: Value) => {
-    return new Computed(operator, left, unary ? undefined : right, rank);
-  };
-}
-
-export const MathOps: MathOps = {
+const MathOps: MathOps = {
   add: op('+', 4),
   sub: op('-', 4),
   mul: op('*', 5),
@@ -40,7 +31,16 @@ export const MathOps: MathOps = {
   pos: op('+', 7, true),
 }
 
-export const BitWise: Bitwise = {
+interface BitWise {
+  not(value: Numeric): Numeric;
+  and(left: Numeric, right: Numeric): Numeric;
+  or(left: Numeric, right: Numeric): Numeric;
+  xor(left: Numeric, right: Numeric): Numeric;
+  left(value: Numeric, shift: Numeric): Numeric;
+  right(value: Numeric, shift: Numeric): Numeric;
+}
+
+const BitWise: BitWise = {
   not: op('~', 6, true),
   left: op('<<', 3),
   right: op('>>', 3),
@@ -49,7 +49,7 @@ export const BitWise: Bitwise = {
   xor: op('^', 1),
 }
 
-export class Computed<T> extends Value {
+class Computed<T> extends Value {
   readonly left?: Query.Match | Field<T> | Computed<T>;
   readonly right: Query.Match | Field<T> | Computed<T>;
 
@@ -74,3 +74,5 @@ export class Computed<T> extends Value {
     }
   }
 }
+
+export { MathOps, BitWise, Computed };

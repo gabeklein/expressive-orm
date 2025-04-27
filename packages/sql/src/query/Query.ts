@@ -3,7 +3,7 @@ import { Field } from '../type/Field';
 import { Table } from '../type/Table';
 import { assign, create, defineProperty } from '../utils';
 import { Builder as QB, Builder, Cond, Expression, Group, QueryTemplate } from './Builder';
-import { BitWise, Bitwise, Computed, MathOps } from './Computed';
+import { BitWise, Computed, MathOps } from './Computed';
 
 declare namespace Query {
   type ITable = QB.ITable;
@@ -28,7 +28,7 @@ declare namespace Query {
 
   interface Functions extends MathOps {
     (template: string): QueryTemplate;
-    bit: Bitwise;
+    bit: BitWise;
   }
 
   /** Main callback for adding instructions to a Query. */
