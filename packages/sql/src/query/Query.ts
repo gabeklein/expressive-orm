@@ -191,18 +191,19 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     : undefined;
 
   let result = factory.call(builder, where as Query.Where, helper!);
-  let args: number | undefined;
+  let template: boolean | undefined;
 
   if(typeof result === 'function'){
-    const params = builder.inject(args = result.length);
+    const params = builder.inject(result.length);
     result = (result as Function)(...params);
+    template = true;
   }
 
   builder.commit(result);
 
   const runner = builder.prepare();
 
-  return typeof args == "number" ? runner : runner();
+  return template ? runner : runner();
 }
 
 Query.Builder = Builder;
