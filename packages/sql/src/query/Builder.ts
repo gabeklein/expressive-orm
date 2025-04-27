@@ -67,11 +67,11 @@ class Builder {
         assign(query, {
           get,
           one: async (orFail?: boolean) => {
-            const res = await statement.get();
-  
-            if (res)
-              return this.parse(res);
-  
+            const res = await get();
+
+            if (res.length)
+              return res[0];
+
             if (orFail)
               throw new Error("Query returned no results.");
           }

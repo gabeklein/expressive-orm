@@ -52,7 +52,6 @@ export abstract class PostgresConnection extends Connection {
 
     return {
       all: async (params?: any[]) => (await send(params)).rows as T[],
-      get: async (params?: any[]) => (await send(params)).rows[0] as T | undefined,
       run: async (params?: any[]) => (await send(params)).affectedRows || 0,
       toString: () => format(sql, { language: 'postgresql', keywordCase: "upper" })
     };
@@ -183,7 +182,7 @@ export abstract class PostgresConnection extends Connection {
   }
 
   protected fetch<T>(query: string, params: unknown[]) {
-    return this.execute(query, params).then(x => x.rows) as Promise<T[]>;
+    return this.query(query, params).then(x => x.rows) as Promise<T[]>;
   }
 
   protected async createSchema(types: Iterable<typeof Table>): Promise<void> {

@@ -55,7 +55,6 @@ abstract class Connection {
 
   abstract prepare<T = any>(builder: Builder): {
     all: (args?: any[]) => Promise<T[]>;
-    get: (args?: any[]) => Promise<T | undefined>;
     run: (args?: any[]) => Promise<number>;
   }
 }
@@ -78,7 +77,6 @@ class NoConnection extends Connection {
 
     return {
       all: run,
-      get: run,
       run,
       toString(){
         return pretty(template);

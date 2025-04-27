@@ -40,7 +40,6 @@ export class SQLiteConnection extends Connection {
   
       return {
         all: async (p?: any[]) => stmt.all(string(p)) as T[],
-        get: async (p?: any[]) => stmt.get(string(p)) as T || undefined,
         run: async (p?: any[]) => stmt.run(string(p)).changes,
         toString: () => pretty(sql)
       };
