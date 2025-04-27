@@ -49,20 +49,20 @@ class Builder {
     const statement = conn.prepare(this);
     
     const runner = (...params: any[]) => {
+      params = this.accept(params);
+
       const get = () => statement.all(params).then(a => a.map(x => this.parse(x)));
       const query = create(Query.prototype) as Query;
   
-      params = this.accept(params);
-  
-      assign(query, <Query>{
+      assign(query, {
         params,
         toString: statement.toString,
         then: (resolve, reject) => {
           const run = this.returns ? get() : statement.run(params);
           return run.then(resolve).catch(reject);
         }
-      });
-  
+      } as Query);
+
       if (this.returns)
         assign(query, {
           get,
