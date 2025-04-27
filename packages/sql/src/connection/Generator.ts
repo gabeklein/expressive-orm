@@ -1,6 +1,7 @@
-import { Builder, DataField, DataTable, Group, Parameter, QueryTemplate, Value } from '../query/Builder';
+import { Builder } from '../query/Builder';
 import { Computed } from '../query/Computed';
 import { Query } from '../query/Query';
+import { DataField, DataTable, Group, Parameter, QueryTemplate, Value } from '../query/Value';
 import { Field } from '../type/Field';
 import { escape } from '../utils';
 

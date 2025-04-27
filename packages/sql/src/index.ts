@@ -5,7 +5,8 @@ export { Str } from './columns/Str';
 export { Time } from './columns/Time';
 
 export { Connection } from './connection/Connection';
-export { DataTable, Builder, Parameter } from './query/Builder';
+export { Builder } from './query/Builder';
+export { DataTable, Parameter } from './query/Value';
 export { Field, Nullable, Optional } from './type/Field';
 export { Generator } from './connection/Generator';
 export { Query } from './query/Query';

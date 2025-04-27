@@ -1,5 +1,6 @@
-import { Query, Field } from "..";
-import { Value } from "./Builder";
+import { Field } from '../type/Field';
+import { Query } from './Query';
+import { Value } from './Value';
 
 type ANumeric = Query.Match<string | number>;
 type Numeric = Query.Match<number>;

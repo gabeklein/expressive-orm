@@ -4,6 +4,7 @@ import { Table } from '../type/Table';
 import { assign, create, defineProperty } from '../utils';
 import { Builder as QB, Builder, Cond, Expression, Group, QueryTemplate } from './Builder';
 import { BitWise, Computed, MathOps } from './Computed';
+import { Cond, Expression, Group, QueryTemplate } from './Value';
 
 declare namespace Query {
   type ITable = QB.ITable;
