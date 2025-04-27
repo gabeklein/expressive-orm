@@ -186,11 +186,11 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   })
 
   const builder = new Builder();
-  const func: Query.Functions | undefined = factory.length > 1
+  const helper: Query.Functions | undefined = factory.length > 1
     ? assign((template: string) => new QueryTemplate(template, builder), Query.fn)
     : undefined;
 
-  let result = factory.call(builder, where as Query.Where, func!);
+  let result = factory.call(builder, where as Query.Where, helper!);
   let args: number | undefined;
 
   if(typeof result === 'function'){
