@@ -189,18 +189,49 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     throw new Error(`Argument ${arg1} is not a query argument.`);
   }
 
+  function runner(...params: any[]) {
+    const get = () => statement.all(params).then(a => a.map(x => builder.parse(x)));
+    const query = create(Query.prototype) as Query;
+
+    params = builder.accept(params);
+
+    assign(query, <Query>{
+      params,
+      toString: statement.toString,
+      then(resolve, reject) {
+        const run = builder.returns ? get() : statement.run(params);
+        return run.then(resolve).catch(reject);
+      }
+    });
+
+    if (builder.returns)
+      assign(query, {
+        get,
+        async one(orFail?: boolean) {
+          const res = await statement.get();
+
+          if (res)
+            return builder.parse(res);
+
+          if (orFail)
+            throw new Error("Query returned no results.");
+        }
+      });
+
+    return query;
+  }
+
   defineProperty(where, "connection", {
-    get(){ return connection },
+    get: () => connection,
     set(conn){ connection = conn }
   })
 
   const builder = new QB();
-
-  const fn = factory.length > 1
-    ? assign((template: string) => new QueryTemplate(template, builder), Query.fn) as Query.Functions
+  const func: Query.Functions | undefined = factory.length > 1
+    ? assign((template: string) => new QueryTemplate(template, builder), Query.fn)
     : undefined;
 
-  let result = factory.call(builder, where as Query.Where, fn!);
+  let result = factory.call(builder, where as Query.Where, func!);
   let args: number | undefined;
 
   if(typeof result === 'function'){
@@ -214,37 +245,6 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     connection = Connection.None;
 
   const statement = connection.prepare(builder);
-  const runner = (...params: any[]) => { 
-    const get = () => statement.all(params).then(a => a.map(x => builder.parse(x)));
-    const query = create(Query.prototype) as Query;
-
-    params = builder.accept(params);
-    
-    assign(query, <Query>{
-      params,
-      toString: statement.toString,
-      then(resolve, reject){
-        const run = builder.returns ? get() : statement.run(params);
-        return run.then(resolve).catch(reject);
-      }
-    });
-
-    if (builder.returns)
-      assign(query, {
-        get,
-        async one(orFail?: boolean){
-          const res = await statement.get();
-
-          if(res)
-            return builder.parse(res);
-
-          if (orFail)
-            throw new Error("Query returned no results.");
-        }
-      });
-
-    return query;
-  };
 
   if(typeof args == "number"){
     runner.toString = statement.toString;
