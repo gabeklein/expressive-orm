@@ -1,6 +1,6 @@
 import { format } from 'sql-formatter';
 
-import { Builder, Query, Table } from '..';
+import { Builder, Table } from '..';
 import { values } from '../utils';
 import { Generator } from './Generator';
 
@@ -28,27 +28,6 @@ abstract class Connection {
       type.connection = this;
       return type;
     }))
-  }
-
-  query<T extends {}, A extends unknown[]>(from: Query.Factory<T, A>): Query.TemplateSelects<T, A>;
-
-  query<A extends unknown[]>(from: Query.Factory<void, A>): Query.Template<A>;
-
-  query<T extends {}>(from: Query.Function<T>): Query.Selects<T>;
-
-  /**
-   * Creates a new query.
-   * Will return the number of rows that would be selected or modified.
-   */
-  query(from: Query.Function<void>): Query<number>;
-
-  query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>): any {
-    const connection = this;
-    
-    return Query(function(where, fn){
-      where.connection = connection;
-      return factory.call(this, where, fn);
-    })
   }
 
   async then(
