@@ -1,13 +1,13 @@
 import { Connection } from '../connection/Connection';
 import { Field } from '../type/Field';
 import { Table } from '../type/Table';
-import { assign, create, defineProperty } from '../utils';
-import { Builder as QB, Builder, Cond, Expression, Group, QueryTemplate } from './Builder';
+import { assign, defineProperty } from '../utils';
+import { Builder } from './Builder';
 import { BitWise, Computed, MathOps } from './Computed';
 import { Cond, Expression, Group, QueryTemplate } from './Value';
 
 declare namespace Query {
-  type ITable = QB.ITable;
+  type ITable = Builder.ITable;
 
   type From<T extends Table = Table> = {
     [K in Table.Fields<T>]: T[K] extends Field.Queries<infer U> ? U : T[K];
@@ -153,19 +153,9 @@ function Query<T extends {}>(from: Query.Function<T>): Query.Selects<T>;
 function Query(from: Query.Function<void>): Query<number>;
 
 function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>){
-  let connection: Connection | undefined = undefined;
-  
   function where(arg1: any): any {
-    if(Table.is(arg1)){
-      if(!connection)
-        connection = arg1.connection;
-      else if(connection !== arg1.connection)
-        throw new Error(
-          `Joined entity ${arg1} does not share a connection with other tables in Query.`
-        );
-      
+    if(Table.is(arg1))
       return builder.use(arg1, ...Array.from(arguments).slice(1));
-    }
 
     if(arg1 instanceof Field)
       return builder.field(arg1);
@@ -190,44 +180,12 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
     throw new Error(`Argument ${arg1} is not a query argument.`);
   }
 
-  function runner(...params: any[]) {
-    const get = () => statement.all(params).then(a => a.map(x => builder.parse(x)));
-    const query = create(Query.prototype) as Query;
-
-    params = builder.accept(params);
-
-    assign(query, <Query>{
-      params,
-      toString: statement.toString,
-      then(resolve, reject) {
-        const run = builder.returns ? get() : statement.run(params);
-        return run.then(resolve).catch(reject);
-      }
-    });
-
-    if (builder.returns)
-      assign(query, {
-        get,
-        async one(orFail?: boolean) {
-          const res = await statement.get();
-
-          if (res)
-            return builder.parse(res);
-
-          if (orFail)
-            throw new Error("Query returned no results.");
-        }
-      });
-
-    return query;
-  }
-
   defineProperty(where, "connection", {
-    get: () => connection,
-    set(conn){ connection = conn }
+    get: () => builder.connection,
+    set: to => builder.connection = to
   })
 
-  const builder = new QB();
+  const builder = new Builder();
   const func: Query.Functions | undefined = factory.length > 1
     ? assign((template: string) => new QueryTemplate(template, builder), Query.fn)
     : undefined;
@@ -242,20 +200,12 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
 
   builder.commit(result);
 
-  if(!connection)
-    connection = Connection.None;
+  const runner = builder.prepare();
 
-  const statement = connection.prepare(builder);
-
-  if(typeof args == "number"){
-    runner.toString = statement.toString;
-    return runner;
-  }
-
-  return runner();
+  return typeof args == "number" ? runner : runner();
 }
 
-Query.Builder = QB;
+Query.Builder = Builder;
 Query.fn = { ...MathOps, bit: BitWise } as Query.Functions;
 
 export { Query };

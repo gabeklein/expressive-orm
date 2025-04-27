@@ -1,7 +1,9 @@
+import { Connection } from '../connection/Connection';
 import { Field } from '../type/Field';
 import { Table } from '../type/Table';
-import { create, defineProperty, freeze, getOwnPropertyNames, values } from '../utils';
+import { assign, create, defineProperty, freeze, getOwnPropertyNames, values } from '../utils';
 import { Query } from './Query';
+import { Cond, DataField, DataTable, Expression, Group, Parameter, Value } from './Value';
 
 declare namespace Builder {
   interface ITable<T extends Table = any> {
@@ -20,6 +22,8 @@ declare namespace Builder {
 }
 
 class Builder {
+  connection?: Connection;
+
   /**
    * Parameters which will be sent with query.
    * May either be placeholders for a template, or values
@@ -39,6 +43,48 @@ class Builder {
   
   returns?: Map<string, Field | Value> | Field | Value;
   limit?: number;
+
+  prepare(): Query.TemplateSelects<any, any> | Query.Template<any> {
+    const conn = this.connection || Connection.None;
+    const statement = conn.prepare(this);
+    
+    const runner = (...params: any[]) => {
+      const get = () => statement.all(params).then(a => a.map(x => this.parse(x)));
+      const query = create(Query.prototype) as Query;
+  
+      params = this.accept(params);
+  
+      assign(query, <Query>{
+        params,
+        toString: statement.toString,
+        then: (resolve, reject) => {
+          const run = this.returns ? get() : statement.run(params);
+          return run.then(resolve).catch(reject);
+        }
+      });
+  
+      if (this.returns)
+        assign(query, {
+          get,
+          one: async (orFail?: boolean) => {
+            const res = await statement.get();
+  
+            if (res)
+              return this.parse(res);
+  
+            if (orFail)
+              throw new Error("Query returned no results.");
+          }
+        });
+  
+      return query;
+    };
+
+    return Object.assign(runner, {
+      connection: conn,
+      toString: statement.toString
+    });
+  }
 
   commit(returns: unknown){
     if(this.returns)
@@ -160,6 +206,14 @@ class Builder {
   use<T extends Table>(type: Table.Type<T>, optional: boolean): Query.Join<T>;
   use<T extends Table>(type: Table.Type<T>, ...inserts: Table.Insert<T>[]): Query.From<T>;
   use<T extends Table>(type: Table.Type<T>, arg2?: boolean | Table.Insert<T>, ...rest: Table.Insert<T>[]){
+    if(!this.connection){
+      this.connection = type.connection!;
+    }
+    else if(this.connection !== type.connection)
+      throw new Error(
+        `Joined entity ${type} does not share a connection with other tables in Query.`
+      );
+    
     const { fields, schema } = type;
     const { tables } = this;
 
