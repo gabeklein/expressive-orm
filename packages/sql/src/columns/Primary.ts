@@ -1,5 +1,5 @@
-import { Field } from './Field';
-import { Table } from './Table';
+import { Field } from '../type/Field';
+import { Table } from '../type/Table';
 
 class PrimaryColumn extends Field<number> {
   readonly type: string = "integer";

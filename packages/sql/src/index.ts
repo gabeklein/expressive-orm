@@ -11,4 +11,4 @@ export { Field, Nullable, Optional } from './type/Field';
 export { Generator } from './connection/Generator';
 export { Query } from './query/Query';
 export { Table } from './type/Table';
-export { Primary } from './type/Primary';
+export { Primary } from './columns/Primary';

@@ -1,7 +1,7 @@
 import { Connection, Query } from '..';
+import { Primary } from '../columns/Primary';
 import { capitalize, defineProperty, getOwnPropertyDescriptor, isIterable, underscore } from '../utils';
 import { Field, Nullable, Optional } from './Field';
-import { Primary } from './Primary';
 
 export const REGISTER = new Map<Table.Type, Map<string, Field>>();
 
