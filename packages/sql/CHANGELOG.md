@@ -1,5 +1,11 @@
 # @expressive/sql
 
+## 0.4.4
+
+### Patch Changes
+
+- allow uuid type for Primary
+
 ## 0.4.3
 
 ### Patch Changes
