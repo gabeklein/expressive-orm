@@ -2,7 +2,7 @@ import { Field } from './Field';
 import { Table } from './Table';
 
 class PrimaryColumn extends Field<number> {
-  readonly type = "integer";
+  readonly type: string = "integer";
   readonly nullable = false;
   readonly optional = true;
   readonly primary = true;
