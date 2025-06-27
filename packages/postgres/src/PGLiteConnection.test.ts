@@ -365,6 +365,47 @@ describe("template", () => {
 
     expect(await query("blue", "Jane")).toEqual(["Smith"]);
   })
+
+  it.skip("will reuse a parameter", async () => {
+    await prepare();
+
+    const query = Query(where => (value: string) => {
+      const foo = where(Foo);
+  
+      where(
+        where(foo.color).equal(value),
+        where(foo.first).equal(value)
+      )
+  
+      return foo.last;
+    });
+
+    expect(query).toMatchInlineSnapshot(`
+      SELECT
+        "foo"."last"
+      FROM
+        "foo"
+      WHERE
+        "foo"."color" = $1
+        OR "foo"."first" = $1
+    `);
+  });
+
+  it.skip("will insert from template", async () => {
+    class User extends Table {
+      name = Str();
+    }
+
+    await new TestConnection([User]);
+    
+    const query = Query(where => (name: string) => {
+      return where(User, { name }).id;
+    });
+
+    expect(query).toMatchInlineSnapshot();
+
+    expect(await query("Joe")).toEqual([1]);
+  });
   
   it("will select a parameter value", async () => {
     const query = Query(() => (color: string) => color);
