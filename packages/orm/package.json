@@ -1,0 +1,27 @@
+{
+  "name": "@expressive/orm",
+  "version": "0.4.4",
+  "description": "Query builder and ORM",
+  "license": "ISC",
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": {
+    "name": "Gabe Klein",
+    "email": "gabe@expressive.dev",
+    "url": "https://github.com/gabeklein"
+  },
+  "main": "dist",
+  "module": "dist",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --dts --format esm,cjs",
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.6"
+  }
+}
