@@ -125,9 +125,10 @@ function get<T extends Type.Class>(Class: T, parentIdField: keyof Type.Instance<
         throw new Error(`Parent entity ${id} does not exist`);
 
       class Child extends (Class as typeof Type) {
-        static name = Class.name;
         static subset = { [parentIdField]: id };
       };
+
+      Object.defineProperty(Child, 'name', { value: Class.name });
 
       return Child;
     }
