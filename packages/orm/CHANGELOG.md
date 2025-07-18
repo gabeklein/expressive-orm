@@ -1,5 +1,11 @@
 # @expressive/orm
 
+## 0.5.2
+
+### Patch Changes
+
+- bugfix: preprocess where-fields before sending to query
+
 ## 0.5.1
 
 ### Patch Changes
