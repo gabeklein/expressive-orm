@@ -1,5 +1,11 @@
 # @expressive/orm
 
+## 0.5.3
+
+### Patch Changes
+
+- build
+
 ## 0.5.2
 
 ### Patch Changes
