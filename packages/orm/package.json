@@ -11,13 +11,25 @@
     "email": "gabe@expressive.dev",
     "url": "https://github.com/gabeklein"
   },
-  "main": "dist",
-  "module": "dist",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.mjs",
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/index.d.mts",
+        "require": "./dist/index.d.ts"
+      },
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
   "files": [
     "dist"
   ],
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm,cjs",
+    "watch": "tsup src/index.ts --dts --format esm --watch",
     "lint": "tsc --noEmit",
     "test": "vitest run"
   },
