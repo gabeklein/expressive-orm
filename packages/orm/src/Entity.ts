@@ -1,4 +1,4 @@
-import { Field, init, num } from './fields';
+import { Field, init, num, underscore } from './fields';
 import { desc, equal, Where } from './where';
 
 type Values<T extends Type> = {
@@ -92,7 +92,7 @@ abstract class Type {
       return;
 
     const type = this.constructor as typeof Type
-    await type.connection.update(type.table, this.id, type.write(data, true));
+    await type.connection.update(type.ref, this.id, type.into(data, true));
 
     for (const [key] of type.fields)
       if (key in data)
@@ -105,21 +105,24 @@ abstract class Type {
   }
 
   async delete() {
-    const { connection, table } = this.constructor as typeof Type;
+    const { connection, ref } = this.constructor as typeof Type;
 
     if (typeof this.onDelete === "function")
       await this.onDelete();
 
-    await connection.remove(table, this.id);
+    await connection.remove(ref, this.id);
   }
 
   static schema?: string;
   static subset?: Record<string, unknown>;
   static connection: Type.Connection = new NotReady();
+  static table?: string;
 
-  static get table() {
-    const { name, schema } = this;
-    return schema ? `${schema}.${name}` : name;
+  static get ref() {
+    const { name, schema, table = underscore(name) } = this;
+    const ref = schema ? `${schema}.${table}` : table;
+    Object.defineProperty(this, 'ref', { value: ref });
+    return ref;
   }
 
   static get fields(): Map<string, Field> {
@@ -134,47 +137,29 @@ abstract class Type {
   ): T {
     const entity = Object.create(this.prototype) as T;
 
-    for (const [key, { get }] of this.fields)
-      Object.defineProperty(entity, key, {
-        value: get ? get(raw[key]) : raw[key],
-        configurable: true,
-        enumerable: true
-      });
+    this.fields.forEach(field => {
+      Object.assign(entity, field.input(raw));
+    });
 
     return entity;
   }
 
-  protected static write<T extends Type>(
+  protected static into<T extends Type>(
     this: Type.Class<T>,
     data: Compat<T>,
     partial?: boolean
   ): Record<string, any> {
     const result: Record<string, any> = {};
 
-    for (const [key, { set, optional, nullable }] of this.fields) {
-      const allowMissing = optional || nullable || partial;
-      let value = key in data ? (data as any)[key] : undefined;
-
-      if (value === undefined && allowMissing)
-        continue;
-
-      if (typeof set === "function")
-        value = set(value);
-
-      if (value === undefined)
-        if (allowMissing)
-          continue;
-        else
-          throw new Error(`Missing required field: ${key}`);
-      else
-        result[key] = value;
-    }
+    this.fields.forEach(field => {
+      Object.assign(result, field.output(data, partial));
+    })
 
     return result;
   }
 
   static async set<T extends Type>(this: Type.Class<T>, id: string, data: Type.Compat<T>) {
-    await this.connection.update(this.table, id, this.write(data, true));
+    await this.connection.update(this.ref, id, this.into(data, true));
   }
 
   static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>): Promise<T>;
@@ -186,8 +171,8 @@ abstract class Type {
     mapFn?: (item: unknown) => any
   ) {
     const insert = async (d: Values<T>, returns?: boolean) => {
-      const input = this.write({ ...d as any, ...this.subset });
-      const inserted = await this.connection.insert(this.table, input, returns);
+      const input = this.into({ ...d as any, ...this.subset });
+      const inserted = await this.connection.insert(this.ref, input, returns);
       return this.from(inserted) as T;
     };
 
@@ -220,7 +205,7 @@ abstract class Type {
     limit?: number,
     offset: number = 0
   ): Promise<T[]> {
-    const { connection, subset, table } = this;
+    const { connection, subset, ref } = this;
 
     if (!from)
       from = { id: desc() };
@@ -228,7 +213,7 @@ abstract class Type {
     if (!Array.isArray(from))
       from = buildConstraints({ ...from, ...subset });
 
-    const rows = await connection.get(table, from, limit, offset);
+    const rows = await connection.get(ref, from, limit, offset);
     return rows.map(row => this.from(row) as T)
   }
 

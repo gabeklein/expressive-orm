@@ -1,22 +1,66 @@
 import { type Type } from './Entity';
 
-interface Field {
-  nullable?: boolean;
-  column?: string;
-  set?: (value: any) => any;
-  get?: (value: any) => any;
-  fallback?: any;
-  optional?: boolean;
+class Field {
+  key: string;
+  column: string;
+  nullable = false;
+  optional = false;
   type?: unknown;
+
+  constructor(key: string, ...opts: Config[]) {
+    this.key = key;
+    this.column = underscore(key);
+
+    for(const opt of opts) {
+      if (opt === null) {
+        this.nullable = true;
+      } else if (typeof opt === 'object') {
+        Object.assign(this, opt);
+      }
+    }
+  }
+
+  set(value: any){
+    return value;
+  }
+
+  get(value: any){
+    return value;
+  }
+
+  input(raw: Record<string, any>) {
+    return {
+      [this.key]: this.get(raw[this.column])
+    }
+  }
+
+  output(data: Record<string, any>, partial?: boolean) {
+    const { key, column, nullable, optional } = this;
+    const allowMissing = optional || nullable || partial;
+    let value = data[key];
+
+    if (value === undefined && allowMissing)
+      return;
+
+    value = this.set(value);
+
+    if (value == null)
+      if (nullable)
+        return null;
+      else
+        throw new Error(`Missing required field: ${key}`);
+
+    return { [column]: value };
+  }
 }
 
-interface Nullable extends Field {
+interface Nullable extends Partial<Field> {
   nullable: true;
 }
 
-type Config = Field | null | undefined | false;
+type Config = Partial<Field> | null | undefined | false;
 
-type Instruction = <T extends Type>(parent: Type.Class<T>, key: string) => Field | void;
+type Instruction = <T extends Type>(key: string, parent: Type.Class<T>) => Field | void;
 
 const USE = new Map<symbol, Instruction>();
 
@@ -36,7 +80,7 @@ function init<T extends Type>(type: Type.Class<T>) {
     else
       continue;
 
-    const config = instruction(type, key);
+    const config = instruction(key, type);
 
     if (config)
       fields.set(key, config);
@@ -52,24 +96,22 @@ function use<T>(cb: Instruction) {
 }
 
 function column<T>(...config: Config[]): T {
-  return use(() => {
-    return Object.assign({}, ...config.map(c => {
-      return c === null ? { nullable: true } : c;
-    })) as Field;
+  return use((key) => {
+    return new Field(key, ...config);
   });
 }
 
 function str(nullable: null | Nullable): string | undefined;
 function str(config?: Config): string;
-function str(config?: Config | null): string {
-  return column({ type: "string" }, config);
+function str(config?: Config | null) {
+  return column({ type: String }, config);
 }
 
 function num(nullable: null | Nullable): number | undefined;
 function num(config?: Config): number;
-function num(config?: Config | null): number {
+function num(config?: Config | null) {
   return column({
-    type: "number",
+    type: Number,
     set: (value: number) => value,
     get: (value: string) => {
       return value != null ? parseFloat(value) : value;
@@ -79,9 +121,9 @@ function num(config?: Config | null): number {
 
 function bool(nullable: null | Nullable): boolean | undefined;
 function bool(config?: Config): boolean;
-function bool(config?: Config): boolean {
+function bool(config?: Config) {
   return column({
-    type: "boolean",
+    type: Boolean,
     set: (value: boolean) => value ? 1 : 0,
     get: (value: number) => value === undefined ? value : Boolean(value),
   }, config);
@@ -89,7 +131,7 @@ function bool(config?: Config): boolean {
 
 function date(nullable: null | Nullable): Date | undefined;
 function date(config?: Config): Date;
-function date(config?: Config): Date {
+function date(config?: Config) {
   return column({
     type: Date,
     set: (value: Date) => value ? value.toISOString() : undefined,
@@ -100,24 +142,21 @@ function date(config?: Config): Date {
 function uuid(nullable: null | Nullable): string | undefined;
 function uuid(config?: Config): string;
 function uuid(config?: Config) {
-  if (config === null)
-    config = { nullable: true };
-
-  return column({ type: "string" }, config);
+  return column({ type: String }, config);
 }
 
 function json<T>(nullable: null | Nullable): T | undefined;
 function json<T>(config?: Config): T;
 function json<T>(config?: Config): T {
   return column({
-    type: "json",
+    type: Object,
     set: (value: T) => JSON.stringify(value),
     get: (value: string) => value ? JSON.parse(value) : undefined,
   }, config);
 }
 
 function get<T extends Type.Class>(Class: T, parentIdField: keyof Type.Instance<T>) {
-  return use<T>((type, key) => {
+  return use<T>((key, type) => {
     function get(this: Type.Instance<T>) {
       const { id } = this;
 
@@ -133,16 +172,17 @@ function get<T extends Type.Class>(Class: T, parentIdField: keyof Type.Instance<
       return Child;
     }
 
-    // get.name = `get${Type.name}`;
     get.toString = () => `get${Class.name}`;
-
     Object.defineProperty(type.prototype, key, { get });
   });
 }
 
+function underscore(str: string) {
+  return str.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
+}
+
 export {
   Field,
-  Nullable,
   init,
   json,
   str,
@@ -151,5 +191,6 @@ export {
   date,
   uuid,
   get,
-  use
+  use,
+  underscore
 }
