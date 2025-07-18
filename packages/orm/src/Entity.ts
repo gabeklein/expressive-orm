@@ -213,6 +213,13 @@ abstract class Type {
     if (!Array.isArray(from))
       from = buildConstraints({ ...from, ...subset });
 
+    from = from.map(([key, op, value]) => {
+      const field = this.fields.get(key);
+
+      if(field)
+        return [field.column, op, field.set(value)]
+    }).filter(Boolean) as Type.Constraint[];
+
     const rows = await connection.get(ref, from, limit, offset);
     return rows.map(row => this.from(row) as T)
   }
