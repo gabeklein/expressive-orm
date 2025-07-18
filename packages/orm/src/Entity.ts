@@ -174,8 +174,7 @@ abstract class Type {
   }
 
   static async set<T extends Type>(this: Type.Class<T>, id: string, data: Type.Compat<T>) {
-    const type = this.constructor as typeof Type;
-    await type.connection.update(this.table, id, this.write(data, true));
+    await this.connection.update(this.table, id, this.write(data, true));
   }
 
   static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>): Promise<T>;
