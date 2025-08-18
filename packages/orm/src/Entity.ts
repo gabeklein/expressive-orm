@@ -163,25 +163,11 @@ abstract class Type {
   }
 
   static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>): Promise<T>;
-  static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>[]): Promise<void>;
-  static async new<T extends Type, U>(this: Type.Class<T>, data: Array<U>, mapFn: (item: U) => Type.Insert<T>): Promise<void>;
-  static async new<T extends Type>(
-    this: Type.Class<T>,
-    data: Values<T> | unknown[],
-    mapFn?: (item: unknown) => any
-  ) {
-    const insert = async (d: Values<T>, returns?: boolean) => {
-      const input = this.into({ ...d as any, ...this.subset });
-      const inserted = await this.connection.insert(this.ref, input, returns);
-      return this.from(inserted) as T;
-    };
+  static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>) {
+    const input = this.into({ ...data as any, ...this.subset });
+    const inserted = await this.connection.insert(this.ref, input);
 
-    if (Array.isArray(data)) {
-      await Promise.all(data.map(mapFn || (x => x)).map(x => insert(x)))
-      return;
-    }
-
-    return insert(data, true);
+    return this.from(inserted) as T;
   }
 
   static async one<T extends Type>(this: Type.Class<T>, id: number, expect?: true): Promise<T>;
