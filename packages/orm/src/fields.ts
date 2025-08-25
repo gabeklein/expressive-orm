@@ -155,6 +155,26 @@ function json<T>(config?: Config): T {
   }, config);
 }
 
+function one<T extends Type.Class>(Class: T, foreignKeyField: keyof Type.Instance<T>) {
+  return use<Type.Instance<T> | undefined>((key, type) => {
+    async function get(this: any) {
+      const foreignKeyValue = this[foreignKeyField];
+
+      if (!foreignKeyValue)
+        return undefined;
+
+      try {
+        return await Class.one({ id: foreignKeyValue }, false);
+      } catch {
+        return undefined;
+      }
+    }
+
+    get.toString = () => `one${Class.name}`;
+    Object.defineProperty(type.prototype, key, { get });
+  });
+}
+
 function get<T extends Type.Class>(Class: T, parentIdField: keyof Type.Instance<T>) {
   return use<T>((key, type) => {
     function get(this: Type.Instance<T>) {
@@ -191,6 +211,7 @@ export {
   date,
   uuid,
   get,
+  one,
   use,
   underscore
 }
