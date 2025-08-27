@@ -92,7 +92,8 @@ abstract class Type {
       return;
 
     const type = this.constructor as typeof Type
-    await type.connection.update(type.ref, this.id, type.into(data, true));
+    const row = await type.prepare(data, true);
+    await type.connection.update(type.ref, this.id, row);
 
     for (const [key] of type.fields)
       if (key in data)
@@ -116,10 +117,10 @@ abstract class Type {
   static schema?: string;
   static subset?: Record<string, unknown>;
   static connection: Type.Connection = new NotReady();
-  static table?: string;
+  static table = underscore(this.name)
 
   static get ref() {
-    const { name, schema, table = underscore(name) } = this;
+    const { schema, table } = this;
     const ref = schema ? `${schema}.${table}` : table;
     Object.defineProperty(this, 'ref', { value: ref });
     return ref;
@@ -131,43 +132,41 @@ abstract class Type {
     return fields;
   }
 
-  protected static from<T extends Type>(
+  protected static async from<T extends Type>(
     this: Type.Class<T>,
     raw: Record<string, any>
-  ): T {
+  ){
     const entity = Object.create(this.prototype) as T;
 
-    this.fields.forEach(field => {
-      Object.assign(entity, field.input(raw));
-    });
+    for (const field of this.fields.values())
+      await field.parse(entity, raw);
 
     return entity;
   }
 
-  protected static into<T extends Type>(
+  protected static async prepare<T extends Type>(
     this: Type.Class<T>,
     data: Compat<T>,
     partial?: boolean
-  ): Record<string, any> {
-    const result: Record<string, any> = {};
+  ){
+    const row: Record<string, any> = {};
 
-    this.fields.forEach(field => {
-      Object.assign(result, field.output(data, partial));
-    })
+    for (const field of this.fields.values())
+      await field.apply(row, data, partial);
 
-    return result;
+    return row;
   }
 
   static async set<T extends Type>(this: Type.Class<T>, id: string, data: Type.Compat<T>) {
-    await this.connection.update(this.ref, id, this.into(data, true));
+    await this.connection.update(this.ref, id, this.prepare(data, true));
   }
 
   static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>): Promise<T>;
   static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>) {
-    const input = this.into({ ...data as any, ...this.subset });
-    const inserted = await this.connection.insert(this.ref, input);
+    const row = this.prepare({ ...data as any, ...this.subset });
+    const inserted = await this.connection.insert(this.ref, row);
 
-    return this.from(inserted) as T;
+    return await this.from(inserted) as T;
   }
 
   static async one<T extends Type>(this: Type.Class<T>, id: number, expect?: true): Promise<T>;
@@ -207,7 +206,7 @@ abstract class Type {
     }).filter(Boolean) as Type.Constraint[];
 
     const rows = await connection.get(ref, from, limit, offset);
-    return rows.map(row => this.from(row) as T)
+    return Promise.all(rows.map(row => this.from(row) as Promise<T>));
   }
 
   static async get<T extends Type>(

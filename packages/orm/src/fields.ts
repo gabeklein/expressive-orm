@@ -1,5 +1,7 @@
 import { type Type } from './Entity';
 
+type Async<T> = T | Promise<T>;
+
 class Field {
   key: string;
   column: string;
@@ -20,29 +22,27 @@ class Field {
     }
   }
 
-  set(value: any){
+  set(value: any): Async<string | number | null | undefined> {
+    return value;
+  }
+ 
+  get(value: any, from: Record<string, any>): Async<unknown> {
     return value;
   }
 
-  get(value: any){
-    return value;
+  async parse(into: Type & Record<string, any>, raw: Record<string, any>) {
+    into[this.key] = await this.get(raw[this.column], raw);
   }
 
-  input(raw: Record<string, any>) {
-    return {
-      [this.key]: this.get(raw[this.column])
-    }
-  }
-
-  output(data: Record<string, any>, partial?: boolean) {
+  async apply(update: Record<string, string>, from: Record<string, any>, partial?: boolean) {
     const { key, column, nullable, optional } = this;
     const allowMissing = optional || nullable || partial;
-    let value = data[key];
+    let value = from[key];
 
     if (value === undefined && allowMissing)
       return;
 
-    value = this.set(value);
+    value = await this.set(value);
 
     if (value == null)
       if (nullable)
@@ -50,7 +50,7 @@ class Field {
       else
         throw new Error(`Missing required field: ${key}`);
 
-    return { [column]: value };
+    update[column] = value;
   }
 }
 
@@ -69,9 +69,6 @@ function init<T extends Type>(type: Type.Class<T>) {
   const base = new (type as any)() as Type;
 
   for (const key in base) {
-    if (key === 'snap')
-      continue;
-
     const value = (base as any)[key];
     const instruction = USE.get(value);
 
@@ -155,23 +152,26 @@ function json<T>(config?: Config): T {
   }, config);
 }
 
-function one<T extends Type.Class>(Class: T, foreignKeyField: keyof Type.Instance<T>) {
-  return use<Type.Instance<T> | undefined>((key, type) => {
-    async function get(this: any) {
-      const foreignKeyValue = this[foreignKeyField];
+function one<T extends Type.Class>(Class: T, forColumn: string) {
+  const foreignKeyColumn = forColumn || `${Class.table}_id`;
 
-      if (!foreignKeyValue)
-        return undefined;
+  return column({
+    type: Class,
+    column: foreignKeyColumn,
+    get: (id: number) => {
+      return Class.one({ id }, false);
+    },
+    set: (value: Type.Instance<T> | undefined) => {
+      if (value == null)
+        return null;
 
-      try {
-        return await Class.one({ id: foreignKeyValue }, false);
-      } catch {
-        return undefined;
-      }
+      const id = (value as any).id;
+
+      if (id == null)
+        throw new Error(`Cannot assign unsaved ${Class.name} to ${foreignKeyColumn}`);
+
+      return id;
     }
-
-    get.toString = () => `one${Class.name}`;
-    Object.defineProperty(type.prototype, key, { get });
   });
 }
 
