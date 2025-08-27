@@ -1,5 +1,11 @@
 # @expressive/orm
 
+## 0.6.0
+
+### Minor Changes
+
+- Added one() instruction, field process is now asyncronous.
+
 ## 0.5.3
 
 ### Patch Changes
