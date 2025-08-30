@@ -62,7 +62,7 @@ declare namespace Type {
 }
 
 async function reject(): Promise<never> {
-  throw new Error("No database connection. Please set Entity.connection to a valid Connection instance.");
+  throw new Error("No database connection. Please set Type.connection to a valid Connection instance.");
 }
 
 class NotReady {

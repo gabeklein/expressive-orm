@@ -1,4 +1,4 @@
-import { type Type } from './Entity';
+import { type Type } from './Type';
 
 type Async<T> = T | Promise<T>;
 
@@ -152,7 +152,7 @@ function json<T>(config?: Config): T {
   }, config);
 }
 
-function one<T extends Type.Class>(Class: T, forColumn: string) {
+function one<T extends Type.Class>(Class: T, forColumn?: string) {
   const foreignKeyColumn = forColumn || `${Class.table}_id`;
 
   return column({
