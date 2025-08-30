@@ -32,6 +32,9 @@ importers:
 
   packages/orm:
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.16
+        version: 0.2.16
       tsup:
         specifier: ^8.3.6
         version: 8.3.6(typescript@5.8.2)
