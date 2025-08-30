@@ -157,7 +157,7 @@ abstract class Type {
     return row;
   }
 
-  static async set<T extends Type>(this: Type.Class<T>, id: string, data: Type.Compat<T>) {
+  static async set<T extends Type>(this: Type.Class<T>, id: T["id"], data: Type.Compat<T>) {
     await this.connection.update(this.ref, id, this.prepare(data, true));
   }
 
@@ -169,10 +169,10 @@ abstract class Type {
     return await this.from(inserted) as T;
   }
 
-  static async one<T extends Type>(this: Type.Class<T>, id: number, expect?: true): Promise<T>;
-  static async one<T extends Type>(this: Type.Class<T>, id: number, expect: boolean): Promise<T | undefined>;
-  static async one<T extends Type>(this: Type.Class<T>, where: Type.Query<T>, expect: boolean): Promise<T | undefined>;
   static async one<T extends Type>(this: Type.Class<T>, where?: Type.Query<T>, expect?: true): Promise<T>;
+  static async one<T extends Type>(this: Type.Class<T>, where: Type.Query<T>, expect: boolean): Promise<T | undefined>;
+  static async one<T extends Type>(this: Type.Class<T>, id: T["id"], expect?: true): Promise<T>;
+  static async one<T extends Type>(this: Type.Class<T>, id: T["id"], expect: boolean): Promise<T | undefined>;
   static async one<T extends Type>(this: Type.Class<T>, where?: number | Type.Query<T>, expect?: boolean): Promise<T | undefined> {
     if (typeof where === "number")
       where = { id: equal(where) };
