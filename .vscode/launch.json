@@ -8,17 +8,10 @@
       "autoAttachChildProcesses": true,
       "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
       "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
-      "args": ["${input:test_suite}", "--watch"],
+      "args": ["${relativeFile}", "--watch"],
       "smartStep": true,
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
-    }
-  ],
-  "inputs": [
-    {
-      "id": "test_suite",
-      "type": "promptString",
-      "description": "Test pattern to run (e.g., 'src/**/*.test.ts')"
     }
   ]
 }
