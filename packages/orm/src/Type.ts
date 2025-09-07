@@ -15,10 +15,12 @@ type ClassKeys<T> = {
 
 type Fields<T extends Type> = Exclude<keyof T, keyof Type | ClassKeys<T>>;
 
+type Inserts<T> = T extends Type ? T | T["id"] | Type.Insert<T> : T;
+
 type Insert<T extends Type> = {
-  [K in Fields<T> as (undefined extends T[K] ? never : K)]: T[K];
+  [K in Fields<T> as (undefined extends T[K] ? never : K)]: Inserts<T[K]>;
 } & {
-  [K in Fields<T> as (undefined extends T[K] ? K : never)]?: T[K];
+  [K in Fields<T> as (undefined extends T[K] ? K : never)]?: Inserts<T[K]>;
 };
 
 declare namespace Type {

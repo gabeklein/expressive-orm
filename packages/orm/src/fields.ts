@@ -174,18 +174,28 @@ function one<T extends Type>(Class: Type.Class<T>, config?: Config) {
         throw new Error(`Failed to load relation ${Class.name} for ${this.key}: ${error}`);
       }
     },
-    set: (value: Type.Instance<T> | undefined) => {
+    async set(value: Type.Instance<T> | Type.Insert<T> | number | null | undefined){
       if (value == null)
-        return null;
+        if(this.nullable)
+          return null;
+        else
+          throw new Error(`Missing required relation: ${Class.name}`);
 
-      const id = (value as any).id;
+      if(value instanceof Class){
+        const id = (value as any).id;
 
-      if (id == null)
-        throw new Error(`Cannot assign unsaved ${Class.name} to ${foreignKeyColumn}`);
+        if (id == null)
+          throw new Error(`Cannot assign unsaved ${Class.name} to ${foreignKeyColumn}`);
 
-      return id;
+        return id;
+      }
+
+      if(typeof value === "object")
+        return (await Class.new(value)).id;
+
+      return value;
     }
-  }, config) as T;
+  }, config);
 }
 
 function get<T extends Type.Class>(Class: T, parentIdField: keyof Type.Instance<T>) {
