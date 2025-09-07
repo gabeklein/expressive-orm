@@ -30,8 +30,8 @@
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm,cjs",
     "watch": "tsup src/index.ts --dts --format esm --watch",
-    "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "preversion": "npm run test && npm run build",
+    "test": "tsc --noEmit && vitest run"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.16",
