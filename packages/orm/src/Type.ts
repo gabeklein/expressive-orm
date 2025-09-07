@@ -163,14 +163,16 @@ abstract class Type {
     await this.connection.update(this.ref, id, this.prepare(data, true));
   }
 
-  static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, returns?: boolean): Promise<void>;
-  static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, returns: true): Promise<T>;
-  static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, returns?: boolean){
+  static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>){
     const row = await this.prepare({ ...data as any, ...this.subset });
-    const inserted = await this.connection.insert(this.ref, row, returns);
+    await this.connection.insert(this.ref, row);
+  }
 
-    if(inserted)
-      return await this.parse(inserted) as T;
+  static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>){
+    const row = await this.prepare({ ...data as any, ...this.subset });
+    const inserted = await this.connection.insert(this.ref, row, true);
+
+    return await this.parse(inserted) as T;
   }
 
   static async one<T extends Type>(this: Type.Class<T>, where?: Type.Query<T>, expect?: true): Promise<T>;
