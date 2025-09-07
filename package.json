@@ -8,13 +8,12 @@
 		"build": "turbo run build",
 		"lint": "turbo run lint",
 		"test": "turbo run test",
-		"version": "changeset version",
-		"publish": "changeset publish",
-		"change": "changeset"
+		"push": "lerna publish --conventional-commits"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.27.12",
 		"@types/node": "^18.19.0",
+		"lerna": "^8.2.3",
 		"tslib": "^2.3.0",
 		"turbo": "^2.4.1",
 		"typescript": "^5.8.2",
