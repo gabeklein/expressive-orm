@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.8.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.7.1...@expressive/orm@0.8.0) (2025-09-07)
+
+
+### Bug Fixes
+
+* **orm:** remove unnecessary second argument from User.new method call in tests ([ae793e6](https://github.com/gabeklein/orm/commit/ae793e67ac4891291ccbaa0b07bcb646728eb092))
+
+
+### Features
+
+* **orm:** one-fields now support ID, instance and inline create ([9c07aed](https://github.com/gabeklein/orm/commit/9c07aed68a050e600920b5a91882b55b1ff0ebb5))
+
+
+
+
+
 ## [0.7.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.7.0...@expressive/orm@0.7.1) (2025-09-07)
 
 
