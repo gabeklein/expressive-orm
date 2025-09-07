@@ -1,6 +1,6 @@
 {
   "name": "@expressive/orm",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Query builder and ORM",
   "license": "ISC",
   "publishConfig": {
