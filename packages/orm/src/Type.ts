@@ -134,7 +134,7 @@ abstract class Type {
     return fields;
   }
 
-  protected static async from<T extends Type>(
+  protected static async parse<T extends Type>(
     this: Type.Class<T>,
     raw: Record<string, any>
   ){
@@ -170,7 +170,7 @@ abstract class Type {
     const inserted = await this.connection.insert(this.ref, row, returns);
 
     if(inserted)
-      return await this.from(inserted) as T;
+      return await this.parse(inserted) as T;
   }
 
   static async one<T extends Type>(this: Type.Class<T>, where?: Type.Query<T>, expect?: true): Promise<T>;
@@ -210,7 +210,7 @@ abstract class Type {
     }).filter(Boolean) as Type.Constraint[];
 
     const rows = await connection.get(ref, from, limit, offset);
-    return Promise.all(rows.map(row => this.from(row) as Promise<T>));
+    return Promise.all(rows.map(row => this.parse(row) as Promise<T>));
   }
 
   static async get<T extends Type>(
