@@ -17,6 +17,10 @@ export class Table extends Type {
     },
     exec(qs: string) {
       return db?.exec(qs);
+    },
+    init(schema: string) {
+      db = new PGlite();
+      return db.exec(schema);
     }
   };
 }

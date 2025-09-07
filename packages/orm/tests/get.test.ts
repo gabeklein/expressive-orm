@@ -8,8 +8,7 @@ describe("one", () => {
   }
 
   beforeAll(() => {
-    Table.connection.reset();
-    Table.connection.exec(`
+    Table.connection.init(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         name TEXT
