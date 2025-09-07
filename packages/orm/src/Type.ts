@@ -9,14 +9,16 @@ type Values<T extends Type> = {
 
 type Compat<T extends Type> = Partial<Values<T>>;
 
+type ClassKeys<T> = {
+  [K in keyof T]: T[K] extends Type.Class ? K : T[K] extends (...args: any[]) => any ? K : never
+}[keyof T];
+
+type Fields<T extends Type> = Exclude<keyof T, keyof Type | ClassKeys<T>>;
+
 type Insert<T extends Type> = {
-  [K in keyof Omit<T, keyof Type> as (
-    undefined extends T[K] ? never : (T[K] extends Type.Class<any> ? never : K)
-  )]: T[K];
+  [K in Fields<T> as (undefined extends T[K] ? never : K)]: T[K];
 } & {
-  [K in keyof Omit<T, keyof Type> as (
-    undefined extends T[K] ? (T[K] extends Type.Class<any> ? never : K) : never
-  )]?: T[K];
+  [K in Fields<T> as (undefined extends T[K] ? K : never)]?: T[K];
 };
 
 declare namespace Type {
@@ -161,12 +163,14 @@ abstract class Type {
     await this.connection.update(this.ref, id, this.prepare(data, true));
   }
 
-  static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>): Promise<T>;
-  static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>) {
-    const row = this.prepare({ ...data as any, ...this.subset });
-    const inserted = await this.connection.insert(this.ref, row);
+  static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, returns?: boolean): Promise<void>;
+  static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, returns: true): Promise<T>;
+  static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, returns?: boolean){
+    const row = await this.prepare({ ...data as any, ...this.subset });
+    const inserted = await this.connection.insert(this.ref, row, returns);
 
-    return await this.from(inserted) as T;
+    if(inserted)
+      return await this.from(inserted) as T;
   }
 
   static async one<T extends Type>(this: Type.Class<T>, where?: Type.Query<T>, expect?: true): Promise<T>;
