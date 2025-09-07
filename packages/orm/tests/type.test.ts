@@ -20,7 +20,7 @@ it("will allow for methods", async () => {
     }
   }
 
-  const user = await User.new({ name: "John" }, true);
+  const user = await User.new({ name: "John" });
 
   expect(user.id).toBe(1);
   expect(user.name).toBe("John");
