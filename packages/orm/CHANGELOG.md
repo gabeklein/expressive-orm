@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.7.0...@expressive/orm@0.7.1) (2025-09-07)
+
+
+### Bug Fixes
+
+* **orm:** add preversion script ([f84a6d2](https://github.com/gabeklein/orm/commit/f84a6d2ef404d961cec3a3fe6f19c0db2a683f2b))
+
+
+
+
+
 # [0.7.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.6.0...@expressive/orm@0.7.0) (2025-09-07)
 
 
