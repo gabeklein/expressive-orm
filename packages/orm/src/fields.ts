@@ -22,11 +22,11 @@ class Field {
     }
   }
 
-  set(value: any): Async<string | number | null | undefined> {
+  set(this: Field, value: any): Async<string | number | null | undefined> {
     return value;
   }
  
-  get(value: any, from: Record<string, any>): Async<unknown> {
+  get(this: Field, value: any, from: Record<string, any>): Async<unknown> {
     return value;
   }
 
@@ -152,14 +152,27 @@ function json<T>(config?: Config): T {
   }, config);
 }
 
-function one<T extends Type.Class>(Class: T, forColumn?: string) {
-  const foreignKeyColumn = forColumn || `${Class.table}_id`;
+function one<T extends Type>(Class: Type.Class<T>, nullable: null | Nullable): T | undefined;
+function one<T extends Type>(Class: Type.Class<T>, config?: Config): T;
+function one<T extends Type>(Class: Type.Class<T>, config?: Config) {
+  const foreignKeyColumn = config && config.column || `${Class.table}_id`;
 
   return column({
     type: Class,
     column: foreignKeyColumn,
-    get: (id: number) => {
-      return Class.one({ id }, false);
+    get(id: number){
+      if (id == null)
+        if(this.nullable)
+          return undefined;
+        else
+          throw new Error(`Missing required relation: ${Class.name}`);
+
+      try {
+        return (Class as Type.Class).one({ id });
+      }
+      catch (error) {
+        throw new Error(`Failed to load relation ${Class.name} for ${this.key}: ${error}`);
+      }
     },
     set: (value: Type.Instance<T> | undefined) => {
       if (value == null)
@@ -172,7 +185,7 @@ function one<T extends Type.Class>(Class: T, forColumn?: string) {
 
       return id;
     }
-  });
+  }, config) as T;
 }
 
 function get<T extends Type.Class>(Class: T, parentIdField: keyof Type.Instance<T>) {
