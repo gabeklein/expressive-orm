@@ -3,11 +3,7 @@ import Type from '@expressive/orm';
 
 export * from '@expressive/orm';
 
-let db: PGlite | undefined;
-
-beforeEach(() => {
-  db = new PGlite();
-})
+let db =  new PGlite();
 
 export class Table extends Type {
   static connection = {
@@ -16,6 +12,9 @@ export class Table extends Type {
     insert,
     update,
     query,
+    reset(){
+      db = new PGlite();
+    },
     exec(qs: string) {
       return db?.exec(qs);
     }
