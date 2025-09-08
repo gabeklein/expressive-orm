@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.10.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.10.0...@expressive/orm@0.10.1) (2025-09-08)
+
+
+### Bug Fixes
+
+* update one() function to accept Config<OneToOneField> for nullable parameter ([643b434](https://github.com/gabeklein/orm/commit/643b4347076a3a4b02b4eb8743b2dfb2c8450a0f))
+
+
+
+
+
 # [0.10.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.9.1...@expressive/orm@0.10.0) (2025-09-08)
 
 
