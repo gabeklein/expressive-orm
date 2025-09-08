@@ -22,7 +22,7 @@ class Field {
     }
   }
 
-  set(this: Field, value: any): Async<string | number | null | undefined> {
+  set(this: Field, value: any, compare?: boolean): Async<string | number | null | undefined> {
     return value;
   }
  
@@ -182,7 +182,10 @@ function one<T extends Type>(Class: Type.Class<T>, config?: Config) {
           throw new Error(`Failed to load relation ${Class.name} for ${this.key}: ${error}`);
         }
       },
-      async set(value: Type.Instance<T> | Type.Insert<T> | number | null | undefined){
+      async set(
+        value: Type.Instance<T> | Type.Insert<T> | number | null | undefined,
+        compare?: boolean){
+  
         if (value == null)
           if(this.nullable)
             return null;
@@ -198,8 +201,13 @@ function one<T extends Type>(Class: Type.Class<T>, config?: Config) {
           return id;
         }
 
-        if(typeof value === "object")
-          return (await Class.new(value)).id;
+        if(typeof value === "object"){
+          const got = compare
+            ? Class.one(value as any, false)
+            : Class.new(value)
+          
+          return (await got)?.id;
+        }
 
         return value;
       }

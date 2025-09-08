@@ -27,6 +27,8 @@ type Insert<T extends Type> = {
   [K in Fields<T> as (undefined extends T[K] ? K : never)]?: Inserts<T[K]>;
 };
 
+type Matches<T> = T extends Type ? T | T["id"] | Type.Compat<T> : T;
+
 declare namespace Type {
   type Class<T extends Type = Type> = (abstract new (...args: any[]) => T) & typeof Type;
 
@@ -39,7 +41,7 @@ declare namespace Type {
   type Conds<T> = Where | T | Conds<T>[]
 
   type Query<T extends {}> = {
-    [K in keyof T]?: Conds<T[K]>;
+    [K in keyof T]?: Conds<Matches<T[K]>>;
   };
 
   type Constraint = [
@@ -182,10 +184,10 @@ abstract class Type {
     return await this.parse(inserted) as T;
   }
 
-  static async one<T extends Type>(this: Type.Class<T>, where?: Type.Query<T>, expect?: true): Promise<T>;
+  static async one<T extends Type>(this: Type.Class<T>, id: number, expect: boolean): Promise<T | undefined>;
+  static async one<T extends Type>(this: Type.Class<T>, id: number, expect?: true): Promise<T>;
   static async one<T extends Type>(this: Type.Class<T>, where: Type.Query<T>, expect: boolean): Promise<T | undefined>;
-  static async one<T extends Type>(this: Type.Class<T>, id: T["id"], expect?: true): Promise<T>;
-  static async one<T extends Type>(this: Type.Class<T>, id: T["id"], expect: boolean): Promise<T | undefined>;
+  static async one<T extends Type>(this: Type.Class<T>, where?: Type.Query<T>, expect?: true): Promise<T>;
   static async one<T extends Type>(this: Type.Class<T>, where?: number | Type.Query<T>, expect?: boolean): Promise<T | undefined> {
     if (typeof where === "number")
       where = { id: equal(where) };
@@ -216,10 +218,8 @@ abstract class Type {
     for (let [key, op, value] of from) {
       const field = this.fields.get(key);
 
-      if(!field)
-        continue;
-
-      query.push([field.column, op, await field.set(value)]);
+      if(field)
+        query.push([field.column, op, await field.set(value, true)]);
     }
 
     const rows = await connection.get(ref, query, limit, offset);

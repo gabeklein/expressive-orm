@@ -137,3 +137,62 @@ describe("insert", () => {
   });
 })
 
+describe("query", () => {
+  class User extends Table {
+    static table = "user";
+
+    name = str();
+  }
+
+  class Post extends Table {
+    static table = "post";
+
+    title = str();
+    user = one(User);
+  }
+
+  beforeAll(async () => {
+    await Table.connection.init(`
+      CREATE TABLE IF NOT EXISTS "user" (
+        id SERIAL PRIMARY KEY,
+        name TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS "post" (
+        id SERIAL PRIMARY KEY,
+        title TEXT,
+        user_id INTEGER REFERENCES "user"(id)
+      );
+
+      INSERT INTO "user" (id, name)
+      VALUES (1, 'Gabe'), (2, 'Alice'), (3, 'Bob');
+
+      INSERT INTO "post" (id, title, user_id)
+      VALUES (1, 'Hello World', 1), (2, 'Second Post', 1), (3, 'Another Post', 2);
+    `);
+  });
+
+  it("will search for relation by id", async () => {
+    const post = await Post.one({ user: 1 });
+
+    expect(post.id).toBe(1);
+    expect(post.user).toBeInstanceOf(User);
+    expect(post.user.id).toBe(1);
+    expect(post.user.name).toBe("Gabe");
+  })
+
+  it("will search for relation by instance", async () => {
+    const gabe = await User.one(1);
+    const post = await Post.one({ user: gabe });
+
+    expect(post.id).toBe(1);
+    expect(post.user).toBeInstanceOf(User);
+  })
+
+  it("will search for relation by query", async () => {
+    const post = await Post.one({ user: { name: "Gabe" } });
+
+    expect(post.id).toBe(1);
+    expect(post.title).toBe("Hello World");
+  })
+})
