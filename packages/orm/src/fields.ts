@@ -152,53 +152,66 @@ function json<T>(config?: Config): T {
   }, config);
 }
 
+const ONE = new Map<Type.Class, Map<Type.Class, Field | null>>();
+
 function one<T extends Type>(Class: Type.Class<T>, nullable: null | Nullable): T | undefined;
 function one<T extends Type>(Class: Type.Class<T>, config?: Config): T;
 function one<T extends Type>(Class: Type.Class<T>, config?: Config) {
   const foreignKeyColumn = config && config.column || `${Class.table}_id`;
 
-  return column({
-    type: Class,
-    column: foreignKeyColumn,
-    get(id: number){
-      if (id == null)
-        if(this.nullable)
-          return undefined;
-        else
-          throw new Error(`Missing required relation: ${Class.name}`);
+  return use((key, type) => {
+    let rel = ONE.get(type);
 
-      try {
-        return (Class as Type.Class).one({ id });
-      }
-      catch (error) {
-        throw new Error(`Failed to load relation ${Class.name} for ${this.key}: ${error}`);
-      }
-    },
-    async set(value: Type.Instance<T> | Type.Insert<T> | number | null | undefined){
-      if (value == null)
-        if(this.nullable)
-          return null;
-        else
-          throw new Error(`Missing required relation: ${Class.name}`);
+    if (!rel)
+      ONE.set(type, rel = new Map());
 
-      if(value instanceof Class){
-        const id = (value as any).id;
-
+    const field = new Field(key, {
+      type: Class,
+      column: foreignKeyColumn,
+      get(id: number){
         if (id == null)
-          throw new Error(`Cannot assign unsaved ${Class.name} to ${foreignKeyColumn}`);
+          if(this.nullable)
+            return undefined;
+          else
+            throw new Error(`Missing required relation: ${Class.name}`);
 
-        return id;
+        try {
+          return (Class as Type.Class).one({ id });
+        }
+        catch (error) {
+          throw new Error(`Failed to load relation ${Class.name} for ${this.key}: ${error}`);
+        }
+      },
+      async set(value: Type.Instance<T> | Type.Insert<T> | number | null | undefined){
+        if (value == null)
+          if(this.nullable)
+            return null;
+          else
+            throw new Error(`Missing required relation: ${Class.name}`);
+
+        if(value instanceof Class){
+          const id = (value as any).id;
+
+          if (id == null)
+            throw new Error(`Cannot assign unsaved ${Class.name} to ${foreignKeyColumn}`);
+
+          return id;
+        }
+
+        if(typeof value === "object")
+          return (await Class.new(value)).id;
+
+        return value;
       }
+    }, config);
 
-      if(typeof value === "object")
-        return (await Class.new(value)).id;
+    rel.set(Class, rel.has(Class) ? null : field);
 
-      return value;
-    }
-  }, config);
+    return field;
+  });
 }
 
-function get<T extends Type.Class>(Class: T, parentIdField: keyof Type.Instance<T>) {
+function get<T extends Type.Class>(Class: T, field?: keyof Type.Instance<T>) {
   return use<T>((key, type) => {
     function get(this: Type.Instance<T>) {
       const { id } = this;
@@ -206,14 +219,29 @@ function get<T extends Type.Class>(Class: T, parentIdField: keyof Type.Instance<
       if (!id)
         throw new Error(`Parent entity ${id} does not exist`);
 
+      if (!field) {
+        Class.fields;
+        const rel = ONE.get(Class)?.get(type);
+
+        if (!rel){
+          const message = rel === null
+            ? `There are multiple relationships, you will need to specify which one to use.` 
+            : `Did you forget to use one(${Class.name}) in this model?`;
+
+          throw new Error(`No relationship inferred for ${Class.name} in ${type.name}. ${message}`);
+        }
+
+        field = rel.key as any;
+      }
+
       class Child extends (Class as typeof Type) {
-        static subset = { [parentIdField]: id };
+        static subset = { [field as string]: id };
       };
 
       Object.defineProperty(Child, 'name', { value: Class.name });
 
       return Child;
-    }
+    };
 
     get.toString = () => `get${Class.name}`;
     Object.defineProperty(type.prototype, key, { get });
