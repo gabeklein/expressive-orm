@@ -168,7 +168,7 @@ abstract class Type {
     return row;
   }
 
-  static async set<T extends Type>(this: Type.Class<T>, id: T["id"], data: Type.Update<T>) {
+  static async update<T extends Type>(this: Type.Class<T>, id: T["id"], data: Type.Update<T>) {
     await this.connection.update(this.ref, id, this.prepare(data, true));
   }
 
