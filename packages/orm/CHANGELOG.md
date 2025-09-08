@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.10.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.9.1...@expressive/orm@0.10.0) (2025-09-08)
+
+
+### Bug Fixes
+
+* verify many property ([cf3b908](https://github.com/gabeklein/orm/commit/cf3b9080b8506a31fe4d9a36fc29bf5ad51041b8))
+
+
+### Features
+
+* implement lazy one() ([e6c7213](https://github.com/gabeklein/orm/commit/e6c72130f0ee100933f134922ec715114337e9f4))
+* **orm:** replace config methods with OneToOneField ([a5faf3e](https://github.com/gabeklein/orm/commit/a5faf3e023990920d72df470e00f5497ecadf5c9))
+* **tests:** add extended types support and related tests ([0e95e58](https://github.com/gabeklein/orm/commit/0e95e588de74def6ddd8baaacb27511a1d055b40))
+
+
+
+
+
 ## [0.9.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.9.0...@expressive/orm@0.9.1) (2025-09-08)
 
 
