@@ -287,7 +287,7 @@ function get<T extends Type.Class>(Class: T, field?: keyof Type.Instance<T>) {
         };
 
         Object.defineProperty(Child, 'name', { value: Class.name });
-        Object.defineProperty(type.prototype, key, { value: Class });
+        Object.defineProperty(type.prototype, key, { value: Child });
 
         return Child;
       }
