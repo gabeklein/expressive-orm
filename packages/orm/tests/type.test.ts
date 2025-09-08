@@ -1,4 +1,4 @@
-import { Table, str, asc, greaterThan } from "./Table";
+import { Table, str, asc, greaterThan, one } from "./Table";
 
 it("will allow for methods", async () => {
   await Table.connection.init(`
@@ -150,4 +150,35 @@ describe("extended types", () => {
 
     expect(fresh.displayName()).toBe("User: Alice Doe");
   });
+})
+
+describe("types", () => {
+  class Bar extends Table {}
+  class FooBar extends Table {
+    a = str();
+    b = str(null);
+    c = str({ nullable: true });
+    d = str({ column: "foobar", nullable: true });
+
+    e = one(Bar);
+    f = one(Bar, null);
+    g = one(Bar, { nullable: true });
+    h = one(Bar, { column: "bar_id", nullable: true });
+  }
+
+  it("will properly apply nullable", () => {
+    const foobar = {} as FooBar;
+
+    foobar.b = undefined;
+    foobar.c = undefined;
+    foobar.d = undefined;
+    foobar.f = undefined;
+    foobar.g = undefined;
+    foobar.h = undefined;
+
+    // @ts-expect-error
+    foobar.a = undefined;
+    // @ts-expect-error
+    foobar.e = undefined;
+  })
 })
