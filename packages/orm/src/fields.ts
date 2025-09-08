@@ -222,13 +222,13 @@ function one<T extends Type>(Class: Type.Class<T>, config?: Config) {
 function get<T extends Type.Class>(Class: T, field?: keyof Type.Instance<T>) {
   return use<T>((key, type) => {
     function get(this: Type.Instance<T>) {
+      const { fields } = Class;
       const { id } = this;
 
       if (!id)
         throw new Error(`Parent entity ${id} does not exist`);
 
       if (!field) {
-        Class.fields;
         const rel = ONE.get(Class)?.get(type);
 
         if (!rel){
@@ -242,17 +242,22 @@ function get<T extends Type.Class>(Class: T, field?: keyof Type.Instance<T>) {
         field = rel.key as any;
       }
 
-      class Child extends (Class as typeof Type) {
-        static subset = { [field as string]: id };
-      };
+      if(field && fields.has(field as string)) {
+        class Child extends (Class as typeof Type) {
+          static subset = { [field as string]: id };
+        };
 
-      Object.defineProperty(Child, 'name', { value: Class.name });
+        Object.defineProperty(Child, 'name', { value: Class.name });
+        Object.defineProperty(type.prototype, key, { value: Class });
 
-      return Child;
+        return Child;
+      }
+
+      throw new Error(`Field ${String(field)} does not exist on ${Class.name}`);
     };
 
     get.toString = () => `get${Class.name}`;
-    Object.defineProperty(type.prototype, key, { get });
+    Object.defineProperty(type.prototype, key, { get, configurable: true });
   });
 }
 
