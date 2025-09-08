@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.9.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.8.0...@expressive/orm@0.9.0) (2025-09-08)
+
+
+### Bug Fixes
+
+* **orm:** refactor constraint building to support async ([4568abd](https://github.com/gabeklein/orm/commit/4568abd50c2643150730e6fcb365cca069b3d10f))
+
+
+### Features
+
+* **orm:** handle field proxies in updates ([a315be7](https://github.com/gabeklein/orm/commit/a315be79a0458308fa0227bfd6d0f7adc4ef6ca7))
+* **orm:** support type fields in query ([3dad689](https://github.com/gabeklein/orm/commit/3dad68903bcbc7c9d676cb70cdcef6968a0684c5))
+
+
+
+
+
 # [0.8.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.7.1...@expressive/orm@0.8.0) (2025-09-07)
 
 
