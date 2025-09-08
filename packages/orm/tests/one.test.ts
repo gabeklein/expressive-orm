@@ -129,5 +129,11 @@ describe("insert", () => {
     expect(post.user.id).toBe(2);
     expect(post.user.name).toBe("Jane Doe");
   })
+
+  it("will update relation by object", async () => {
+    const post = await Post.new({ title: "Hello World", user: user.id });
+
+    await post.update({ user: { name: "Bob" } });
+  });
 })
 

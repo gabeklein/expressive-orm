@@ -9,8 +9,12 @@ type Values<T extends Type> = {
 
 type Compat<T extends Type> = Partial<Values<T>>;
 
+type Update<T extends Type> = {
+  [K in Exclude<keyof T, keyof Type>]?: Inserts<T[K]>
+}
+
 type ClassKeys<T> = {
-  [K in keyof T]: T[K] extends Type.Class ? K : T[K] extends (...args: any[]) => any ? K : never
+  [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never
 }[keyof T];
 
 type Fields<T extends Type> = Exclude<keyof T, keyof Type | ClassKeys<T>>;
@@ -61,6 +65,7 @@ declare namespace Type {
     KeyOf,
     Query,
     Result,
+    Update,
     Values
   }
 }
@@ -91,7 +96,7 @@ abstract class Type {
 
   protected async onDelete?(): Promise<void>;
 
-  async update(data: Type.Compat<this>) {
+  async update(data: Type.Update<this>) {
     if (Object.keys(data).length === 0)
       return;
 
@@ -150,7 +155,7 @@ abstract class Type {
 
   protected static async prepare<T extends Type>(
     this: Type.Class<T>,
-    data: Compat<T>,
+    data: Update<T>,
     partial?: boolean
   ){
     const row: Record<string, any> = {};
@@ -161,7 +166,7 @@ abstract class Type {
     return row;
   }
 
-  static async set<T extends Type>(this: Type.Class<T>, id: T["id"], data: Type.Compat<T>) {
+  static async set<T extends Type>(this: Type.Class<T>, id: T["id"], data: Type.Update<T>) {
     await this.connection.update(this.ref, id, this.prepare(data, true));
   }
 
