@@ -254,7 +254,7 @@ class OneToOneField<T extends Type = Type> extends Field {
   }
 }
 
-function one<T extends Type>(from: Type.Class<T>, nullable: null | Nullable): T | undefined;
+function one<T extends Type>(from: Type.Class<T>, nullable: null | Config<OneToOneField> & Nullable): T | undefined;
 function one<T extends Type>(from: Type.Class<T>, config?: Config<OneToOneField>): T;
 function one<T extends Type>(from: Type.Class<T>, config?: Config<OneToOneField>) {
   return use<T>((key, type) => new OneToOneField(key, type, from, config));
