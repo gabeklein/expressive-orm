@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.10.2](https://github.com/gabeklein/orm/compare/@expressive/orm@0.10.1...@expressive/orm@0.10.2) (2025-09-08)
+
+
+### Bug Fixes
+
+* add tests for nullable types ([9030c80](https://github.com/gabeklein/orm/commit/9030c80774116b0fc54f72296bac9c8fb5ab76e2))
+* update property definition in get function to use Child class ([125e228](https://github.com/gabeklein/orm/commit/125e22891ee5bd41a158967b693a64e269896a5a))
+
+
+
+
+
 ## [0.10.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.10.0...@expressive/orm@0.10.1) (2025-09-08)
 
 
