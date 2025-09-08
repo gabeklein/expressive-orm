@@ -14,7 +14,7 @@ type Update<T extends Type> = {
 }
 
 type ClassKeys<T> = {
-  [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never
+  [K in keyof T]: T[K] extends Type.Class ? K : T[K] extends (...args: any[]) => any ? K : never
 }[keyof T];
 
 type Fields<T extends Type> = Exclude<keyof T, keyof Type | ClassKeys<T>>;
