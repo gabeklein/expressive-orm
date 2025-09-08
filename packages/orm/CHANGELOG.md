@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.9.0...@expressive/orm@0.9.1) (2025-09-08)
+
+
+### Bug Fixes
+
+* **orm:** exclude get types from required fields on new ([ef32aaf](https://github.com/gabeklein/orm/commit/ef32aaf95e4614d9bf1d6130b65b324c2b7555f8))
+
+
+
+
+
 # [0.9.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.8.0...@expressive/orm@0.9.0) (2025-09-08)
 
 
