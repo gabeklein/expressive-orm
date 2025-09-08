@@ -36,7 +36,6 @@ it("will allow for methods", async () => {
   expect(didGreet).toHaveBeenCalledWith("Hello, John Doe");
 })
 
-
 describe("one method", () => {
   class User extends Table {
     static table = "users";
@@ -51,8 +50,8 @@ describe("one method", () => {
         name TEXT
       );
 
-      INSERT INTO users (id, name)
-      VALUES (1, 'Gabe'), (2, 'Alice'), (3, 'Bob');
+      INSERT INTO users (name)
+      VALUES ('Gabe'), ('Alice'), ('Bob');
     `);
   });
 
@@ -100,3 +99,55 @@ describe("one method", () => {
     expect(user).toBeUndefined();
   });
 });
+
+describe("extended types", () => {
+  class User extends Table {
+    static table = "users";
+
+    name = str();
+  }
+
+  class UserExt extends User {
+    static from(name: string) {
+      return this.new({ name });
+    }
+
+    displayName() {
+      return `User: ${this.name}`;
+    }
+  }
+
+  beforeAll(() => {
+    Table.connection.init(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name TEXT
+      );
+
+      INSERT INTO users (name)
+      VALUES ('Gabe'), ('Alice');
+    `);
+  });
+
+  it("will create extended type", async () => {
+    const user = await UserExt.from("Charlie");
+
+    expect(user).toBeInstanceOf(UserExt);
+    expect(user.displayName()).toBe("User: Charlie");
+  });
+
+  it("will update using extended type", async () => {
+    const user = await UserExt.one(2);
+
+    expect(user).toBeInstanceOf(UserExt);
+    expect(user.displayName()).toBe("User: Alice");
+
+    await user.update({ name: "Alice Doe" });
+
+    expect(user.displayName()).toBe("User: Alice Doe");
+
+    const fresh = await UserExt.one(2);
+
+    expect(fresh.displayName()).toBe("User: Alice Doe");
+  });
+})
