@@ -30,7 +30,7 @@ class Field {
     return value;
   }
 
-  async parse(into: Type & Record<string, any>, raw: Record<string, any>) {
+  async parse(this: Field, into: Type & Record<string, any>, raw: Record<string, any>){
     into[this.key] = await this.get(raw[this.column], raw);
   }
 
@@ -154,68 +154,78 @@ function json<T>(config?: Config): T {
 
 const ONE = new Map<Type.Class, Map<Type.Class, Field | null>>();
 
-function one<T extends Type>(Class: Type.Class<T>, nullable: null | Nullable): T | undefined;
-function one<T extends Type>(Class: Type.Class<T>, config?: Config): T;
-function one<T extends Type>(Class: Type.Class<T>, config?: Config) {
-  const foreignKeyColumn = config && config.column || `${Class.table}_id`;
+class OneToOneField<T extends Type = Type> extends Field {
+  type: Type.Class<T>;
+  column: string;
+  
+  constructor(key: string, type: Type.Class, Class: Type.Class<T>, config?: Config) {
+    super(key, config);
+    this.type = Class;
+    this.column = config && config.column || `${Class.table}_id`;
 
-  return use((key, type) => {
     let rel = ONE.get(type);
 
     if (!rel)
       ONE.set(type, rel = new Map());
 
-    const field = new Field(key, {
-      type: Class,
-      column: foreignKeyColumn,
-      get(id: number){
-        if (id == null)
-          if(this.nullable)
-            return undefined;
-          else
-            throw new Error(`Missing required relation: ${Class.name}`);
+    rel.set(Class, rel.has(Class) ? null : this);
+  }
 
-        try {
-          return (Class as Type.Class).one({ id });
-        }
-        catch (error) {
-          throw new Error(`Failed to load relation ${Class.name} for ${this.key}: ${error}`);
-        }
-      },
-      async set(
-        value: Type.Instance<T> | Type.Insert<T> | number | null | undefined,
-        compare?: boolean){
-  
-        if (value == null)
-          if(this.nullable)
-            return null;
-          else
-            throw new Error(`Missing required relation: ${Class.name}`);
+  get(id: number){
+    const Class = this.type;
+    
+    if (id == null)
+      if(this.nullable)
+        return undefined;
+      else
+        throw new Error(`Missing required relation: ${Class.name}`);
 
-        if(value instanceof Class){
-          const id = (value as any).id;
+    try {
+      return (Class as Type.Class).one({ id });
+    }
+    catch (error) {
+      throw new Error(`Failed to load relation ${Class.name} for ${this.key}: ${error}`);
+    }
+  }
 
-          if (id == null)
-            throw new Error(`Cannot assign unsaved ${Class.name} to ${foreignKeyColumn}`);
+  async set(
+    value: Type.Instance<T> | Type.Insert<T> | number | null | undefined,
+    compare?: boolean){
 
-          return id;
-        }
+    const { type: Class, column } = this;
 
-        if(typeof value === "object"){
-          const got = compare
-            ? Class.one(value as any, false)
-            : Class.new(value)
-          
-          return (await got)?.id;
-        }
+    if (value == null)
+      if(this.nullable)
+        return null;
+      else
+        throw new Error(`Missing required relation: ${Class.name}`);
 
-        return value;
-      }
-    }, config);
+    if(value instanceof Class){
+      const id = (value as any).id;
 
-    rel.set(Class, rel.has(Class) ? null : field);
+      if (id == null)
+        throw new Error(`Cannot assign unsaved ${Class.name} to ${column}`);
 
-    return field;
+      return id;
+    }
+
+    if(typeof value === "object"){
+      const got = compare
+        ? Class.one(value as any, false)
+        : Class.new(value)
+      
+      return (await got)?.id;
+    }
+
+    return value;
+  }
+}
+
+function one<T extends Type>(Class: Type.Class<T>, nullable: null | Nullable): T | undefined;
+function one<T extends Type>(Class: Type.Class<T>, config?: Config): T;
+function one<T extends Type>(Class: Type.Class<T>, config?: Config) {
+  return use<T>((key, type) => {
+    return new OneToOneField(key, type, Class, config);
   });
 }
 
