@@ -81,9 +81,7 @@ class Field {
   }
 }
 
-interface Nullable {
-  nullable: true;
-}
+type Nullable<T extends Field = Field> = null | Partial<T> & { nullable: true }
 
 type Config<T = Field> = Partial<T> | null | undefined | false;
 
@@ -123,13 +121,13 @@ function column<T>(...config: Config[]): T {
   return use((key) => new Field(key, ...config));
 }
 
-function str(nullable: null | Nullable): string | undefined;
+function str(nullable: Nullable): string | undefined;
 function str(config?: Config): string;
 function str(config?: Config | null) {
   return column({ type: String }, config);
 }
 
-function num(nullable: null | Nullable): number | undefined;
+function num(nullable: Nullable): number | undefined;
 function num(config?: Config): number;
 function num(config?: Config | null) {
   return column({
@@ -141,7 +139,7 @@ function num(config?: Config | null) {
   }, config);
 }
 
-function bool(nullable: null | Nullable): boolean | undefined;
+function bool(nullable: Nullable): boolean | undefined;
 function bool(config?: Config): boolean;
 function bool(config?: Config) {
   return column({
@@ -151,7 +149,7 @@ function bool(config?: Config) {
   }, config);
 }
 
-function date(nullable: null | Nullable): Date | undefined;
+function date(nullable: Nullable): Date | undefined;
 function date(config?: Config): Date;
 function date(config?: Config) {
   return column({
@@ -161,13 +159,13 @@ function date(config?: Config) {
   }, config);
 }
 
-function uuid(nullable: null | Nullable): string | undefined;
+function uuid(nullable: Nullable): string | undefined;
 function uuid(config?: Config): string;
 function uuid(config?: Config) {
   return column({ type: String }, config);
 }
 
-function json<T>(nullable: null | Nullable): T | undefined;
+function json<T>(nullable: Nullable): T | undefined;
 function json<T>(config?: Config): T;
 function json<T>(config?: Config): T {
   return column({
@@ -254,7 +252,7 @@ class OneToOneField<T extends Type = Type> extends Field {
   }
 }
 
-function one<T extends Type>(from: Type.Class<T>, nullable: null | Config<OneToOneField> & Nullable): T | undefined;
+function one<T extends Type>(from: Type.Class<T>, nullable: Nullable<OneToOneField>): T | undefined;
 function one<T extends Type>(from: Type.Class<T>, config?: Config<OneToOneField>): T;
 function one<T extends Type>(from: Type.Class<T>, config?: Config<OneToOneField>) {
   return use<T>((key, type) => new OneToOneField(key, type, from, config));
