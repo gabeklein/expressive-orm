@@ -206,14 +206,18 @@ abstract class Type {
     if (!Array.isArray(from))
       from = buildConstraints({ ...from, ...subset });
 
-    from = from.map(([key, op, value]) => {
+    const query = [] as Type.Constraint[];
+
+    for (let [key, op, value] of from) {
       const field = this.fields.get(key);
 
-      if(field)
-        return [field.column, op, field.set(value)]
-    }).filter(Boolean) as Type.Constraint[];
+      if(!field)
+        continue;
 
-    const rows = await connection.get(ref, from, limit, offset);
+      query.push([field.column, op, await field.set(value)]);
+    }
+
+    const rows = await connection.get(ref, query, limit, offset);
     return Promise.all(rows.map(row => this.parse(row) as Promise<T>));
   }
 
