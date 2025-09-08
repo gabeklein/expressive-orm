@@ -196,3 +196,45 @@ describe("query", () => {
     expect(post.title).toBe("Hello World");
   })
 })
+
+describe("lazy", () => {
+  class User extends Table {
+    static table = "user";
+
+    name = str();
+  }
+
+  class Post extends Table {
+    static table = "post";
+
+    title = str();
+    user = one(User, { lazy: true });
+  }
+
+  beforeAll(async () => {
+    await Table.connection.init(`
+      CREATE TABLE IF NOT EXISTS "user" (
+        id SERIAL PRIMARY KEY,
+        name TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS "post" (
+        id SERIAL PRIMARY KEY,
+        title TEXT,
+        user_id INTEGER REFERENCES "user"(id)
+      );
+
+      INSERT INTO "user" (name)
+      VALUES ('Gabe');
+
+      INSERT INTO "post" (title, user_id)
+      VALUES ('Hello World', 1);
+    `);
+  });
+
+  it("will lazy load relation", async () => {
+    const post = await Post.one({ title: "Hello World" }, true);
+    
+    expect(() => post.user).toThrow(expect.any(Promise))
+  })
+})

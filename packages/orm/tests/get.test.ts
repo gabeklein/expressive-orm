@@ -93,5 +93,4 @@ describe("errors", () => {
 
     expect(getArticles).toThrow("Field foobar does not exist on Article");
   });
-
 });

@@ -1,6 +1,7 @@
 import { type Type } from './Type';
 
 type Async<T> = T | Promise<T>;
+type MaybeLazy<T> = T | Promise<T> | (() => Async<T>);
 
 class Field {
   key: string;
@@ -26,12 +27,38 @@ class Field {
     return value;
   }
  
-  get(this: Field, value: any, from: Record<string, any>): Async<unknown> {
+  get(this: Field, value: any, from: Record<string, any>): MaybeLazy<unknown> {
     return value;
   }
 
-  async parse(this: Field, into: Type & Record<string, any>, raw: Record<string, any>){
-    into[this.key] = await this.get(raw[this.column], raw);
+  parse(this: Field, into: Type & Record<string, any>, raw: Record<string, any>): Async<void> {
+    const value = this.get(raw[this.column], raw);
+    const assign = (value: any) => {
+      Object.defineProperty(into, this.key, { value, configurable: true });
+      return value;
+    };
+
+    if(value instanceof Function){
+      let promise: unknown;
+
+      Object.defineProperty(into, this.key, {
+        configurable: true,
+        get(){
+          if(promise === undefined)
+            promise = Promise.resolve(value()).then(assign);
+
+          if(promise instanceof Promise)
+            throw promise;
+        }
+      });
+
+      return;
+    }
+
+    if(value instanceof Promise)
+      return value.then(assign);
+    else
+      assign(value);
   }
 
   async apply(update: Record<string, string>, from: Record<string, any>, partial?: boolean) {
@@ -54,11 +81,11 @@ class Field {
   }
 }
 
-interface Nullable extends Partial<Field> {
+interface Nullable {
   nullable: true;
 }
 
-type Config = Partial<Field> | null | undefined | false;
+type Config<T = Field> = Partial<T> | null | undefined | false;
 
 type Instruction = <T extends Type>(key: string, parent: Type.Class<T>) => Field | void;
 
@@ -93,9 +120,7 @@ function use<T>(cb: Instruction) {
 }
 
 function column<T>(...config: Config[]): T {
-  return use((key) => {
-    return new Field(key, ...config);
-  });
+  return use((key) => new Field(key, ...config));
 }
 
 function str(nullable: null | Nullable): string | undefined;
@@ -157,18 +182,21 @@ const ONE = new Map<Type.Class, Map<Type.Class, Field | null>>();
 class OneToOneField<T extends Type = Type> extends Field {
   type: Type.Class<T>;
   column: string;
+  lazy = false;
   
-  constructor(key: string, type: Type.Class, Class: Type.Class<T>, config?: Config) {
+  constructor(key: string, parent: Type.Class, from: Type.Class<T>, config?: Config) {
     super(key, config);
-    this.type = Class;
-    this.column = config && config.column || `${Class.table}_id`;
+    this.type = from;
+    this.column = `${from.table}_id`;
 
-    let rel = ONE.get(type);
+    Object.assign(this, config);
+
+    let rel = ONE.get(parent);
 
     if (!rel)
-      ONE.set(type, rel = new Map());
+      ONE.set(parent, rel = new Map());
 
-    rel.set(Class, rel.has(Class) ? null : this);
+    rel.set(from, rel.has(from) ? null : this);
   }
 
   get(id: number){
@@ -180,8 +208,13 @@ class OneToOneField<T extends Type = Type> extends Field {
       else
         throw new Error(`Missing required relation: ${Class.name}`);
 
+    const fetch = () => (Class as Type.Class).one({ id });
+
+    if(this.lazy)
+      return fetch;
+
     try {
-      return (Class as Type.Class).one({ id });
+      return fetch();
     }
     catch (error) {
       throw new Error(`Failed to load relation ${Class.name} for ${this.key}: ${error}`);
@@ -221,12 +254,10 @@ class OneToOneField<T extends Type = Type> extends Field {
   }
 }
 
-function one<T extends Type>(Class: Type.Class<T>, nullable: null | Nullable): T | undefined;
-function one<T extends Type>(Class: Type.Class<T>, config?: Config): T;
-function one<T extends Type>(Class: Type.Class<T>, config?: Config) {
-  return use<T>((key, type) => {
-    return new OneToOneField(key, type, Class, config);
-  });
+function one<T extends Type>(from: Type.Class<T>, nullable: null | Nullable): T | undefined;
+function one<T extends Type>(from: Type.Class<T>, config?: Config<OneToOneField>): T;
+function one<T extends Type>(from: Type.Class<T>, config?: Config<OneToOneField>) {
+  return use<T>((key, type) => new OneToOneField(key, type, from, config));
 }
 
 function get<T extends Type.Class>(Class: T, field?: keyof Type.Instance<T>) {
