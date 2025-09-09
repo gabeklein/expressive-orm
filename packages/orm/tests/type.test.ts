@@ -185,14 +185,38 @@ describe("types", () => {
 
 describe("Type instance caching and reload logic", () => {
   it("should cache instances and return the same object for repeated one(id) calls", async () => {
-    // TODO: Create and fetch an entity, then fetch again and check reference equality
+    class User extends Table {
+      static table = "cache_user";
+      name = str();
+    }
+    await Table.connection.init(`CREATE TABLE IF NOT EXISTS cache_user (id SERIAL PRIMARY KEY, name TEXT);`);
+    const user1 = await User.new({ name: "A" });
+    const fetched1 = await User.one(user1.id);
+    const fetched2 = await User.one(user1.id);
+    expect(fetched1).toBe(fetched2);
   });
 
   it("should update cache after parsing a new entity", async () => {
-    // TODO: Parse a raw entity, check that it's in the cache
+    class User extends Table {
+      static table = "cache_user2";
+      name = str();
+    }
+    await Table.connection.init(`CREATE TABLE IF NOT EXISTS cache_user2 (id SERIAL PRIMARY KEY, name TEXT);`);
+    await User.new({ name: "B" });
+    const raw = { id: 1, name: "B" };
+    const parsed = await (User as any).parse(raw);
+    expect(User.loaded.get(1)).toBe(parsed);
   });
 
   it("should reload entity when one(id, true) is called", async () => {
-    // TODO: Create entity, update in DB, call one(id, true) and check updated values
+    class User extends Table {
+      static table = "cache_user3";
+      name = str();
+    }
+    await Table.connection.init(`CREATE TABLE IF NOT EXISTS cache_user3 (id SERIAL PRIMARY KEY, name TEXT);`);
+    const user = await User.new({ name: "C" });
+    await Table.connection.exec(`UPDATE cache_user3 SET name = 'C2' WHERE id = 1;`);
+    const reloaded = await User.one(user.id, true);
+    expect(reloaded.name).toBe("C2");
   });
 });
