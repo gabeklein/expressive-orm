@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.10.3](https://github.com/gabeklein/orm/compare/@expressive/orm@0.10.2...@expressive/orm@0.10.3) (2025-09-09)
+
+
+### Bug Fixes
+
+* await prepare function in update method for proper data handling ([224b1cb](https://github.com/gabeklein/orm/commit/224b1cb1d0d21560efbfe608ae2fbd409644f238))
+
+
+
+
+
 ## [0.10.2](https://github.com/gabeklein/orm/compare/@expressive/orm@0.10.1...@expressive/orm@0.10.2) (2025-09-08)
 
 
