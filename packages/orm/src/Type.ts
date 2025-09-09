@@ -101,8 +101,9 @@ abstract class Type {
     const values: Record<string, any> = {};
     const type = this.constructor as typeof Type;
 
-    for (const [key] of type.fields)
-      values[key] = (this as any)[key];
+    for (const [key, field] of type.fields)
+      if(field.enumerable)
+        values[key] = (this as any)[key];
 
     return Object.freeze(values) as Values<this>;
   };

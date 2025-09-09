@@ -9,6 +9,7 @@ class Field {
   nullable = false;
   optional = false;
   type?: unknown;
+  enumerable = true;
 
   constructor(key: string, ...opts: Config[]) {
     this.key = key;
@@ -34,7 +35,9 @@ class Field {
   parse(this: Field, into: Type & Record<string, any>, raw: Record<string, any>): Async<void> {
     const value = this.get(raw[this.column], raw);
     const assign = (value: any) => {
-      Object.defineProperty(into, this.key, { value, configurable: true });
+      Object.defineProperty(into, this.key, { 
+        value, configurable: true, enumerable: this.enumerable
+      });
       return value;
     };
 
@@ -43,6 +46,7 @@ class Field {
 
       Object.defineProperty(into, this.key, {
         configurable: true,
+        enumerable: this.enumerable,
         get(){
           if(promise instanceof Promise)
             throw promise;
@@ -192,6 +196,9 @@ class OneToOneField<T extends Type = Type> extends Field {
     this.column = `${from.table}_id`;
 
     Object.assign(this, config);
+
+    if(this.lazy)
+      this.enumerable = false;
 
     let rel = ONE.get(parent);
 
