@@ -169,7 +169,7 @@ abstract class Type {
   }
 
   static async update<T extends Type>(this: Type.Class<T>, id: T["id"], data: Type.Update<T>) {
-    await this.connection.update(this.ref, id, this.prepare(data, true));
+    await this.connection.update(this.ref, id, await this.prepare(data, true));
   }
 
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>){
