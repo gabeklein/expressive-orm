@@ -39,16 +39,20 @@ class Field {
     };
 
     if(value instanceof Function){
-      let promise: unknown;
+      let promise: Promise<any> | undefined;
 
       Object.defineProperty(into, this.key, {
         configurable: true,
         get(){
-          if(promise === undefined)
-            promise = Promise.resolve(value()).then(assign);
-
           if(promise instanceof Promise)
             throw promise;
+
+          const result = value();
+
+          if(result instanceof Promise)
+            throw promise = result.then(assign);
+          else
+            return assign(result);
         }
       });
 
@@ -206,16 +210,24 @@ class OneToOneField<T extends Type = Type> extends Field {
       else
         throw new Error(`Missing required relation: ${Class.name}`);
 
-    const fetch = () => (Class as Type.Class).one({ id });
+    const fetch = cached.bind(Class, id);
 
     if(this.lazy)
       return fetch;
 
+    const message = (err: Error) => {
+      if(err instanceof Error)
+        err.message = `Failed to load relation ${Class.name} for ${this.key}: ${err.message}`;
+
+      throw err;
+    };
+
     try {
-      return fetch();
+      const result = fetch();
+      return result instanceof Promise ? result.catch(message) : fetch();
     }
     catch (error) {
-      throw new Error(`Failed to load relation ${Class.name} for ${this.key}: ${error}`);
+      message(error as Error);
     }
   }
 
@@ -250,6 +262,10 @@ class OneToOneField<T extends Type = Type> extends Field {
 
     return value;
   }
+}
+
+function cached<T extends Type>(this: Type.Class<T>, id: number){
+  return this.loaded.get(id) as (T | undefined) || this.one(id, false);
 }
 
 function one<T extends Type>(from: Type.Class<T>, nullable: Nullable<OneToOneField>): T | undefined;

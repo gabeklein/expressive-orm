@@ -182,3 +182,17 @@ describe("types", () => {
     foobar.e = undefined;
   })
 })
+
+describe("Type instance caching and reload logic", () => {
+  it("should cache instances and return the same object for repeated one(id) calls", async () => {
+    // TODO: Create and fetch an entity, then fetch again and check reference equality
+  });
+
+  it("should update cache after parsing a new entity", async () => {
+    // TODO: Parse a raw entity, check that it's in the cache
+  });
+
+  it("should reload entity when one(id, true) is called", async () => {
+    // TODO: Create entity, update in DB, call one(id, true) and check updated values
+  });
+});

@@ -238,3 +238,25 @@ describe("lazy", () => {
     expect(() => post.user).toThrow(expect.any(Promise))
   })
 })
+
+describe("OneToOneField and lazy field logic", () => {
+  it("should throw a promise when accessing a lazy field and resolve correctly", async () => {
+    // TODO: Create a model with a lazy field, access it, catch thrown promise, await and check value
+  });
+
+  it("should use cache for OneToOneField relation if available", async () => {
+    // TODO: Create related entities, check that relation uses cache
+  });
+
+  it("should handle errors when relation loading fails", async () => {
+    // TODO: Try to load a relation with missing/invalid id, expect error
+  });
+
+  it("should return a function for lazy relations and resolve correctly", async () => {
+    // TODO: Create a lazy relation, check that returned value is a function, call and check result
+  });
+
+  it("should return cached instance if present, otherwise load it", async () => {
+    // TODO: Insert entity, check cached returns instance, remove from cache, check loads from DB
+  });
+});

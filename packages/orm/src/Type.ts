@@ -83,8 +83,19 @@ class NotReady {
   remove = reject;
 }
 
+const LOADED = new Map<typeof Type, Map<number, Type>>();
+
 abstract class Type {
   id = num({ optional: true });
+
+  static get loaded(){
+    let map = LOADED.get(this);
+
+    if(!map)
+      LOADED.set(this, map = new Map());
+
+    return map;
+  }
 
   get values() {
     const values: Record<string, any> = {};
@@ -147,10 +158,12 @@ abstract class Type {
     this: Type.Class<T>,
     raw: Record<string, any>
   ){
-    const entity = Object.create(this.prototype) as T;
+    const entity = this.loaded.get(raw.id) as T ||  Object.create(this.prototype) as T;
 
     for (const field of this.fields.values())
       await field.parse(entity, raw);
+    
+    this.loaded.set(entity.id, entity);
 
     return entity;
   }
@@ -185,16 +198,24 @@ abstract class Type {
   }
 
   static async one<T extends Type>(this: Type.Class<T>, id: number, expect: boolean): Promise<T | undefined>;
-  static async one<T extends Type>(this: Type.Class<T>, id: number, expect?: true): Promise<T>;
+  static async one<T extends Type>(this: Type.Class<T>, id: number, reload?: true): Promise<T>;
   static async one<T extends Type>(this: Type.Class<T>, where: Type.Query<T>, expect: boolean): Promise<T | undefined>;
   static async one<T extends Type>(this: Type.Class<T>, where?: Type.Query<T>, expect?: true): Promise<T>;
-  static async one<T extends Type>(this: Type.Class<T>, where?: number | Type.Query<T>, expect?: boolean): Promise<T | undefined> {
-    if (typeof where === "number")
+  static async one<T extends Type>(this: Type.Class<T>, where?: number | Type.Query<T>, arg?: boolean): Promise<T | undefined> {
+    if (typeof where === "number"){
+      if(!arg) {
+        const cached = this.loaded.get(where);
+
+        if(cached)
+          return cached as T;
+      }
+
       where = { id: equal(where) };
+    }
 
     const [row] = await this.query(where, 1);
 
-    if (!row && expect !== false)
+    if (!row && arg !== false)
       throw new Error(`No ${this.name} found with: \n${JSON.stringify(where, null, 2)}\n`);
 
     return row;
