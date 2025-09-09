@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.11.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.10.3...@expressive/orm@0.11.0) (2025-09-09)
+
+
+### Features
+
+* implement Type.one(id) caching ([a2dde78](https://github.com/gabeklein/orm/commit/a2dde784c7a778027257492da30705d2f922d784))
+
+
+
+
+
 ## [0.10.3](https://github.com/gabeklein/orm/compare/@expressive/orm@0.10.2...@expressive/orm@0.10.3) (2025-09-09)
 
 
