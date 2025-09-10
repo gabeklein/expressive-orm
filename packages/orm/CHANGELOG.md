@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.11.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.11.0...@expressive/orm@0.11.1) (2025-09-10)
+
+
+### Bug Fixes
+
+* update property definition to use 'this' context in get function ([b42915c](https://github.com/gabeklein/orm/commit/b42915cd88957471d307d7112f5024b5c1bdff20))
+
+
+
+
+
 # [0.11.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.10.3...@expressive/orm@0.11.0) (2025-09-09)
 
 
