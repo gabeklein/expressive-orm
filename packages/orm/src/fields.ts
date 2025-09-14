@@ -75,11 +75,8 @@ class Field {
 
     value = await this.set(value);
 
-    if (value == null)
-      if (nullable)
-        return null;
-      else
-        throw new Error(`Missing required field: ${key}`);
+    if (value == null && !nullable)
+      throw new Error(`Missing required field: ${key}`);
 
     update[column] = value;
   }
