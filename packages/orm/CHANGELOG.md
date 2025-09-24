@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.11.2](https://github.com/gabeklein/orm/compare/@expressive/orm@0.11.1...@expressive/orm@0.11.2) (2025-09-24)
+
+
+### Bug Fixes
+
+* enhance field value handling to support arrays in query construction ([ff5b4eb](https://github.com/gabeklein/orm/commit/ff5b4eb60c4b8954dc8462179a634932148ae168))
+* handle SET values to null ([e3d19cf](https://github.com/gabeklein/orm/commit/e3d19cfd89b0961ead9271691cec79304314708d))
+
+
+
+
+
 ## [0.11.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.11.0...@expressive/orm@0.11.1) (2025-09-10)
 
 
