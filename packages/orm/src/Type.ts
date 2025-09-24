@@ -239,8 +239,13 @@ abstract class Type {
     for (let [key, op, value] of from) {
       const field = this.fields.get(key);
 
-      if(field)
-        query.push([field.column, op, await field.set(value, true)]);
+      if(field){
+        const computed = Array.isArray(value)
+          ? Promise.all(value.map(v => field.set(v, true)))
+          : field.set(value, true);
+
+        query.push([field.column, op, await computed]);
+      }
     }
 
     const rows = await connection.get(ref, query, limit, offset);
