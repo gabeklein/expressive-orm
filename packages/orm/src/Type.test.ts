@@ -1,4 +1,4 @@
-import { Table, str, asc, greaterThan, one } from "./Table";
+import { Table, str, asc, greaterThan, one } from "../tests/Table";
 
 it("will allow for methods", async () => {
   await Table.connection.init(`

@@ -1,4 +1,4 @@
-import { Table, str, one } from "./Table";
+import { Table, str, one } from "../tests/Table";
 
 describe("get", () => {
   class User extends Table {
