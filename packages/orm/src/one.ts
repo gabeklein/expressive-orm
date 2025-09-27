@@ -1,4 +1,5 @@
-import { Config, Field, use, Nullable } from "./fields";
+import { use } from "./fields";
+import { Config, Field, Nullable } from './Field';
 import Type from "./Type";
 
 const ONE = new Map<Type.Class, Map<Type.Class, Field | null>>();

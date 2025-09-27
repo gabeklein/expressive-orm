@@ -1,4 +1,5 @@
-import { Field, init, num, underscore } from './fields';
+import { init, num } from './fields';
+import { Field, underscore } from './Field';
 import { desc, equal, Where } from './where';
 
 type Values<T extends Type> = {
