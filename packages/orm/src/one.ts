@@ -33,7 +33,7 @@ class OneToOneField<T extends Type = Type> extends Field {
       else
         throw new Error(`Missing required relation: ${Class.name}`);
 
-    const fetch = getCached.bind(Class, id);
+    const fetch = () => Class.one(id, false);
 
     if(this.lazy)
       return fetch;
@@ -85,10 +85,6 @@ class OneToOneField<T extends Type = Type> extends Field {
 
     return value;
   }
-}
-
-function getCached<T extends Type>(this: Type.Class<T>, id: number){
-  return this.loaded.get(id) as (T | undefined) || this.one(id, false);
 }
 
 export function getRelated<T extends Type.Class>(Class: T, type: Type.Class) {
