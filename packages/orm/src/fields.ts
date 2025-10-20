@@ -70,7 +70,7 @@ function date(config?: Config): Date;
 function date(config?: Config) {
   return column({
     type: Date,
-    set: (value: Date) => value ? value.toISOString() : undefined,
+    set: (value: Date) => value ? new Date(value).toISOString() : undefined,
     get: (value: string) => value ? new Date(value) : undefined,
   }, config);
 }
