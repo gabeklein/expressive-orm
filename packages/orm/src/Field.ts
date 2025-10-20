@@ -7,7 +7,39 @@ export type Nullable<T extends Field = Field> = null | Partial<T> & { nullable: 
 
 export type Config<T = Field> = Partial<T> | null | undefined | false;
 
+export type Instruction = <T extends Type>(key: string, parent: Type.Class<T>) => Field | void;
+
+const USE = new Map<symbol, Instruction>();
+
+export function apply<T extends Type>(type: Type.Class<T>) {
+  const fields = new Map<string, Field>();
+  const base = new (type as any)() as Type;
+
+  for (const key in base) {
+    const value = (base as any)[key];
+    const instruction = USE.get(value);
+
+    if (typeof instruction === 'function')
+      USE.delete(value);
+    else
+      continue;
+
+    const config = instruction(key, type);
+
+    if (config)
+      fields.set(key, config);
+  }
+
+  return fields;
+}
+
 export class Field {
+  static use<T extends Field>(this: new (...args: any[]) => T, ...config: Config<T>[]): unknown {
+    const symbol = Symbol();
+    USE.set(symbol, (key, parent) => new this(key, ...config, { parent }));
+    return symbol as unknown as T;
+  }
+
   key: string;
   column: string;
   nullable = false;

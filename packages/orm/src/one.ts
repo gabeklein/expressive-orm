@@ -1,4 +1,3 @@
-import { use } from "./fields";
 import { Config, Field, Nullable } from './Field';
 import Type from "./Type";
 
@@ -101,8 +100,8 @@ export function getRelated<T extends Type.Class>(Class: T, type: Type.Class) {
 
 function one<T extends Type>(from: Type.Class<T>, nullable: Nullable<OneToOneField>): T | undefined;
 function one<T extends Type>(from: Type.Class<T>, config?: Config<OneToOneField>): T;
-function one<T extends Type>(from: Type.Class<T>, config?: Config<OneToOneField>) {
-  return use<T>((key, type) => new OneToOneField(key, type, from, config));
+function one<T extends Type>(type: Type.Class<T>, config?: Config<OneToOneField>) {
+  return OneToOneField.use({ type, ...config });
 }
 
 export { one };
