@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.12.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.11.2...@expressive/orm@0.12.0) (2025-10-30)
+
+
+### Bug Fixes
+
+* ensure date value is properly converted to ISO string format ([5dcf709](https://github.com/gabeklein/orm/commit/5dcf7099ffab5bf72e747fc4b8ba3c654b4a3562))
+* replace cached fetch with direct call to Class.one for improved clarity ([05314a4](https://github.com/gabeklein/orm/commit/05314a483cf3d642b1f0e78d86a65d04ac020573))
+* update type inference for nullable fields and improve json function return type ([19e37ed](https://github.com/gabeklein/orm/commit/19e37ed6ab4f1c5f321e1414c9247f0f89dc472e))
+
+
+### Features
+
+* add orNull and optional configurations; export lazy from one module ([511f011](https://github.com/gabeklein/orm/commit/511f011274fe1355408042b0ee5f5567679e4635))
+
+
+
+
+
 ## [0.11.2](https://github.com/gabeklein/orm/compare/@expressive/orm@0.11.1...@expressive/orm@0.11.2) (2025-09-24)
 
 
