@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.12.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.12.0...@expressive/orm@0.12.1) (2025-10-30)
+
+
+### Bug Fixes
+
+* add 'as const' assertion to orNull and optional constants for better type inference ([46ba8fc](https://github.com/gabeklein/orm/commit/46ba8fc4ba5ab1f7d2893e9238e6831e1c3b4a23))
+
+
+
+
+
 # [0.12.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.11.2...@expressive/orm@0.12.0) (2025-10-30)
 
 
