@@ -3,7 +3,7 @@ import { type Type } from './Type';
 
 export type Infer<T extends any[], Base> =
   T extends [infer First, ...infer Rest]
-    ? First extends { nullable: true }
+    ? First extends Nullable
       ? Base | undefined
       : Infer<Rest, Base>
     : Base;
@@ -85,12 +85,12 @@ function uuid<T extends Config[]>(...config: T): Infer<T, string> {
 
 function json<T>(nullable: Nullable): T | undefined;
 function json<T>(config?: Config): T;
-function json<T>(config?: Config): T {
+function json<T>(config?: Config){
   return column({
     type: Object,
     set: (value: T) => JSON.stringify(value),
     get: (value: string) => value ? JSON.parse(value) : undefined,
-  }, config);
+  }, config) as T;
 }
 
 const orNull = { nullable: true };
