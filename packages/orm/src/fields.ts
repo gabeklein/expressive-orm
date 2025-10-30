@@ -93,8 +93,8 @@ function json<T>(config?: Config){
   }, config) as T;
 }
 
-const orNull = { nullable: true };
-const optional = { optional: true };
+const orNull = { nullable: true } as const;
+const optional = { optional: true } as const;
 
 export {
   Field,
