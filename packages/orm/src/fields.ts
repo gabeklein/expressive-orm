@@ -1,6 +1,13 @@
 import { Config, Field, Nullable } from './Field';
 import { type Type } from './Type';
 
+export type Infer<T extends any[], Base> =
+  T extends [infer First, ...infer Rest]
+    ? First extends { nullable: true }
+      ? Base | undefined
+      : Infer<Rest, Base>
+    : Base;
+
 export type Instruction = <T extends Type>(key: string, parent: Type.Class<T>) => Field | void;
 
 const USE = new Map<symbol, Instruction>();
@@ -33,52 +40,47 @@ function use<T>(cb: Instruction) {
   return symbol as unknown as T;
 }
 
-function column<T>(...config: Config[]): T {
-  return use((key) => new Field(key, ...config));
+function column<T extends Config[], Base>(base: Config, ...config: T): Infer<T, Base> {
+  return use((key) => new Field(key, base, ...config)) as Infer<T, Base>;
 }
 
-function str(nullable: Nullable): string | undefined;
-function str(config?: Config): string;
-function str(config?: Config | null) {
-  return column({ type: String }, config);
+
+function str<T extends Config[]>(...config: T): Infer<T, string> {
+  return column({ type: String }, ...config);
 }
 
-function num(nullable: Nullable): number | undefined;
-function num(config?: Config): number;
-function num(config?: Config | null) {
+
+function num<T extends Config[]>(...config: T): Infer<T, number> {
   return column({
     type: Number,
     set: (value: number) => value,
     get: (value: string) => {
       return value != null ? parseFloat(value) : value;
     },
-  }, config);
+  }, ...config);
 }
 
-function bool(nullable: Nullable): boolean | undefined;
-function bool(config?: Config): boolean;
-function bool(config?: Config) {
+
+function bool<T extends Config[]>(...config: T): Infer<T, boolean> {
   return column({
     type: Boolean,
     set: (value: boolean) => value ? 1 : 0,
     get: (value: number) => value === undefined ? value : Boolean(value),
-  }, config);
+  }, ...config);
 }
 
-function date(nullable: Nullable): Date | undefined;
-function date(config?: Config): Date;
-function date(config?: Config) {
+
+function date<T extends Config[]>(...config: T): Infer<T, Date> {
   return column({
     type: Date,
     set: (value: Date) => value ? new Date(value).toISOString() : undefined,
     get: (value: string) => value ? new Date(value) : undefined,
-  }, config);
+  }, ...config);
 }
 
-function uuid(nullable: Nullable): string | undefined;
-function uuid(config?: Config): string;
-function uuid(config?: Config) {
-  return column({ type: String }, config);
+
+function uuid<T extends Config[]>(...config: T): Infer<T, string> {
+  return column({ type: String }, ...config);
 }
 
 function json<T>(nullable: Nullable): T | undefined;

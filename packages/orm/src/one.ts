@@ -1,5 +1,5 @@
-import { use } from "./fields";
-import { Config, Field, Nullable } from './Field';
+import { Infer, use } from "./fields";
+import { Config, Field } from './Field';
 import Type from "./Type";
 
 const ONE = new Map<Type.Class, Map<Type.Class, Field | null>>();
@@ -9,12 +9,12 @@ class OneToOneField<T extends Type = Type> extends Field {
   column: string;
   lazy = false;
   
-  constructor(key: string, parent: Type.Class, from: Type.Class<T>, config?: Config) {
-    super(key, config);
+  constructor(key: string, parent: Type.Class, from: Type.Class<T>, ...config: Config[]) {
+    super(key, ...config);
     this.type = from;
     this.column = `${from.table}_id`;
 
-    Object.assign(this, config);
+    Object.assign(this, ...config);
 
     let rel = ONE.get(parent);
 
@@ -99,10 +99,8 @@ export function getRelated<T extends Type.Class>(Class: T, type: Type.Class) {
   throw new Error(`No relationship inferred for ${Class.name} in ${type.name}. ${message}`);
 }
 
-function one<T extends Type>(from: Type.Class<T>, nullable: Nullable<OneToOneField>): T | undefined;
-function one<T extends Type>(from: Type.Class<T>, config?: Config<OneToOneField>): T;
-function one<T extends Type>(from: Type.Class<T>, config?: Config<OneToOneField>) {
-  return use<T>((key, type) => new OneToOneField(key, type, from, config));
+function one<T extends Type, C extends Config<OneToOneField>[]>(from: Type.Class<T>, ...config: C){
+  return use<T>((key, type) => new OneToOneField(key, type, from, ...config)) as Infer<C, T>;
 }
 
 export { one };
