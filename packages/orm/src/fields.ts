@@ -93,6 +93,9 @@ function json<T>(config?: Config): T {
   }, config);
 }
 
+const orNull = { nullable: true };
+const optional = { optional: true };
+
 export {
   Field,
   init,
@@ -102,5 +105,7 @@ export {
   bool,
   date,
   uuid,
-  use
+  use,
+  orNull,
+  optional,
 }

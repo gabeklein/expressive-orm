@@ -103,4 +103,6 @@ function one<T extends Type, C extends Config<OneToOneField>[]>(from: Type.Class
   return use<T>((key, type) => new OneToOneField(key, type, from, ...config)) as Infer<C, T>;
 }
 
-export { one };
+const lazy = { lazy: true };
+
+export { one, lazy };
