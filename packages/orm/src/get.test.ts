@@ -1,15 +1,15 @@
-import { Table, str, one, get } from "../tests/Table";
+import { Table, str, one, get, notNull } from "../tests/Table";
 
 describe("get", () => {
   class Profile extends Table {
     static table = "profile";
-    user = one(User);
-    bio = str();
+    user = one(User, notNull);
+    bio = str(notNull);
   }
 
   class User extends Table {
     static table = "user";
-    name = str();
+    name = str(notNull);
     profiles = get(Profile); // should infer user
   }
 

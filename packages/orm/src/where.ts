@@ -15,7 +15,7 @@ const lessThanOrEqual = (value: any) => new Where('<=', value);
 const notEqual = (value: any) => new Where('!=', value);
 const isLike = (value: any) => new Where('LIKE', value);
 const isNull = () => new Where('IS NULL');
-const notNull = () => new Where('IS NOT NULL');
+const isNotNull = () => new Where('IS NOT NULL');
 const asc = () => new Where('asc');
 const desc = () => new Where('desc');
 const isIn = (values: any[]) => new Where('IN', values);
@@ -31,7 +31,7 @@ export {
   notEqual,
   isLike,
   isNull,
-  notNull,
+  isNotNull,
   isIn,
   notIn,
   asc,

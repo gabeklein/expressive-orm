@@ -87,7 +87,7 @@ class NotReady {
 const LOADED = new Map<typeof Type, Map<number, Type>>();
 
 abstract class Type {
-  id = num({ optional: true });
+  id = num({ optional: true, nullable: false });
 
   static get loaded(){
     let map = LOADED.get(this);

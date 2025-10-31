@@ -1,17 +1,17 @@
-import { Table, str, one } from "../tests/Table";
+import { Table, str, one, notNull } from "../tests/Table";
 
 describe("get", () => {
   class User extends Table {
     static table = "user";
 
-    name = str();
+    name = str(notNull);
   }
 
   class Post extends Table {
     static table = "post";
 
-    title = str();
-    user = one(User);
+    title = str(notNull);
+    user = one(User, notNull);
   }
   
   beforeEach(async () => {
@@ -77,7 +77,7 @@ describe("insert", () => {
     static table = "post";
 
     title = str();
-    user = one(User);
+    user = one(User, notNull);
   }
 
   let user: User;
@@ -148,7 +148,7 @@ describe("query", () => {
     static table = "post";
 
     title = str();
-    user = one(User);
+    user = one(User, notNull);
   }
 
   beforeAll(async () => {

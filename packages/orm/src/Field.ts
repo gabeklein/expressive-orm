@@ -3,9 +3,12 @@ import type { Type } from './Type';
 export type Async<T> = T | Promise<T>;
 export type MaybeLazy<T> = T | Promise<T> | (() => Async<T>);
 
-export type Nullable<T extends Field = Field> = null | Partial<T> & { nullable: true }
-
-export type Config<T = Field> = Partial<T> | null | undefined | false;
+/**
+ * Field configuration options.
+ * 
+ * May be null, false, or undefined to skip where some options are conditional.
+ */
+export type Config<T = Field> = Partial<T> | undefined | null | false;
 
 export class Field {
   key: string;

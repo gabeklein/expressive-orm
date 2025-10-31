@@ -1,16 +1,19 @@
-import { Config, Field, Nullable } from './Field';
+import { Config, Field } from './Field';
 import { type Type } from './Type';
 
 export type Infer<T extends any[], Base> =
   T extends [infer First, ...infer Rest]
-    ? First extends Nullable
-      ? Base | undefined
+    ? First extends { nullable: false }
+      ? NonNullable<Infer<Rest, Base>>
       : Infer<Rest, Base>
-    : Base;
+    : Base | undefined;
 
 export type Instruction = <T extends Type>(key: string, parent: Type.Class<T>) => Field | void;
 
 const USE = new Map<symbol, Instruction>();
+
+const notNull = { nullable: false } as const;
+const optional = { optional: true } as const;
 
 function init<T extends Type>(type: Type.Class<T>) {
   const fields = new Map<string, Field>();
@@ -49,7 +52,6 @@ function str<T extends Config[]>(...config: T): Infer<T, string> {
   return column({ type: String }, ...config);
 }
 
-
 function num<T extends Config[]>(...config: T): Infer<T, number> {
   return column({
     type: Number,
@@ -83,8 +85,8 @@ function uuid<T extends Config[]>(...config: T): Infer<T, string> {
   return column({ type: String }, ...config);
 }
 
-function json<T>(nullable: Nullable): T | undefined;
-function json<T>(config?: Config): T;
+function json<T>(nullable: { nullable: false }): T;
+function json<T>(config?: Config): T | undefined;
 function json<T>(config?: Config){
   return column({
     type: Object,
@@ -92,9 +94,6 @@ function json<T>(config?: Config){
     get: (value: string) => value ? JSON.parse(value) : undefined,
   }, config) as T;
 }
-
-const orNull = { nullable: true } as const;
-const optional = { optional: true } as const;
 
 export {
   Field,
@@ -106,6 +105,6 @@ export {
   date,
   uuid,
   use,
-  orNull,
+  notNull,
   optional,
 }
