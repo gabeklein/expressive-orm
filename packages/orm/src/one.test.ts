@@ -50,7 +50,7 @@ it("will be undefined if optional", async () => {
     static table = "post";
 
     title = str();
-    user = one(User, null);
+    user = one(User);
   }
 
   await Table.connection.exec(`

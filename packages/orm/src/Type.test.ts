@@ -1,4 +1,4 @@
-import { Table, str, asc, greaterThan, one } from "../tests/Table";
+import { Table, str, asc, greaterThan, one, notNull } from "../tests/Table";
 
 it("will allow for methods", async () => {
   await Table.connection.init(`
@@ -155,15 +155,15 @@ describe("extended types", () => {
 describe("types", () => {
   class Bar extends Table {}
   class FooBar extends Table {
-    a = str();
-    b = str(null);
-    c = str({ nullable: true });
-    d = str({ column: "foobar", nullable: true });
+    a = str(notNull);
+    b = str();
+    c = str();
+    d = str({ column: "foobar" });
 
-    e = one(Bar);
-    f = one(Bar, null);
-    g = one(Bar, { nullable: true });
-    h = one(Bar, { column: "bar_id", nullable: true });
+    e = one(Bar, notNull);
+    f = one(Bar);
+    g = one(Bar);
+    h = one(Bar, { column: "bar_id" });
   }
 
   it("will properly apply nullable", () => {
