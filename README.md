@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  Define classes to power your quries by extending <code>Table</code>.<br/>
+  Define classes to power your queries by extending <code>Table</code>.<br/>
   The <code>Query</code> factory helps you compose one-to-one SQL and execute them.<br/>
   Columns you return are selected and ready for type-safe use!<br/>
 </p>
@@ -50,24 +50,30 @@ Classes which extend `Table` can manage your data with high safety and convenien
 
 ## Define your schema
 
-With the base SQL module, we have a number of tools available to define an entire schema.
-
-With simple factories, you can customize the columns, set types default values, read, write, and validate functions. 
+With the base SQL module, you can define your database schema using classes that extend `Table`. Field factories let you customize columns with types, defaults, validation, and more.
 
 ```bash
 npm i @expressive/sql
 ```
-```ts
+
+```typescript
 // src/database/tables.ts
 
-import { Table, Str, Num, Bool, Time, One } from '@expressive/sql';
+import { Table, Str, Num, Bool, Time } from '@expressive/sql';
 import { hash } from "./lib/passwords";
 
 class User extends Table {
+  // Fields without nullable option default to not nullable
   name = Str();
-  nickName = Str({ nullable: true });
   email = Str({ unique: true });
+
+  // Explicitly nullable fields
+  nickName = Str({ nullable: true });
+
+  // Custom type, length, and setter
   password = Str({ type: "varchar", length: 40, set: hash });
+
+  // Fallback values (like SQL DEFAULT)
   createdAt = Time({ fallback: "NOW" });
 }
 
@@ -75,7 +81,11 @@ class Post extends Table {
   authorId = Num();
   title = Str();
   content = Str();
+
+  // Boolean with fallback
   published = Bool({ fallback: false });
+
+  // Time fields
   createdAt = Time({ fallback: "NOW" });
   updatedAt = Time({ nullable: true });
 }
@@ -83,7 +93,7 @@ class Post extends Table {
 export { User, Post }
 ```
 
-Tables you create are typesafe out the box! No special decorators or interface types needed.
+Tables you create are type-safe out of the box! No special decorators or interface types needed.
 
 ```typescript
 // lib/database/tables.d.ts (built with tsc)
@@ -112,65 +122,132 @@ declare class Post extends Table {
 export { Post, User };
 ```
 
+### Field Types
+
+The library provides several field type factories to define your table columns:
+
+- `Str()` - String fields (text, varchar, etc.)
+- `Num()` - Numeric fields (integer, float, decimal, etc.)
+- `Bool()` - Boolean fields
+- `Time()` - Date and time fields
+- `One()` - Foreign key relationship to another table
+
+Each field type accepts options to customize behavior:
+
+```typescript
+class Product extends Table {
+  // Basic string field
+  name = Str();
+
+  // Varchar with length limit
+  sku = Str({ type: 'varchar', length: 20 });
+
+  // Numeric with precision
+  price = Num({ type: 'numeric', precision: 10, scale: 2 });
+
+  // Boolean with default
+  inStock = Bool({ fallback: true });
+
+  // Nullable field
+  description = Str({ nullable: true });
+
+  // Unique constraint
+  barcode = Str({ unique: true, nullable: true });
+}
+```
+
 <br />
 
 ## Connecting to your database
 
-Pick an adapter which fits your needs. Currently supported are
-- postgres `@expressive/postgres` + `pg`
-- pglite `@expressive/postgres` + `@electric-sql/pglite`
-- sqlite `@expressive/sqlite` + `better-sqlite3`
-- mysql `@expressive/mysql` + `mysql2`
+Pick an adapter which fits your needs:
+
+```bash
+# PostgreSQL
+npm i @expressive/postgres pg
+
+# PGLite (embedded PostgreSQL)
+npm i @expressive/postgres @electric-sql/pglite
+
+# SQLite
+npm i @expressive/sqlite better-sqlite3
+
+# MySQL
+npm i @expressive/mysql mysql2
+```
 
 <br />
 
-For this example, we'll use Postgres.
-
-```bash
-npm i @expressive/postgres pg
-```
+For this example, we'll use Postgres:
 
 ```typescript
 // src/database/index.ts
 
 import { PGConnection } from '@expressive/postgres';
-
 import * as tables from './tables';
 
-// Create a connection and link them to your tables
-export async function connect(){
-  await new PostgresConnection(tables, {
-    user: process.env.USER,
-    password: process.env.PASSWORD,
-    database: process.env.DATABASE,
-  })
-};
+// Create a connection and link your tables
+export async function connect() {
+  await new PGConnection(tables, {
+    host: process.env.DB_HOST,
+    port: 5432,
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+  });
+}
 
-// We can reexport tables
+// Reexport tables for convenience
 export * from './tables';
 
-// We can also export Query so we're all consolidated.
-export { Query } from '@expressive/sql'
+// Export Query so everything is consolidated
+export { Query } from '@expressive/sql';
 ```
-When you connect in this way, all `Table` classes you apply to the connection are checked against the schema of that database. If any mismatch the connection will throw - this ensures you will operate on the data you expect.
+
+When you connect, all `Table` classes are validated against the database schema. If any mismatch is found, the connection will throw - ensuring you operate on the data you expect.
+
+### Other Database Adapters
+
+```typescript
+// PGLite (embedded)
+import { PGLiteConnection } from '@expressive/postgres';
+await new PGLiteConnection(tables, { dataDir: './data' });
+
+// SQLite
+import { SQLiteConnection } from '@expressive/sqlite';
+await new SQLiteConnection(tables, './database.db');
+
+// MySQL
+import { MySQLConnection } from '@expressive/mysql';
+await new MySQLConnection(tables, {
+  host: 'localhost',
+  database: 'myapp',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD
+});
+```
 
 <br />
 
 ## Querying your data
 
-The `Query` function is a powerful factory which generates both the actual query, and the parser which turns your results into javascript objects with the shape you returned. 
+The `Query` function is a powerful factory which generates both the SQL query and the parser that transforms results into JavaScript objects with the shape you specify.
 
 ```typescript
 import { Query, Post, User } from './database';
 
-async function getPosts(){
+async function getPosts() {
   return await Query(where => {
     const post = where(Post);
     const author = where(User);
-    
-    where(post.authorId).equal(author.id); // This is a join equating two fields
-    where(post.published).equal(true); // This WHERE clause filters a value
-    
+
+    // Join tables by equating fields
+    where(post.authorId).equal(author.id);
+
+    // Filter with WHERE clauses
+    where(post.published).equal(true);
+
+    // Return the shape you want
     return {
       title: post.title,
       author: author.name,
@@ -180,7 +257,8 @@ async function getPosts(){
   });
 }
 ```
-With `getPosts()` you receive an array of the same type you returned - your selection.
+
+The return type is automatically inferred from your selection:
 
 ```typescript
 declare function getPosts(): Promise<{
@@ -189,6 +267,52 @@ declare function getPosts(): Promise<{
     content: string;
     date: Date;
 }[]>
+```
+
+### Return Variations
+
+```typescript
+// Return specific fields as an object
+const results = await Query(where => {
+  const user = where(User);
+  return {
+    name: user.name,
+    email: user.email
+  };
+});
+
+// Return entire table
+const users = await Query(where => {
+  const user = where(User);
+  return user;
+});
+
+// Return a single field
+const emails = await Query(where => {
+  const user = where(User);
+  return user.email;
+});
+
+// Return nested objects (generates SQL aliases)
+const results = await Query(where => {
+  const user = where(User);
+  return {
+    user: {
+      id: user.id,
+      name: user.name
+    },
+    contact: {
+      email: user.email
+    }
+  };
+});
+
+// Count query (no return = COUNT(*))
+const count = await Query(where => {
+  const user = where(User);
+  where(user.email).equal('test@example.com');
+  // No return statement = COUNT(*)
+});
 ```
 
 <br />
@@ -321,49 +445,150 @@ console.log(query);
 */
 ```
 
-### Joins
+### Sorting & Limits
 
-The ORM makes it easy to join tables in your queries:
+Sort results and limit the number of rows returned:
 
 ```typescript
-const query = Query(where => {
-  const post = where(Post);
-  const user = where(User); // This defaults to an INNER JOIN.
-  
-  // Direct comparions between fields are considered ON conditions.
-  where(post.author).equal(user.id);
-  
-  return {
-    postTitle: post.title,
-    authorName: user.name
-  };
+// Sort by one field
+await Query(where => {
+  const user = where(User);
+  where(user.createdAt).desc();
+  return user;
 });
-```
+// ORDER BY user.created_at DESC
 
-### Filtering
+// Multiple column sorting
+await Query(where => {
+  const user = where(User);
+  where(user.email).asc();      // First by email
+  where(user.createdAt).desc(); // Then by created date
+  return user;
+});
+// ORDER BY user.email ASC, user.created_at DESC
 
-You can filter your queries using various operators. Javascript values and in-engine values are converted based on how the column was defined in the class.
+// Limit results
+await Query(where => {
+  const user = where(User);
+  where(10); // LIMIT 10
+  return user;
+});
 
-```typescript
-const query = Query(where => {
+// Combine sorting and limits
+await Query(where => {
   const post = where(Post);
-  
-  where(post.published).equal(true);
-  where(post.createdAt).over(new Date('2023-01-01'));
-  where(post.title).not('Hello');
-  
+  where(post.createdAt).desc();
+  where(5); // Get 5 most recent posts
   return post;
 });
 ```
 
+### Joins
+
+Joins are created by comparing fields from different tables:
+
+```typescript
+const query = Query(where => {
+  const post = where(Post);
+  const user = where(User);
+
+  // This creates an INNER JOIN
+  where(post.authorId).equal(user.id);
+
+  // Additional WHERE clauses
+  where(post.published).equal(true);
+  where(user.email).equal('john@example.com');
+
+  return {
+    postTitle: post.title,
+    authorName: user.name,
+    content: post.content
+  };
+});
+```
+
+```sql
+SELECT post.title AS "postTitle", user.name AS "authorName", post.content AS "content"
+FROM post
+INNER JOIN user ON post.author_id = user.id
+WHERE post.published = true AND user.email = 'john@example.com'
+```
+
+### Filtering
+
+Filter your queries using various comparison operators. JavaScript values are automatically converted based on field type:
+
+```typescript
+const query = Query(where => {
+  const post = where(Post);
+
+  // Equal
+  where(post.published).equal(true);
+
+  // Not equal
+  where(post.title).not('Hello');
+
+  // Greater than
+  where(post.createdAt).over(new Date('2023-01-01'));
+
+  // Greater than or equal
+  where(post.views).over(100, true);
+
+  // Less than
+  where(post.createdAt).under(new Date('2024-01-01'));
+
+  // Less than or equal
+  where(post.views).under(1000, true);
+
+  // IN operator
+  where(post.status).in(['draft', 'published']);
+
+  return post;
+});
+```
+
+### Grouping Conditions
+
+By default, multiple conditions are combined with AND:
+
+```typescript
+await Query(where => {
+  const user = where(User);
+
+  // These are ANDed together
+  where(user.email).equal('test@example.com');
+  where(user.createdAt).over(new Date('2023-01-01'));
+
+  return user;
+});
+// WHERE user.email = 'test@example.com' AND user.created_at > '2023-01-01'
+```
+
+To create OR conditions, nest them in a group:
+
+```typescript
+await Query(where => {
+  const user = where(User);
+
+  // This creates an OR group
+  where(
+    where(user.role).equal('admin'),
+    where(user.role).equal('moderator')
+  );
+
+  return user;
+});
+// WHERE user.role = 'admin' OR user.role = 'moderator'
+```
+
 ### Complex Conditions
 
-You can build complex conditions using nested groups:
+Build complex logic using nested groups. Groups alternate between AND/OR based on nesting level:
 
 ```typescript
 Query(where => {
   const post = where(Post);
-  
+
   where(
     where(post.title).equal('Hello'),
     where(
@@ -371,45 +596,83 @@ Query(where => {
       where(post.createdAt).over(new Date('2023-01-01'))
     )
   );
-  
+
   return post;
 });
 ```
+
 Translates to:
+
 ```sql
-SELECT
-  post.*
-FROM
-  post
-WHERE
-  post.title = 'Hello'
-  OR (
-    post.published = true
-    AND post.created_at > '2023-01-01'
-  )
+SELECT post.*
+FROM post
+WHERE post.title = 'Hello'
+   OR (post.published = true AND post.created_at > '2023-01-01')
 ```
+
+### Advanced Grouping
+
+```typescript
+Query(where => {
+  const item = where(Item);
+
+  // Must be in stock
+  where(item.inStock).equal(true);
+
+  // AND (red OR blue)
+  where(
+    where(item.color).equal('red'),
+    where(item.color).equal('blue')
+  );
+
+  // AND (small OR medium OR large)
+  where(
+    where(item.size).equal('small'),
+    where(item.size).equal('medium'),
+    where(item.size).equal('large')
+  );
+
+  return item;
+});
+```
+
+```sql
+WHERE item.in_stock = true
+  AND (item.color = 'red' OR item.color = 'blue')
+  AND (item.size = 'small' OR item.size = 'medium' OR item.size = 'large')
+```
+
+## Advanced Features
 
 ### Custom Column Names
 
-You can customize column names in the database:
+Map JavaScript property names to different database column names:
 
 ```typescript
 class User extends Table {
   firstName = Str({ column: 'first_name' });
   lastName = Str({ column: 'last_name' });
 }
+
+// Use JavaScript property names in your code
+await User.insert({
+  firstName: 'John',
+  lastName: 'Doe'
+});
 ```
 
 ### Custom Table Names
 
-You can customize the table using the Primary factory and overriding `id`:
+Customize the table name using the Primary factory:
 
 ```typescript
+import { Primary } from '@expressive/sql';
+
 class BlogPost extends Table {
   id = Primary({
-    tableName: "BasicBlogPost"
-  })
-  
+    tableName: "legacy_blog_posts"
+  });
+
   title = Str();
   content = Str();
 }
@@ -417,39 +680,139 @@ class BlogPost extends Table {
 
 ### Data Validation
 
-Fields automatically validate data:
+Fields automatically validate data based on their type and constraints:
 
 ```typescript
-class Info extends Table {
-  field = Num({ type: 'numeric', precision: 5, scale: 2 });
+class Product extends Table {
+  price = Num({ type: 'numeric', precision: 5, scale: 2 });
 }
 
-// Will throw validation error if value is out of range
-await Info.insert({ field: 1000.123 })
-// Error: Value of `field` exceeds precision
+// This will throw a validation error
+await Product.insert({ price: 1000.123 });
+// Error: Value of `price` exceeds precision (5,2)
+```
+
+### Custom Getters and Setters
+
+Transform data when reading from or writing to the database:
+
+```typescript
+import { hash } from './lib/passwords';
+
+class User extends Table {
+  // Hash password before storing
+  password = Str({
+    set: (value) => hash(value),
+    get: (value) => value // Return as-is from DB
+  });
+
+  // Format data on read
+  email = Str({
+    get: (value) => value.toLowerCase()
+  });
+}
+
+const user = await User.insert({
+  password: 'plaintext123',  // Automatically hashed
+  email: 'USER@EXAMPLE.COM'
+});
+
+console.log(user.email); // "user@example.com"
 ```
 
 ### Math Operations
 
-You can perform mathematical operations in queries:
+Perform mathematical operations in queries using the function parameter:
 
 ```typescript
 const query = Query((where, fn) => {
-  const { add, mul } = fn;
+  const { add, sub, mul, div, neg } = fn;
   const item = where(Item);
 
   return {
     total: mul(item.price, item.quantity),
-    discounted: mul(item.price, sub(1, item.discount))
+    discounted: mul(item.price, sub(1, item.discount)),
+    taxed: add(item.price, mul(item.price, 0.1)),
+    negated: neg(item.price)
   };
 });
 ```
 
+Nest expressions for complex calculations:
+
+```typescript
+Query((where, fn) => {
+  const { add, mul } = fn;
+  const item = where(Item);
+
+  // (price + 5) * quantity
+  return mul(add(item.price, 5), item.quantity);
+});
+// SELECT (item.price + 5) * item.quantity FROM item
+```
+
+Use template functions for custom SQL expressions:
+
+```typescript
+Query((where, fn) => {
+  const item = where(Item);
+
+  return {
+    custom: fn(`${item.price} * (${item.quantity} + 5)`)
+  };
+});
+// SELECT item.price * (item.quantity + 5) AS "custom"
+```
+
+### Inspecting Generated SQL
+
+View the generated SQL by stringifying a query:
+
+```typescript
+const query = Query(where => {
+  const user = where(User);
+  const post = where(Post);
+
+  where(post.authorId).equal(user.id);
+  where(user.name).equal('John');
+  where(post.published).equal(true);
+
+  return {
+    content: post.content,
+    author: user.name
+  };
+});
+
+console.log(String(query));
+/*
+  SELECT
+    post.content AS "content",
+    user.name AS "author"
+  FROM post
+  INNER JOIN user ON post.author_id = user.id
+  WHERE user.name = 'John' AND post.published = true
+*/
+
+const results = await query; // Execute when ready
+```
+
+## More Features
+
+The library includes additional capabilities:
+
+- **Transactions** - Atomic operations across multiple queries
+- **Connection pooling** - Efficient database connection management
+- **Schema validation** - Automatic checking against database schema
+- **Custom field types** - Extend base field types for specific needs
+- **Query composition** - Build reusable query fragments
+
 <br/><br/>
 
-<h2 align="center"> 🚧 More Docs are on the way! 🏗 </h2>
-<p align="center">Documenation is actively being built out - stay tuned!</p>
-
+<h2 align="center"> 🚧 More Documentation Coming Soon! 🏗 </h2>
+<p align="center">
+  This documentation covers core features. Additional topics like<br/>
+  transactions, migrations, schema management, and more are being documented!
+</p>
 
 <br/><br/>
 
