@@ -3,7 +3,7 @@
 <p align="center">
   <img height="90" src=".github/logo.svg" alt="Expressive Logo"/>
   <h1 align="center">
-    Expressive ORM
+    Expressive Query
   </h1>
 </p>
 
