@@ -13,11 +13,11 @@ describe("arithmetic", () => {
       return add(item.number, 2)
     });
 
-    expect(results).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(results)).toMatchInlineSnapshot(`
+      "SELECT
         item.number + 2
       FROM
-        item
+        item"
     `);
   })
 
@@ -34,14 +34,14 @@ describe("arithmetic", () => {
       }
     });
 
-    expect(results).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(results)).toMatchInlineSnapshot(`
+      "SELECT
         item.number + 2 AS "add",
         item.number - 2 AS "sub",
         item.number * 2 AS "mul",
         item.number / 2 AS "div"
       FROM
-        item
+        item"
     `);
   });
 
@@ -57,13 +57,13 @@ describe("arithmetic", () => {
       }
     });
 
-    expect(results).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(results)).toMatchInlineSnapshot(`
+      "SELECT
         item.number * (item.number + 5) AS "a",
         item.number * 5 + item.number AS "b",
         - (item.number + 100) AS "c"
       FROM
-        item
+        item"
     `);
   });
 })
@@ -80,13 +80,13 @@ describe("templates", () => {
       }
     });
 
-    expect(results).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(results)).toMatchInlineSnapshot(`
+      "SELECT
         item.number * (item.number + 5) AS "a",
         item.number * 5 + item.number AS "b",
         - (item.number + 100) AS "c"
       FROM
-        item
+        item"
     `);
   });
 
@@ -99,6 +99,6 @@ describe("templates", () => {
   //     where(`-(${number} + 100)`).under(-100);
   //   });
 
-  //   expect(results).toMatchInlineSnapshot();
+  //   expect(String(results)).toMatchInlineSnapshot();
   // });
 })

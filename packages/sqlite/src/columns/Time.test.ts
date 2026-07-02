@@ -25,8 +25,8 @@ describe("schema", () => {
   
     const { schema } = new TestConnection([ TimeRecords ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         time_records (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
           created TEXT NOT NULL,
@@ -34,7 +34,7 @@ describe("schema", () => {
           birth_date TEXT NOT NULL,
           start_time TEXT NOT NULL,
           timestamp INTEGER NOT NULL
-        );
+        );"
     `);
   });
   
@@ -50,8 +50,8 @@ describe("schema", () => {
   
     const { schema } = new TestConnection([ DateTimeTypes ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         date_time_types (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
           timestamp TEXT NOT NULL,
@@ -60,7 +60,7 @@ describe("schema", () => {
           time TEXT NOT NULL,
           unix_time INTEGER NOT NULL,
           custom TEXT NOT NULL
-        );
+        );"
     `);
   });
 });

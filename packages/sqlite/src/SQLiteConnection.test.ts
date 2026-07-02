@@ -25,12 +25,12 @@ describe("schema", () => {
   
     const sql = new TestConnection({ FooBar });
   
-    expect(sql.schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(sql.schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         foo_bar (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
           foo_bar INTEGER NOT NULL
-        );
+        );"
     `);
   });
   
@@ -45,8 +45,8 @@ describe("schema", () => {
   
     const sql = new TestConnection({ Foo, Bar });
   
-    expect(sql.schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(sql.schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         foo (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
           bar_id INTEGER NOT NULL REFERENCES bar (id)
@@ -56,7 +56,7 @@ describe("schema", () => {
         bar (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
           value INTEGER NOT NULL
-        );
+        );"
     `);
   });
 });
@@ -73,25 +73,25 @@ describe("types", () => {
   
     const conn = await new TestConnection([Test]);
   
-    expect(conn.schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(conn.schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         test (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
           value1 INTEGER NOT NULL,
           value2 TEXT NOT NULL
-        );
+        );"
     `);
   
     const insert = Test.insert({
       value1: true, value2: true
     });
   
-    expect(insert).toMatchInlineSnapshot(`
-      INSERT INTO
+    expect(String(insert)).toMatchInlineSnapshot(`
+      "INSERT INTO
         test (value1, value2)
       SELECT
         1,
-        'YES'
+        'YES'"
     `);
     
     await insert;
@@ -107,12 +107,12 @@ describe("types", () => {
 
     const conn = await new TestConnection([ Test ]);
 
-    expect(conn.schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(conn.schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         test (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
           date TEXT NOT NULL
-        );
+        );"
     `);
   
     const now = new Date();
@@ -228,13 +228,13 @@ describe("template", () => {
 
     const query = template("red");
   
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         foo.first
       FROM
         foo
       WHERE
-        foo.color = ?
+        foo.color = ?"
     `);
   
     expect(await query).toEqual(["John"]);
@@ -257,14 +257,14 @@ describe("template", () => {
 
     const query = template("red", "John");
   
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         foo.last
       FROM
         foo
       WHERE
         foo.first = ?
-        AND foo.color = ?
+        AND foo.color = ?"
     `);
   
     expect(await template("red", "John")).toEqual(["Doe"]);
@@ -280,9 +280,9 @@ describe("template", () => {
 
     const query = template("red");
 
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
-        ?
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
+        ?"
     `);
 
     expect(await template("red")).toEqual(["red"]);
@@ -297,9 +297,9 @@ describe("template", () => {
 
     const query = template("red");
   
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
-        ? AS "color"
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
+        ? AS "color""
     `);
 
     expect(await query).toEqual([{ color: "red" }]);
@@ -322,8 +322,8 @@ describe("insert", () => {
     )
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(`
-      Provided value for Foo.color but not acceptable for type text.
-      Value must be a string.
+      "Provided value for Foo.color but not acceptable for type text.
+      Value must be a string."
     `);
   })
   
@@ -334,8 +334,7 @@ describe("insert", () => {
     }
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(
-      `Can't assign to \`Foo.color\`. A value is required but got undefined.`
-    );
+      `"Can't assign to \`Foo.color\`. A value is required but got undefined."`);
   })
   
   it("will add index to specify error", async () => {
@@ -348,8 +347,8 @@ describe("insert", () => {
     }
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(`
-      A provided value at \`color\` at index [1] is not acceptable.
-      Can't assign to \`Foo.color\`. A value is required but got undefined.
+      "A provided value at \`color\` at index [1] is not acceptable.
+      Can't assign to \`Foo.color\`. A value is required but got undefined."
     `);
   })
 
@@ -369,8 +368,8 @@ describe("insert", () => {
       email: `${name.toLowerCase()}@email.org`
     }));
   
-    expect(insert).toMatchInlineSnapshot(`
-      WITH
+    expect(String(insert)).toMatchInlineSnapshot(`
+      "WITH
         input AS (
           SELECT
             value ->> 0 name,
@@ -386,7 +385,7 @@ describe("insert", () => {
         input.email,
         input.age
       FROM
-        input
+        input"
     `);
   
     await insert;
@@ -434,8 +433,8 @@ it("will update from data", async () => {
     where(user).update({ age });
   });
 
-  expect(query).toMatchInlineSnapshot(`
-    WITH
+  expect(String(query)).toMatchInlineSnapshot(`
+    "WITH
       input AS (
         SELECT
           value ->> 0 name,
@@ -450,14 +449,14 @@ it("will update from data", async () => {
     FROM
       input
     WHERE
-      user.name = input.name
+      user.name = input.name"
   `)
 
   expect(await query).toBe(2);
 
   const results = await User.get();
-  
-  expect(results).toEqual([
+
+  expect<unknown>(results).toEqual([
     { id: 1, name: "John", age: 30 },
     { id: 2, name: "Jane", age: 25 },
     { id: 3, name: "Joe", age: 0 },

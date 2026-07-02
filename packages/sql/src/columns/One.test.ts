@@ -20,12 +20,12 @@ it("will query via direct selection", () => {
     return where(A).b.value;
   });
 
-  expect(query).toMatchInlineSnapshot(`
-    SELECT
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       b.value
     FROM
       a
-      INNER JOIN b ON b.id = a.b_id
+      INNER JOIN b ON b.id = a.b_id"
   `);
 })
 
@@ -39,14 +39,14 @@ it("will select via an object", () => {
     }
   });
 
-  expect(query).toMatchInlineSnapshot(`
-    SELECT
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       a.value AS "aValue",
       c.value AS "cValue"
     FROM
       a
       INNER JOIN b ON b.id = a.b_id
-      INNER JOIN c ON c.id = b.c_id
+      INNER JOIN c ON c.id = b.c_id"
   `);
 })
 
@@ -59,15 +59,15 @@ it("will query nested relationships", () => {
     return a.b.c.label;
   })
 
-  expect(query).toMatchInlineSnapshot(`
-    SELECT
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       c.label
     FROM
       a
       INNER JOIN b ON b.id = a.b_id
       INNER JOIN c ON c.id = b.c_id
     WHERE
-      c.value = 100
+      c.value = 100"
   `);
 })
 
@@ -92,7 +92,7 @@ it("will query nested relationships", () => {
 //     return foo.name;
 //   });
 
-//   expect(query).toMatchInlineSnapshot(`
+//   expect(String(query)).toMatchInlineSnapshot(`
 //     SELECT
 //       foo.name
 //     FROM
@@ -119,13 +119,13 @@ it("will assert a property-joined value", () => {
     where(bar.foo.color).equal("blue");
   });
   
-  expect(query).toMatchInlineSnapshot(`
-    SELECT
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       COUNT(*)
     FROM
       bar
       INNER JOIN foo ON foo.id = bar.foo_id
     WHERE
-      foo.color = 'blue'
+      foo.color = 'blue'"
   `);
 })

@@ -14,15 +14,15 @@ it("will limit results", async () => {
     return item.number;
   });
 
-  expect(results).toMatchInlineSnapshot(`
-    SELECT
+  expect(String(results)).toMatchInlineSnapshot(`
+    "SELECT
       item.number
     FROM
       item
     WHERE
       item.number > 3
     LIMIT
-      3
+      3"
   `);
 });
 
@@ -38,8 +38,8 @@ it("will add operator clauses", () => {
     where(item.number).under(5, true);
   });
 
-  expect(results).toMatchInlineSnapshot(`
-    SELECT
+  expect(String(results)).toMatchInlineSnapshot(`
+    "SELECT
       COUNT(*)
     FROM
       item
@@ -49,7 +49,7 @@ it("will add operator clauses", () => {
       AND item.number > 4
       AND item.number >= 5
       AND item.number < 6
-      AND item.number <= 5
+      AND item.number <= 5"
   `);
 });
 
@@ -60,13 +60,13 @@ it("will add IN clause", () => {
     where(item.number).in([1, 2, 3]);
   });
 
-  expect(results).toMatchInlineSnapshot(`
-    SELECT
+  expect(String(results)).toMatchInlineSnapshot(`
+    "SELECT
       COUNT(*)
     FROM
       item
     WHERE
-      item.number IN (1, 2, 3)
+      item.number IN (1, 2, 3)"
   `);
 });
 
@@ -88,8 +88,8 @@ describe("grouping", () => {
       where(test.d).under(4);
     });
   
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         COUNT(*)
       FROM
         test
@@ -97,7 +97,7 @@ describe("grouping", () => {
         test.a = 1
         AND test.b <> 2
         AND test.c > 3
-        AND test.d < 4
+        AND test.d < 4"
     `);
   })
 
@@ -120,8 +120,8 @@ describe("grouping", () => {
       )
     });
 
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         COUNT(*)
       FROM
         foo
@@ -131,7 +131,7 @@ describe("grouping", () => {
         OR (
           foo.color <> 'orange'
           AND foo.color <> 'yellow'
-        )
+        )"
     `);
   })
 
@@ -161,8 +161,8 @@ describe("grouping", () => {
       )
     });
     
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         COUNT(*)
       FROM
         foo
@@ -178,7 +178,7 @@ describe("grouping", () => {
               OR foo.color = 'green'
             )
           )
-        )
+        )"
     `);
   })
 });
@@ -211,8 +211,8 @@ describe("complex grouping", () => {
       );
     });
 
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         COUNT(*)
       FROM
         item
@@ -225,7 +225,7 @@ describe("complex grouping", () => {
         OR (
           item.color = 'blue'
           AND item.size = 'large'
-        )
+        )"
     `);
   });
 
@@ -247,8 +247,8 @@ describe("complex grouping", () => {
       );
     });
 
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         COUNT(*)
       FROM
         item
@@ -261,7 +261,7 @@ describe("complex grouping", () => {
             AND item.size = 'large'
           )
           OR item.in_stock = 1
-        )
+        )"
     `);
   });
 
@@ -281,8 +281,8 @@ describe("complex grouping", () => {
       );
     });
 
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         COUNT(*)
       FROM
         item
@@ -292,7 +292,7 @@ describe("complex grouping", () => {
         OR (
           item.size = 'large'
           AND item.in_stock = 1
-        )
+        )"
     `);
   });
 });
@@ -312,13 +312,13 @@ describe("sort", () => {
       return test.name;
     });
   
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         test.name
       FROM
         test
       ORDER BY
-        test.id desc
+        test.id desc"
     `);
   })
 
@@ -332,14 +332,14 @@ describe("sort", () => {
       return name;
     });
   
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         test.name
       FROM
         test
       ORDER BY
         test.rating asc,
-        test.name desc
+        test.name desc"
     `);
 
     // SQLite may not support multiple column sorting

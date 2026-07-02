@@ -18,13 +18,13 @@ describe("schema", () => {
   
     const { schema } = new TestConnection([ Users ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         users (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
           name TEXT NOT NULL,
           email TEXT
-        );
+        );"
     `);
   })
 })

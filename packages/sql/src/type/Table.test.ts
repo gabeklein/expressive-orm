@@ -8,26 +8,26 @@ describe("get method", () => {
   it("will fetch rows", async () => {
     const query = Item.get();
 
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         item.id AS "id",
         item.number AS "number"
       FROM
-        item
+        item"
     `);
   })
 
   it("will limit rows", async () => {
     const query = Item.get(5);
 
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         item.id AS "id",
         item.number AS "number"
       FROM
         item
       LIMIT
-        5
+        5"
     `);
   })
 
@@ -36,14 +36,14 @@ describe("get method", () => {
       where(item.number).over(5);
     });
 
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         item.id AS "id",
         item.number AS "number"
       FROM
         item
       WHERE
-        item.number > 5
+        item.number > 5"
     `);
   })
 
@@ -52,8 +52,8 @@ describe("get method", () => {
       where(item.number).over(5);
     });
 
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         item.id AS "id",
         item.number AS "number"
       FROM
@@ -61,7 +61,7 @@ describe("get method", () => {
       WHERE
         item.number > 5
       LIMIT
-        2
+        2"
     `);
   })
 })

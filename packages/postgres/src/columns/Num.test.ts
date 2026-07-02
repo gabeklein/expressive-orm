@@ -1,6 +1,6 @@
 // packages/postgres/src/columns/Num.test.ts
 import { Nullable, Num, Table } from '..';
-import { PostgresConnection } from '../PostgresConnection';
+import { SchemaConnection } from '../tests/SchemaConnection';
 
 describe("schema", () => {
   it("will create basic numeric columns", async () => {
@@ -25,10 +25,10 @@ describe("schema", () => {
     // type-error if expected types are not present
     expect<Signature>(undefined as unknown as Numbers);
   
-    const { schema } = new PostgresConnection([ Numbers ]);
+    const { schema } = new SchemaConnection([ Numbers ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         "numbers" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "int" INTEGER NOT NULL,
@@ -37,7 +37,7 @@ describe("schema", () => {
           "bigint" BIGINT NOT NULL,
           "double" DOUBLE PRECISION NOT NULL,
           "optional" INTEGER
-        );
+        );"
     `);
   });
   
@@ -56,16 +56,16 @@ describe("schema", () => {
 
     expect<Signature>(undefined as unknown as FinancialData);
   
-    const { schema } = new PostgresConnection([ FinancialData ]);
+    const { schema } = new SchemaConnection([ FinancialData ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         "financial_data" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "price" NUMERIC(10, 2) NOT NULL,
           "total" NUMERIC(15, 4) NOT NULL,
           "percentage" NUMERIC(5, 2) NOT NULL
-        );
+        );"
     `);
   });
   
@@ -80,14 +80,14 @@ describe("schema", () => {
 
     expect<Signature>(undefined as unknown as Counter);
   
-    const { schema } = new PostgresConnection([ Counter ]);
+    const { schema } = new SchemaConnection([ Counter ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         "counter" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "value" SERIAL NOT NULL
-        );
+        );"
     `);
   });
 });
