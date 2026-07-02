@@ -5,9 +5,9 @@ import './columns/Str';
 import './columns/Time';
 
 import { Builder, Connection, Field, Table } from '@expressive/sql';
-import Database from 'better-sqlite3';
 import { format } from 'sql-formatter';
 
+import { createEngine, Engine } from './engine';
 import { SQLiteGenerator } from './SQLiteGenerator';
 
 type TableInfo = { 
@@ -18,11 +18,18 @@ type TableInfo = {
 };
 
 export class SQLiteConnection extends Connection {
-  protected declare engine: Database.Database;
+  protected filename: string;
+  protected engine?: Promise<Engine>;
 
   constructor(using: Connection.Types, filename?: string) {
     super(using);
-    this.engine = new Database(filename || ':memory:');
+    this.filename = filename || ':memory:';
+  }
+
+  // Lazily resolve a driver on first use - keeps construction synchronous while
+  // engine selection (and any ESM driver import) stays async.
+  protected db(){
+    return this.engine ??= createEngine(this.filename);
   }
 
   get schema() {
@@ -31,29 +38,32 @@ export class SQLiteConnection extends Connection {
 
   prepare<T = any>(builder: Builder){
     const sql = String(new SQLiteGenerator(builder));
+    const string = (x?: unknown[]) => x
+      ? x.map(x => typeof x === 'object' ? JSON.stringify(x) : x)
+      : [];
 
-    try {
-      const stmt = this.engine.prepare(sql);
-      const string = (x?: unknown[]) => x
-        ? x.map(x => typeof x === 'object' ? JSON.stringify(x) : x)
-        : [];
-  
-      return {
-        all: async (p?: any[]) => stmt.all(string(p)) as T[],
-        run: async (p?: any[]) => stmt.run(string(p)).changes,
-        toString: () => pretty(sql)
-      };
-    }
-    catch (err) {
-      if(err instanceof Error)
-        throw new Error(`Error preparing SQL: ${err.message}\n${pretty(sql)}`);
-      
-      throw err;
-    }
+    const run = async <R>(op: (engine: Engine) => Promise<R>) => {
+      try {
+        return await op(await this.db());
+      }
+      catch (err) {
+        if(err instanceof Error)
+          throw new Error(`Error running SQL: ${err.message}\n${pretty(sql)}`);
+
+        throw err;
+      }
+    };
+
+    return {
+      all: (p?: any[]) => run(e => e.all(sql, string(p))) as Promise<T[]>,
+      run: (p?: any[]) => run(e => e.run(sql, string(p)).then(r => r.changes)),
+      toString: () => pretty(sql)
+    };
   }
 
   async close(){
-    this.engine.close();
+    if (this.engine)
+      await (await this.engine).close();
   }
 
   async sync(fix?: boolean){
@@ -64,7 +74,7 @@ export class SQLiteConnection extends Connection {
       if (!this.valid(type) && fix !== true)
         throw new Error(`Table ${type.table} does not exist.`);
 
-    this.createSchema(this.using);
+    await this.createSchema(this.using);
     Object.defineProperty(this, 'ready', { value: true });
 
     return this;
@@ -73,19 +83,17 @@ export class SQLiteConnection extends Connection {
   async valid(type: Table.Type){
     const { table } = type;
     const fields = Array.from(type.fields.values());
-    
+    const db = await this.db();
+
     // Check if table exists
-    const tableExists = this.engine
-      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`)
-      .get(table);
-    
+    const tableExists = await db.get(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name=?`, [table]);
+
     if (!tableExists)
       return false;
 
     // Get column information
-    const columns = this.engine
-      .prepare(`PRAGMA table_info(${table})`)
-      .all() as TableInfo[];
+    const columns = await db.all(`PRAGMA table_info(${table})`) as TableInfo[];
 
     for (const field of fields) {
       if (!field.datatype)
@@ -96,13 +104,13 @@ export class SQLiteConnection extends Connection {
       if (!columnInfo)
         throw new Error(`Column ${field.column} does not exist in table ${table}`);
 
-      this.checkIntegrity(field, columnInfo);
+      await this.checkIntegrity(field, columnInfo);
     }
 
     return true;
   }
 
-  protected checkIntegrity(field: Field, info: TableInfo){
+  protected async checkIntegrity(field: Field, info: TableInfo){
     const { column, datatype, nullable, parent, reference } = field;
 
     // Check datatype
@@ -132,16 +140,15 @@ export class SQLiteConnection extends Connection {
         `Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`
       );
 
-    const foreignTableExists = this.engine
-      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`)
-      .get(foreignTable);
+    const db = await this.db();
+
+    const foreignTableExists = await db.get(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name=?`, [foreignTable]);
 
     if (!foreignTableExists)
       throw new Error(`Referenced table ${foreignTable} does not exist`);
 
-    const foreignColumn = this.engine
-      .prepare<any[], any>(`PRAGMA table_info(${foreignTable})`)
-      .all()
+    const foreignColumn = (await db.all(`PRAGMA table_info(${foreignTable})`))
       .find(col => col.name === foreignKey);
 
     if (!foreignColumn)
@@ -150,8 +157,11 @@ export class SQLiteConnection extends Connection {
       );
   }
 
-  protected createSchema(types: Iterable<typeof Table>): void {
-    this.engine.exec(this.generateSchema(types));
+  protected async createSchema(types: Iterable<typeof Table>): Promise<void> {
+    const schema = this.generateSchema(types);
+
+    if (schema)
+      await (await this.db()).exec(schema);
   }
 
   protected generateSchema(types: Iterable<typeof Table>): string {

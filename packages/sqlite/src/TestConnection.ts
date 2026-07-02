@@ -21,11 +21,15 @@ export class TestConnection extends SQLiteConnection {
 
     super(using);
 
-    if(expect.getState().currentTestName)
-      reset.add(() => this.close());
-    else {
+    // Bun has no expect.getState().currentTestName. Built during describe setup
+    // we can register lifecycle hooks; built inside a test, beforeAll() throws -
+    // use that to fall back to per-test cleanup.
+    try {
       beforeAll(() => this.then());
       cleanup = () => this.close();
+    }
+    catch {
+      reset.add(() => this.close());
     }
   }
 
