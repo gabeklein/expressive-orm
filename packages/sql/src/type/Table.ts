@@ -35,7 +35,7 @@ declare namespace Table {
 }
 
 abstract class Table {
-  this!: Table.Type;
+  declare this: Table.Type;
 
   /**
    * Primary key of this entity.

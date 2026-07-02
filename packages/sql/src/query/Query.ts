@@ -7,6 +7,8 @@ import { BitWise, Computed, MathOps } from './Computed';
 import { Cond, Expression, Group, QueryTemplate } from './Value';
 
 declare namespace Query {
+  const Builder: typeof import('./Builder').Builder;
+
   type ITable = Builder.ITable;
 
   type From<T extends Table = Table> = {
@@ -206,7 +208,9 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   return template ? runner : runner();
 }
 
-Query.Builder = Builder;
+// Builder and Query form an import cycle; defer the reference so it resolves
+// after both modules finish initializing, regardless of evaluation order.
+defineProperty(Query, "Builder", { get: () => Builder });
 Query.fn = { ...MathOps, bit: BitWise } as Query.Functions;
 
 export { Query };
