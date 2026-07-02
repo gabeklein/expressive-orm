@@ -3,21 +3,26 @@
 	"license": "ISC",
 	"private": true,
 	"type": "module",
-	"packageManager": "pnpm@8.15.8",
+	"workspaces": [
+		"packages/*"
+	],
 	"scripts": {
-		"build": "turbo run build",
-		"lint": "turbo run lint",
-		"test": "turbo run test",
-		"push": "lerna publish --conventional-commits"
+		"build": "bun run --filter='./packages/*' build",
+		"lint": "bun run --filter='./packages/*' lint",
+		"test": "bun run --filter='./packages/*' test",
+		"changeset": "changeset",
+		"ci:version": "changeset version && bun install",
+		"ci:publish": "bun run --filter='./packages/*' build && changeset publish",
+		"nuke": "find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.27.12",
+		"@types/bun": "^1.3.14",
 		"@types/node": "^18.19.0",
-		"lerna": "^8.2.3",
 		"tslib": "^2.3.0",
-		"turbo": "^2.4.1",
-		"typescript": "^5.8.2",
-		"vite-tsconfig-paths": "^5.1.4",
-		"vitest": "^1.2.0"
+		"typescript": "^5.8.2"
+	},
+	"engines": {
+		"node": ">=20"
 	}
 }
