@@ -3,6 +3,7 @@
   "version": "0.4.7",
   "description": "Postgres adapter for Expressive SQL.",
   "license": "ISC",
+  "type": "module",
   "publishConfig": {
     "access": "public"
   },
@@ -13,14 +14,19 @@
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "module": "dist/esm/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsdown",
     "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "tsc --noEmit && bun test"
   },
   "dependencies": {
     "@expressive/sql": "^0.4.3",
@@ -30,7 +36,7 @@
     "@electric-sql/pglite": "^0.2.16",
     "@types/pg": "^8.11.11",
     "pg": "^8.14.0",
-    "tsup": "^8.3.6"
+    "tsdown": "^0.20.1"
   },
   "peerDependencies": {
     "@electric-sql/pglite": "^0.2.16"

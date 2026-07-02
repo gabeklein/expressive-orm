@@ -3,14 +3,14 @@
         "baseUrl": ".",
         "esModuleInterop": true,
         "lib": ["ES2020"],
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "noUnusedLocals": true,
         "sourceMap": true,
         "skipLibCheck": true,
         "module": "ESNext",
         "strict": true,
         "target": "ES2020",
-        "types": ["node", "vitest/globals"],
+        "types": ["node", "bun"],
         "paths": {
             "@expressive/*": [
               "packages/*/src"
