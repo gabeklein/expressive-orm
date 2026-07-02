@@ -16,12 +16,12 @@ it("will alias types with a schema", () => {
     where(foo.color).equal("red");
   })
 
-  expect(query).toMatchInlineSnapshot(`
-    SELECT
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       COUNT(*)
     FROM
       foobar.foo T0
     WHERE
-      T0.color = 'red'
+      T0.color = 'red'"
   `);
 })

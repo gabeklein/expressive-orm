@@ -23,14 +23,14 @@ describe("schema", () => {
   
     const { schema } = new TestConnection([ Flags ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         flags (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
           active INTEGER NOT NULL,
           optional INTEGER,
           custom TEXT NOT NULL
-        );
+        );"
     `);
   });
   
@@ -56,13 +56,13 @@ describe("schema", () => {
   
     const { schema } = new TestConnection([ Settings ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         settings (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
           enabled TEXT NOT NULL,
           consent TEXT
-        );
+        );"
     `);
   });
 });

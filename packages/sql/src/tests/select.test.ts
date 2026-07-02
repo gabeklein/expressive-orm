@@ -10,11 +10,11 @@ it("will count query by default", () => {
 
   const query = Query(where => void where(Foo));
 
-  expect(query).toMatchInlineSnapshot(`
-    SELECT
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       COUNT(*)
     FROM
-      foo
+      foo"
   `);
 })
 
@@ -26,10 +26,10 @@ it("will select without tables", () => {
     }
   });
 
-  expect(query).toMatchInlineSnapshot(`
-    SELECT
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       5 AS "foo",
-      'hello' AS "bar"
+      'hello' AS "bar""
   `);
 })
 
@@ -45,12 +45,13 @@ it("will select via object", () => {
     baz: string;
   }>
 
-  expect<Returns>(query).toMatchInlineSnapshot(`
-    SELECT
+  expect<Returns>(query);
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       foo.bar AS "bar",
       foo.baz AS "baz"
     FROM
-      foo
+      foo"
   `);
 })
 
@@ -69,12 +70,13 @@ it("will output nested object", () => {
     baz: { value: string };
   }>
 
-  expect<Returns>(query).toMatchInlineSnapshot(`
-    SELECT
+  expect<Returns>(query);
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       foo.bar AS "bar.value",
       foo.baz AS "baz.value"
     FROM
-      foo
+      foo"
   `);
 })
 
@@ -85,11 +87,12 @@ it("will select a field directly", () => {
 
   type Returns = Query.Selects<string>;
 
-  expect<Returns>(query).toMatchInlineSnapshot(`
-    SELECT
+  expect<Returns>(query);
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       foo.bar
     FROM
-      foo
+      foo"
   `);
 })
 
@@ -104,12 +107,13 @@ it("will select a entire entity", () => {
     baz: string;
   }>
 
-  expect<Returns>(query).toMatchInlineSnapshot(`
-    SELECT
+  expect<Returns>(query);
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       foo.id AS "id",
       foo.bar AS "bar",
       foo.baz AS "baz"
     FROM
-      foo
+      foo"
   `);
 })

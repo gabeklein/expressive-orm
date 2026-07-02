@@ -1,5 +1,5 @@
 import { Nullable, Str, Table } from '..';
-import { PostgresConnection } from '../PostgresConnection';
+import { SchemaConnection } from '../tests/SchemaConnection';
 
 describe("schema", () => {
   it("will create columns", async () => {
@@ -26,10 +26,10 @@ describe("schema", () => {
     // type-error if expected types are not present.
     expect<Signature>(undefined as unknown as Users);
   
-    const { schema } = new PostgresConnection([ Users ]);
+    const { schema } = new SchemaConnection([ Users ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         "users" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "text" TEXT NOT NULL,
@@ -39,7 +39,7 @@ describe("schema", () => {
           "optional_shorthand" TEXT,
           "optional_varchar_combined" VARCHAR,
           "optional_varchar_combined_shorthand" VARCHAR
-        );
+        );"
     `);
   });
   
@@ -49,7 +49,7 @@ describe("schema", () => {
       bio = Str({ type: "varchar", length: 200, nullable: true });
     }
   
-    const { schema } = new PostgresConnection([ Profiles ]);
+    const { schema } = new SchemaConnection([ Profiles ]);
 
     interface Signature {
       username: Str.VarChar;
@@ -58,13 +58,13 @@ describe("schema", () => {
 
     expect<Signature>(undefined as unknown as Profiles);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         "profiles" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "username" VARCHAR(50) NOT NULL,
           "bio" VARCHAR(200)
-        );
+        );"
     `);
   });
   
@@ -73,14 +73,14 @@ describe("schema", () => {
       code = Str({ type: "char", length: 10 });
     }
   
-    const { schema } = new PostgresConnection([ Settings ]);
+    const { schema } = new SchemaConnection([ Settings ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         "settings" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "code" CHAR(10) NOT NULL
-        );
+        );"
     `);
   });
   
@@ -93,14 +93,14 @@ describe("schema", () => {
       });
     }
   
-    const { schema } = new PostgresConnection([ Localized ]);
+    const { schema } = new SchemaConnection([ Localized ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         "localized" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "name" VARCHAR(100) COLLATE "EN_US.UTF8" NOT NULL
-        );
+        );"
     `);
   });
 });

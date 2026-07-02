@@ -21,14 +21,14 @@ it("will generate query", () => {
     })
   });
 
-  expect(query).toMatchInlineSnapshot(`
-    UPDATE
+  expect(String(query)).toMatchInlineSnapshot(`
+    "UPDATE
       foo
     SET
       value = 'new!',
       color = 'blue'
     WHERE
-      foo.color = 'red'
+      foo.color = 'red'"
   `);
 })
 
@@ -42,14 +42,14 @@ it("will update with joins", () => {
     where(foo).update({ value: bar.value });
   });
 
-  expect(query).toMatchInlineSnapshot(`
-    UPDATE
+  expect(String(query)).toMatchInlineSnapshot(`
+    "UPDATE
       foo
       INNER JOIN bar ON bar.color = foo.color
     SET
       value = bar.value
     WHERE
-      foo.color = 'red'
+      foo.color = 'red'"
   `);
 })
 
@@ -64,11 +64,11 @@ it("will complain about nullable mismatch", () => {
     where(baz).update({ nullable: null });
   });
 
-  expect(query).toMatchInlineSnapshot(`
-    UPDATE
+  expect(String(query)).toMatchInlineSnapshot(`
+    "UPDATE
       baz
     SET
-      nullable = NULL
+      nullable = NULL"
   `);
 
   const badQuery = () => Query(where => {
@@ -78,8 +78,7 @@ it("will complain about nullable mismatch", () => {
   })
 
   expect(badQuery).toThrowErrorMatchingInlineSnapshot(
-    `Column baz.non_nullable is not nullable.`
-  );
+    `"Column baz.non_nullable is not nullable."`);
 })
 
-it.todo('will update multiple tables')
+it.todo('will update multiple tables', () => {})

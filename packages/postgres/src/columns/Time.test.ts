@@ -1,6 +1,6 @@
 // packages/postgres/src/columns/Time.test.ts
 import { Nullable, Table, Time } from '..';
-import { PostgresConnection } from '../PostgresConnection';
+import { SchemaConnection } from '../tests/SchemaConnection';
 
 describe("schema", () => {
   it("will create basic time columns", async () => {
@@ -23,10 +23,10 @@ describe("schema", () => {
     // type-error if expected types are not present
     expect<Signature>(undefined as unknown as TimeRecords);
   
-    const { schema } = new PostgresConnection([ TimeRecords ]);
+    const { schema } = new SchemaConnection([ TimeRecords ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         "time_records" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "created" TIMESTAMP NOT NULL,
@@ -34,7 +34,7 @@ describe("schema", () => {
           "birth_date" DATE NOT NULL,
           "start_time" TIME NOT NULL,
           "duration" INTERVAL NOT NULL
-        );
+        );"
     `);
   });
   
@@ -70,17 +70,17 @@ describe("schema", () => {
 
     expect<Signature>(undefined as unknown as EventLog);
   
-    const { schema } = new PostgresConnection([ EventLog ]);
+    const { schema } = new SchemaConnection([ EventLog ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         "event_log" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "timestamp" TIMESTAMPTZ (6) NOT NULL,
           "duration" INTERVAL (3) DAY TO SECOND NOT NULL,
           "local_time" TIME(3) NOT NULL,
           "utc_time" TIMETZ (3) NOT NULL
-        );
+        );"
     `);
   });
 });

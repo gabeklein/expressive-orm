@@ -1,6 +1,6 @@
 // packages/postgres/src/columns/Bool.test.ts
 import { Bool, Nullable, Table } from '..';
-import { PostgresConnection } from '../PostgresConnection';
+import { SchemaConnection } from '../tests/SchemaConnection';
 
 describe("schema", () => {
   it("will create basic boolean columns", async () => {
@@ -28,17 +28,17 @@ describe("schema", () => {
     // type-error if expected types are not present
     expect<Signature>(undefined as unknown as Flags);
   
-    const { schema } = new PostgresConnection([ Flags ]);
+    const { schema } = new SchemaConnection([ Flags ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         "flags" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "active" BOOLEAN NOT NULL,
           "optional" BOOLEAN,
           "custom" VARCHAR(3) NOT NULL,
           "optional_custom" VARCHAR(8)
-        );
+        );"
     `);
   });
   
@@ -62,15 +62,15 @@ describe("schema", () => {
 
     expect<Signature>(undefined as unknown as Settings);
   
-    const { schema } = new PostgresConnection([ Settings ]);
+    const { schema } = new SchemaConnection([ Settings ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         "settings" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "enabled" VARCHAR(5) NOT NULL,
           "consent" VARCHAR(8)
-        );
+        );"
     `);
   });
 });

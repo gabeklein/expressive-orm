@@ -28,8 +28,8 @@ it("will join using function", async () => {
     where(bar.rating).over(50);
   });
 
-  expect(query).toMatchInlineSnapshot(`
-    SELECT
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       COUNT(*)
     FROM
       foo
@@ -37,7 +37,7 @@ it("will join using function", async () => {
       AND bar.color = foo.color
     WHERE
       foo.name <> 'Danny'
-      AND bar.rating > 50
+      AND bar.rating > 50"
   `);
 })
 
@@ -57,8 +57,9 @@ it("will join multiple", async () => {
 
   type Returns = Query<number>;
 
-  expect<Returns>(query).toMatchInlineSnapshot(`
-    SELECT
+  expect<Returns>(query);
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       COUNT(*)
     FROM
       foo
@@ -67,7 +68,7 @@ it("will join multiple", async () => {
     WHERE
       foo.name <> 'Danny'
       AND bar.rating > 50
-      AND baz.color = 'blue'
+      AND baz.color = 'blue'"
   `);
 })
 
@@ -82,8 +83,7 @@ it("will throw if joins are composed", async () => {
   });
 
   expect(query).toThrowErrorMatchingInlineSnapshot(
-    `Cannot use bar.color = foo.color in a group.`
-  );
+    `"Cannot use bar.color = foo.color in a group."`);
 });
 
 it.skip("will filter for comparisons to later tables", async () => {
@@ -97,7 +97,8 @@ it.skip("will filter for comparisons to later tables", async () => {
 
   type Returns = Query<number>;
 
-  expect<Returns>(query).toMatchInlineSnapshot(`
+  expect<Returns>(query);
+  expect(String(query)).toMatchInlineSnapshot(`
     SELECT
       COUNT(*)
     FROM
@@ -125,16 +126,16 @@ it("will join a table with alias", async () => {
     return bar.rating;
   });
 
-  expect(query).toMatchInlineSnapshot(`
-    SELECT
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       T1.rating
     FROM
       foo
-      INNER JOIN other.baz T1 ON T1.color = foo.color
+      INNER JOIN other.baz T1 ON T1.color = foo.color"
   `);
 });
 
-it.todo("will self join");
+it.todo("will self join", () => {});
 
 it("will select left join", async () => {
   class Bar extends Table {
@@ -172,8 +173,9 @@ it("will select left join", async () => {
     bazRating: number | undefined;
   }>
 
-  expect<Returns>(query).toMatchInlineSnapshot(`
-    SELECT
+  expect<Returns>(query);
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       foo.name AS "fooValue",
       bar.name AS "barValue",
       baz.rating AS "bazRating"
@@ -183,7 +185,7 @@ it("will select left join", async () => {
       LEFT JOIN baz ON baz.rating = bar.rating
     WHERE
       foo.name <> 'Danny'
-      AND bar.rating > 50
+      AND bar.rating > 50"
   `);
 })
   
@@ -196,14 +198,14 @@ it("will assert a joined property's value", () => {
     where(bar.rating).equal(42);
   });
   
-  expect(query).toMatchInlineSnapshot(`
-    SELECT
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       COUNT(*)
     FROM
       foo
       INNER JOIN bar ON bar.color = foo.color
     WHERE
-      bar.rating = 42
+      bar.rating = 42"
   `);
 })
 
@@ -230,13 +232,14 @@ it("will sort by joined table", async () => {
 
   type Returns = Query.Selects<string>;
 
-  expect<Returns>(query).toMatchInlineSnapshot(`
-    SELECT
+  expect<Returns>(query);
+  expect(String(query)).toMatchInlineSnapshot(`
+    "SELECT
       other.name
     FROM
       test
       INNER JOIN other ON other.name = test.name
     ORDER BY
-      other.rank asc
+      other.rank asc"
   `);
 })

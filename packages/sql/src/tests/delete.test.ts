@@ -18,11 +18,11 @@ it("will generate query", () => {
     where(foo).delete();
   });
 
-  expect(query).toMatchInlineSnapshot(`
-    DELETE FROM
+  expect(String(query)).toMatchInlineSnapshot(`
+    "DELETE FROM
       foo
     WHERE
-      foo.value = 'Hello World!'
+      foo.value = 'Hello World!'"
   `);
 })
 
@@ -37,12 +37,12 @@ it("will include FROM statement where JOIN exists", () => {
     where(foo).delete();
   });
 
-  expect(query).toMatchInlineSnapshot(`
-    DELETE foo
+  expect(String(query)).toMatchInlineSnapshot(`
+    "DELETE foo
     FROM
       foo
       INNER JOIN bar ON bar.color = foo.color
     WHERE
-      bar.value = 'Hello World!'
+      bar.value = 'Hello World!'"
   `);
 })

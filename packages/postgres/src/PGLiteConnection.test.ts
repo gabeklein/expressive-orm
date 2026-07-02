@@ -60,10 +60,10 @@ describe("persistence", () => {
 
     await new PGLiteConnection([ User ], pg).sync(true);
 
-    await expect(() => {
+    await expect((async () => {
       delete User.connection;
       return new PGLiteConnection([ User, FooBar ], pg).sync(false);
-    }).rejects.toThrow("Table foo_bar is expected but does not exist.");
+    })()).rejects.toThrow("Table foo_bar is expected but does not exist.");
   });
 
   it('will throw if table missing column', async () => {
@@ -80,13 +80,13 @@ describe("persistence", () => {
 
     await new PGLiteConnection([ User1 ], pg);
 
-    await expect(() => {
+    await expect((async () => {
       return new PGLiteConnection([ User2 ], pg);
-    }).rejects.toThrow("Column rank does not exist in table user");
+    })()).rejects.toThrow('Column "rank" does not exist in table user');
   });
   
-  it.todo('will ignore type mismatch if synonomous');
-  it.todo('will ignore missing column if marked as optional');
+  it.todo('will ignore type mismatch if synonomous', () => {});
+  it.todo('will ignore missing column if marked as optional', () => {});
 });
 
 describe("schema", () => {
@@ -113,12 +113,12 @@ describe("schema", () => {
   
     const conn = new TestConnection({ FooBar });
   
-    expect(conn.schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(conn.schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         "foo_bar" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "foo_bar" BOOLEAN NOT NULL
-        );
+        );"
     `);
   });
   
@@ -133,8 +133,8 @@ describe("schema", () => {
   
     const conn = await new TestConnection({ Foo, Bar });
   
-    expect(conn.schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(conn.schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         "foo" (
           "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
           "bar_id" INTEGER NOT NULL
@@ -147,7 +147,7 @@ describe("schema", () => {
         );
 
       ALTER TABLE
-        "foo" ADD CONSTRAINT "foo_bar_id_fk" FOREIGN KEY ("bar_id") REFERENCES "bar" ("id");
+        "foo" ADD CONSTRAINT "foo_bar_id_fk" FOREIGN KEY ("bar_id") REFERENCES "bar" ("id");"
     `);
   });
 });
@@ -164,7 +164,7 @@ describe.skip("types", () => {
   
     const conn = await new TestConnection({ Test });
   
-    expect(conn.schema).toMatchInlineSnapshot(
+    expect(String(conn.schema)).toMatchInlineSnapshot(
       `CREATE TABLE "test" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "value1" tinyint NOT NULL, "value2" TEXT NOT NULL);`
     );
   
@@ -172,7 +172,7 @@ describe.skip("types", () => {
       value1: true, value2: true
     });
   
-    expect(insert).toMatchInlineSnapshot(`
+    expect(String(insert)).toMatchInlineSnapshot(`
       INSERT INTO
         test (value1, value2)
       VALUES
@@ -192,7 +192,7 @@ describe.skip("types", () => {
 
     const conn = await new TestConnection([ Test ]);
 
-    expect(conn.schema).toMatchInlineSnapshot(
+    expect(String(conn.schema)).toMatchInlineSnapshot(
       `CREATE TABLE "test" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "date" TIMESTAMP NOT NULL);`
     );
   
@@ -318,13 +318,13 @@ describe("template", () => {
       return foo.first;
     });
   
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         "foo"."first"
       FROM
         "foo"
       WHERE
-        "foo"."color" = $1
+        "foo"."color" = $1"
     `);
   
     expect(await query("red")).toEqual(["John"]);
@@ -347,14 +347,14 @@ describe("template", () => {
       return foo.last;
     });
   
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
         "foo"."last"
       FROM
         "foo"
       WHERE
         "foo"."first" = $1
-        AND "foo"."color" = $2
+        AND "foo"."color" = $2"
     `);
 
     const getJohn = query("red", "John");
@@ -369,9 +369,9 @@ describe("template", () => {
   it("will select a parameter value", async () => {
     const query = Query(() => (color: string) => color);
   
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
-        ?
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
+        ?"
     `);
 
     // TODO: test if comes back as expected
@@ -380,9 +380,9 @@ describe("template", () => {
   it("will select a parameter value", async () => {
     const query = Query(() => (color: string) => ({ color }));
   
-    expect(query).toMatchInlineSnapshot(`
-      SELECT
-        ? AS "color"
+    expect(String(query)).toMatchInlineSnapshot(`
+      "SELECT
+        ? AS "color""
     `);
   });
 })
@@ -403,8 +403,8 @@ describe("insert", () => {
     )
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(`
-      Provided value for Foo.color but not acceptable for type text.
-      Value must be a string.
+      "Provided value for Foo.color but not acceptable for type text.
+      Value must be a string."
     `);
   })
   
@@ -415,8 +415,7 @@ describe("insert", () => {
     }
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(
-      `Can't assign to \`Foo.color\`. A value is required but got undefined.`
-    );
+      `"Can't assign to \`Foo.color\`. A value is required but got undefined."`);
   })
   
   it("will add index to specify error", async () => {
@@ -429,8 +428,8 @@ describe("insert", () => {
     }
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(`
-      A provided value at \`color\` at index [1] is not acceptable.
-      Can't assign to \`Foo.color\`. A value is required but got undefined.
+      "A provided value at \`color\` at index [1] is not acceptable.
+      Can't assign to \`Foo.color\`. A value is required but got undefined."
     `);
   })
 
@@ -450,18 +449,18 @@ describe("insert", () => {
       email: `${name.toLowerCase()}@email.org`
     }));
   
-    expect(insert).toMatchInlineSnapshot(`
-      INSERT INTO
+    expect(String(insert)).toMatchInlineSnapshot(`
+      "INSERT INTO
         "users" ("name", "email", "age")
       SELECT
         "input"."name",
         "input"."email",
         "input"."age"
       FROM
-        JSON_TO_RECORDSET($1) AS "input" ("name" TEXT, "email" TEXT, "age" INTEGER)
+        JSON_TO_RECORDSET($1) AS "input" ("name" TEXT, "email" TEXT, "age" INTEGER)"
     `);
   
-    expect(insert.params).toEqual([
+    expect<unknown>(insert.params).toEqual([
       [
         {"name": "john",  "email": "john@email.org",  "age": 25 },
         {"name": "jane",  "email": "jane@email.org",  "age": 26 },
@@ -495,13 +494,13 @@ describe("query", () => {
       return where(User, { name: "John" }).id;
     });
 
-    expect(query).toMatchInlineSnapshot(`
-      INSERT INTO
+    expect(String(query)).toMatchInlineSnapshot(`
+      "INSERT INTO
         "user" ("name")
       SELECT
         'John'
       RETURNING
-        "user"."id"
+        "user"."id""
     `);
 
     expect(await query).toEqual([1]);
@@ -525,7 +524,7 @@ describe("query", () => {
       }
     });
 
-    expect(query).toMatchInlineSnapshot(`
+    expect(String(query)).toMatchInlineSnapshot(`
       WITH new_user AS (
         INSERT INTO "user" ("name")
         VALUES ('John')
@@ -568,8 +567,8 @@ describe("query", () => {
       return info.id;
     });
   
-    expect(query).toMatchInlineSnapshot(`
-      INSERT INTO
+    expect(String(query)).toMatchInlineSnapshot(`
+      "INSERT INTO
         "info" ("user_id", "color")
       SELECT
         "user"."id",
@@ -577,7 +576,7 @@ describe("query", () => {
       FROM
         "user"
       RETURNING
-        "info"."id"
+        "info"."id""
     `);
 
     expect(await query).toEqual([1, 2, 3]);
@@ -596,18 +595,18 @@ describe("query", () => {
       where(User, ...data);
     });
 
-    expect(query).toMatchInlineSnapshot(`
-      INSERT INTO
+    expect(String(query)).toMatchInlineSnapshot(`
+      "INSERT INTO
         "user" ("name")
       SELECT
         "input"."name"
       FROM
-        JSON_TO_RECORDSET($1) AS "input" ("name" TEXT)
+        JSON_TO_RECORDSET($1) AS "input" ("name" TEXT)"
     `);
 
     expect(await query).toBe(3);
 
-    expect(await User.get()).toEqual([
+    expect<unknown>(await User.get()).toEqual([
       { id: 1, name: "John" },
       { id: 2, name: "Jane" },
       { id: 3, name: "Joe" },
@@ -642,8 +641,8 @@ it("will update from data", async () => {
     where(user).update({ age });
   });
 
-  expect(query).toMatchInlineSnapshot(`
-    WITH
+  expect(String(query)).toMatchInlineSnapshot(`
+    "WITH
       "input" AS (
         SELECT
           *
@@ -657,16 +656,16 @@ it("will update from data", async () => {
     FROM
       "input"
     WHERE
-      "users"."name" = "input"."name"
+      "users"."name" = "input"."name""
   `);
 
   expect(await query).toBe(2);
-  expect(await Users.get()).toEqual([
+  expect<unknown>(await Users.get()).toEqual([
     { id: 3, name: "Joe", age: 0 },
     { id: 1, name: "John", age: 30 },
     { id: 2, name: "Jane", age: 25 },
   ]);
 })
 
-it.todo("will prevent reserved words as table names");
-it.todo("will handle type synonyms");
+it.todo("will prevent reserved words as table names", () => {});
+it.todo("will handle type synonyms", () => {});

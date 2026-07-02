@@ -21,14 +21,14 @@ describe("schema", () => {
   
     const { schema } = new TestConnection([ Numbers ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         numbers (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
           int INTEGER NOT NULL,
           real REAL NOT NULL,
           nullable INTEGER
-        );
+        );"
     `);
   });
   
@@ -45,8 +45,8 @@ describe("schema", () => {
   
     const { schema } = new TestConnection([ CompatibilityTypes ]);
   
-    expect(schema).toMatchInlineSnapshot(`
-      CREATE TABLE
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
         compatibility_types (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
           smallint INTEGER NOT NULL,
@@ -56,7 +56,7 @@ describe("schema", () => {
           double REAL NOT NULL,
           decimal REAL NOT NULL,
           numeric REAL NOT NULL
-        );
+        );"
     `);
   });
 });

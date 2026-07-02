@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'bun:test';
 
 import { Table } from '.';
 import { PGConnection } from './PGConnection';
@@ -15,6 +15,8 @@ describe('PGConnection', () => {
     
     const prepared = conn.prepare('SELECT * FROM test');
     
-    await expect(prepared.all()).rejects.toThrow('connect ECONNREFUSED');
+    // Bun surfaces the connection failure as an AggregateError with an empty
+    // message but a populated `code`, unlike node-postgres under node.
+    await expect(prepared.all()).rejects.toMatchObject({ code: 'ECONNREFUSED' });
   });
 });
