@@ -120,8 +120,5 @@ defineProperty(Field, "does", {
   value: (callback: Callback) => callback
 });
 
-export {
-  Field,
-  Nullable,
-  Optional
-};
+export { Field };
+export type { Nullable, Optional };
