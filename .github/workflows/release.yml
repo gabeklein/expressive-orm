@@ -2,27 +2,35 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+
+concurrency: release
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
 
 jobs:
   release:
-    if: false
     runs-on: ubuntu-latest
+    environment: release
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup
+
+      - name: Setup node (npm >= 11.5.1 for OIDC publish)
+        uses: actions/setup-node@v5
         with:
-          version: 8
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: 'https://registry.npmjs.org'
-      - run: pnpm install --frozen-lockfile
-      - name: Publish to npm
+          node-version: 24
+
+      - name: Version PR or publish
         uses: changesets/action@v1
         with:
-          publish: true
+          version: bun run ci:version
+          publish: bun run ci:publish
+          commit: 'chore: version packages'
+          title: 'chore: version packages'
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
