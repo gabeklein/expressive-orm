@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
-  "changelog": ["./changelog-no-thanks.cjs", { "repo": "gabeklein/expressive-sql" }],
+  "changelog": ["./changelog-no-thanks.cjs", { "repo": "gabeklein/expressive-orm" }],
   "commit": false,
   "fixed": [],
   "linked": [],
