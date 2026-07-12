@@ -1,3 +1,5 @@
+import { expect, it } from "bun:test";
+
 import { Query, Table, Time } from '..';
 
 it("will preprocess params", async () => {

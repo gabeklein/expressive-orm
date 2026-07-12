@@ -1,3 +1,5 @@
+import { beforeAll, describe, expect, it } from "bun:test";
+
 import { Table, str, one, get } from "../tests/Table";
 
 describe("get", () => {

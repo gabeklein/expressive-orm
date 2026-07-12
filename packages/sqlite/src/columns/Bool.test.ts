@@ -1,3 +1,5 @@
+import { describe, expect, it } from "bun:test";
+
 import { Bool, Nullable, Table } from '..';
 import { TestConnection } from '../TestConnection';
 

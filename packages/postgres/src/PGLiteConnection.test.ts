@@ -1,3 +1,5 @@
+import { afterEach, describe, expect, it, test } from "bun:test";
+
 import { PGlite } from '@electric-sql/pglite';
 
 import { Bool, Connection, Num, One, Query, Str, Table, Time } from '.';
