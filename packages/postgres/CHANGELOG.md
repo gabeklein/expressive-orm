@@ -1,5 +1,14 @@
 # @expressive/postgres
 
+## 0.4.8
+
+### Patch Changes
+
+- [#4](https://github.com/gabeklein/expressive-orm/pull/4) [`f0ccb5e`](https://github.com/gabeklein/expressive-orm/commit/f0ccb5e2265221935d18c4ff55279a3496170de1) Pluggable SQLite driver with runtime fallback (bun:sqlite → node:sqlite → better-sqlite3 → sqlite3 → @libsql/client); better-sqlite3 is now an optional dependency. Packages are now ESM-only, built with tsdown. Fixes circular-dependency initialization and type-only export issues surfaced by per-module ESM evaluation.
+
+- Updated dependencies [[`f0ccb5e`](https://github.com/gabeklein/expressive-orm/commit/f0ccb5e2265221935d18c4ff55279a3496170de1)]:
+  - @expressive/sql@0.4.5
+
 ## 0.4.7
 
 ### Patch Changes

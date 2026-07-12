@@ -1,6 +1,6 @@
 {
   "name": "@expressive/sqlite",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "SQLite adapter for Expressive SQL.",
   "license": "ISC",
   "type": "module",
@@ -29,7 +29,7 @@
     "test": "tsc --noEmit && bun test"
   },
   "dependencies": {
-    "@expressive/sql": "^0.4.0",
+    "@expressive/sql": "^0.4.5",
     "sql-formatter": "^10.7.2"
   },
   "optionalDependencies": {

@@ -1,196 +1,127 @@
 # Change Log
 
+## 0.12.2
+
+### Patch Changes
+
+- [#4](https://github.com/gabeklein/expressive-orm/pull/4) [`f0ccb5e`](https://github.com/gabeklein/expressive-orm/commit/f0ccb5e2265221935d18c4ff55279a3496170de1) Pluggable SQLite driver with runtime fallback (bun:sqlite → node:sqlite → better-sqlite3 → sqlite3 → @libsql/client); better-sqlite3 is now an optional dependency. Packages are now ESM-only, built with tsdown. Fixes circular-dependency initialization and type-only export issues surfaced by per-module ESM evaluation.
+
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
 ## [0.12.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.12.0...@expressive/orm@0.12.1) (2025-10-30)
 
-
 ### Bug Fixes
 
-* add 'as const' assertion to orNull and optional constants for better type inference ([46ba8fc](https://github.com/gabeklein/orm/commit/46ba8fc4ba5ab1f7d2893e9238e6831e1c3b4a23))
-
-
-
-
+- add 'as const' assertion to orNull and optional constants for better type inference ([46ba8fc](https://github.com/gabeklein/orm/commit/46ba8fc4ba5ab1f7d2893e9238e6831e1c3b4a23))
 
 # [0.12.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.11.2...@expressive/orm@0.12.0) (2025-10-30)
 
-
 ### Bug Fixes
 
-* ensure date value is properly converted to ISO string format ([5dcf709](https://github.com/gabeklein/orm/commit/5dcf7099ffab5bf72e747fc4b8ba3c654b4a3562))
-* replace cached fetch with direct call to Class.one for improved clarity ([05314a4](https://github.com/gabeklein/orm/commit/05314a483cf3d642b1f0e78d86a65d04ac020573))
-* update type inference for nullable fields and improve json function return type ([19e37ed](https://github.com/gabeklein/orm/commit/19e37ed6ab4f1c5f321e1414c9247f0f89dc472e))
-
+- ensure date value is properly converted to ISO string format ([5dcf709](https://github.com/gabeklein/orm/commit/5dcf7099ffab5bf72e747fc4b8ba3c654b4a3562))
+- replace cached fetch with direct call to Class.one for improved clarity ([05314a4](https://github.com/gabeklein/orm/commit/05314a483cf3d642b1f0e78d86a65d04ac020573))
+- update type inference for nullable fields and improve json function return type ([19e37ed](https://github.com/gabeklein/orm/commit/19e37ed6ab4f1c5f321e1414c9247f0f89dc472e))
 
 ### Features
 
-* add orNull and optional configurations; export lazy from one module ([511f011](https://github.com/gabeklein/orm/commit/511f011274fe1355408042b0ee5f5567679e4635))
-
-
-
-
+- add orNull and optional configurations; export lazy from one module ([511f011](https://github.com/gabeklein/orm/commit/511f011274fe1355408042b0ee5f5567679e4635))
 
 ## [0.11.2](https://github.com/gabeklein/orm/compare/@expressive/orm@0.11.1...@expressive/orm@0.11.2) (2025-09-24)
 
-
 ### Bug Fixes
 
-* enhance field value handling to support arrays in query construction ([ff5b4eb](https://github.com/gabeklein/orm/commit/ff5b4eb60c4b8954dc8462179a634932148ae168))
-* handle SET values to null ([e3d19cf](https://github.com/gabeklein/orm/commit/e3d19cfd89b0961ead9271691cec79304314708d))
-
-
-
-
+- enhance field value handling to support arrays in query construction ([ff5b4eb](https://github.com/gabeklein/orm/commit/ff5b4eb60c4b8954dc8462179a634932148ae168))
+- handle SET values to null ([e3d19cf](https://github.com/gabeklein/orm/commit/e3d19cfd89b0961ead9271691cec79304314708d))
 
 ## [0.11.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.11.0...@expressive/orm@0.11.1) (2025-09-10)
 
-
 ### Bug Fixes
 
-* update property definition to use 'this' context in get function ([b42915c](https://github.com/gabeklein/orm/commit/b42915cd88957471d307d7112f5024b5c1bdff20))
-
-
-
-
+- update property definition to use 'this' context in get function ([b42915c](https://github.com/gabeklein/orm/commit/b42915cd88957471d307d7112f5024b5c1bdff20))
 
 # [0.11.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.10.3...@expressive/orm@0.11.0) (2025-09-09)
 
-
 ### Features
 
-* implement Type.one(id) caching ([a2dde78](https://github.com/gabeklein/orm/commit/a2dde784c7a778027257492da30705d2f922d784))
-
-
-
-
+- implement Type.one(id) caching ([a2dde78](https://github.com/gabeklein/orm/commit/a2dde784c7a778027257492da30705d2f922d784))
 
 ## [0.10.3](https://github.com/gabeklein/orm/compare/@expressive/orm@0.10.2...@expressive/orm@0.10.3) (2025-09-09)
 
-
 ### Bug Fixes
 
-* await prepare function in update method for proper data handling ([224b1cb](https://github.com/gabeklein/orm/commit/224b1cb1d0d21560efbfe608ae2fbd409644f238))
-
-
-
-
+- await prepare function in update method for proper data handling ([224b1cb](https://github.com/gabeklein/orm/commit/224b1cb1d0d21560efbfe608ae2fbd409644f238))
 
 ## [0.10.2](https://github.com/gabeklein/orm/compare/@expressive/orm@0.10.1...@expressive/orm@0.10.2) (2025-09-08)
 
-
 ### Bug Fixes
 
-* add tests for nullable types ([9030c80](https://github.com/gabeklein/orm/commit/9030c80774116b0fc54f72296bac9c8fb5ab76e2))
-* update property definition in get function to use Child class ([125e228](https://github.com/gabeklein/orm/commit/125e22891ee5bd41a158967b693a64e269896a5a))
-
-
-
-
+- add tests for nullable types ([9030c80](https://github.com/gabeklein/orm/commit/9030c80774116b0fc54f72296bac9c8fb5ab76e2))
+- update property definition in get function to use Child class ([125e228](https://github.com/gabeklein/orm/commit/125e22891ee5bd41a158967b693a64e269896a5a))
 
 ## [0.10.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.10.0...@expressive/orm@0.10.1) (2025-09-08)
 
-
 ### Bug Fixes
 
-* update one() function to accept Config<OneToOneField> for nullable parameter ([643b434](https://github.com/gabeklein/orm/commit/643b4347076a3a4b02b4eb8743b2dfb2c8450a0f))
-
-
-
-
+- update one() function to accept Config<OneToOneField> for nullable parameter ([643b434](https://github.com/gabeklein/orm/commit/643b4347076a3a4b02b4eb8743b2dfb2c8450a0f))
 
 # [0.10.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.9.1...@expressive/orm@0.10.0) (2025-09-08)
 
-
 ### Bug Fixes
 
-* verify many property ([cf3b908](https://github.com/gabeklein/orm/commit/cf3b9080b8506a31fe4d9a36fc29bf5ad51041b8))
-
+- verify many property ([cf3b908](https://github.com/gabeklein/orm/commit/cf3b9080b8506a31fe4d9a36fc29bf5ad51041b8))
 
 ### Features
 
-* implement lazy one() ([e6c7213](https://github.com/gabeklein/orm/commit/e6c72130f0ee100933f134922ec715114337e9f4))
-* **orm:** replace config methods with OneToOneField ([a5faf3e](https://github.com/gabeklein/orm/commit/a5faf3e023990920d72df470e00f5497ecadf5c9))
-* **tests:** add extended types support and related tests ([0e95e58](https://github.com/gabeklein/orm/commit/0e95e588de74def6ddd8baaacb27511a1d055b40))
-
-
-
-
+- implement lazy one() ([e6c7213](https://github.com/gabeklein/orm/commit/e6c72130f0ee100933f134922ec715114337e9f4))
+- **orm:** replace config methods with OneToOneField ([a5faf3e](https://github.com/gabeklein/orm/commit/a5faf3e023990920d72df470e00f5497ecadf5c9))
+- **tests:** add extended types support and related tests ([0e95e58](https://github.com/gabeklein/orm/commit/0e95e588de74def6ddd8baaacb27511a1d055b40))
 
 ## [0.9.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.9.0...@expressive/orm@0.9.1) (2025-09-08)
 
-
 ### Bug Fixes
 
-* **orm:** exclude get types from required fields on new ([ef32aaf](https://github.com/gabeklein/orm/commit/ef32aaf95e4614d9bf1d6130b65b324c2b7555f8))
-
-
-
-
+- **orm:** exclude get types from required fields on new ([ef32aaf](https://github.com/gabeklein/orm/commit/ef32aaf95e4614d9bf1d6130b65b324c2b7555f8))
 
 # [0.9.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.8.0...@expressive/orm@0.9.0) (2025-09-08)
 
-
 ### Bug Fixes
 
-* **orm:** refactor constraint building to support async ([4568abd](https://github.com/gabeklein/orm/commit/4568abd50c2643150730e6fcb365cca069b3d10f))
-
+- **orm:** refactor constraint building to support async ([4568abd](https://github.com/gabeklein/orm/commit/4568abd50c2643150730e6fcb365cca069b3d10f))
 
 ### Features
 
-* **orm:** handle field proxies in updates ([a315be7](https://github.com/gabeklein/orm/commit/a315be79a0458308fa0227bfd6d0f7adc4ef6ca7))
-* **orm:** support type fields in query ([3dad689](https://github.com/gabeklein/orm/commit/3dad68903bcbc7c9d676cb70cdcef6968a0684c5))
-
-
-
-
+- **orm:** handle field proxies in updates ([a315be7](https://github.com/gabeklein/orm/commit/a315be79a0458308fa0227bfd6d0f7adc4ef6ca7))
+- **orm:** support type fields in query ([3dad689](https://github.com/gabeklein/orm/commit/3dad68903bcbc7c9d676cb70cdcef6968a0684c5))
 
 # [0.8.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.7.1...@expressive/orm@0.8.0) (2025-09-07)
 
-
 ### Bug Fixes
 
-* **orm:** remove unnecessary second argument from User.new method call in tests ([ae793e6](https://github.com/gabeklein/orm/commit/ae793e67ac4891291ccbaa0b07bcb646728eb092))
-
+- **orm:** remove unnecessary second argument from User.new method call in tests ([ae793e6](https://github.com/gabeklein/orm/commit/ae793e67ac4891291ccbaa0b07bcb646728eb092))
 
 ### Features
 
-* **orm:** one-fields now support ID, instance and inline create ([9c07aed](https://github.com/gabeklein/orm/commit/9c07aed68a050e600920b5a91882b55b1ff0ebb5))
-
-
-
-
+- **orm:** one-fields now support ID, instance and inline create ([9c07aed](https://github.com/gabeklein/orm/commit/9c07aed68a050e600920b5a91882b55b1ff0ebb5))
 
 ## [0.7.1](https://github.com/gabeklein/orm/compare/@expressive/orm@0.7.0...@expressive/orm@0.7.1) (2025-09-07)
 
-
 ### Bug Fixes
 
-* **orm:** add preversion script ([f84a6d2](https://github.com/gabeklein/orm/commit/f84a6d2ef404d961cec3a3fe6f19c0db2a683f2b))
-
-
-
-
+- **orm:** add preversion script ([f84a6d2](https://github.com/gabeklein/orm/commit/f84a6d2ef404d961cec3a3fe6f19c0db2a683f2b))
 
 # [0.7.0](https://github.com/gabeklein/orm/compare/@expressive/orm@0.6.0...@expressive/orm@0.7.0) (2025-09-07)
 
-
 ### Bug Fixes
 
-* initialize database connection in reset method ([5734b6a](https://github.com/gabeklein/orm/commit/5734b6aa72f2550ec5e913d646a7152896746a17))
-* **orm:** inserts do not break on added methods ([413cbbe](https://github.com/gabeklein/orm/commit/413cbbe1ec6cd9586b0df7bd97d486265c591c64))
-* overloads for better type inference ([c60da9b](https://github.com/gabeklein/orm/commit/c60da9b87f7a17917f14cf431f8dd199a73273aa))
-
+- initialize database connection in reset method ([5734b6a](https://github.com/gabeklein/orm/commit/5734b6aa72f2550ec5e913d646a7152896746a17))
+- **orm:** inserts do not break on added methods ([413cbbe](https://github.com/gabeklein/orm/commit/413cbbe1ec6cd9586b0df7bd97d486265c591c64))
+- overloads for better type inference ([c60da9b](https://github.com/gabeklein/orm/commit/c60da9b87f7a17917f14cf431f8dd199a73273aa))
 
 ### Features
 
-* **orm:** add init method to connection for database initialization ([31c345e](https://github.com/gabeklein/orm/commit/31c345eff4de8fae7f3af03a0440696d7a44d0e9))
-* **orm:** implement eager one field ([ee3b1ca](https://github.com/gabeklein/orm/commit/ee3b1ca80e005352c1b123f83c1414a1b33771fe))
-
-
-
-
+- **orm:** add init method to connection for database initialization ([31c345e](https://github.com/gabeklein/orm/commit/31c345eff4de8fae7f3af03a0440696d7a44d0e9))
+- **orm:** implement eager one field ([ee3b1ca](https://github.com/gabeklein/orm/commit/ee3b1ca80e005352c1b123f83c1414a1b33771fe))
 
 # @expressive/orm
 
