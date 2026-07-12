@@ -1,3 +1,5 @@
+import { describe, expect, it } from "bun:test";
+
 import { Bool, Num, Query, Str, Table } from '..';
 
 class Item extends Table  {

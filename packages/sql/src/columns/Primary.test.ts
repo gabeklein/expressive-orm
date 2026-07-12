@@ -1,3 +1,5 @@
+import { expect, it } from "bun:test";
+
 import { Primary, Query, Str, Table } from '..';
 
 it("will alias types with a schema", () => {

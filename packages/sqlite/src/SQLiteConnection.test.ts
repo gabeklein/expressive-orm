@@ -1,3 +1,5 @@
+import { describe, expect, it } from "bun:test";
+
 import { Bool, Num, One, Query, Str, Time, Table } from '.';
 import { TestConnection } from './TestConnection';
 

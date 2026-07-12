@@ -1,3 +1,5 @@
+import { expect, it } from "bun:test";
+
 import { Builder } from "./Builder";
 import { Query } from "./Query";
 

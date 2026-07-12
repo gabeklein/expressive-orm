@@ -1,3 +1,5 @@
+import { describe, expect, it } from "bun:test";
+
 // packages/sqlite/src/columns/Num.test.ts
 import { Nullable, Num, Table } from '..';
 import { TestConnection } from '../TestConnection';

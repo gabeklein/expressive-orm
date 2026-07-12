@@ -1,3 +1,5 @@
+import { describe, expect, it } from "bun:test";
+
 import { Nullable, Str, Table } from '..';
 import { SchemaConnection } from '../tests/SchemaConnection';
 

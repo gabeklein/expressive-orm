@@ -1,3 +1,5 @@
+import { describe, expect, it } from "bun:test";
+
 // packages/postgres/src/columns/Time.test.ts
 import { Nullable, Table, Time } from '..';
 import { SchemaConnection } from '../tests/SchemaConnection';
