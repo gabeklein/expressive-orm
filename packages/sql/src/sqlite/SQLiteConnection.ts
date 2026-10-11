@@ -1,9 +1,3 @@
-import '../columns/Bool';
-import '../columns/Num';
-import '../columns/One';
-import '../columns/Str';
-import '../columns/Time';
-
 import { Builder, Field, Query } from '@expressive/orm';
 import { Connection } from '../connection/Connection';
 import { format } from 'sql-formatter';
@@ -40,7 +34,11 @@ export class SQLiteConnection extends Connection {
   prepare(builder: Builder){
     const sql = String(new SQLiteGenerator(builder));
     const string = (x?: unknown[]) => x
-      ? x.map(x => typeof x === 'object' ? JSON.stringify(x) : x)
+      ? x.map(x => (
+        typeof x === 'object' ? JSON.stringify(x) :
+        typeof x === 'boolean' ? Number(x) :
+        x
+      ))
       : [];
 
     const run = async <R>(op: (engine: Engine) => Promise<R>) => {
@@ -114,13 +112,15 @@ export class SQLiteConnection extends Connection {
   }
 
   protected async checkIntegrity(field: Field, info: TableInfo){
-    const { column, datatype, nullable, reference } = field;
+    const { column, nullable, reference } = field;
     const parent = field.parent!;
 
     // Check datatype
-    if (info.type !== datatype.toLowerCase())
+    const expected = affinity(field);
+
+    if (info.type.toUpperCase() !== expected)
       throw new Error(
-        `Column ${column} in table ${parent.table} has type ${info.type}, expected ${datatype}`
+        `Column ${column} in table ${parent.table} has type ${info.type}, expected ${expected}`
       );
 
     // Check nullable constraint
@@ -174,7 +174,6 @@ export class SQLiteConnection extends Connection {
     const fields = Array.from(type.fields.values()).map(field => {
       const {
         column,
-        datatype,
         fallback,
         reference,
         increment,
@@ -184,7 +183,7 @@ export class SQLiteConnection extends Connection {
       } = field;
 
       const { onDelete, onUpdate } = field as Field & { onDelete?: string, onUpdate?: string };
-      let parts = `\`${column}\` ${datatype.toUpperCase()}`;
+      let parts = `\`${column}\` ${affinity(field)}`;
 
       if (!nullable) parts += ' NOT NULL';
       if (primary)   parts += ' PRIMARY KEY';
@@ -205,6 +204,29 @@ export class SQLiteConnection extends Connection {
 
     return `CREATE TABLE ${type.table} (${fields.join(', ')});`;
   }
+}
+
+const AFFINITY: Record<string, string> = {
+  integer: "INTEGER",
+  smallint: "INTEGER",
+  bigint: "INTEGER",
+  boolean: "INTEGER",
+  real: "REAL",
+  float: "REAL",
+  double: "REAL",
+  numeric: "NUMERIC",
+  decimal: "NUMERIC",
+  text: "TEXT",
+  varchar: "TEXT",
+  char: "TEXT",
+  uuid: "TEXT",
+  timestamp: "TEXT",
+  date: "TEXT",
+  time: "TEXT"
+};
+
+function affinity(field: Field){
+  return AFFINITY[field.type] || field.datatype.toUpperCase();
 }
 
 function literal(field: Field, value: unknown){

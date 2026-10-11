@@ -137,7 +137,7 @@ describe("floor", () => {
       "FROM `foo` " +
       "WHERE `foo`.`name` != ? AND `foo`.`name` LIKE ? AND `foo`.`rank` > ? AND `foo`.`rank` IN (?,?) AND `foo`.`rank` IS NOT NULL AND `foo`.`active` = ? " +
       "ORDER BY `foo`.`rank` asc,`foo`.`id` desc LIMIT 10 OFFSET 5",
-      ["Bob", "G%", 1, 3, 4, 1]
+      ["Bob", "G%", 1, 3, 4, true]
     ]]);
   })
 
@@ -166,7 +166,7 @@ describe("floor", () => {
     expect(db.log).toEqual([[
       "INSERT INTO `foo` (`name`,`active`) SELECT ?,? " +
       "RETURNING `foo`.`id` AS \"id\", `foo`.`name` AS \"name\", `foo`.`rank` AS \"rank\", `foo`.`active` AS \"active\"",
-      ["Bob", 0]
+      ["Bob", false]
     ]]);
   })
 

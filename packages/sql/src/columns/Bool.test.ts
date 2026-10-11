@@ -13,14 +13,13 @@ function column(define: () => unknown){
 }
 
 describe("schema", () => {
-  it("will create basic boolean columns", async () => {
+  it("will render each type by its affinity", async () => {
     class Flags extends Type {
       active = bool();
       optional = bool({ nullable: true });
-      custom = bool({
-        type: "text",
-        either: ["YES", "NO"]
-      });
+      flag = bool({ type: "integer" });
+      custom = bool({ type: "text", either: ["YES", "NO"] });
+      short = bool({ type: "varchar", either: ["Y", "N"] });
     }
 
     expect<{ active: boolean, optional: boolean | undefined, custom: boolean }>(undefined as unknown as Flags);
@@ -33,32 +32,9 @@ describe("schema", () => {
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
           active INTEGER NOT NULL,
           optional INTEGER,
-          custom TEXT NOT NULL
-        );"
-    `);
-  });
-
-  it("will handle either values correctly", async () => {
-    class Settings extends Type {
-      enabled = bool({
-        type: "text",
-        either: ["TRUE", "FALSE"]
-      });
-      consent = bool({
-        type: "text",
-        either: ["ACCEPTED", "DECLINED"],
-        nullable: true
-      });
-    }
-
-    const { schema } = new TestConnection([ Settings ]);
-
-    expect(String(schema)).toMatchInlineSnapshot(`
-      "CREATE TABLE
-        settings (
-          id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-          enabled TEXT NOT NULL,
-          consent TEXT
+          flag INTEGER NOT NULL,
+          custom TEXT NOT NULL,
+          short TEXT NOT NULL
         );"
     `);
   });
@@ -69,35 +45,42 @@ describe("schema", () => {
   });
 });
 
+describe("datatype", () => {
+  it("will size a varchar to its values", () => {
+    expect(column(() => bool()).datatype).toBe("boolean");
+    expect(column(() => bool({ type: "text", either: ["YES", "NO"] })).datatype).toBe("text");
+    expect(column(() => bool({ type: "varchar", either: ["ENABLED", "DISABLED"] })).datatype).toBe("varchar(8)");
+  });
+});
+
 describe("serialization", () => {
-  it("will serialize and deserialize integer boolean values", () => {
+  it("will keep a boolean", () => {
     const field = column(() => bool());
 
-    expect(field.set(true)).toBe(1);
-    expect(field.set(false)).toBe(0);
-
+    expect(field.set(true)).toBe(true);
+    expect(field.set(false)).toBe(false);
+    expect(field.set(null)).toBeNull();
     expect(field.get(1)).toBe(true);
     expect(field.get(0)).toBe(false);
     expect(field.get(true)).toBe(true);
-    expect(field.get(false)).toBe(false);
   });
 
-  it("will handle custom either values", () => {
-    const field = column(() => bool({
-      type: "text",
-      either: ["YES", "NO"]
-    }));
+  it("will store an integer", () => {
+    const field = column(() => bool({ type: "integer" }));
+
+    expect(field.set(true)).toBe(1);
+    expect(field.set(false)).toBe(0);
+    expect(field.get(1)).toBe(true);
+    expect(field.get(0)).toBe(false);
+  });
+
+  it("will store either value", () => {
+    const field = column(() => bool({ type: "text", either: ["YES", "NO"] }));
 
     expect(field.set(true)).toBe("YES");
     expect(field.set(false)).toBe("NO");
-
     expect(field.get("YES")).toBe(true);
     expect(field.get("NO")).toBe(false);
     expect(field.get("MAYBE")).toBe(false);
-  });
-
-  it("will ensure correct datatype based on field type", () => {
-    expect(column(() => bool()).datatype).toBe("integer");
-    expect(column(() => bool({ type: "text", either: ["YES", "NO"] })).datatype).toBe("text");
   });
 });

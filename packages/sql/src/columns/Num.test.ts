@@ -13,11 +13,17 @@ function column(define: () => unknown){
 }
 
 describe("schema", () => {
-  it("will create basic numeric columns", async () => {
+  it("will render each type by its affinity", async () => {
     class Numbers extends Type {
       int = num();
-      real = num({ type: "real" });
       nullable = num({ nullable: true });
+      smallint = num({ type: "smallint" });
+      bigint = num({ type: "bigint" });
+      real = num({ type: "real" });
+      float = num({ type: "float" });
+      double = num({ type: "double" });
+      numeric = num({ type: "numeric", precision: 10, scale: 2 });
+      decimal = num({ type: "decimal" });
     }
 
     expect<{ int: number, real: number, nullable: number | undefined }>(undefined as unknown as Numbers);
@@ -29,72 +35,71 @@ describe("schema", () => {
         numbers (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
           int INTEGER NOT NULL,
+          nullable INTEGER,
+          smallint INTEGER NOT NULL,
+          bigint INTEGER NOT NULL,
           real REAL NOT NULL,
-          nullable INTEGER
+          float REAL NOT NULL,
+          double REAL NOT NULL,
+          numeric NUMERIC NOT NULL,
+          decimal NUMERIC NOT NULL
         );"
     `);
   });
 
-  it("will map other numeric types to INTEGER or REAL", async () => {
-    class CompatibilityTypes extends Type {
-      smallint = num({ type: "smallint" });
-      bigint = num({ type: "bigint" });
-      serial = num({ type: "serial" });
-      float = num({ type: "float" });
-      double = num({ type: "double" });
-      decimal = num({ type: "decimal" });
-      numeric = num({ type: "numeric", precision: 10, scale: 2 });
-    }
+  it("will reject an unknown type", () => {
+    // @ts-expect-error
+    column(() => num({ type: "money" }));
+  });
+});
 
-    const { schema } = new TestConnection([ CompatibilityTypes ]);
-
-    expect(String(schema)).toMatchInlineSnapshot(`
-      "CREATE TABLE
-        compatibility_types (
-          id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-          smallint INTEGER NOT NULL,
-          bigint INTEGER NOT NULL,
-          serial INTEGER NOT NULL,
-          float REAL NOT NULL,
-          double REAL NOT NULL,
-          decimal REAL NOT NULL,
-          numeric REAL NOT NULL
-        );"
-    `);
+describe("datatype", () => {
+  it("will compose precision and scale", () => {
+    expect(column(() => num()).datatype).toBe("integer");
+    expect(column(() => num({ type: "double" })).datatype).toBe("double precision");
+    expect(column(() => num({ type: "numeric", precision: 10, scale: 2 })).datatype).toBe("numeric(10,2)");
+    expect(column(() => num({ type: "decimal", precision: 5 })).datatype).toBe("decimal(5)");
   });
 });
 
 describe("validation", () => {
-  it("will validate integer values", () => {
-    const field = column(() => num({ type: "integer" }));
-
-    expect(field.set(123)).toBe(123);
-    expect(field.set(2147483647)).toBe(2147483647);
-    expect(field.set(-2147483648)).toBe(-2147483648);
-    expect(field.set(null)).toBeNull();
-    expect(() => field.set(123.45)).toThrow("Got '123.45' but datatype is integer.");
-    expect(() => field.set(NaN)).toThrow();
-  });
-
-  it("will validate real values", () => {
-    const field = column(() => num({ type: "real" }));
-
-    expect(field.set(123.45)).toBe(123.45);
-    expect(field.set(123)).toBe(123);
-    expect(field.set(1.234e38)).toBe(1.234e38);
-    expect(() => field.set(NaN)).toThrow();
-  });
-
-  it("will map other numeric types correctly", () => {
+  it("will validate integer ranges", () => {
+    const integer = column(() => num({ type: "integer" }));
     const smallint = column(() => num({ type: "smallint" }));
     const bigint = column(() => num({ type: "bigint" }));
-    const float = column(() => num({ type: "float" }));
 
-    expect(smallint.datatype).toBe("integer");
-    expect(bigint.datatype).toBe("integer");
-    expect(float.datatype).toBe("real");
+    expect(integer.set(2147483647)).toBe(2147483647);
+    expect(integer.set(-2147483648)).toBe(-2147483648);
+    expect(integer.set(null)).toBeNull();
+    expect(() => integer.set(2147483648)).toThrow("Value 2147483648 out of range for integer.");
+    expect(() => integer.set(123.45)).toThrow("Value 123.45 out of range for integer.");
+    expect(() => integer.set(NaN)).toThrow();
 
+    expect(smallint.set(32767)).toBe(32767);
+    expect(smallint.set(-32768)).toBe(-32768);
+    expect(() => smallint.set(40000)).toThrow();
     expect(() => smallint.set(123.45)).toThrow();
-    expect(float.set(123.45)).toBe(123.45);
+
+    expect(bigint.set(9007199254740991)).toBe(9007199254740991);
+    expect(() => bigint.set(123.45)).toThrow();
+  });
+
+  it("will validate precision and scale", () => {
+    const field = column(() => num({ type: "numeric", precision: 5, scale: 2 }));
+
+    expect(field.set(123.45)).toBe(123.45);
+    expect(field.set(-999.99)).toBe(-999.99);
+    expect(field.set(1000)).toBe(1000);
+    expect(() => field.set(1234.56)).toThrow("Value 1234.56 exceeds precision of 5.");
+    expect(() => field.set(12.345)).toThrow("Value 12.345 exceeds scale of 2.");
+  });
+
+  it("will accept any precision without one declared", () => {
+    const real = column(() => num({ type: "real" }));
+    const decimal = column(() => num({ type: "decimal", precision: 5 }));
+
+    expect(real.set(1.234e38)).toBe(1.234e38);
+    expect(decimal.set(12.345)).toBe(12.345);
+    expect(() => real.set(NaN)).toThrow();
   });
 });

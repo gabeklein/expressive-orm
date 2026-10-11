@@ -142,7 +142,7 @@ describe("types", () => {
       "INSERT INTO
         test (value1, value2)
       SELECT
-        1,
+        true,
         'YES'"
     `);
 
@@ -153,6 +153,10 @@ describe("types", () => {
     expect(test.values).toEqual({
       id: 1, value1: true, value2: true
     });
+
+    const other = await Test.insert({ value1: false, value2: false });
+
+    expect(await Test.one(other.id)).toMatchObject({ value1: false, value2: false });
   });
 
   it("will insert and retrieve a Date", async () => {

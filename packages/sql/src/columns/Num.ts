@@ -3,48 +3,92 @@ import { num } from '@expressive/orm';
 declare module '@expressive/orm' {
   namespace num {
     interface Integer extends NumericColumn {
-      type: "integer" | "smallint" | "bigint" | "serial";
+      type: "integer";
+    }
+
+    interface SmallInt extends NumericColumn {
+      type: "smallint";
+    }
+
+    interface BigInt extends NumericColumn {
+      type: "bigint";
     }
 
     interface Real extends NumericColumn {
-      type: "real" | "float" | "double" | "decimal" | "numeric";
+      type: "real";
+    }
+
+    interface Float extends NumericColumn {
+      type: "float";
+    }
+
+    interface Double extends NumericColumn {
+      type: "double";
+    }
+
+    interface Numeric extends NumericColumn {
+      type: "numeric";
+      precision: number;
+      scale: number;
+    }
+
+    interface Decimal extends NumericColumn {
+      type: "decimal";
+      precision: number;
+      scale: number;
     }
 
     interface Types {
       default: Integer;
       integer: Integer;
-      smallint: Integer;
-      bigint: Integer;
-      serial: Integer;
-      float: Real;
-      double: Real;
-      decimal: Real;
-      numeric: Real;
+      smallint: SmallInt;
+      bigint: BigInt;
       real: Real;
+      float: Float;
+      double: Double;
+      numeric: Numeric;
+      decimal: Decimal;
     }
   }
 }
 
-class NumericColumn extends num.Type {
+const RANGE: Record<string, [number, number]> = {
+  smallint: [-32768, 32767],
+  integer: [-2147483648, 2147483647],
+  bigint: [-Infinity, Infinity]
+};
+
+export class NumericColumn extends num.Type {
   type: num.DataType = "integer";
 
-  get datatype(){
-    const { type } = this;
-
-    if (["smallint", "bigint", "serial"].includes(type))
-      return "integer";
-
-    if (["float", "double", "decimal", "numeric"].includes(type))
-      return "real";
-
-    return type;
+  get datatype() {
+    return this.type === "double" ? "double precision" : super.datatype;
   }
 
   set(value: unknown) {
     const out = super.set(value);
 
-    if (typeof value == "number" && this.datatype == "integer" && value !== Math.floor(value))
-      throw new Error(`Got '${value}' but datatype is integer.`);
+    if (typeof value != "number")
+      return out;
+
+    const { type, precision, scale } = this;
+    const range = RANGE[type];
+
+    if (range) {
+      const [min, max] = range;
+
+      if (value !== Math.floor(value) || value < min || value > max)
+        throw new Error(`Value ${value} out of range for ${type}.`);
+    }
+    else if (precision !== undefined) {
+      const [whole, fraction = ""] = Math.abs(value).toString().split('.');
+
+      if (whole.length + fraction.length > precision)
+        throw new Error(`Value ${value} exceeds precision of ${precision}.`);
+
+      if (scale !== undefined && fraction.length > scale)
+        throw new Error(`Value ${value} exceeds scale of ${scale}.`);
+    }
 
     return out;
   }
