@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, test } from 'vitest';
 
 import { PGlite } from '@electric-sql/pglite';
 
-import { Bool, Connection, Num, One, Query, Str, Table, Time } from '.';
+import { asc, bool, date, desc, greaterThan, isIn, isLike, isNull, notNull, num, one, Query, str, Type } from '@expressive/orm';
+import type { Connection } from '@expressive/sql';
+
 import { PGLiteConnection } from './PGLiteConnection';
 
 const isWatchMode = process.env.VITEST_MODE === 'WATCH';
@@ -22,7 +24,7 @@ class TestConnection extends PGLiteConnection {
     await shared.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
 
     for(const type of this.using)
-      delete type.connection;
+      Reflect.deleteProperty(type, "connection");
   }
 }
 
@@ -31,8 +33,8 @@ describe("persistence", () => {
   const it = isWatchMode ? test.skip : test;
 
   it('will not try to recreate database tables', async () => {
-    class Users extends Table {
-      name = Str();
+    class Users extends Type {
+      name = str();
     }
     
     const pg = new PGlite();
@@ -40,22 +42,21 @@ describe("persistence", () => {
     await new PGLiteConnection([ Users ], pg);
     await Users.insert({ name: "Gabe" });
 
-    // reinitialize with same db, simulating persistence
-    delete Users.connection;
+    Reflect.deleteProperty(Users, "connection");
     await new PGLiteConnection([ Users ], pg);
 
     const user = await Users.one();
 
-    expect(user).toEqual({ id: 1, name: "Gabe" });
+    expect(user.values).toEqual({ id: 1, name: "Gabe" });
   });
 
   it('will throw if missing table', async () => {
-    class User extends Table {
-      name = Str();
+    class User extends Type {
+      name = str();
     }
     
-    class FooBar extends Table {
-      name = Str();
+    class FooBar extends Type {
+      name = str();
     }
     
     const pg = new PGlite();
@@ -63,19 +64,19 @@ describe("persistence", () => {
     await new PGLiteConnection([ User ], pg).sync(true);
 
     await expect((async () => {
-      delete User.connection;
+      Reflect.deleteProperty(User, "connection");
       return new PGLiteConnection([ User, FooBar ], pg).sync(false);
     })()).rejects.toThrow("Table foo_bar is expected but does not exist.");
   });
 
   it('will throw if table missing column', async () => {
-    const User1 = class User extends Table {
-      name = Str();
+    const User1 = class User extends Type {
+      name = str();
     }
     
-    const User2 = class User extends Table {
-      name = Str();
-      rank = Num();
+    const User2 = class User extends Type {
+      name = str();
+      rank = num();
     }
     
     const pg = new PGlite();
@@ -93,10 +94,10 @@ describe("persistence", () => {
 
 describe("schema", () => {
   it("will create a table", async () => {
-    class Users extends Table {
-      name = Str();
-      email = Str();
-      age = Num();
+    class Users extends Type {
+      name = str();
+      email = str();
+      age = num();
     }
   
     await new TestConnection([ Users ]);
@@ -109,8 +110,8 @@ describe("schema", () => {
   })
   
   it("will convert camelCase names to underscore", async () => {
-    class FooBar extends Table {
-      fooBar = Bool();
+    class FooBar extends Type {
+      fooBar = bool();
     }
   
     const conn = new TestConnection({ FooBar });
@@ -118,19 +119,19 @@ describe("schema", () => {
     expect(String(conn.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "foo_bar" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
           "foo_bar" BOOLEAN NOT NULL
         );"
     `);
   });
   
   it("will create FK constraints", async () => {
-    class Foo extends Table {
-      bar = One(Bar);
+    class Foo extends Type {
+      bar = one(Bar);
     }
   
-    class Bar extends Table {
-      value = Num();
+    class Bar extends Type {
+      value = num();
     }
   
     const conn = await new TestConnection({ Foo, Bar });
@@ -138,13 +139,13 @@ describe("schema", () => {
     expect(String(conn.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "foo" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
           "bar_id" INTEGER NOT NULL
         );
 
       CREATE TABLE
         "bar" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
           "value" INTEGER NOT NULL
         );
 
@@ -154,80 +155,89 @@ describe("schema", () => {
   });
 });
 
-describe.skip("types", () => {
+describe("types", () => {
   it("will insert and retrieve a Bool", async () => {
-    class Test extends Table {
-      value1 = Bool();
-      value2 = Bool({
+    class Test extends Type {
+      value1 = bool();
+      value2 = bool({
         type: "varchar",
         either: ["YES", "NO"]
       });
     }
-  
+
     const conn = await new TestConnection({ Test });
-  
-    expect(String(conn.schema)).toMatchInlineSnapshot(
-      `CREATE TABLE "test" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "value1" tinyint NOT NULL, "value2" TEXT NOT NULL);`
-    );
-  
-    const insert = Test.insert({
-      value1: true, value2: true
-    });
-  
-    expect(String(insert)).toMatchInlineSnapshot(`
-      INSERT INTO
-        test (value1, value2)
-      VALUES
-        (1, 'YES')
+
+    expect(String(conn.schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
+        "test" (
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          "value1" BOOLEAN NOT NULL,
+          "value2" VARCHAR(3) NOT NULL
+        );"
     `);
-    
+
+    const insert = Query(where => {
+      where(Test, { value1: true, value2: true });
+    });
+
+    expect(String(insert)).toMatchInlineSnapshot(`
+      "INSERT INTO
+        "test" ("value1", "value2")
+      SELECT
+        TRUE,
+        'YES'"
+    `);
+
     await insert;
-    expect(await Test.one()).toEqual({
+
+    const test = await Test.one();
+
+    expect(test.values).toEqual({
       id: 1, value1: true, value2: true
     });
   });
 
   it("will insert and retrieve a Date", async () => {
-    class Test extends Table {
-      date = Time();
+    class Test extends Type {
+      date = date();
     }
 
     const conn = await new TestConnection([ Test ]);
 
-    expect(String(conn.schema)).toMatchInlineSnapshot(
-      `CREATE TABLE "test" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "date" TIMESTAMP NOT NULL);`
-    );
-  
+    expect(String(conn.schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
+        "test" (
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          "date" TIMESTAMP NOT NULL
+        );"
+    `);
+
     const now = new Date();
-  
-    // database has limited precision
+
     now.setMilliseconds(0);
-  
+
     await Test.insert({ date: now })
-  
-    const date = await Test.one((foo, where) => {
+
+    const value = await Test.query((foo, where) => {
       where(foo.id).equal(1);
-  
+
       return foo.date;
-    });
-  
-    // Date type should be preserved
-    expect<Date>(date).toBeInstanceOf(Date);
-    expect<Date>(date).toEqual(now);
+    }).one(true);
+
+    expect<Date>(value).toBeInstanceOf(Date);
+    expect<Date>(value).toEqual(now);
   })
 })
 
 describe("select", () => {
-  class Foo extends Table {
-    bar = Str();
-    baz = Str();
+  class Foo extends Type {
+    bar = str();
+    baz = str();
   }
 
   async function prepare(){
     await new TestConnection({ Foo });
-    await Foo.insert([
-      { bar: "hello", baz: "world" },
-    ]);
+    await Foo.insert({ bar: "hello", baz: "world" });
   }
 
   it("will select via object", async () => {
@@ -278,13 +288,17 @@ describe("select", () => {
       return where(Foo);
     })
 
-    expect(await query).toEqual([
-      { id: 1, bar: "hello", baz: "world" }
-    ]);
+    const [foo] = await query;
+
+    expect(foo).toBeInstanceOf(Foo);
+    expect(foo.values).toEqual({ id: 1, bar: "hello", baz: "world" });
   })
 
-  it.skip("will select without tables", async () => {
-    const query = Query(() => {
+  it("will select without tables", async () => {
+    const conn = await new TestConnection([]);
+    const query = Query(where => {
+      where.connection = conn;
+
       return {
         foo: 5,
         bar: "hello",
@@ -297,18 +311,20 @@ describe("select", () => {
 })
 
 describe("template", () => {
-  class Foo extends Table {
-    first = Str();
-    last = Str();
-    color = Str();
+  class Foo extends Type {
+    first = str();
+    last = str();
+    color = str();
   }
 
   async function prepare(){
     await new TestConnection([Foo]);
-    await Foo.insert([
-      { first: "John", last: "Doe",   color: "red" },
-      { first: "Jane", last: "Smith", color: "blue" }
-    ]);
+    await Query(where => {
+      where(Foo,
+        { first: "John", last: "Doe",   color: "red" },
+        { first: "Jane", last: "Smith", color: "blue" }
+      );
+    });
   }
 
   it("will create a template", async () => {
@@ -369,87 +385,97 @@ describe("template", () => {
   })
   
   it("will select a parameter value", async () => {
-    const query = Query(() => (color: string) => color);
+    const conn = await new TestConnection([]);
+    const query = Query(where => {
+      where.connection = conn;
+      return (color: string) => color;
+    });
   
     expect(String(query)).toMatchInlineSnapshot(`
       "SELECT
-        ?"
+        $1"
     `);
 
-    // TODO: test if comes back as expected
+    expect(await query("red")).toEqual(["red"]);
   });
-  
-  it("will select a parameter value", async () => {
-    const query = Query(() => (color: string) => ({ color }));
+
+  it("will select a parameter in property", async () => {
+    const conn = await new TestConnection([]);
+    const query = Query(where => {
+      where.connection = conn;
+      return (color: string) => ({ color });
+    });
   
     expect(String(query)).toMatchInlineSnapshot(`
       "SELECT
-        ? AS "color""
+        $1 AS "color""
     `);
   });
 })
 
 describe("insert", () => {
-  class Foo extends Table {
-    name = Str();
-    color = Str();
+  class Foo extends Type {
+    name = str();
+    color = str();
   }
   
   it("will throw for bad value", async () => {
-    const insert = () => (
-      Foo.insert({
+    const insert = () => Query(where => {
+      // @ts-expect-error
+      where(Foo, {
         name: "foobar",
-        // @ts-expect-error
         color: 3
-      }) 
-    )
+      });
+    });
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(`
-      [Error: Provided value for Foo.color but not acceptable for type text.
+      [Error: Provided value for foo.color is not acceptable.
       Value must be a string.]
     `);
   })
   
   it("will throw for no value non-nullable", async () => {
-    const insert = () => {
+    const insert = () => Query(where => {
       // @ts-expect-error
-      Foo.insert({ name: "foobar" }) 
-    }
+      where(Foo, { name: "foobar" });
+    });
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(
-      `[Error: Can't assign to \`Foo.color\`. A value is required but got undefined.]`);
+      `[Error: Can't assign to \`foo.color\`. A value is required but got undefined.]`);
   })
   
   it("will add index to specify error", async () => {
-    const insert = () => {
-      Foo.insert([
+    const insert = () => Query(where => {
+      // @ts-expect-error
+      where(Foo,
         { name: "foo", color: "red" },
-        // @ts-expect-error
         { name: "bar" }
-      ]) 
-    }
+      );
+    });
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(`
       [Error: A provided value at \`color\` at index [1] is not acceptable.
-      Can't assign to \`Foo.color\`. A value is required but got undefined.]
+      Can't assign to \`foo.color\`. A value is required but got undefined.]
     `);
   })
 
   it("will insert procedurally generated rows", async () => {
-    class Users extends Table {
-      name = Str();
-      email = Str();
-      age = Num();
+    class Users extends Type {
+      name = str();
+      email = str();
+      age = num();
     }
     
     await new TestConnection({ Users });
   
     const names = ["john", "jane", "bob", "alice"];
-    const insert = Users.insert(names, (name, i) => ({
-      name,
-      age: i + 25,
-      email: `${name.toLowerCase()}@email.org`
-    }));
+    const insert = Query(where => {
+      where(Users, ...names.map((name, i) => ({
+        name,
+        age: i + 25,
+        email: `${name.toLowerCase()}@email.org`
+      })));
+    });
   
     expect(String(insert)).toMatchInlineSnapshot(`
       "INSERT INTO
@@ -473,9 +499,9 @@ describe("insert", () => {
   
     await insert;
   
-    const results = Users.get();
-  
-    expect(await results).toMatchObject([
+    const results = await Users.query();
+
+    expect(results.map(user => user.values)).toEqual([
       { "id": 1, "name": "john",  "email": "john@email.org",  "age": 25 },
       { "id": 2, "name": "jane",  "email": "jane@email.org",  "age": 26 },
       { "id": 3, "name": "bob",   "email": "bob@email.org",   "age": 27 },
@@ -485,8 +511,8 @@ describe("insert", () => {
 });
 
 describe("query", () => {
-  class User extends Table {
-    name = Str();
+  class User extends Type {
+    name = str();
   }
 
   it("will insert a single row", async () => {
@@ -509,9 +535,9 @@ describe("query", () => {
   });
 
   it.skip("will chain inserts", async () => {
-    class Info extends Table {
-      user = One(User);
-      color = Str();
+    class Info extends Type {
+      user = one(User);
+      color = str();
     }
 
     await new TestConnection([User, Info]);
@@ -546,19 +572,17 @@ describe("query", () => {
   });
   
   it("will insert", async () => {
-    class Info extends Table {
-      user = One(User);
-      color = Str();
+    class Info extends Type {
+      user = one(User);
+      color = str();
     }
   
     await new TestConnection([User, Info]);
   
-    await User.insert([
-      { name: "John" },
-      { name: "Jane" },
-      { name: "Joe" },
-    ]);
-  
+    await Query(where => {
+      where(User, { name: "John" }, { name: "Jane" }, { name: "Joe" });
+    });
+
     const query = Query(where => {
       const user = where(User);
       const info = where(Info, {
@@ -608,7 +632,9 @@ describe("query", () => {
 
     expect(await query).toBe(3);
 
-    expect<unknown>(await User.get()).toEqual([
+    const users = await User.query();
+
+    expect(users.map(user => user.values)).toEqual([
       { id: 1, name: "John" },
       { id: 2, name: "Jane" },
       { id: 3, name: "Joe" },
@@ -617,18 +643,20 @@ describe("query", () => {
 })
 
 it("will update from data", async () => {
-  class Users extends Table {
-    name = Str();
-    age = Num();
+  class Users extends Type {
+    name = str();
+    age = num();
   }
 
   await new TestConnection([Users]);
 
-  await Users.insert([
-    { name: "John", age: 0 },
-    { name: "Jane", age: 0 },
-    { name: "Joe", age: 0 },
-  ])
+  await Query(where => {
+    where(Users,
+      { name: "John", age: 0 },
+      { name: "Jane", age: 0 },
+      { name: "Joe", age: 0 },
+    );
+  });
 
   const data = [
     { name: "John", age: 30 },
@@ -662,11 +690,85 @@ it("will update from data", async () => {
   `);
 
   expect(await query).toBe(2);
-  expect<unknown>(await Users.get()).toEqual([
-    { id: 3, name: "Joe", age: 0 },
+  const users = await Users.find({ id: asc() });
+
+  expect(users.map(user => user.values)).toEqual([
     { id: 1, name: "John", age: 30 },
     { id: 2, name: "Jane", age: 25 },
+    { id: 3, name: "Joe", age: 0 },
   ]);
+})
+
+describe("floor", () => {
+  class Author extends Type {
+    name = str();
+  }
+
+  class Post extends Type {
+    author = one(Author, { onDelete: "CASCADE" });
+    title = str();
+    views = num({ fallback: 0 });
+    draft = bool();
+    published = date({ nullable: true, timezone: true });
+  }
+
+  it("will round trip entities", async () => {
+    await new TestConnection([Author, Post]);
+
+    const gabe = await Author.insert({ name: "Gabe" });
+    const first = await Post.insert({ author: gabe, title: "First", draft: false, published: new Date("2024-01-01T00:00:00Z") });
+    const second = await Post.insert({ author: gabe.id, title: "Second", draft: true });
+
+    expect(first.id).toBe(1);
+    expect(second.views).toBe(0);
+    expect(second.published).toBeUndefined();
+    expect(first.published).toEqual(new Date("2024-01-01T00:00:00Z"));
+
+    expect(await Post.find({ draft: true })).toEqual([second]);
+
+    const found = await Post.find({
+      title: [isLike("%S%"), notNull()],
+      views: greaterThan(-1),
+      id: [isIn([1, 2]), asc()]
+    }, 1);
+
+    expect(found).toEqual([second]);
+    expect(await Post.find({ published: isNull() })).toEqual([second]);
+    expect(await Post.find({ id: desc() }, undefined, 1)).toEqual([first]);
+    expect(await Post.one(1, true)).toBe(first);
+
+    await second.update({ title: "Second!", draft: false, views: 10 });
+
+    const titles = await Post.query((post, where) => {
+      where(post.views).over(5);
+
+      return { title: post.title, author: post.author.name };
+    });
+
+    expect(titles).toEqual([{ title: "Second!", author: "Gabe" }]);
+
+    second.published = new Date("2024-02-01T00:00:00Z");
+    await second.save();
+
+    const [reloaded] = await Post.query((post, where) => {
+      where(post.id).equal(2);
+
+      return { published: post.published, draft: post.draft };
+    });
+
+    expect(reloaded).toEqual({ published: new Date("2024-02-01T00:00:00Z"), draft: false });
+
+    await first.delete();
+
+    expect(await Post.find()).toEqual([second]);
+    expect(await Post.one(1, false)).toBeUndefined();
+
+    await Author.update(gabe.id, { name: "Bob" });
+
+    const [renamed] = await Query(where => where(Author).name);
+
+    expect(renamed).toBe("Bob");
+  })
 })
 
 it.todo("will prevent reserved words as table names", () => {});

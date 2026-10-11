@@ -1,39 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
-import { Nullable, Str, Table } from '..';
+import { str, Type } from '@expressive/orm';
+
 import { SchemaConnection } from '../tests/SchemaConnection';
 
 describe("schema", () => {
   it("will create columns", async () => {
-    class Users extends Table {
-      text = Str();
-      optional = Str({ nullable: true });
-      varchar = Str({ type: "varchar", length: 100 });
-      optionalVarchar = Str({ type: "varchar", length: 50, nullable: true });
-      optionalShorthand = Str(null);
-      optionalVarcharCombined = Str({ type: "varchar" }, { nullable: true });
-      optionalVarcharCombinedShorthand = Str({ type: "varchar" }, null);
+    class Users extends Type {
+      text = str();
+      optional = str({ nullable: true });
+      varchar = str({ type: "varchar", length: 100 });
+      optionalVarchar = str({ type: "varchar", length: 50, nullable: true });
+      optionalShorthand = str(null);
+      optionalVarcharCombined = str({ type: "varchar" }, { nullable: true });
+      optionalVarcharCombinedShorthand = str({ type: "varchar" }, null);
     }
 
-    interface Signature {
-      text: Str.Text;
-      optional: Str.Text & Nullable;
-      varchar: Str.VarChar;
-      optionalVarchar: Str.VarChar & Nullable;
-      optionalShorthand: Str.Text & Nullable;
-      optionalVarcharCombined: Str.VarChar & Nullable;
-      optionalVarcharCombinedShorthand: Str.VarChar & Nullable;
-    }
-    
-    // type-error if expected types are not present.
-    expect<Signature>(undefined as unknown as Users);
-  
     const { schema } = new SchemaConnection([ Users ]);
-  
+
     expect(String(schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "users" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
           "text" TEXT NOT NULL,
           "optional" TEXT,
           "varchar" VARCHAR(100) NOT NULL,
@@ -44,63 +32,56 @@ describe("schema", () => {
         );"
     `);
   });
-  
+
   it("will create varchar columns with length", async () => {
-    class Profiles extends Table {
-      username = Str({ type: "varchar", length: 50 });
-      bio = Str({ type: "varchar", length: 200, nullable: true });
+    class Profiles extends Type {
+      username = str({ type: "varchar", length: 50 });
+      bio = str({ type: "varchar", length: 200, nullable: true });
     }
-  
+
     const { schema } = new SchemaConnection([ Profiles ]);
 
-    interface Signature {
-      username: Str.VarChar;
-      bio: Str.VarChar & Nullable;
-    }
-
-    expect<Signature>(undefined as unknown as Profiles);
-  
     expect(String(schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "profiles" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
           "username" VARCHAR(50) NOT NULL,
           "bio" VARCHAR(200)
         );"
     `);
   });
-  
+
   it("will create char columns", async () => {
-    class Settings extends Table {
-      code = Str({ type: "char", length: 10 });
+    class Settings extends Type {
+      code = str({ type: "char", length: 10 });
     }
-  
+
     const { schema } = new SchemaConnection([ Settings ]);
-  
+
     expect(String(schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "settings" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
           "code" CHAR(10) NOT NULL
         );"
     `);
   });
-  
+
   it("will apply collation", async () => {
-    class Localized extends Table {
-      name = Str({
+    class Localized extends Type {
+      name = str({
         type: "varchar",
         length: 100,
         collate: "en_US.utf8"
       });
     }
-  
+
     const { schema } = new SchemaConnection([ Localized ]);
-  
+
     expect(String(schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "localized" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
           "name" VARCHAR(100) COLLATE "EN_US.UTF8" NOT NULL
         );"
     `);

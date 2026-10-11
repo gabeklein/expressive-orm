@@ -1,23 +1,23 @@
-import { Str } from '@expressive/sql';
+import { str } from '@expressive/orm';
 
-declare module "@expressive/sql" {
-  namespace Str {
+declare module '@expressive/orm' {
+  namespace str {
     interface Text extends StringColumn {
-      readonly type: "text";
+      type: "text";
     }
-    
+
     interface VarChar extends StringColumn {
-      readonly type: "varchar";
-      readonly length: number;
+      type: "varchar";
+      length: number;
     }
-    
+
     interface Char extends StringColumn {
-      readonly type: "char";
-      readonly length: number;
+      type: "char";
+      length: number;
     }
 
     interface UUID extends StringColumn {
-      readonly type: "uuid";
+      type: "uuid";
     }
 
     interface Types {
@@ -30,33 +30,20 @@ declare module "@expressive/sql" {
   }
 }
 
-class StringColumn extends Str.Type {
-  readonly type: Str.DataType = "text";
-  readonly collate?: string;
+class StringColumn extends str.Type {
+  type: str.DataType = "text";
 
   get datatype() {
-    let { type } = this;
+    let { type, length, collate } = this;
 
-    if(type.endsWith("char") && this.length)
-      type += `(${this.length})`;
+    if (type.endsWith("char") && length)
+      type += `(${length})`;
 
-    if (this.collate)
-      type += ` COLLATE "${this.collate}"`;
+    if (collate)
+      type += ` COLLATE "${collate}"`;
 
     return type;
   }
-
-  set(value: string) {
-    if (typeof value !== 'string')
-      throw 'Value must be a string.';
-
-    const { length, type } = this;
-
-    if (type.endsWith("char") && length && value.length > length)
-      throw `Value length ${value.length} exceeds maximum of ${length}.`;
-
-    return value;
-  }
 }
 
-Str.Type = StringColumn;
+str.Type = StringColumn;
