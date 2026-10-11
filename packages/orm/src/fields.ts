@@ -216,7 +216,7 @@ class TimeColumn extends Field<Date> {
     return type;
   }
 
-  set(value: unknown) {
+  set(value: unknown): string | number | undefined {
     if (!value)
       return undefined;
 
