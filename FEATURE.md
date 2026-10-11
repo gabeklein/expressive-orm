@@ -57,7 +57,6 @@ One PR each, in order.
 - `rows()` handle `count` - deferred from PR 2; lands with a driver aggregate or the builder.
 - `Type.fields` forces one `new()` + `set(null)` when no instance has activated - a `new()` hook with side effects runs once for metadata. Revisit if it bites.
 - Which base statics cross to a client twin, and how orm declares it.
-- Default `table`: `static table = underscore(this.name)` runs once on `Type`, so every subclass without its own `table` is `type`. Queries joining two such classes collide.
 - Templates as inputs to a written column (`where(User, { name })` with `name` a template argument) - unsupported, as in sql.
 - Whether `sql.Table` survives as a builder-only base.
 - Async codec hook naming and where it runs relative to the builder's sync digest.

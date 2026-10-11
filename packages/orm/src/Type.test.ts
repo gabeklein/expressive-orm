@@ -228,6 +228,15 @@ describe("insert", () => {
     await expect(User.connection.get("app.user", [])).resolves.toEqual([{ id: 1, name: "John" }]);
   })
 
+  it("will derive table from each class name", () => {
+    class BlogPost extends connect() {}
+    class Comment extends connect() {}
+
+    expect(BlogPost.table).toBe("blog_post");
+    expect(Comment.table).toBe("comment");
+    expect(BlogPost.ref).toBe("blog_post");
+  })
+
   it("will not inherit a parent's ref", () => {
     class Person extends connect() {
       static table = "person";

@@ -227,7 +227,13 @@ abstract class Type extends State {
   static schema?: string;
   static subset?: Record<string, unknown>;
   static connection: Type.Connection = new NotReady();
-  static table = underscore(this.name)
+  static get table(): string {
+    return underscore(this.name);
+  }
+
+  static set table(value: string) {
+    Object.defineProperty(this, 'table', { value, writable: true });
+  }
 
   static get ref() {
     const { schema, table } = this;
