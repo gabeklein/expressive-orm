@@ -1,3 +1,4 @@
+export * from '@expressive/orm';
 export { BooleanColumn } from './columns/Bool';
 export { NumericColumn } from './columns/Num';
 export { ForeignColumn } from './columns/One';
