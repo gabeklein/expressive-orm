@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, expect } from 'vitest';
 
-import type { Connection } from '@expressive/sql';
+import type { Connection } from '../connection/Connection';
 
 import { SQLiteConnection } from './SQLiteConnection';
 

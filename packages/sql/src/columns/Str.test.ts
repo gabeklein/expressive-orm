@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { str, Type } from '@expressive/orm';
 
-import { TestConnection } from '../TestConnection';
+import { TestConnection } from '../sqlite/TestConnection';
 
 describe("schema", () => {
   it("will create columns", async () => {

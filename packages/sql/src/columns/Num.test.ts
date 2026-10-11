@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { num, Type } from '@expressive/orm';
 
-import { TestConnection } from '../TestConnection';
+import { TestConnection } from '../sqlite/TestConnection';
 
 function column(define: () => unknown){
   class Test extends Type {

@@ -1,11 +1,11 @@
-import './columns/Bool';
-import './columns/Num';
-import './columns/One';
-import './columns/Str';
-import './columns/Time';
+import '../columns/Bool';
+import '../columns/Num';
+import '../columns/One';
+import '../columns/Str';
+import '../columns/Time';
 
 import { Builder, Field, Query } from '@expressive/orm';
-import { Connection } from '@expressive/sql';
+import { Connection } from '../connection/Connection';
 import { format } from 'sql-formatter';
 
 import { createEngine, Engine } from './engine';

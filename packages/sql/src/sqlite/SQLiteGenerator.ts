@@ -1,5 +1,5 @@
 import { DataTable } from '@expressive/orm';
-import { Generator } from '@expressive/sql';
+import { Generator } from '../connection/Generator';
 
 export class SQLiteGenerator extends Generator {
   protected jsonTable(table: DataTable): string {
