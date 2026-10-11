@@ -7,8 +7,9 @@
 - `feat/mvc` is the trunk. Each step lands as its own PR into it, small enough to hand-review; the trunk merges to `main` when `@expressive/orm` is release-ready.
 - Merge `main` into the trunk as it moves. A seam missing in mvc lands on `expressive-mvc` `main` as its own PR; the trunk takes the released version, never a link.
 - Stack PRs: each targets the previous one's branch, the bottom one the trunk; merge a lower branch up into the ones above it as it moves.
-- `pr.yml` runs for PRs into `main` only; the first PR widens it to any base so trunk PRs verify.
+- `pr.yml` verifies PRs into any base: typecheck, tests under each package's coverage gate, build, changeset status. Gates ratchet up as the rebuild lands; `orm` reaches 100% in PR 1.
 - Tests: `bun test`, adjacent `*.test.ts`. The memory driver is the test floor; PGLite and sqlite suites stay in their adapters.
+- Policy lives in `AGENTS.md`; changesets per user-facing change, written in the PR that makes it.
 - Trunk commits carry no trailers.
 
 ## Why
@@ -38,7 +39,7 @@ Baseline: `@expressive/mvc` 0.88.0.
 
 One PR each, in order.
 
-1. **CI + `Type extends State`.** Widen `pr.yml`. `Type` on State; field helpers as `def`; per-class metadata via the `type` hook; memory driver (floor only); port `Type.test.ts` and `one.test.ts` with the renames. PGLite harness retired.
+1. **`Type extends State`.** `Type` on State; field helpers as `def`; per-class metadata via the `type` hook; memory driver (floor only); port `Type.test.ts` and `one.test.ts` with the renames. PGLite harness retired.
 2. **Relations.** `one()` on mvc suspense, eager and lazy; `rows()` handle; identity map on the connection.
 3. **Writes.** Dirty tracking, `save()`, `update()`, `delete()`, `onDelete`; `insert` returning the entity; `all()` paging; `subset`.
 4. **`Query` moves in.** Builder, values, computed, `Query` factory from sql; `Builder.use()` structural over `Type`'s metadata; `From<T>` over value-typed classes (`T[K] extends Type ? From<T[K]> : Field<T[K]>`); `prepare` capability; memory driver executes the builder.
