@@ -135,9 +135,9 @@ abstract class Type extends State {
     const row = await type.prepare(data, true);
     await type.connection.update(type.ref, this.id, row);
 
-    for (const [key] of type.fields)
-      if (key in data)
-        (this as any)[key] = (data as any)[key];
+    for (const field of type.fields.values())
+      if (field.column in row)
+        (this as any)[field.key] = await field.get(row[field.column], row);
   }
 
   async delete() {

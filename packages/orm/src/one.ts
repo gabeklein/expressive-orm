@@ -33,19 +33,18 @@ class OneToOneField<T extends Type = Type> extends Field {
       else
         throw new Error(`Missing required relation: ${Class.name}`);
 
-    const fetch = () => Class.one(id, false);
+    return this.lazy ? id : this.load(id);
+  }
 
-    if(this.lazy)
-      return fetch;
+  load(id: number){
+    const Class = this.type;
 
-    const message = (err: Error) => {
+    return Class.one(id, false).catch((err: unknown) => {
       if(err instanceof Error)
         err.message = `Failed to load relation ${Class.name} for ${this.key}: ${err.message}`;
 
       throw err;
-    };
-
-    return fetch().catch(message);
+    });
   }
 
   async set(
@@ -94,7 +93,72 @@ export function getRelated<T extends Type.Class>(Class: T, type: Type.Class) {
 }
 
 function one<T extends Type, C extends Config<OneToOneField>[]>(from: Type.Class<T>, ...config: C){
-  return field<Infer<C, T>>((key, type) => new OneToOneField(key, type, from, ...config));
+  return field<Infer<C, T>, OneToOneField<T>>(
+    (key, type) => new OneToOneField(key, type, from, ...config),
+    (field, subject, store) => {
+      const { key, type: Class } = field;
+      let pending: number | undefined;
+      let loading: Promise<unknown> | undefined;
+      let failed: unknown;
+
+      function put(value: unknown){
+        if (key in store && store[key] === value)
+          return;
+
+        store[key] = value;
+        subject.set(key as any);
+      }
+
+      function settle(request: Promise<unknown>, value?: unknown, error?: unknown){
+        if (loading !== request)
+          return;
+
+        failed = error;
+        put(value);
+      }
+
+      return {
+        value: undefined,
+        get() {
+          if (failed)
+            throw failed;
+
+          if (pending !== undefined) {
+            const request = loading = field.load(pending);
+
+            pending = undefined;
+            request.then(
+              (value) => settle(request, value),
+              (error) => settle(request, undefined, error)
+            );
+          }
+
+          return subject.get(key as any);
+        },
+        set(next: unknown) {
+          pending = undefined;
+          loading = undefined;
+          failed = undefined;
+
+          if (typeof next == "number" || typeof next == "string") {
+            const loaded = Class.loaded.get(next as number);
+
+            if (!loaded) {
+              pending = next as number;
+              delete store[key];
+              subject.set(key as any);
+              throw false;
+            }
+
+            next = loaded;
+          }
+
+          put(next);
+          throw false;
+        }
+      };
+    }
+  );
 }
 
 const lazy = { lazy: true };

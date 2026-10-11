@@ -1,5 +1,4 @@
 export type Async<T> = T | Promise<T>;
-export type MaybeLazy<T> = T | Promise<T> | (() => Async<T>);
 
 export type Nullable<T extends Field = Field> = null | Partial<T> & { nullable: true }
 
@@ -29,7 +28,7 @@ export class Field {
     return value;
   }
 
-  get(this: Field, value: any, from: Record<string, any>): MaybeLazy<unknown> {
+  get(this: Field, value: any, from: Record<string, any>): Async<unknown> {
     return value;
   }
 
