@@ -4,7 +4,8 @@ import './columns/One';
 import './columns/Str';
 import './columns/Time';
 
-import { Builder, Connection, Field, Table } from '@expressive/sql';
+import { Builder, Field, Query } from '@expressive/orm';
+import { Connection } from '@expressive/sql';
 import { format } from 'sql-formatter';
 
 import { createEngine, Engine } from './engine';
@@ -36,7 +37,7 @@ export class SQLiteConnection extends Connection {
     return pretty(this.generateSchema(this.using));
   }
 
-  prepare<T = any>(builder: Builder){
+  prepare(builder: Builder){
     const sql = String(new SQLiteGenerator(builder));
     const string = (x?: unknown[]) => x
       ? x.map(x => typeof x === 'object' ? JSON.stringify(x) : x)
@@ -55,7 +56,7 @@ export class SQLiteConnection extends Connection {
     };
 
     return {
-      all: (p?: any[]) => run(e => e.all(sql, string(p))) as Promise<T[]>,
+      all: (p?: any[]) => run(e => e.all(sql, string(p))),
       run: (p?: any[]) => run(e => e.run(sql, string(p)).then(r => r.changes)),
       toString: () => pretty(sql)
     };
@@ -64,6 +65,8 @@ export class SQLiteConnection extends Connection {
   async close(){
     if (this.engine)
       await (await this.engine).close();
+
+    await super.close();
   }
 
   async sync(fix?: boolean){
@@ -80,7 +83,7 @@ export class SQLiteConnection extends Connection {
     return this;
   }
 
-  async valid(type: Table.Type){
+  async valid(type: Query.Table){
     const { table } = type;
     const fields = Array.from(type.fields.values());
     const db = await this.db();
@@ -111,7 +114,8 @@ export class SQLiteConnection extends Connection {
   }
 
   protected async checkIntegrity(field: Field, info: TableInfo){
-    const { column, datatype, nullable, parent, reference } = field;
+    const { column, datatype, nullable, reference } = field;
+    const parent = field.parent!;
 
     // Check datatype
     if (info.type !== datatype.toLowerCase())
@@ -128,14 +132,10 @@ export class SQLiteConnection extends Connection {
     if (!reference)
       return;
 
-    const {
-      column: foreignKey,
-      parent: {
-        table: foreignTable
-      }
-    } = reference;
+    const foreignKey = reference.column;
+    const foreignTable = reference.parent!.table;
 
-    if (field.parent.connection !== this)
+    if (parent.connection !== this)
       throw new Error(
         `Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`
       );
@@ -157,20 +157,20 @@ export class SQLiteConnection extends Connection {
       );
   }
 
-  protected async createSchema(types: Iterable<typeof Table>): Promise<void> {
+  protected async createSchema(types: Iterable<Query.Table>): Promise<void> {
     const schema = this.generateSchema(types);
 
     if (schema)
       await (await this.db()).exec(schema);
   }
 
-  protected generateSchema(types: Iterable<typeof Table>): string {
+  protected generateSchema(types: Iterable<Query.Table>): string {
     return Array.from(types)
       .map(type => this.generateTableSchema(type))
       .join('\n');
   }
 
-  protected generateTableSchema(type: Table.Type): string {
+  protected generateTableSchema(type: Query.Table): string {
     const fields = Array.from(type.fields.values()).map(field => {
       const {
         column,
@@ -179,24 +179,46 @@ export class SQLiteConnection extends Connection {
         reference,
         increment,
         nullable,
+        primary,
         unique,
       } = field;
 
+      const { onDelete, onUpdate } = field as Field & { onDelete?: string, onUpdate?: string };
       let parts = `\`${column}\` ${datatype.toUpperCase()}`;
 
       if (!nullable) parts += ' NOT NULL';
-      if (increment) parts += ' PRIMARY KEY AUTOINCREMENT';
+      if (primary)   parts += ' PRIMARY KEY';
+      if (increment) parts += ' AUTOINCREMENT';
       if (unique)    parts += ' UNIQUE';
-      if (fallback)  parts += ' DEFAULT ' + field.set(fallback);
+
+      if (fallback !== undefined)
+        parts += ' DEFAULT ' + literal(field, fallback);
 
       if (reference)
-        parts += ` REFERENCES ${reference.parent.table}(${reference.column})`;
+        parts += ` REFERENCES ${reference.parent!.table}(${reference.column})`;
+
+      if (onDelete) parts += ` ON DELETE ${onDelete}`;
+      if (onUpdate) parts += ` ON UPDATE ${onUpdate}`;
 
       return parts;
     });
 
     return `CREATE TABLE ${type.table} (${fields.join(', ')});`;
   }
+}
+
+function literal(field: Field, value: unknown){
+  if (value === "NOW")
+    return "CURRENT_TIMESTAMP";
+
+  if (value === null)
+    return "NULL";
+
+  const encoded = field.set(value);
+
+  return typeof encoded == "string"
+    ? `'${encoded.replace(/'/g, "''")}'`
+    : String(encoded);
 }
 
 function pretty(sql: string){

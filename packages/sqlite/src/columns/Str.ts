@@ -1,9 +1,9 @@
-import { Str } from '@expressive/sql';
+import { str } from '@expressive/orm';
 
-declare module "@expressive/sql" {
-  namespace Str {
+declare module '@expressive/orm' {
+  namespace str {
     interface Text extends StringColumn {
-      readonly type: "text";
+      type: "text";
     }
 
     interface Types {
@@ -13,8 +13,8 @@ declare module "@expressive/sql" {
   }
 }
 
-class StringColumn extends Str.Type {
-  readonly type = "text";
+class StringColumn extends str.Type {
+  type: str.DataType = "text";
 }
 
-Str.Type = StringColumn;
+str.Type = StringColumn;
