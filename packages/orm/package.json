@@ -25,8 +25,9 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "lint": "tsc --noEmit",
-    "test": "tsc --noEmit && bun test"
+    "typecheck": "tsc --noEmit --incremental",
+    "coverage": "vitest run --coverage",
+    "test": "bun run typecheck && bun run coverage"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.16",

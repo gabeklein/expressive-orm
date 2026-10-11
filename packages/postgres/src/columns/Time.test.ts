@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from 'vitest';
 
 // packages/postgres/src/columns/Time.test.ts
 import { Nullable, Table, Time } from '..';

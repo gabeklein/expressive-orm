@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll } from "bun:test";
+import { afterAll, afterEach, beforeAll } from 'vitest';
 
 import { Connection } from '@expressive/sql';
 

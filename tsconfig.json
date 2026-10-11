@@ -10,7 +10,7 @@
         "module": "ESNext",
         "strict": true,
         "target": "ES2020",
-        "types": ["node", "bun"],
+        "types": ["node"],
         "paths": {
             "@expressive/*": [
               "packages/*/src"

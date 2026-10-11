@@ -1,4 +1,4 @@
-import { expect, it } from "bun:test";
+import { expect, it } from 'vitest';
 
 import { Num, Primary, Query, Str, Table } from '..';
 
@@ -85,7 +85,7 @@ it("will throw if joins are composed", async () => {
   });
 
   expect(query).toThrowErrorMatchingInlineSnapshot(
-    `"Cannot use bar.color = foo.color in a group."`);
+    `[Error: Cannot use bar.color = foo.color in a group.]`);
 });
 
 it.skip("will filter for comparisons to later tables", async () => {
