@@ -30,7 +30,7 @@ declare module '@expressive/orm' {
   }
 }
 
-class StringColumn extends str.Type {
+export class StringColumn extends str.Type {
   type: str.DataType = "text";
 
   get datatype() {

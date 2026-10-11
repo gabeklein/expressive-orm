@@ -4,7 +4,7 @@ Contributor guide for AI agents working in this repository.
 
 ## Overview
 
-Expressive ORM - entities on `@expressive/mvc` State with a pluggable driver contract and a `Query` builder. `@expressive/sql` holds the SQL dialect toolkit; `@expressive/sqlite` and `@expressive/postgres` are drivers. Root `FEATURE.md` on a trunk branch holds the agreed scope and build plan for work in progress - read it first.
+Expressive ORM - entities on `@expressive/mvc` State with a pluggable driver contract and a `Query` builder. `@expressive/sql` holds the SQL toolkit, the SQL datatype vocabulary and SQLite, and re-exports orm; `@expressive/postgres` builds on it and re-exports it. `@expressive/sqlite` is a deprecated re-export of sql. Root `FEATURE.md` on a trunk branch holds the agreed scope and build plan for work in progress - read it first.
 
 Monorepo: bun workspaces + changesets. Everything runs under bun (`bun install`, `bun run test`, `bun run build`); never call node or npm directly. Node appears only in `release.yml`, where `changeset publish` shells to npm for the OIDC-authenticated publish.
 
@@ -12,9 +12,9 @@ Monorepo: bun workspaces + changesets. Everything runs under bun (`bun install`,
 
 ```
 packages/orm      - Entities, fields, relations, driver contract, Query (@expressive/orm)
-packages/sql      - SQL generator base, SQL connection base, schema sync (@expressive/sql)
-packages/sqlite   - SQLite driver, runtime-selected engine (@expressive/sqlite)
+packages/sql      - SQL generator and connection base, datatype vocabulary, SQLite driver with runtime-selected engine (@expressive/sql)
 packages/postgres - Postgres and PGLite driver (@expressive/postgres)
+packages/sqlite   - Deprecated re-export of @expressive/sql (@expressive/sqlite)
 ```
 
 ## Commands
@@ -28,7 +28,7 @@ bun run changeset    # Write a changeset
 
 ## Testing
 
-Runner: **vitest** with istanbul coverage, executed on node (`bun run test` invokes it - never call node directly). Config is centralized in root `vitest.config.ts`, which defines the workspace projects and exports `suite(thresholds?)`; per-package `vitest.config.ts` files are two-liners calling it. `suite()` gates statements, branches, functions and lines at 100%; a package below that passes its current floors explicitly. Floors ratchet: raise them in the PR that raises coverage, never lower one. `packages/orm` drops its floors and takes the 100% default once its rebuild lands - a conditional arm is exercised by a test or deleted as dead code; `sql` and the drivers climb as the rebuild touches them.
+Runner: **vitest** with istanbul coverage, executed on node (`bun run test` invokes it - never call node directly). Config is centralized in root `vitest.config.ts`, which defines the workspace projects and exports `suite(thresholds?)`; per-package `vitest.config.ts` files are two-liners calling it. `suite()` gates statements, branches, functions and lines at 100%; a package below that passes its current floors explicitly. Floors ratchet: raise them in the PR that raises coverage, never lower one. `orm` and `sql` take the 100% default - a conditional arm is exercised by a test or deleted as dead code; `postgres` passes floors and climbs as the rebuild touches it.
 
 ```ts
 import { vi, describe, it, expect } from 'vitest';
@@ -36,7 +36,7 @@ import { vi, describe, it, expect } from 'vitest';
 
 Use `vi.fn()` for mocks and `vi.spyOn(...)` for spies. Tests live in `*.test.ts` files adjacent to the source they cover.
 
-The memory driver in `packages/orm` is the test floor for entity behaviour. SQL rendering is asserted by inline snapshots in `sql` and the drivers. `postgres` tests run on PGLite; the `pg` connection test expects nothing listening on 5432.
+The memory driver in `packages/orm` is the test floor for entity behaviour. SQL rendering is asserted by inline snapshots in `sql` and `postgres`. SQLite tests run on `node:sqlite`; driver fallbacks are tested through mocked modules. `postgres` tests run on PGLite; the `pg` connection test expects nothing listening on 5432.
 
 Naming: positive `it('will create instance')`, negative `it('will not trigger update')`, error `it('will throw if not found')`.
 
@@ -62,4 +62,4 @@ Naming: positive `it('will create instance')`, negative `it('will not trigger up
 
 ## Releasing
 
-All four packages publish. Merged changesets accumulate on `main`; `release.yml` maintains a "chore: version packages" PR and publishes from CI when it merges. No local publishing.
+All four packages publish. Internal dependencies are carets of the current release, not `workspace:` ranges - `changeset publish` packs with npm, which does not rewrite them. Merged changesets accumulate on `main`; `release.yml` maintains a "chore: version packages" PR and publishes from CI when it merges. No local publishing.

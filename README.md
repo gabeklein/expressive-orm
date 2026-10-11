@@ -169,8 +169,8 @@ npm i @expressive/postgres pg
 # PGLite (embedded PostgreSQL)
 npm i @expressive/postgres @electric-sql/pglite
 
-# SQLite
-npm i @expressive/sqlite better-sqlite3
+# SQLite (Bun or Node >= 24 built in; otherwise add better-sqlite3, sqlite3 or @libsql/client)
+npm i @expressive/sql
 
 # MySQL
 npm i @expressive/mysql mysql2
@@ -214,7 +214,7 @@ import { PGLiteConnection } from '@expressive/postgres';
 await new PGLiteConnection(tables, { dataDir: './data' });
 
 // SQLite
-import { SQLiteConnection } from '@expressive/sqlite';
+import { SQLiteConnection } from '@expressive/sql';
 await new SQLiteConnection(tables, './database.db');
 
 // MySQL

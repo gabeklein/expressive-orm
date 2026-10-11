@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { date, Type } from '@expressive/orm';
 
-import { TestConnection } from '../TestConnection';
+import { TestConnection } from '../sqlite/TestConnection';
 
 function column(define: () => unknown){
   class Test extends Type {
@@ -20,6 +20,8 @@ describe("schema", () => {
       birthDate = date({ type: "date" });
       startTime = date({ type: "time" });
       timestamp = date({ type: "integer" });
+      note = date({ type: "text" });
+      precise = date({ type: "timestamp", precision: 3 });
     }
 
     expect<{ created: Date, updated: Date | undefined, birthDate: Date }>(undefined as unknown as TimeRecords);
@@ -34,35 +36,16 @@ describe("schema", () => {
           updated TEXT,
           birth_date TEXT NOT NULL,
           start_time TEXT NOT NULL,
-          timestamp INTEGER NOT NULL
+          timestamp INTEGER NOT NULL,
+          note TEXT NOT NULL,
+          precise TEXT NOT NULL
         );"
     `);
   });
 
-  it("will map all datetime-related types to TEXT except integer", async () => {
-    class DateTimeTypes extends Type {
-      timestamp = date({ type: "timestamp" });
-      datetime = date({ type: "datetime" });
-      date = date({ type: "date" });
-      time = date({ type: "time" });
-      unixTime = date({ type: "integer" });
-      custom = date({ type: "text" });
-    }
-
-    const { schema } = new TestConnection([ DateTimeTypes ]);
-
-    expect(String(schema)).toMatchInlineSnapshot(`
-      "CREATE TABLE
-        date_time_types (
-          id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-          timestamp TEXT NOT NULL,
-          datetime TEXT NOT NULL,
-          date TEXT NOT NULL,
-          time TEXT NOT NULL,
-          unix_time INTEGER NOT NULL,
-          custom TEXT NOT NULL
-        );"
-    `);
+  it("will reject an unknown type", () => {
+    // @ts-expect-error
+    column(() => date({ type: "datetime" }));
   });
 
   it("will default to the current timestamp", async () => {

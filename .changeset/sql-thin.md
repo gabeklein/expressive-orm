@@ -2,7 +2,7 @@
 "@expressive/sql": minor
 ---
 
-`@expressive/sql` is driver infrastructure for `@expressive/orm`, which it now peers (with `@expressive/mvc`).
+`@expressive/sql` is driver infrastructure for `@expressive/orm`.
 
 - `Table`, `Field`, `Query`, `Builder`, `Parameter`, `DataTable`, `Primary` and the `Str`, `Num`, `Bool`, `Time`, `One` columns are removed. Entities are `Type` subclasses with orm's `str`, `num`, `bool`, `date`, `one` helpers; `Query` comes from orm.
 - `Generator` renders orm's `Builder`. `null` comparisons render `IS NULL` / `IS NOT NULL`, an insert with a selection renders `RETURNING`, and `offset` renders `OFFSET`.

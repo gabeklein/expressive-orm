@@ -1,0 +1,383 @@
+import { describe, expect, it } from 'vitest';
+
+import { bool, date, Field, num, str, Type } from '@expressive/orm';
+
+import { SchemaConnection } from './tests/SchemaConnection';
+
+function column(define: () => unknown){
+  class Test extends Type {
+    value = define();
+  }
+
+  return Test.fields.get("value") as Field<any>;
+}
+
+describe("str", () => {
+  describe("schema", () => {
+    it("will create columns", async () => {
+      class Users extends Type {
+        text = str();
+        optional = str({ nullable: true });
+        varchar = str({ type: "varchar", length: 100 });
+        optionalVarchar = str({ type: "varchar", length: 50, nullable: true });
+        optionalShorthand = str(null);
+        optionalVarcharCombined = str({ type: "varchar" }, { nullable: true });
+        optionalVarcharCombinedShorthand = str({ type: "varchar" }, null);
+      }
+
+      const { schema } = new SchemaConnection([ Users ]);
+
+      expect(String(schema)).toMatchInlineSnapshot(`
+        "CREATE TABLE
+          "users" (
+            "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            "text" TEXT NOT NULL,
+            "optional" TEXT,
+            "varchar" VARCHAR(100) NOT NULL,
+            "optional_varchar" VARCHAR(50),
+            "optional_shorthand" TEXT,
+            "optional_varchar_combined" VARCHAR,
+            "optional_varchar_combined_shorthand" VARCHAR
+          );"
+      `);
+    });
+
+    it("will create varchar columns with length", async () => {
+      class Profiles extends Type {
+        username = str({ type: "varchar", length: 50 });
+        bio = str({ type: "varchar", length: 200, nullable: true });
+      }
+
+      const { schema } = new SchemaConnection([ Profiles ]);
+
+      expect(String(schema)).toMatchInlineSnapshot(`
+        "CREATE TABLE
+          "profiles" (
+            "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            "username" VARCHAR(50) NOT NULL,
+            "bio" VARCHAR(200)
+          );"
+      `);
+    });
+
+    it("will create char columns", async () => {
+      class Settings extends Type {
+        code = str({ type: "char", length: 10 });
+      }
+
+      const { schema } = new SchemaConnection([ Settings ]);
+
+      expect(String(schema)).toMatchInlineSnapshot(`
+        "CREATE TABLE
+          "settings" (
+            "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            "code" CHAR(10) NOT NULL
+          );"
+      `);
+    });
+
+    it("will apply collation", async () => {
+      class Localized extends Type {
+        name = str({
+          type: "varchar",
+          length: 100,
+          collate: "en_US.utf8"
+        });
+      }
+
+      const { schema } = new SchemaConnection([ Localized ]);
+
+      expect(String(schema)).toMatchInlineSnapshot(`
+        "CREATE TABLE
+          "localized" (
+            "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            "name" VARCHAR(100) COLLATE "EN_US.UTF8" NOT NULL
+          );"
+      `);
+    });
+  });
+});
+
+describe("num", () => {
+  describe("schema", () => {
+    it("will create basic numeric columns", async () => {
+      class Numbers extends Type {
+        int = num();
+        real = num({ type: "real" });
+        smallint = num({ type: "smallint" });
+        bigint = num({ type: "bigint" });
+        double = num({ type: "double" });
+        optional = num({ nullable: true });
+      }
+
+      const { schema } = new SchemaConnection([ Numbers ]);
+
+      expect(String(schema)).toMatchInlineSnapshot(`
+        "CREATE TABLE
+          "numbers" (
+            "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            "int" INTEGER NOT NULL,
+            "real" REAL NOT NULL,
+            "smallint" SMALLINT NOT NULL,
+            "bigint" BIGINT NOT NULL,
+            "double" DOUBLE PRECISION NOT NULL,
+            "optional" INTEGER
+          );"
+      `);
+    });
+
+    it("will create numeric columns with precision and scale", async () => {
+      class FinancialData extends Type {
+        price = num({ type: "numeric", precision: 10, scale: 2 });
+        total = num({ type: "numeric", precision: 15, scale: 4 });
+        percentage = num({ type: "numeric", precision: 5, scale: 2 });
+      }
+
+      const { schema } = new SchemaConnection([ FinancialData ]);
+
+      expect(String(schema)).toMatchInlineSnapshot(`
+        "CREATE TABLE
+          "financial_data" (
+            "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            "price" NUMERIC(10, 2) NOT NULL,
+            "total" NUMERIC(15, 4) NOT NULL,
+            "percentage" NUMERIC(5, 2) NOT NULL
+          );"
+      `);
+    });
+
+    it("will create serial columns", async () => {
+      class Counter extends Type {
+        value = num({ type: "serial" });
+      }
+
+      const { schema } = new SchemaConnection([ Counter ]);
+
+      expect(String(schema)).toMatchInlineSnapshot(`
+        "CREATE TABLE
+          "counter" (
+            "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            "value" SERIAL NOT NULL
+          );"
+      `);
+    });
+  });
+});
+
+describe("bool", () => {
+  describe("schema", () => {
+    it("will create basic boolean columns", async () => {
+      class Flags extends Type {
+        active = bool();
+        optional = bool(null);
+        custom = bool({
+          type: "varchar",
+          either: ["YES", "NO"]
+        });
+        optionalCustom = bool({
+          type: "varchar",
+          either: ["ENABLED", "DISABLED"],
+          nullable: true
+        });
+      }
+
+      const { schema } = new SchemaConnection([ Flags ]);
+
+      expect(String(schema)).toMatchInlineSnapshot(`
+        "CREATE TABLE
+          "flags" (
+            "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            "active" BOOLEAN NOT NULL,
+            "optional" BOOLEAN,
+            "custom" VARCHAR(3) NOT NULL,
+            "optional_custom" VARCHAR(8)
+          );"
+      `);
+    });
+
+    it("will handle either values correctly", async () => {
+      class Settings extends Type {
+        enabled = bool({
+          type: "varchar",
+          either: ["TRUE", "FALSE"]
+        });
+        consent = bool({
+          type: "varchar",
+          either: ["ACCEPTED", "DECLINED"],
+          nullable: true
+        });
+      }
+
+      const { schema } = new SchemaConnection([ Settings ]);
+
+      expect(String(schema)).toMatchInlineSnapshot(`
+        "CREATE TABLE
+          "settings" (
+            "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            "enabled" VARCHAR(5) NOT NULL,
+            "consent" VARCHAR(8)
+          );"
+      `);
+    });
+  });
+});
+
+describe("date", () => {
+  describe("schema", () => {
+    it("will create basic time columns", async () => {
+      class TimeRecords extends Type {
+        created = date();
+        updated = date({ nullable: true });
+        birthDate = date({ type: "date" });
+        startTime = date({ type: "time" });
+        duration = date({ type: "interval" });
+      }
+
+      const { schema } = new SchemaConnection([ TimeRecords ]);
+
+      expect(String(schema)).toMatchInlineSnapshot(`
+        "CREATE TABLE
+          "time_records" (
+            "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            "created" TIMESTAMP NOT NULL,
+            "updated" TIMESTAMP,
+            "birth_date" DATE NOT NULL,
+            "start_time" TIME NOT NULL,
+            "duration" INTERVAL NOT NULL
+          );"
+      `);
+    });
+
+    it("will create time columns with precision and timezone", async () => {
+      class EventLog extends Type {
+        timestamp = date({
+          type: "timestamp",
+          precision: 6,
+          timezone: true
+        });
+        duration = date({
+          type: "interval",
+          precision: 3,
+          fields: "DAY TO SECOND"
+        });
+        localTime = date({
+          type: "time",
+          precision: 3
+        });
+        utcTime = date({
+          type: "time",
+          precision: 3,
+          timezone: true
+        });
+      }
+
+      const { schema } = new SchemaConnection([ EventLog ]);
+
+      expect(String(schema)).toMatchInlineSnapshot(`
+        "CREATE TABLE
+          "event_log" (
+            "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            "timestamp" TIMESTAMPTZ (6) NOT NULL,
+            "duration" INTERVAL (3) DAY TO SECOND NOT NULL,
+            "local_time" TIME(3) NOT NULL,
+            "utc_time" TIMETZ (3) NOT NULL
+          );"
+      `);
+    });
+  });
+
+  describe("serialization", () => {
+    it("will serialize and deserialize timestamp values", () => {
+      const timestampField = column(() => date());
+      const value = new Date("2023-01-15T14:30:45.123Z");
+
+      expect(timestampField.set(value)).toBe("2023-01-15 14:30:45");
+
+      const retrieved = timestampField.get("2023-01-15 14:30:45");
+      expect(retrieved).toBeInstanceOf(Date);
+
+    });
+
+    it("will handle date type correctly", () => {
+      const dateField = column(() => date({ type: "date" }));
+      const value = new Date("2023-01-15T14:30:45.123Z");
+
+      expect(dateField.set(value)).toBe("2023-01-15");
+
+      const retrieved = dateField.get("2023-01-15");
+      expect(retrieved).toBeInstanceOf(Date);
+      expect(retrieved.getFullYear()).toBe(2023);
+      expect(retrieved.getMonth()).toBe(0);
+      expect(retrieved.getDate()).toBe(15);
+      expect(retrieved.getHours()).toBe(0);
+      expect(retrieved.getMinutes()).toBe(0);
+      expect(retrieved.getSeconds()).toBe(0);
+    });
+
+    it("will handle time type correctly", () => {
+      const timeField = column(() => date({ type: "time" }));
+      const value = new Date("2023-01-15T14:30:45.123Z");
+
+      expect(timeField.set(value)).toBe("14:30:45");
+
+      const retrieved = timeField.get("14:30:45");
+      expect(retrieved).toBeInstanceOf(Date);
+    });
+
+    it("will validate timestamp with timezone", () => {
+      const tzField = column(() => date({
+        type: "timestamp",
+        timezone: true
+      }));
+
+      expect(tzField.datatype).toBe("timestamptz");
+    });
+
+    it("will validate interval fields", () => {
+      const intervalField = column(() => date({
+        type: "interval",
+        fields: "HOUR TO MINUTE",
+        precision: 2
+      }));
+
+      expect(intervalField.datatype).toBe("interval (2) HOUR TO MINUTE");
+    });
+  });
+});
+
+describe("portability", () => {
+  it("will render the shared vocabulary", async () => {
+    class Shared extends Type {
+      key = str({ type: "uuid" });
+      handle = str({ type: "varchar", length: 3 });
+      float = num({ type: "float" });
+      decimal = num({ type: "decimal", precision: 8, scale: 2 });
+      flag = bool({ type: "integer" });
+      label = bool({ type: "text", either: ["YES", "NO"] });
+      stamp = date({ type: "integer" });
+      note = date({ type: "text" });
+    }
+
+    const { schema } = new SchemaConnection([ Shared ]);
+
+    expect(String(schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
+        "shared" (
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          "key" UUID NOT NULL,
+          "handle" VARCHAR(3) NOT NULL,
+          "float" FLOAT NOT NULL,
+          "decimal" DECIMAL(8, 2) NOT NULL,
+          "flag" INTEGER NOT NULL,
+          "label" TEXT NOT NULL,
+          "stamp" INTEGER NOT NULL,
+          "note" TEXT NOT NULL
+        );"
+    `);
+  });
+
+  it("will reject a timezone without time", () => {
+    // @ts-expect-error
+    column(() => date({ type: "date", timezone: true }));
+  });
+});
