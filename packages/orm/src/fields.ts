@@ -167,7 +167,7 @@ class BooleanColumn extends Field<boolean> {
   declare type: bool.DataType;
   declare either?: readonly [true: string | number, false: string | number];
 
-  set(value: unknown) {
+  set(value: unknown): string | number | boolean | null | undefined {
     if (value == null)
       return value;
 

@@ -54,7 +54,7 @@ export class Field<T = unknown> {
 
   use?(query: Builder): unknown;
 
-  set(this: Field, value: any, compare?: boolean): Async<string | number | null | undefined> {
+  set(this: Field, value: any, compare?: boolean): Async<string | number | boolean | null | undefined> {
     return value;
   }
 
