@@ -1,8 +1,4 @@
-import './columns/Bool';
-import './columns/Num';
-import './columns/One';
-import './columns/Str';
-import './columns/Time';
+import './columns';
 
 import { Builder, Field, Query } from '@expressive/orm';
 import { Connection } from '@expressive/sql';

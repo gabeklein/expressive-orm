@@ -1,41 +1,38 @@
 import { date } from '@expressive/orm';
+import { NumericColumn, TimeColumn as SQLTimeColumn } from '@expressive/sql';
 
 declare module '@expressive/orm' {
+  namespace num {
+    interface Serial extends NumericColumn {
+      type: "serial";
+    }
+
+    interface Types {
+      serial: Serial;
+    }
+  }
+
   namespace date {
-    interface Timestamp extends TimeColumn {
-      type: "timestamp";
-      precision?: number;
+    interface Timestamp {
       timezone?: boolean;
     }
 
-    interface Day extends TimeColumn {
-      type: "date";
-    }
-
-    interface Time extends TimeColumn {
-      type: "time";
-      precision?: number;
+    interface Time {
       timezone?: boolean;
     }
 
     interface Interval extends TimeColumn {
       type: "interval";
       fields?: string;
-      precision?: number;
     }
 
     interface Types {
-      default: Timestamp;
-      timestamp: Timestamp;
-      date: Day;
-      time: Time;
       interval: Interval;
     }
   }
 }
 
-class TimeColumn extends date.Type {
-  type: date.DataType = "timestamp";
+export class TimeColumn extends SQLTimeColumn {
   timezone?: boolean;
   fields?: string;
 
@@ -59,35 +56,16 @@ class TimeColumn extends date.Type {
     if (value instanceof Date && this.type === "timestamp" && !this.timezone)
       return new Date(value.getTime() - value.getTimezoneOffset() * 60000);
 
-    if (typeof value == "string" && this.type === "date") {
-      const [year, month, day] = value.split('-').map(Number);
-      return new Date(year, month - 1, day);
-    }
-
-    if (typeof value == "string" && this.type === "time")
-      return new Date(`1970-01-01T${value}Z`);
-
     return super.get(value);
   }
 
   set(value: unknown) {
-    const iso = super.set(value);
+    const out = super.set(value);
 
-    if (iso === undefined)
-      return iso;
+    if (typeof out != "string" || this.type !== "timestamp" || this.timezone)
+      return out;
 
-    const text = new Date(iso).toISOString();
-
-    if (this.type === "date")
-      return text.slice(0, 10);
-
-    if (this.type === "time")
-      return text.slice(11, 19);
-
-    if (this.timezone)
-      return text;
-
-    return text.slice(0, 19).replace("T", " ");
+    return out.slice(0, 19).replace("T", " ");
   }
 }
 

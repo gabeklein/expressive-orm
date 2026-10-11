@@ -30,13 +30,12 @@
       "name": "@expressive/postgres",
       "version": "0.4.7",
       "dependencies": {
-        "@expressive/sql": "^0.4.3",
+        "@expressive/sql": "workspace:^",
         "sql-formatter": "^10.7.2",
       },
       "devDependencies": {
         "@electric-sql/pglite": "^0.2.16",
         "@expressive/mvc": "^0.88.0",
-        "@expressive/orm": "^0.12.1",
         "@types/pg": "^8.11.11",
         "pg": "^8.14.0",
         "tsdown": "^0.20.1",
@@ -44,7 +43,6 @@
       "peerDependencies": {
         "@electric-sql/pglite": "^0.2.16",
         "@expressive/mvc": "^0.88.0",
-        "@expressive/orm": "^0.12.1",
         "pg": "*",
       },
       "optionalPeers": [
