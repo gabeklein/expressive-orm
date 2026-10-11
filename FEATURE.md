@@ -34,7 +34,8 @@ Baseline: `@expressive/mvc` 0.88.0.
 - **`Query` ships here.** Builder, values, computed ops record intent; a driver's `prepare` renders or executes it. The string generator stays in sql. `String(query)` with no connection dumps intent.
 - **Memory driver in core.** Floor plus `prepare` executed as procedures over arrays - the test floor and the first non-SQL driver. Templates unsupported.
 - **Names.** `Type.new` constructs; `insert(data)` persists and returns the entity; `find(where, limit, offset)` replaces static `get`; `rows()` replaces field `get`; `query` is the builder sugar; the constraint query behind `find`, `one` and `all` is the protected `fetch`. `one`, `all`, `update(id, data)`, `subset` keep their names.
-- **Package graph.** orm peers mvc. sql peers orm (builder types) and keeps the generator base, SQL connection base, schema sync. sqlite and postgres depend on sql, peer orm, implement the floor over `Query` plus `prepare`, `sync`, and `subscribe` where the store offers it. dev depends on sqlite as its built-in default and peers orm.
+- **Package graph.** orm peers mvc. sql peers orm (builder types) and keeps the generator base and the SQL connection base, which implements the floor over `Query` - `get`, `insert`, `update`, `remove` as builder statements against the class registered for the table, values bound as parameters - so every SQL adapter inherits it. sqlite and postgres depend on sql, peer orm, and supply `prepare`, `sync` with schema generation, and `subscribe` where the store offers it. Users import entities and `Query` from orm and only a connection from an adapter; nothing user-facing imports sql. dev depends on sqlite as its built-in default and peers orm.
+- **Generator seams.** orm exports `Computed`, `DataField` and `QueryTemplate` beside `Parameter` and `DataTable` so a generator can render every value; `Builder.offset` carries the floor's paging. A `null` comparison renders `IS NULL` / `IS NOT NULL`; an insert with a selection renders `RETURNING`.
 - **`Query` in orm.** `Query`, `Builder`, `Parameter` and `DataTable` export from orm; the structural table the builder reads is `Query.Table` - `{ fields, table, schema?, connection? }`, which `Type` satisfies. `Query.From<T>` maps a `Type`-valued key to a joined proxy (`Query.Join` when nullable) and any other value `V` to `Field<V>`; methods and `rows()` handles are excluded. Nullability is `undefined extends T[K]`.
 - **One `Field`.** `type` is the datatype string; the JS constructor a helper records is `kind`. A relation field holds `entity`, `reference` (the target's `id` field) and `use(builder)`: a required `one()` inner joins, a nullable one left joins.
 - **Intent dump.** `String(query)` is the connection's rendering; without `prepare`, and in the memory driver, it is a line per clause: `from`/`join`/`left join`/`with` tables and their `on` conditions, a `where` per top-level filter (groups alternate `or`/`and` in parentheses), `insert`/`update` with indented `key: value` lines, `delete`, `order`, `limit`, then `select` - a value, indented aliases, a table for a whole entity, or `count`.
@@ -51,8 +52,8 @@ One PR each, in order.
 4. **`Query` moves in.** *Landed in substance.* Builder, values, computed, `Query` factory from sql; `Builder.use()` structural over `Type`'s metadata; `From<T>` over value-typed classes (`T[K] extends Type ? From<T[K]> : Field<T[K]>`); `prepare` capability; memory driver executes the builder.
 5. **sql thinned.**
    - **5a. Column vocabulary in orm.** Datatype-aware field classes behind the helpers, `Types` augmentation and the `.Type` hook on each, `Insert` optionality from `optional`/`fallback`/`increment`/`primary`, a redeclarable `id`, `one()` `onDelete`/`onUpdate`. sql and the adapters untouched.
-   - **5b. sql thinned, adapters re-pointed.** Generator base, SQL connection base and schema sync remain, peered on orm; `sql.Table` and its columns retire; sqlite and postgres augment and subclass orm's helpers; string snapshot tests stay in sql.
-6. **Adapters.** sqlite and postgres implement the floor over `Query`, keep `prepare` and `sync`; postgres `subscribe` via LISTEN/NOTIFY. Connections become States and own the identity map.
+   - **5b. sql thinned, adapters re-pointed.** *Landed in substance.* Generator base and SQL connection base remain, peered on orm, the floor over `Query` in the base; `sql.Table`, its columns and sql's `Query` retire; sqlite and postgres augment and subclass orm's helpers and render schema from orm's metadata; string snapshot tests live beside the generator. Entities round-trip on sqlite and PGLite.
+6. **Adapters.** postgres `subscribe` via LISTEN/NOTIFY. Connections become States and own the identity map. The renamed-key-column round trip.
 7. **Docs + release.** README per package, changesets, 0.x of orm first so dev can take it.
 
 ## Open
@@ -63,7 +64,10 @@ One PR each, in order.
 - Which base statics cross to a client twin, and how orm declares it.
 - Templates as inputs to a written column (`where(User, { name })` with `name` a template argument) - unsupported, as in sql.
 - Async codec hook naming and where it runs relative to the builder's sync digest.
-- The floor contract keys rows by an `id` column: `update(table, id)`, `remove(table, id)` and the memory driver's generated key ignore a redeclared `id` column. Metadata, joins and constraint queries follow it.
+- The floor contract keys rows by the `id` property: `update(table, id)` and `remove(table, id)` in sql's base follow a redeclared `id` column, the memory driver's generated key does not. The SQL round trip with a renamed key column is untested.
+- A query with no selection (`select count`) runs through the statement's `run`; SQL adapters return affected rows, so a bare select counts 0 there while memory counts rows.
+- Adapter `Types` augmentations reach consumers only where the adapter's column modules are in the program; tsdown drops side-effect imports from `.d.ts`, so a consumer importing only the connection sees un-narrowed `type` options.
+- sqlite's `sync` does not await `valid()`, so a missing table never throws and `checkIntegrity` races schema creation.
 - `one()` with `optional` or `fallback` is not optional in `Insert` - the brand would add a key to the entity type the relation maps over.
 
 ## Rejected

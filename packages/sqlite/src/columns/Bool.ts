@@ -1,16 +1,16 @@
-import { Bool } from '@expressive/sql';
+import { bool } from '@expressive/orm';
 
-declare module "@expressive/sql" {
-  namespace Bool {
+declare module '@expressive/orm' {
+  namespace bool {
     interface Integer extends BooleanColumn {
-      readonly type: "integer";
+      type: "integer";
     }
-    
+
     interface Text extends BooleanColumn {
-      readonly type: "text";
-      readonly either: [true: string, false: string];
+      type: "text";
+      either: readonly [true: string, false: string];
     }
-    
+
     interface Types {
       default: Integer;
       integer: Integer;
@@ -19,8 +19,8 @@ declare module "@expressive/sql" {
   }
 }
 
-class BooleanColumn extends Bool.Type {
-  readonly type: Bool.DataType = "integer";
+class BooleanColumn extends bool.Type {
+  type: bool.DataType = "integer";
 }
 
-Bool.Type = BooleanColumn;
+bool.Type = BooleanColumn;

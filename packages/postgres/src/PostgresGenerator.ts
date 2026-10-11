@@ -1,24 +1,7 @@
-import { DataTable, Generator, Parameter } from '@expressive/sql';
+import { DataTable, Parameter } from '@expressive/orm';
+import { Generator } from '@expressive/sql';
 
 export class PostgresGenerator extends Generator {
-  toString(): string {
-    const { returns, inserts } = this.query;
-    const query = super.toString();
-
-    if(inserts.size && returns)
-      return query + ' RETURNING ' + (
-        returns instanceof Map
-          ? Array
-              .from(returns.entries())
-              .map(([alias, field]) => {
-                return `${this.reference(field)} AS "${alias}"`;
-              })
-          : this.reference(returns)
-      )
-
-    return query;
-  }
-
   protected jsonTable(table: DataTable){
     const param = this.param(table);
     const types = Array.from(table.used, field => {

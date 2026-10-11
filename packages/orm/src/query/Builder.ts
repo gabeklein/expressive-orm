@@ -44,6 +44,7 @@ class Builder {
   returns?: Map<string, unknown> | Field | Value;
   entity?: Builder.ITable;
   limit?: number;
+  offset?: number;
 
   prepare(): Query.TemplateSelects<any, any> | Query.Template<any> {
     const { connection } = this;
@@ -375,7 +376,7 @@ class Builder {
   }
 
   toString(){
-    const { tables, inserts, updates, deletes, filters, order, limit, returns, entity } = this;
+    const { tables, inserts, updates, deletes, filters, order, limit, offset, returns, entity } = this;
     const lines: string[] = [];
     let from = "from";
 
@@ -419,6 +420,9 @@ class Builder {
 
     if (limit)
       lines.push(`limit ${limit}`);
+
+    if (offset)
+      lines.push(`offset ${offset}`);
 
     if (entity)
       lines.push(`select ${entity}`);

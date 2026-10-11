@@ -1,13 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { Table } from '.';
+import { Type } from '@expressive/orm';
+
 import { PGConnection } from './PGConnection';
 
 describe('PGConnection', () => {
-  class TestType extends Table {}
+  class TestType extends Type {}
 
   afterEach(() => {
-    delete TestType.connection;
+    Reflect.deleteProperty(TestType, "connection");
   });
 
   it('throw ECONNREFUSED', async () => {

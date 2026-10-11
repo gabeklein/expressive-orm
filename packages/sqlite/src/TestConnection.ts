@@ -1,43 +1,37 @@
-import { afterAll, afterEach, beforeAll } from 'vitest';
+import { afterAll, afterEach, beforeAll, expect } from 'vitest';
 
-import { Connection } from '@expressive/sql';
+import type { Connection } from '@expressive/sql';
 
 import { SQLiteConnection } from './SQLiteConnection';
 
-const reset = new Set<Function>();
-let cleanup: Function | undefined;
+const reset = new Set<() => Promise<void>>();
 
-afterEach(() => {
-  Promise.all(Array.from(reset).map(cb => {
-    reset.delete(cb);
-    return cb();
-  }));
-});
-
-afterAll(() => cleanup && cleanup());
+afterEach(() => Promise.all(Array.from(reset, close => {
+  reset.delete(close);
+  return close();
+})));
 
 export class TestConnection extends SQLiteConnection {
   constructor(
     using: Connection.Types,
-    private after?: () => void){
+    private after?: () => Promise<void>){
 
     super(using);
 
-    // Bun has no expect.getState().currentTestName. Built during describe setup
-    // we can register lifecycle hooks; built inside a test, beforeAll() throws -
-    // use that to fall back to per-test cleanup.
-    try {
-      beforeAll(() => this.then());
-      cleanup = () => this.close();
-    }
-    catch {
+    if (expect.getState().currentTestName)
       reset.add(() => this.close());
+    else {
+      beforeAll(() => this.then());
+      afterAll(() => this.close());
     }
   }
 
   async sync(fix?: boolean){
     const self = await super.sync(fix);
-    if(this.after) this.after();
+
+    if (this.after)
+      await this.after();
+
     return self;
   }
 }

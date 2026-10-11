@@ -213,6 +213,28 @@ describe("where", () => {
     await expect(query).resolves.toEqual([2, 3, 4]);
   })
 
+  it("will offset results", async () => {
+    await ready;
+    const query = Query(function(where){
+      const item = where(Item);
+
+      where(item.number).over(1);
+      where(2);
+      this.offset = 1;
+
+      return item.number;
+    });
+
+    expect(String(query)).toMatchInlineSnapshot(`
+      "from item
+      where item.number > 1
+      limit 2
+      offset 1
+      select item.number"
+    `);
+    await expect(query).resolves.toEqual([3, 4]);
+  })
+
   it("will add operator clauses", async () => {
     await ready;
     const query = Query(where => {

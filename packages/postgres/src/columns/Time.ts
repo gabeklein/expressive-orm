@@ -1,91 +1,94 @@
-// packages/postgres/src/columns/Time.ts
-import { Time } from '@expressive/sql';
+import { date } from '@expressive/orm';
 
-declare module "@expressive/sql" {
-  namespace Time {
+declare module '@expressive/orm' {
+  namespace date {
     interface Timestamp extends TimeColumn {
-      readonly type: "timestamp";
-      readonly precision?: number;
-      readonly timezone?: boolean;
+      type: "timestamp";
+      precision?: number;
+      timezone?: boolean;
     }
-    
-    interface Date extends TimeColumn {
-      readonly type: "date";
+
+    interface Day extends TimeColumn {
+      type: "date";
     }
-    
+
     interface Time extends TimeColumn {
-      readonly type: "time";
-      readonly precision?: number;
-      readonly timezone?: boolean;
+      type: "time";
+      precision?: number;
+      timezone?: boolean;
     }
-    
+
     interface Interval extends TimeColumn {
-      readonly type: "interval";
-      readonly fields?: string;
-      readonly precision?: number;
+      type: "interval";
+      fields?: string;
+      precision?: number;
     }
-    
+
     interface Types {
       default: Timestamp;
       timestamp: Timestamp;
-      date: Date;
+      date: Day;
       time: Time;
       interval: Interval;
     }
   }
 }
 
-class TimeColumn extends Time.Type {
-  readonly timezone?: boolean;
-  readonly fields?: string;
-  
+class TimeColumn extends date.Type {
+  type: date.DataType = "timestamp";
+  timezone?: boolean;
+  fields?: string;
+
   get datatype() {
     const { type, precision, timezone, fields } = this;
-    
-    let datatype = type || "timestamp";
-    
+    let datatype: string = type;
+
     if (timezone && type.startsWith("time"))
       datatype += "tz";
-    
+
     if (precision !== undefined && ["timestamp", "time", "interval"].includes(type))
       datatype += ` (${precision})`;
-    
+
     if (fields && type === "interval")
       datatype += ` ${fields}`;
-    
+
     return datatype;
   }
-  
-  get(value: string | Date) {
-    if (value instanceof Date)
-      return value;
-      
-    if (this.type === "date") {
-      // For date type, strip the time part
-      const date = new Date(value.replace(/[-]/g, '/'));
-      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  get(value: unknown) {
+    if (value instanceof Date && this.type === "timestamp" && !this.timezone)
+      return new Date(value.getTime() - value.getTimezoneOffset() * 60000);
+
+    if (typeof value == "string" && this.type === "date") {
+      const [year, month, day] = value.split('-').map(Number);
+      return new Date(year, month - 1, day);
     }
-    
+
+    if (typeof value == "string" && this.type === "time")
+      return new Date(`1970-01-01T${value}Z`);
+
     return super.get(value);
   }
-  
-  set(value: string | Date) {
-    if (value === "NOW") {
-      return "CURRENT_TIMESTAMP";
-    } else if (value instanceof Date) {
-      if (this.type === "date") {
-        return value.toISOString().slice(0, 10);
-      } else if (this.type === "time") {
-        return value.toISOString().slice(11, 19);
-      } else {
-        return value.toISOString().slice(0, 19).replace("T", " ");
-      }
-    } else if (typeof value === "string") {
-      return value;
-    } else {
-      throw "Value must be a Date, string, or 'NOW'.";
-    }
+
+  set(value: unknown) {
+    const iso = super.set(value);
+
+    if (iso === undefined)
+      return iso;
+
+    const text = new Date(iso).toISOString();
+
+    if (this.type === "date")
+      return text.slice(0, 10);
+
+    if (this.type === "time")
+      return text.slice(11, 19);
+
+    if (this.timezone)
+      return text;
+
+    return text.slice(0, 19).replace("T", " ");
   }
 }
 
-Time.Type = TimeColumn;
+date.Type = TimeColumn;

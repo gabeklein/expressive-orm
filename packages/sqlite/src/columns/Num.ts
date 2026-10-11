@@ -1,15 +1,15 @@
-import { Num } from '@expressive/sql';
+import { num } from '@expressive/orm';
 
-declare module "@expressive/sql" {
-  namespace Num {
+declare module '@expressive/orm' {
+  namespace num {
     interface Integer extends NumericColumn {
-      readonly type: "integer" | "smallint" | "bigint" | "serial";
+      type: "integer" | "smallint" | "bigint" | "serial";
     }
-    
+
     interface Real extends NumericColumn {
-      readonly type: "real" | "float" | "double" | "decimal" | "numeric";
+      type: "real" | "float" | "double" | "decimal" | "numeric";
     }
-    
+
     interface Types {
       default: Integer;
       integer: Integer;
@@ -25,13 +25,13 @@ declare module "@expressive/sql" {
   }
 }
 
-class NumericColumn extends Num.Type {
-  readonly type: Num.DataType = "integer";
+class NumericColumn extends num.Type {
+  type: num.DataType = "integer";
 
   get datatype(){
-    let { type } = this;
+    const { type } = this;
 
-    if (["smallint", "int", "bigint", "serial"].includes(type))
+    if (["smallint", "bigint", "serial"].includes(type))
       return "integer";
 
     if (["float", "double", "decimal", "numeric"].includes(type))
@@ -40,15 +40,14 @@ class NumericColumn extends Num.Type {
     return type;
   }
 
-  set(value: number) {
-    if (typeof value !== 'number' || isNaN(value))
-      throw `Got '${value}' but value must be a number.`;
+  set(value: unknown) {
+    const out = super.set(value);
 
-    if (this.type.includes("int") && value !== Math.floor(value))
-      throw `Got '${value}' but datatype is integer.`;
+    if (typeof value == "number" && this.datatype == "integer" && value !== Math.floor(value))
+      throw new Error(`Got '${value}' but datatype is integer.`);
 
-    return value;
+    return out;
   }
 }
 
-Num.Type = NumericColumn;
+num.Type = NumericColumn;

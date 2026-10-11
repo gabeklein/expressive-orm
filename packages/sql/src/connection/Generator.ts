@@ -1,13 +1,20 @@
-import { Builder } from '../query/Builder';
-import { Computed } from '../query/Computed';
-import { Query } from '../query/Query';
-import { DataField, DataTable, Group, Parameter, QueryTemplate, Value } from '../query/Value';
-import { Field } from '../type/Field';
+import { Builder, Computed, DataField, DataTable, Field, Parameter, QueryTemplate } from '@expressive/orm';
+
 import { escape } from '../utils';
 
-export class Generator {
-  cte = new Map<string, string>();
+type Expression = Builder["filters"];
 
+function isValue(input: unknown){
+  return (
+    input instanceof Field ||
+    input instanceof Parameter ||
+    input instanceof DataField ||
+    input instanceof QueryTemplate ||
+    input instanceof Computed
+  );
+}
+
+export class Generator {
   constructor(public query: Builder){}
 
   toString() {
@@ -19,7 +26,8 @@ export class Generator {
       this.select(),
       this.where(),
       this.order(),
-      this.limit()
+      this.limit(),
+      this.returning()
     ];
 
     return parts.flat(Infinity).filter(Boolean).join(' ');
@@ -53,6 +61,19 @@ export class Generator {
     ];
   }
 
+  protected returning(){
+    const { inserts, returns } = this.query;
+
+    if (!inserts.size || !returns)
+      return;
+
+    return 'RETURNING ' + (
+      returns instanceof Map
+        ? Array.from(returns, ([alias, field]) => `${this.value(field)} AS "${alias}"`).join(', ')
+        : this.reference(returns)
+    );
+  }
+
   protected with(){
     const cte = [] as string[];
 
@@ -66,8 +87,8 @@ export class Generator {
   }
 
   protected value(input: unknown){
-    if(input instanceof Value || input instanceof Field)
-      return this.reference(input as any) as string;
+    if(isValue(input))
+      return this.reference(input);
 
     if(typeof input === "string")
       return `'${input.replace(/'/g, "\\'")}'`;
@@ -75,32 +96,29 @@ export class Generator {
     return String(input);
   }
 
-  protected jsonTable(table: DataTable){
-    throw new Error("Not implemented.")
+  protected jsonTable(_table: DataTable): string {
+    throw new Error("Not implemented.");
   }
 
-  computed(from: Computed<any>){
-    let { left, operator, right } = from;
+  protected computed(from: Computed<unknown>): string {
+    const { left, operator, right, rank } = from;
+    const side = (input: unknown, tight: boolean) => {
+      if(!(input instanceof Computed))
+        return this.value(input);
 
-    if(right instanceof Computed){
-      const value = this.computed(right);
-      right = right.rank <= from.rank ? `(${value})` : value;
+      const value = this.computed(input);
+
+      return (tight ? input.rank <= rank : input.rank < rank) ? `(${value})` : value;
     }
 
-    if(!left)
-      return `${operator}${right}`;
+    if(left === undefined)
+      return operator + side(right, true);
 
-    if(left instanceof Computed){
-      const value = this.computed(left);
-      left = left.rank < from.rank ? `(${value})` : value;
-    }
-
-    return `${left} ${operator} ${right}`;
+    return `${side(left, false)} ${operator} ${side(right, true)}`;
   }
 
   protected joins(main: Builder.ITable){
     const output: string[] = [];
-    const applied = new Set();
 
     for(const table of this.query.tables.values()){
       if(table === main)
@@ -111,16 +129,9 @@ export class Generator {
       if(table.joins.length === 0)
         throw new Error(`Table ${name} has no joins.`);
 
-      const joins = table.joins.filter(x => {
-        if(!applied.has(x)){
-          applied.add(x);
-          return true;
-        }
-      });
-
       const mode = optional ? "LEFT" : "INNER";
       const as = this.escape(name) + (alias ? ` ${this.escape(alias)}` : "");
-      const conds = joins.map(x => this.filter(x.left, x.op, x.right));
+      const conds = table.joins.map(x => this.filter(x.left, x.op, x.right));
 
       output.push(`${mode} JOIN ${as} ON ${conds.join(' AND ')}`);
     }
@@ -129,28 +140,16 @@ export class Generator {
       return output.join(' ');
   }
 
-  protected set(updates: Map<Query.ITable, Builder.Insert>){
+  protected set(updates: Map<Builder.ITable, Builder.Insert>){
     const sets: string[] = [];
 
     for(const [_table, data] of updates)
-      for(let [field, value] of data){
-        if(value === undefined)
-          continue;
-
-        if(value instanceof Field || value instanceof Value){
-          value = this.reference(value);
-        }
-        else if(value === null){
-          if(field.nullable)
-            value = 'NULL';
-          else
-            throw new Error(`Column ${field} is not nullable.`);
-        }
-        else
-          value = escape(field.set(value));
-
-        sets.push(`${this.escape(field.column)} = ${value}`);
-      }
+      for(const [field, value] of data)
+        sets.push(`${this.escape(field.column)} = ${
+          isValue(value) ? this.reference(value) :
+          value === null ? 'NULL' :
+          escape(value)
+        }`);
 
     if(!sets.length)
       throw new Error('Update contains no values.');
@@ -158,13 +157,13 @@ export class Generator {
     return `SET ${sets}`;
   }
 
-  protected update(multiTableAllowed = false){
+  protected update(){
     const { updates } = this.query;
 
     if(!updates.size)
       return;
 
-    if(updates.size > 1 && !multiTableAllowed)
+    if(updates.size > 1)
       throw new Error('Engine does not support multi-table updates.');
 
     const [ main ] = updates.keys();
@@ -179,7 +178,7 @@ export class Generator {
 
   protected delete(){
     const { query } = this;
-    const [ main ] = this.query.deletes;
+    const [ main ] = query.deletes;
 
     if(!main)
       return;
@@ -195,7 +194,7 @@ export class Generator {
       return this.escape(from.table.name + '.' + from.column);
 
     if(from instanceof QueryTemplate)
-      return from.parts.map((x) => String(this.reference(x))).join('');
+      return from.from;
 
     if(from instanceof Computed)
       return this.computed(from);
@@ -203,15 +202,9 @@ export class Generator {
     if(from instanceof Parameter)
       return this.param(from);
 
-    if(from instanceof Field){
-      const column = this.escape(from.column);
-      const { table } = from;
-  
-      if(table)
-        return this.escape(table.alias || table.name) + "." + column;
-    }
+    const { table, column } = from as Field;
 
-    return String(from);
+    return this.escape(table!.alias || table!.name) + "." + this.escape(column);
   }
 
   protected select(){
@@ -220,53 +213,45 @@ export class Generator {
 
     const selection =
       returns instanceof Map ?
-        // TODO: simplify this
-        Array.from(returns)
-          .filter(([_alias, field]) => {
-            return field instanceof Field ? !field.absent : true;
-          })
-          .map(([alias, field]) => this.value(field) + ` AS "${alias}"`)
-          .join(', ') :
+        Array.from(returns, ([alias, field]) => this.value(field) + ` AS "${alias}"`).join(', ') :
       returns ?
-        this.reference(returns as Field) :
+        this.reference(returns) :
         'COUNT(*)';
 
     return [
       "SELECT",
       selection,
       this.from(),
-      this.joins(main)
+      main && this.joins(main)
     ]
   }
 
   protected from(){
     const [ main ] = this.query.tables.values();
-    
+
     if(main)
       return ["FROM", this.escape(main.name), main.alias]
   }
 
-  protected param(from: Parameter){
+  protected param(_from: Parameter){
     return "?";
   }
 
   protected filter(left: Field, op: string, right: unknown){
-    const raw = (value: unknown) => escape(left.set(value));
-    
-    if (right === null){
-      right === "NULL";
+    const raw = (value: unknown) => isValue(value) ? this.reference(value) : escape(left.set(value));
 
+    if (right === null){
       if(op == '=')
         op = 'IS';
-      else if(op == '!=')
+      else if(op == '<>' || op == '!=')
         op = 'IS NOT';
       else
         throw new Error('Cannot compare NULL with ' + op);
+
+      right = 'NULL';
     }
     else if(right instanceof Array)
       right = `(${right.map(raw)})`;
-    else if (right instanceof Field || right instanceof Value)
-      right = this.reference(right);
     else
       right = raw(right);
 
@@ -278,15 +263,15 @@ export class Generator {
 
     if (!filters.size) return;
 
-    const combine = (group: Group, or?: boolean): string => {
+    const combine = (group: Expression, or?: boolean): string => {
       return Array
         .from(group.children, (cond, i) => {
-          if (cond instanceof Group) {
+          if ("children" in cond) {
             const inner = combine(cond, !or);
             const first = or !== false && i === 0;
             return cond.size === 1 || first ? inner : `(${inner})`;
           }
-          
+
           return this.filter(cond.left, cond.op, cond.right);
         })
         .join(or ? ' OR ' : ' AND ');
@@ -304,9 +289,11 @@ export class Generator {
   }
 
   protected limit(){
-    const { limit } = this.query;
+    const { limit, offset } = this.query;
 
-    if(limit)
-      return ['LIMIT', limit];
+    return [
+      limit && `LIMIT ${limit}`,
+      offset && `OFFSET ${offset}`
+    ];
   }
 }
