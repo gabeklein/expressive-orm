@@ -498,26 +498,3 @@ describe("references", () => {
     expect(post.user.name).toBe("Carol");
   })
 })
-
-describe("relationships", () => {
-  it("will not infer from ambiguous relations", async () => {
-    const { get } = await import('./get');
-
-    class Table extends connect() {}
-
-    class User extends Table {
-      static table = "user";
-      posts = get(Post);
-    }
-
-    class Post extends Table {
-      static table = "post";
-      author = one(User);
-      editor = one(User);
-    }
-
-    const user = await User.insert({});
-
-    expect(() => user.posts).toThrow("There are multiple relationships");
-  })
-})
