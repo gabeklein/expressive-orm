@@ -31,8 +31,12 @@ Baseline: `@expressive/mvc` 0.88.0.
 - **Driver contract.** Floor: `get(table, constraints, limit, offset)`, `insert`, `update(id)`, `remove(id)`. Capabilities, each optional: `prepare(builder)` for `Query`, `subscribe` for live rows, `sync` for schema. `Type.query(where => ...)` throws unless the resolved connection has `prepare`.
 - **`Query` ships here.** Builder, values, computed ops record intent; a driver's `prepare` renders or executes it. The string generator stays in sql. `String(query)` with no connection dumps intent.
 - **Memory driver in core.** Floor plus `prepare` executed as procedures over arrays - the test floor and the first non-SQL driver. Templates unsupported.
-- **Names.** `Type.new` constructs; `insert(data)` persists and returns the entity; `find(where, limit, offset)` replaces static `get`; `rows()` replaces field `get`; `query` is reserved for the builder. `one`, `all`, `update(id, data)`, `subset` keep their names.
+- **Names.** `Type.new` constructs; `insert(data)` persists and returns the entity; `find(where, limit, offset)` replaces static `get`; `rows()` replaces field `get`; `query` is the builder sugar; the constraint query behind `find`, `one` and `all` is the protected `fetch`. `one`, `all`, `update(id, data)`, `subset` keep their names.
 - **Package graph.** orm peers mvc. sql peers orm (builder types) and keeps the generator base, SQL connection base, schema sync. sqlite and postgres depend on sql, peer orm, implement the floor over `Query` plus `prepare`, `sync`, and `subscribe` where the store offers it. dev depends on sqlite as its built-in default and peers orm.
+- **`Query` in orm.** `Query`, `Builder`, `Parameter` and `DataTable` export from orm; the structural table the builder reads is `Query.Table` - `{ fields, table, schema?, connection? }`, which `Type` satisfies. `Query.From<T>` maps a `Type`-valued key to a joined proxy (`Query.Join` when nullable) and any other value `V` to `Field<V>`; methods and `rows()` handles are excluded. Nullability is `undefined extends T[K]`.
+- **One `Field`.** `type` is the datatype string; the JS constructor a helper records is `kind`. A relation field holds `entity`, `reference` (the target's `id` field) and `use(builder)`: a required `one()` inner joins, a nullable one left joins.
+- **Intent dump.** `String(query)` is the connection's rendering; without `prepare`, and in the memory driver, it is a line per clause: `from`/`join`/`left join`/`with` tables and their `on` conditions, a `where` per top-level filter (groups alternate `or`/`and` in parentheses), `insert`/`update` with indented `key: value` lines, `delete`, `order`, `limit`, then `select` - a value, indented aliases, a table for a whole entity, or `count`.
+- **Whole-entity selections hydrate.** A table proxy returned from the top of a query parses through the class's `parse`, so rows are identity-mapped entities; nested proxies and projections return plain objects.
 - **Not this repo.** Twin seams (static calls, keyed twins, entity references in replies, `Query` exports) are dev's, generic over State. orm declares, at most, which base statics may cross.
 
 ## Build plan
@@ -42,7 +46,7 @@ One PR each, in order.
 1. **`Type extends State`.** `Type` on State; field helpers as `def`; per-class metadata via the `type` hook; memory driver (floor only); port `Type.test.ts` and `one.test.ts` with the renames. PGLite harness retired.
 2. **Relations.** `one()` on mvc suspense, eager and lazy; a related entity is a reference, never adopted; `rows()` handle with `find`, `one`, `insert`. The identity map stays a `WeakMap` keyed by connection.
 3. **Writes.** Dirty tracking, `save()`, `update()`, `delete()`, `onDelete`; `insert` returning the entity; `all()` paging; `subset`.
-4. **`Query` moves in.** Builder, values, computed, `Query` factory from sql; `Builder.use()` structural over `Type`'s metadata; `From<T>` over value-typed classes (`T[K] extends Type ? From<T[K]> : Field<T[K]>`); `prepare` capability; memory driver executes the builder.
+4. **`Query` moves in.** *Landed in substance.* Builder, values, computed, `Query` factory from sql; `Builder.use()` structural over `Type`'s metadata; `From<T>` over value-typed classes (`T[K] extends Type ? From<T[K]> : Field<T[K]>`); `prepare` capability; memory driver executes the builder.
 5. **sql thinned.** Generator base, SQL connection base and schema sync remain, peered on orm; `sql.Table` retired or kept as builder-only base; string snapshot tests stay here.
 6. **Adapters.** sqlite and postgres implement the floor over `Query`, keep `prepare` and `sync`; postgres `subscribe` via LISTEN/NOTIFY. Connections become States and own the identity map.
 7. **Docs + release.** README per package, changesets, 0.x of orm first so dev can take it.
@@ -51,10 +55,10 @@ One PR each, in order.
 
 - mvc: `State.Assign<T>` types methods as `(this: T, ...)`, so a State with a method and a `this`-typed member is invariant and its subclasses stop being assignable to it. `Type` re-declares State's `set` overloads with `Compat<this>` until this is fixed upstream; the "will be assignable to Type" test pins it.
 - `rows()` handle `count` - deferred from PR 2; lands with a driver aggregate or the builder.
-- Static `Type.query(constraints)` is still public; PR 4 reserves `query` for the builder, so rename or protect it there.
 - `Type.fields` forces one `new()` + `set(null)` when no instance has activated - a `new()` hook with side effects runs once for metadata. Revisit if it bites.
 - Which base statics cross to a client twin, and how orm declares it.
-- `Type.query` sugar shape vs importing `Query` directly.
+- Default `table`: `static table = underscore(this.name)` runs once on `Type`, so every subclass without its own `table` is `type`. Queries joining two such classes collide.
+- Templates as inputs to a written column (`where(User, { name })` with `name` a template argument) - unsupported, as in sql.
 - Whether `sql.Table` survives as a builder-only base.
 - Async codec hook naming and where it runs relative to the builder's sync digest.
 - Adapter column-type augmentation after property brands go: option types on the field helper.
