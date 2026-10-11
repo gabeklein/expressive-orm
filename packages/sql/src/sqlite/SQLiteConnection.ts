@@ -65,15 +65,21 @@ export class SQLiteConnection extends Connection {
     await super.close();
   }
 
-  async sync(fix?: boolean){
+  async sync(fix = true){
     if (this.ready)
       throw new Error("Connection is already active.");
 
+    const missing: Query.Table[] = [];
+
     for (const type of this.using)
-      if (!this.valid(type) && fix !== true)
+      if (await this.valid(type))
+        continue;
+      else if (fix)
+        missing.push(type);
+      else
         throw new Error(`Table ${type.table} does not exist.`);
 
-    await this.createSchema(this.using);
+    await this.createSchema(missing);
     Object.defineProperty(this, 'ready', { value: true });
 
     return this;
@@ -129,7 +135,7 @@ export class SQLiteConnection extends Connection {
     const foreignKey = reference.column;
     const foreignTable = reference.parent!.table;
 
-    if (parent.connection !== this)
+    if (reference.parent!.connection !== this)
       throw new Error(
         `Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`
       );

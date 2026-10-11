@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
-import { asc, bool, date, desc, greaterThan, isIn, isLike, isNull, notNull, num, one, Query, str, Type } from '@expressive/orm';
+import { describe, expect, it, vi } from 'vitest';
+
+import { asc, bool, Builder, date, desc, greaterThan, isIn, isLike, isNull, json, notNull, num, one, Query, str, Type } from '@expressive/orm';
 
 import { SQLiteConnection } from './SQLiteConnection';
 import { TestConnection } from './TestConnection';
@@ -616,5 +620,194 @@ describe("floor", () => {
 
     expect(Foo.connection).not.toBe(db);
     expect(Bar.connection).not.toBe(idle);
+  })
+})
+
+describe("sync", () => {
+  it("will reopen a file", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "expressive-sql-"));
+    const file = join(dir, "test.db");
+
+    class Author extends Type {
+      name = str();
+      meta = json<{ tags: string[] }>();
+    }
+
+    class Post extends Type {
+      author = one(Author);
+      title = str({ nullable: true });
+    }
+
+    try {
+      const first = await new SQLiteConnection([Author, Post], file);
+      const author = await Author.insert({ name: "Gabe", meta: { tags: ["a"] } });
+
+      await Post.insert({ author: author.id });
+      await first.close();
+
+      const second = await new SQLiteConnection([Author, Post], file);
+      const post = await Post.one();
+
+      expect(post.title).toBeNull();
+      expect((await post.author).name).toBe("Gabe");
+      expect((await Author.one(1)).meta).toEqual({ tags: ["a"] });
+
+      await second.close();
+    }
+    finally {
+      rmSync(dir, { recursive: true });
+    }
+  })
+
+  it("will throw for a missing table without fix", async () => {
+    class Foo extends Type {}
+
+    const conn = new SQLiteConnection([Foo]);
+
+    await expect(conn.sync(false)).rejects.toThrow("Table foo does not exist.");
+    await conn.close();
+  })
+
+  it("will throw if already active", async () => {
+    class Foo extends Type {}
+
+    const conn = await new TestConnection([Foo]);
+
+    await expect(conn.sync()).rejects.toThrow("Connection is already active.");
+  })
+})
+
+describe("valid", () => {
+  const Author = class Author extends Type {
+    name = str();
+    rank = num({ nullable: true });
+  }
+
+  async function check(type: Type.Class, ddl: string){
+    const conn = new SQLiteConnection([type]);
+
+    await (await conn["db"]()).exec(ddl);
+
+    return conn.valid(type).finally(() => conn.close());
+  }
+
+  it("will be false for a missing table", async () => {
+    const conn = new SQLiteConnection([Author]);
+
+    expect(await conn.valid(Author)).toBe(false);
+    await conn.close();
+  })
+
+  it("will throw for a missing column", async () => {
+    await expect(check(Author, "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name TEXT NOT NULL)"))
+      .rejects.toThrow("Column rank does not exist in table author");
+  })
+
+  it("will throw for a mismatched type", async () => {
+    await expect(check(Author, "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name INTEGER NOT NULL, rank INTEGER)"))
+      .rejects.toThrow("Column name in table author has type INTEGER, expected TEXT");
+  })
+
+  it("will throw for a mismatched nullable", async () => {
+    await expect(check(Author, "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name TEXT, rank INTEGER)"))
+      .rejects.toThrow("Column name in table author has incorrect nullable value");
+  })
+
+  it("will throw for a reference on another connection", async () => {
+    class Post extends Type {
+      author = one(Author);
+    }
+
+    const other = new SQLiteConnection([Author]);
+
+    await expect(check(Post, "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, author_id INTEGER NOT NULL)"))
+      .rejects.toThrow("Foreign key author.id cannot be checked by another connection");
+
+    await other.close();
+  })
+
+  it("will throw for a missing referenced table", async () => {
+    class Post extends Type {
+      author = one(Author);
+    }
+
+    const conn = new SQLiteConnection([Author, Post]);
+
+    await (await conn["db"]()).exec("CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, author_id INTEGER NOT NULL)");
+    await expect(conn.valid(Post)).rejects.toThrow("Referenced table author does not exist");
+    await conn.close();
+  })
+
+  it("will throw for a missing referenced column", async () => {
+    class Post extends Type {
+      author = one(Author);
+    }
+
+    const conn = new SQLiteConnection([Author, Post]);
+
+    await (await conn["db"]()).exec(
+      "CREATE TABLE author (other INTEGER NOT NULL PRIMARY KEY);" +
+      "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, author_id INTEGER NOT NULL)"
+    );
+    await expect(conn.valid(Post)).rejects.toThrow("Referenced column id does not exist in table author");
+    await conn.close();
+  })
+})
+
+describe("prepare", () => {
+  it("will report a failed statement", async () => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    const conn = new SQLiteConnection([Foo]);
+
+    await expect(Foo.find({})).rejects.toThrow(/^Error running SQL: no such table: foo\nSELECT/);
+    await conn.close();
+  })
+
+  it("will run without parameters", async () => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    const conn = await new TestConnection([Foo]);
+    const builder = new Builder();
+
+    builder.use(Foo);
+
+    expect(await conn.prepare(builder).all()).toEqual([{ "COUNT(*)": 0 }]);
+  })
+
+  it("will rethrow a non-error", async () => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    const conn = new SQLiteConnection([Foo]);
+
+    vi.spyOn(conn as any, "db").mockResolvedValue({
+      all: () => Promise.reject("nope")
+    });
+
+    await expect(Foo.find({})).rejects.toBe("nope");
+    await conn.close();
+  })
+
+  it("will throw for an unjoined update", () => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    class Bar extends Type {}
+
+    new TestConnection([Foo, Bar]);
+
+    expect(() => Query(where => {
+      const foo = where(Foo);
+
+      where(Bar);
+      where(foo).update({ name: "x" });
+    })).toThrow("Table bar has no joins.");
   })
 })
