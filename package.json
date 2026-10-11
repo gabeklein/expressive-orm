@@ -8,7 +8,8 @@
 	],
 	"scripts": {
 		"build": "bun run --filter='./packages/*' build",
-		"lint": "bun run --filter='./packages/*' lint",
+		"typecheck": "bun run --filter='./packages/*' typecheck",
+		"coverage": "bun run --filter='./packages/*' coverage",
 		"test": "bun run --filter='./packages/*' test",
 		"changeset": "changeset",
 		"ci:version": "changeset version && bun install",
