@@ -1,4 +1,4 @@
-import { Field } from '../Field';
+import { Field, type Omits } from '../Field';
 import type { Rows } from '../rows';
 import type { Type } from '../Type';
 import { Builder } from './Builder';
@@ -40,14 +40,14 @@ declare namespace Query {
 
   type Assigns<V> =
     [NonNullable<V>] extends [Type]
-      ? NonNullable<V> | number | From<NonNullable<V>> | Value<number>
+      ? NonNullable<V> | NonNullable<V>["id"] | From<NonNullable<V>> | Value<NonNullable<V>["id"]>
       : V | Value<NonNullable<V>>;
 
   type Writable<T> = Exclude<Keys<T>, "id">;
 
   type Insert<T> =
-    & { [K in Writable<T> as undefined extends T[K] ? never : K]: Assigns<T[K]> }
-    & { [K in Writable<T> as undefined extends T[K] ? K : never]?: Assigns<T[K]> | null };
+    & { [K in Keys<T> as Omits<T[K]> extends true ? never : K]: Assigns<T[K]> }
+    & { [K in Keys<T> as Omits<T[K]> extends true ? K : never]?: Assigns<T[K]> | (undefined extends T[K] ? null : never) };
 
   type Update<T> = {
     [K in Writable<T>]?: Assigns<T[K]> | (undefined extends T[K] ? null : never)
