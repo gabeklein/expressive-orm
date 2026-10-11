@@ -30,6 +30,7 @@
       "name": "@expressive/postgres",
       "version": "0.4.7",
       "dependencies": {
+        "@expressive/orm": "workspace:^",
         "@expressive/sql": "workspace:^",
         "sql-formatter": "^10.7.2",
       },
