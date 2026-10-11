@@ -4,3 +4,4 @@ export * from './fields';
 export * from './where';
 export { one, lazy } from './one';
 export { get } from './get';
+export { memory } from './memory';
