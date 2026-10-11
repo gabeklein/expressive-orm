@@ -204,8 +204,21 @@ describe("insert", () => {
     await User.insert({ name: "John" });
 
     expect(User.ref).toBe("app.user");
-    expect(User.ref).toBe("app.user");
     await expect(User.connection.get("app.user", [])).resolves.toEqual([{ id: 1, name: "John" }]);
+  })
+
+  it("will not inherit a parent's ref", () => {
+    class Person extends connect() {
+      static table = "person";
+    }
+
+    expect(Person.ref).toBe("person");
+
+    class Author extends Person {
+      static table = "author";
+    }
+
+    expect(Author.ref).toBe("author");
   })
 })
 

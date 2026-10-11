@@ -228,9 +228,7 @@ abstract class Type extends State {
 
   static get ref() {
     const { schema, table } = this;
-    const ref = schema ? `${schema}.${table}` : table;
-    Object.defineProperty(this, 'ref', { value: ref });
-    return ref;
+    return schema ? `${schema}.${table}` : table;
   }
 
   static get fields(): Map<string, Field> {
