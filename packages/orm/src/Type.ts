@@ -2,6 +2,8 @@ import { State } from '@expressive/mvc';
 
 import { DIRTY, FIELDS, num } from './fields';
 import { Field, underscore } from './Field';
+import type { Builder } from './query/Builder';
+import { Query } from './query/Query';
 import type { Rows } from './rows';
 import { desc, equal, Where } from './where';
 
@@ -59,6 +61,7 @@ declare namespace Type {
     insert: (table: string, data: Record<string, any>, returns?: boolean) => Promise<any>;
     update: (table: string, id: string | number, data: Record<string, any>) => Promise<void>;
     remove: (table: string, id: string | number) => Promise<void>;
+    prepare?: (builder: Builder) => Builder.Statement;
   }
 
   export {
@@ -224,7 +227,13 @@ abstract class Type extends State {
   static schema?: string;
   static subset?: Record<string, unknown>;
   static connection: Type.Connection = new NotReady();
-  static table = underscore(this.name)
+  static get table(): string {
+    return underscore(this.name);
+  }
+
+  static set table(value: string) {
+    Object.defineProperty(this, 'table', { value, writable: true });
+  }
 
   static get ref() {
     const { schema, table } = this;
@@ -294,7 +303,7 @@ abstract class Type extends State {
       where = { id: equal(where) };
     }
 
-    const [row] = await this.query(where, 1);
+    const [row] = await this.fetch(where, 1);
 
     if (!row && arg !== false)
       throw new Error(`No ${this.name} found with: \n${JSON.stringify(where, null, 2)}\n`);
@@ -302,7 +311,22 @@ abstract class Type extends State {
     return row;
   }
 
-  static async query<T extends Type>(
+  static query<T extends Type, R extends {}>(
+    this: Type.Class<T>,
+    where: (self: Query.From<T>, where: Query.Where) => R
+  ): Query.Selects<R>;
+  static query<T extends Type>(
+    this: Type.Class<T>,
+    where?: (self: Query.From<T>, where: Query.Where) => void
+  ): Query.Selects<Query.From<T>>;
+  static query(this: Type.Class, where?: (self: any, where: Query.Where) => unknown){
+    return Query(from => {
+      const self = from(this);
+      return where && where(self, from) || self;
+    });
+  }
+
+  protected static async fetch<T extends Type>(
     from?: Type.Constraint[] | Type.Query<T>,
     limit?: number,
     offset: number = 0
@@ -339,7 +363,7 @@ abstract class Type extends State {
     limit?: number,
     offset?: number
   ) {
-    return this.query(where, limit, offset);
+    return this.fetch(where, limit, offset);
   }
 
   static async *all<T extends Type>(
@@ -351,7 +375,7 @@ abstract class Type extends State {
     let done = false;
 
     while (!done) {
-      const batch = await this.query(where, pageSize, offset);
+      const batch = await this.fetch(where, pageSize, offset);
 
       offset += batch.length;
 
