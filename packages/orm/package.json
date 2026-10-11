@@ -30,7 +30,10 @@
     "test": "bun run typecheck && bun run coverage"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.2.16",
+    "@expressive/mvc": "^0.88.0",
     "tsdown": "^0.20.1"
+  },
+  "peerDependencies": {
+    "@expressive/mvc": "^0.88.0"
   }
 }

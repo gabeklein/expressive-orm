@@ -1,8 +1,8 @@
-import { Infer, use } from "./fields";
+import { field, Infer } from "./fields";
 import { Config, Field } from './Field';
 import Type from "./Type";
 
-const ONE = new Map<Type.Class, Map<Type.Class, Field | null>>();
+const ONE = new WeakMap<Type.Class, Map<Type.Class, Field | null>>();
 
 class OneToOneField<T extends Type = Type> extends Field {
   type: Type.Class<T>;
@@ -45,13 +45,7 @@ class OneToOneField<T extends Type = Type> extends Field {
       throw err;
     };
 
-    try {
-      const result = fetch();
-      return result instanceof Promise ? result.catch(message) : fetch();
-    }
-    catch (error) {
-      message(error as Error);
-    }
+    return fetch().catch(message);
   }
 
   async set(
@@ -78,7 +72,7 @@ class OneToOneField<T extends Type = Type> extends Field {
     if(typeof value === "object"){
       const got = compare
         ? Class.one(value as any, false)
-        : Class.new(value)
+        : Class.insert(value)
       
       return (await got)?.id;
     }
@@ -100,7 +94,7 @@ export function getRelated<T extends Type.Class>(Class: T, type: Type.Class) {
 }
 
 function one<T extends Type, C extends Config<OneToOneField>[]>(from: Type.Class<T>, ...config: C){
-  return use<T>((key, type) => new OneToOneField(key, type, from, ...config)) as Infer<C, T>;
+  return field<Infer<C, T>>((key, type) => new OneToOneField(key, type, from, ...config));
 }
 
 const lazy = { lazy: true };

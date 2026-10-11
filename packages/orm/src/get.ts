@@ -1,34 +1,39 @@
-import { use } from "./fields";
+import { def } from "@expressive/mvc";
+
 import { getRelated } from "./one";
 import Type from "./Type";
 
 export function get<T extends Type.Class>(Class: T, field?: keyof Type.Instance<T>) {
-  return use<T>((key, type) => {
-    function get(this: Type.Instance<T>) {
-      const { fields } = Class;
-      const { id } = this;
+  return def((key, subject: Type) => {
+    let Child: T | undefined;
 
-      if (!id)
-        throw new Error(`Parent entity ${id} does not exist`);
+    return {
+      enumerable: false,
+      set: false,
+      get() {
+        if (Child)
+          return Child;
 
-      if(!field)
-      field = getRelated(Class, type);
+        const { fields } = Class;
+        const { id } = subject;
 
-      if(field && fields.has(field as string)) {
-        class Child extends (Class as typeof Type) {
+        if (!id)
+          throw new Error(`Parent entity ${id} does not exist`);
+
+        if (!field)
+          field = getRelated(Class, subject.constructor as Type.Class);
+
+        if (!fields.has(field as string))
+          throw new Error(`Field ${String(field)} does not exist on ${Class.name}`);
+
+        Child = class extends (Class as typeof Type) {
           static subset = { [field as string]: id };
-        };
+        } as unknown as T;
 
         Object.defineProperty(Child, 'name', { value: Class.name });
-        Object.defineProperty(this, key, { value: Child });
 
         return Child;
       }
-
-      throw new Error(`Field ${String(field)} does not exist on ${Class.name}`);
     };
-
-    get.toString = () => `get${Class.name}`;
-    Object.defineProperty(type.prototype, key, { get, configurable: true });
-  });
+  }) as T;
 }

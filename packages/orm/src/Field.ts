@@ -1,5 +1,3 @@
-import type { Type } from './Type';
-
 export type Async<T> = T | Promise<T>;
 export type MaybeLazy<T> = T | Promise<T> | (() => Async<T>);
 
@@ -33,42 +31,6 @@ export class Field {
 
   get(this: Field, value: any, from: Record<string, any>): MaybeLazy<unknown> {
     return value;
-  }
-
-  parse(this: Field, into: Type & Record<string, any>, raw: Record<string, any>): Async<void> {
-    const value = this.get(raw[this.column], raw);
-    const assign = (value: any) => {
-      Object.defineProperty(into, this.key, { value, configurable: true });
-      return value;
-    };
-
-    if (value instanceof Function) {
-      let promise: Promise<any> | undefined;
-
-      Object.defineProperty(into, this.key, {
-        configurable: true,
-        get() {
-          if (promise instanceof Promise)
-            throw promise;
-
-          const result = value();
-
-          if (result instanceof Promise)
-            throw promise = result.then(assign);
-
-          else
-            return assign(result);
-        }
-      });
-
-      return;
-    }
-
-    if (value instanceof Promise)
-      return value.then(assign);
-
-    else
-      assign(value);
   }
 
   async apply(update: Record<string, string>, from: Record<string, any>, partial?: boolean) {

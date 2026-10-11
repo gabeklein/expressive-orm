@@ -18,8 +18,11 @@
       "name": "@expressive/orm",
       "version": "0.12.1",
       "devDependencies": {
-        "@electric-sql/pglite": "^0.2.16",
+        "@expressive/mvc": "^0.88.0",
         "tsdown": "^0.20.1",
+      },
+      "peerDependencies": {
+        "@expressive/mvc": "^0.88.0",
       },
     },
     "packages/postgres": {
@@ -149,6 +152,8 @@
     "@emnapi/runtime": ["@emnapi/runtime@1.10.0", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-ewvYlk86xUoGI0zQRNq/mC+16R1QeDlKQy21Ki3oSYXNgLb45GV1P6A0M+/s6nyCuNDqe5VpaY84BzXGwVbwFA=="],
 
     "@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w=="],
+
+    "@expressive/mvc": ["@expressive/mvc@0.88.0", "", {}, "sha512-rpqvdm+XHGvbXItBsOme6HC32tSnFSCaCIyq3F6IdbxW2ZZB5gKi0KVQIecWvTAoarvbbCNSc3Jk6eLSsIeVYA=="],
 
     "@expressive/orm": ["@expressive/orm@workspace:packages/orm"],
 
