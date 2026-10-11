@@ -141,7 +141,7 @@ describe("select", () => {
       extra = str({ absent: true, optional: true });
     }
 
-    await Bar.insert({ name: "Bob" } as any);
+    await Bar.insert({ name: "Bob" });
 
     const query = Query(where => where(Bar));
     const [bar] = await query;
@@ -714,7 +714,7 @@ describe("relations", () => {
       return { id: d.id, label: d.c.label };
     });
 
-    expect<Query.Selects<{ id: number, label: string | undefined }>>(query);
+    expect<Query.Selects<{ id: string | number, label: string | undefined }>>(query);
     expect(String(query)).toMatchInlineSnapshot(`
       "from d
       left join c on c.id = d.c_id
@@ -913,7 +913,7 @@ describe("insert", () => {
       note = str(null);
     }
 
-    const query = Query(where => where(Seq, { note: null } as any));
+    const query = Query(where => where(Seq, { note: null }));
     const [seq] = await query;
 
     expect(String(query)).toMatchInlineSnapshot(`

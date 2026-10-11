@@ -23,7 +23,9 @@ Baseline: `@expressive/mvc` 0.88.0.
 - **`Type extends State`.** Fields are `def` instructions. `Type.new(values)` is State's sync construct of an unsaved entity, hydration included (`State.new` accepts an assign overlay). Columns are writable and dirty-tracked; `save()` flushes, `update(data)` is assign then save. `delete()` removes the row and destroys the instance.
 - **Field helpers** `str`, `num`, `bool`, `date`, `uuid`, `json` keep their config grammar (`orNull`, `optional`, `{ column }`, codecs). Config is a superset of sql's `Field` - `datatype`, `length`, `unique`, `fallback`, `increment`, `primary`, `reference` - unused by floor drivers, read by schema sync and the builder. Codecs are sync; an optional async `prepare` hook covers hashing.
 - **Relations.** `one(Other, orNull, lazy)` is a `def` whose getter suspends through mvc. `rows(Other)` returns a bound collection handle (`find`, `one`, `insert`, `count`) with the foreign key implied - replaces `get(Child)`'s minted subclass.
-- **Primary key.** `id` is the property; type (number or string) and column are configurable.
+- **Primary key.** `id` is the property; type (number or string) and column are configurable. The base `id` is `num({ primary: true, increment: true })` typed `string | number`; a subclass redeclares it with any helper carrying `primary`, and the helper's type narrows it - `id = num({ column: "user_id", primary: true })` is a `number`, `id = uuid({ primary: true })` a `string`. No type parameter on `Type`. `one(id)`, `update(id)`, the identity map and relation inputs follow `T["id"]`. sql's `Primary()` init hooks are not ported - statics cover table and schema.
+- **One column vocabulary.** orm's helpers `str`, `num`, `bool`, `date`, `uuid`, `json`, `one` are the only column grammar; `sql.Table` and its `Str`/`Num`/`Bool`/`Time`/`One`/`Primary` retire in 5b. Each helper builds a datatype-aware `Field` subclass held in `<helper>.Type` (`uuid` shares `str.Type`) that validates on `set` and composes `datatype` from `type`, `length`, `precision`/`scale`, `collate`; adapters replace the class with a subclass for dialect renderings and checks. Options apply after construction, so subclass defaults yield to them. Adapter datatypes augment the helper: `declare module '@expressive/orm' { namespace str { interface Types { default: Text; varchar: VarChar } } }` narrows `type` and types options per datatype; properties stay value-typed.
+- **Insert optionality.** `optional`, `fallback`, `increment` and `primary` make a key optional in `Type.Insert` and `Query.Insert` through a `"~optional"` brand on the property type; `nullable` keeps `| undefined`.
 - **Portable query shape.** `{ name: isLike('a%'), id: desc() }` compiles to constraint tuples. Serialisable, served by every driver through the floor.
 - **Class metadata per class.** `fields: Map<string, Field>`, `table`, `schema`, `connection` - exactly what the builder reads. Collected once per class via `State.on({ type })`.
 - **Connection per class, resolvable.** `static connection` stays (multi-provider), read through a getter so a host can default it from context.
@@ -47,7 +49,9 @@ One PR each, in order.
 2. **Relations.** `one()` on mvc suspense, eager and lazy; a related entity is a reference, never adopted; `rows()` handle with `find`, `one`, `insert`. The identity map stays a `WeakMap` keyed by connection.
 3. **Writes.** Dirty tracking, `save()`, `update()`, `delete()`, `onDelete`; `insert` returning the entity; `all()` paging; `subset`.
 4. **`Query` moves in.** *Landed in substance.* Builder, values, computed, `Query` factory from sql; `Builder.use()` structural over `Type`'s metadata; `From<T>` over value-typed classes (`T[K] extends Type ? From<T[K]> : Field<T[K]>`); `prepare` capability; memory driver executes the builder.
-5. **sql thinned.** Generator base, SQL connection base and schema sync remain, peered on orm; `sql.Table` retired or kept as builder-only base; string snapshot tests stay here.
+5. **sql thinned.**
+   - **5a. Column vocabulary in orm.** Datatype-aware field classes behind the helpers, `Types` augmentation and the `.Type` hook on each, `Insert` optionality from `optional`/`fallback`/`increment`/`primary`, a redeclarable `id`, `one()` `onDelete`/`onUpdate`. sql and the adapters untouched.
+   - **5b. sql thinned, adapters re-pointed.** Generator base, SQL connection base and schema sync remain, peered on orm; `sql.Table` and its columns retire; sqlite and postgres augment and subclass orm's helpers; string snapshot tests stay in sql.
 6. **Adapters.** sqlite and postgres implement the floor over `Query`, keep `prepare` and `sync`; postgres `subscribe` via LISTEN/NOTIFY. Connections become States and own the identity map.
 7. **Docs + release.** README per package, changesets, 0.x of orm first so dev can take it.
 
@@ -58,9 +62,9 @@ One PR each, in order.
 - `Type.fields` forces one `new()` + `set(null)` when no instance has activated - a `new()` hook with side effects runs once for metadata. Revisit if it bites.
 - Which base statics cross to a client twin, and how orm declares it.
 - Templates as inputs to a written column (`where(User, { name })` with `name` a template argument) - unsupported, as in sql.
-- Whether `sql.Table` survives as a builder-only base.
 - Async codec hook naming and where it runs relative to the builder's sync digest.
-- Adapter column-type augmentation after property brands go: option types on the field helper.
+- The floor contract keys rows by an `id` column: `update(table, id)`, `remove(table, id)` and the memory driver's generated key ignore a redeclared `id` column. Metadata, joins and constraint queries follow it.
+- `one()` with `optional` or `fallback` is not optional in `Insert` - the brand would add a key to the entity type the relation maps over.
 
 ## Rejected
 

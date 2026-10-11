@@ -5,6 +5,19 @@ export type Async<T> = T | Promise<T>;
 
 export type Nullable<T extends Field = Field> = null | Partial<T> & { nullable: true }
 
+export type Omissible =
+  | { optional: true }
+  | { increment: true }
+  | { primary: true }
+  | { fallback: {} | null };
+
+export type Optional<T> = T & { readonly "~optional"?: true };
+
+export type Omits<V> =
+  undefined extends V ? true :
+  "~optional" extends keyof NonNullable<V> ? true :
+  false;
+
 export type Config<T = Field> = Partial<T> | null | undefined | false;
 
 export class Field<T = unknown> {
@@ -28,14 +41,7 @@ export class Field<T = unknown> {
   constructor(key: string, ...opts: Config[]) {
     this.key = key;
     this.column = underscore(key);
-
-    for (const opt of opts) {
-      if (opt === null) {
-        this.nullable = true;
-      } else if (typeof opt === 'object') {
-        Object.assign(this, opt);
-      }
-    }
+    configure(this, opts);
   }
 
   get property() {
@@ -52,16 +58,15 @@ export class Field<T = unknown> {
     return value;
   }
 
-  get(this: Field, value: any, from?: Record<string, any>): Async<T> {
+  get(this: Field, value: any, from?: Record<string, any>): Async<T | undefined> {
     return value;
   }
 
   async apply(update: Record<string, string>, from: Record<string, any>, partial?: boolean) {
-    const { key, column, nullable, optional } = this;
-    const allowMissing = optional || nullable || partial;
+    const { key, column, nullable } = this;
     let value = from[key];
 
-    if (value === undefined && allowMissing)
+    if (value === undefined && (nullable || partial || omits(this)))
       return;
 
     value = await this.set(value);
@@ -71,6 +76,20 @@ export class Field<T = unknown> {
 
     update[column] = value;
   }
+}
+
+export function configure<F extends Field>(field: F, opts: Config<any>[]) {
+  for (const opt of opts)
+    if (opt === null)
+      field.nullable = true;
+    else if (typeof opt === 'object')
+      Object.assign(field, opt);
+
+  return field;
+}
+
+export function omits(field: Field) {
+  return field.optional || field.increment || field.primary || field.fallback !== undefined;
 }
 
 export function underscore(str: string) {
