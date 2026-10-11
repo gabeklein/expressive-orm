@@ -30,7 +30,7 @@
     "test": "bun run typecheck && bun run coverage"
   },
   "dependencies": {
-    "@expressive/sql": "workspace:^"
+    "@expressive/sql": "^0.4.4"
   },
   "devDependencies": {
     "@expressive/mvc": "^0.88.0",

@@ -30,8 +30,8 @@
     "test": "bun run typecheck && bun run coverage"
   },
   "dependencies": {
-    "@expressive/orm": "workspace:^",
-    "@expressive/sql": "workspace:^",
+    "@expressive/orm": "^0.12.1",
+    "@expressive/sql": "^0.4.4",
     "sql-formatter": "^10.7.2"
   },
   "devDependencies": {

@@ -30,8 +30,8 @@
       "name": "@expressive/postgres",
       "version": "0.4.7",
       "dependencies": {
-        "@expressive/orm": "workspace:^",
-        "@expressive/sql": "workspace:^",
+        "@expressive/orm": "^0.12.1",
+        "@expressive/sql": "^0.4.4",
         "sql-formatter": "^10.7.2",
       },
       "devDependencies": {
@@ -55,7 +55,7 @@
       "name": "@expressive/sql",
       "version": "0.4.4",
       "dependencies": {
-        "@expressive/orm": "workspace:^",
+        "@expressive/orm": "^0.12.1",
         "sql-formatter": "^10.7.2",
       },
       "devDependencies": {
@@ -78,7 +78,7 @@
       "name": "@expressive/sqlite",
       "version": "0.4.0",
       "dependencies": {
-        "@expressive/sql": "workspace:^",
+        "@expressive/sql": "^0.4.4",
       },
       "devDependencies": {
         "@expressive/mvc": "^0.88.0",
