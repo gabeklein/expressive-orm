@@ -8,4 +8,5 @@ export { rows } from './rows';
 export { memory } from './memory';
 export { Query } from './query/Query';
 export { Builder } from './query/Builder';
-export { DataTable, Parameter } from './query/Value';
+export { Computed } from './query/Computed';
+export { DataField, DataTable, Parameter, QueryTemplate } from './query/Value';
