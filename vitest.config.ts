@@ -9,8 +9,8 @@ export function suite(thresholds: Thresholds = { statements: 100, branches: 100,
   return defineConfig({
     resolve: {
       alias: [
-        { find: /^@expressive\/([^/]+)$/, replacement: `${packages}$1/src` },
-        { find: /^@expressive\/([^/]+)\/(.+)$/, replacement: `${packages}$1/src/$2` }
+        { find: /^@expressive\/(orm|sql|sqlite|postgres)$/, replacement: `${packages}$1/src` },
+        { find: /^@expressive\/(orm|sql|sqlite|postgres)\/(.+)$/, replacement: `${packages}$1/src/$2` }
       ]
     },
     test: {

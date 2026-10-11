@@ -1,131 +1,163 @@
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { Table, str, one } from "../tests/Table";
+import { memory } from './memory';
+import { lazy, one } from './one';
+import { Type } from './Type';
+import { str } from './fields';
+
+function connect(){
+  return class Table extends Type {
+    static connection = memory();
+  }
+}
 
 describe("get", () => {
-  class User extends Table {
-    static table = "user";
+  it("will eager load relation", async () => {
+    class Table extends connect() {}
 
-    name = str();
-  }
+    class User extends Table {
+      static table = "user";
+      name = str();
+    }
 
-  class Post extends Table {
-    static table = "post";
+    class Post extends Table {
+      static table = "post";
+      title = str();
+      user = one(User);
+    }
 
-    title = str();
-    user = one(User);
-  }
-  
-  beforeEach(async () => {
-    await Table.connection.init(`
-      CREATE TABLE IF NOT EXISTS "user" (
-        id SERIAL PRIMARY KEY,
-        name TEXT
-      );
+    await Table.connection.insert("user", { name: "John Doe" });
+    await Table.connection.insert("post", { title: "Hello World", user_id: 1 });
 
-      CREATE TABLE IF NOT EXISTS "post" (
-        id SERIAL PRIMARY KEY,
-        title TEXT,
-        user_id INTEGER REFERENCES "user"(id)
-      );`)
-  })
+    const post = await Post.one({ title: "Hello World" }, true);
 
-it("will eager load relation", async () => {
-  await Table.connection.exec(`
-    INSERT INTO "user" (name)
-    VALUES ('John Doe');
+    expect(post.id).toBe(1);
+    expect(post.user).toBeInstanceOf(User);
+    expect(post.user.id).toBe(1);
+    expect(post.user.name).toBe("John Doe");
+  });
 
-    INSERT INTO "post" (title, user_id)
-    VALUES ('Hello World', 1);
-  `);
+  it("will be undefined if optional", async () => {
+    class User extends connect() {
+      static table = "user";
+      name = str();
+    }
 
-  const post = await Post.one({ title: "Hello World" }, true);
+    class Post extends User {
+      static table = "post";
+      title = str();
+      user = one(User, null);
+    }
 
-  expect(post.id).toBe(1);
-  expect(post.user).toBeInstanceOf(User);
-  expect(post.user.id).toBe(1);
-  expect(post.user.name).toBe("John Doe");
-});
+    await Post.connection.insert("post", { title: "Hello World", user_id: null });
 
-it("will be undefined if optional", async () => {
-  class Post extends Table {
-    static table = "post";
+    const post = await Post.one({ title: "Hello World" }, true);
 
-    title = str();
-    user = one(User, null);
-  }
+    expect(post.id).toBe(1);
+    expect(post.user).toBeUndefined();
+  });
 
-  await Table.connection.exec(`
-    INSERT INTO "post" (title, user_id)
-    VALUES ('Hello World', NULL);
-  `);
+  it("will throw if required relation is missing", async () => {
+    class User extends connect() {
+      name = str();
+    }
 
-  const post = await Post.one({ title: "Hello World" }, true);
+    class Post extends User {
+      static table = "post";
+      user = one(User);
+    }
 
-  expect(post.id).toBe(1);
-  expect(post.user).toBeUndefined();
-});
+    await Post.connection.insert("post", { name: "Hello World" });
 
+    await expect(Post.one()).rejects.toThrow("Missing required relation: User");
+  });
+
+  it("will annotate failed relation", async () => {
+    const db = memory();
+
+    class User extends Type {
+      static connection = { ...db, get: () => Promise.reject(new Error("offline")) };
+      static table = "user";
+      name = str();
+    }
+
+    class Post extends Type {
+      static connection = db;
+      static table = "post";
+      user = one(User);
+    }
+
+    await db.insert("post", { user_id: 9 });
+
+    await expect(Post.one()).rejects.toThrow("Failed to load relation User for user: offline");
+  });
+
+  it("will pass through non-error rejection", async () => {
+    const db = memory();
+
+    class User extends Type {
+      static connection = { ...db, get: () => Promise.reject("offline") };
+      static table = "user";
+      name = str();
+    }
+
+    class Post extends Type {
+      static connection = db;
+      static table = "post";
+      user = one(User);
+    }
+
+    await db.insert("post", { user_id: 9 });
+
+    await expect(Post.one()).rejects.toBe("offline");
+  });
 })
 
 describe("insert", () => {
+  class Table extends connect() {}
+
   class User extends Table {
     static table = "user";
-
     name = str();
   }
 
   class Post extends Table {
     static table = "post";
-
     title = str();
     user = one(User);
   }
 
-  let user: User;
-  
-  beforeAll(async () => {
-    await Table.connection.init(`
-      CREATE TABLE IF NOT EXISTS "user" (
-        id SERIAL PRIMARY KEY,
-        name TEXT
-      );
-
-      CREATE TABLE IF NOT EXISTS "post" (
-        id SERIAL PRIMARY KEY,
-        title TEXT,
-        user_id INTEGER REFERENCES "user"(id)
-      );
-    `)
-
-    user = await User.new({ name: "John Doe" });
-  })
+  const ready = User.insert({ name: "John Doe" });
 
   it("will insert relation by id", async () => {
-    const post = await Post.new({ title: "Hello World", user: user.id });
+    const user = await ready;
+    const post = await Post.insert({ title: "Hello World", user: user.id });
 
-    expect(post.user).toBeInstanceOf(User);
-    expect(post.user.id).toBe(1);
-    expect(post.user.name).toBe("John Doe");
+    expect(post.user).toBe(user);
   })
 
   it("will insert relation by instance", async () => {
-    const post = await Post.new({ title: "Hello World", user });
+    const user = await ready;
+    const post = await Post.insert({ title: "Hello World", user });
 
-    expect(post.user).toBeInstanceOf(User);
-    expect(post.user.id).toBe(1);
-    expect(post.user.name).toBe("John Doe");
+    expect(post.user).toBe(user);
   })
 
   it("will throw if required relation is missing", async () => {
     // @ts-expect-error
-    const post = Post.new({ title: "Hello World" });
+    const post = Post.insert({ title: "Hello World" });
 
     await expect(post).rejects.toThrow("Missing required relation: User");
   })
 
+  it("will throw if relation is unsaved", async () => {
+    const post = Post.insert({ title: "Hello World", user: User.new({ name: "Bob" }) });
+
+    await expect(post).rejects.toThrow("Cannot assign unsaved User to user_id");
+  })
+
   it("will create relation by insert object", async () => {
-    const post = await Post.new({ title: "Hello World", user: { name: "Jane Doe" } });
+    const post = await Post.insert({ title: "Hello World", user: { name: "Jane Doe" } });
 
     expect(post.user).toBeInstanceOf(User);
     expect(post.user.id).toBe(2);
@@ -133,48 +165,64 @@ describe("insert", () => {
   })
 
   it("will update relation by object", async () => {
-    const post = await Post.new({ title: "Hello World", user: user.id });
+    const user = await ready;
+    const post = await Post.insert({ title: "Hello World", user: user.id });
 
     await post.update({ user: { name: "Bob" } });
+
+    const [row] = await Post.connection.get("post", [["id", "=", post.id]]);
+    const bob = await User.one({ name: "Bob" });
+
+    expect(row.user_id).toBe(bob.id);
   });
 })
 
-describe("query", () => {
+describe("nullable", () => {
+  class Table extends connect() {}
+
   class User extends Table {
     static table = "user";
-
     name = str();
   }
 
   class Post extends Table {
     static table = "post";
+    title = str();
+    user = one(User, null);
+  }
 
+  it("will insert null relation", async () => {
+    const post = await Post.insert({ title: "Hello World", user: null as any });
+
+    expect(post.user).toBeUndefined();
+  })
+})
+
+describe("query", () => {
+  class Table extends connect() {}
+
+  class User extends Table {
+    static table = "user";
+    name = str();
+  }
+
+  class Post extends Table {
+    static table = "post";
     title = str();
     user = one(User);
   }
 
-  beforeAll(async () => {
-    await Table.connection.init(`
-      CREATE TABLE IF NOT EXISTS "user" (
-        id SERIAL PRIMARY KEY,
-        name TEXT
-      );
+  const ready = (async () => {
+    for (const name of ["Gabe", "Alice", "Bob"])
+      await Table.connection.insert("user", { name });
 
-      CREATE TABLE IF NOT EXISTS "post" (
-        id SERIAL PRIMARY KEY,
-        title TEXT,
-        user_id INTEGER REFERENCES "user"(id)
-      );
-
-      INSERT INTO "user" (id, name)
-      VALUES (1, 'Gabe'), (2, 'Alice'), (3, 'Bob');
-
-      INSERT INTO "post" (id, title, user_id)
-      VALUES (1, 'Hello World', 1), (2, 'Second Post', 1), (3, 'Another Post', 2);
-    `);
-  });
+    await Table.connection.insert("post", { title: "Hello World", user_id: 1 });
+    await Table.connection.insert("post", { title: "Second Post", user_id: 1 });
+    await Table.connection.insert("post", { title: "Another Post", user_id: 2 });
+  })();
 
   it("will search for relation by id", async () => {
+    await ready;
     const post = await Post.one({ user: 1 });
 
     expect(post.id).toBe(1);
@@ -184,81 +232,91 @@ describe("query", () => {
   })
 
   it("will search for relation by instance", async () => {
+    await ready;
     const gabe = await User.one(1);
     const post = await Post.one({ user: gabe });
 
     expect(post.id).toBe(1);
-    expect(post.user).toBeInstanceOf(User);
+    expect(post.user).toBe(gabe);
   })
 
   it("will search for relation by query", async () => {
-    const post = await Post.one({ user: { name: "Gabe" } });
+    await ready;
+    const post = await Post.one({ user: { name: "Alice" } });
 
-    expect(post.id).toBe(1);
-    expect(post.title).toBe("Hello World");
+    expect(post.id).toBe(3);
+    expect(post.title).toBe("Another Post");
   })
 })
 
 describe("lazy", () => {
+  class Table extends connect() {}
+
   class User extends Table {
     static table = "user";
-
     name = str();
   }
 
   class Post extends Table {
     static table = "post";
-
     title = str();
-    user = one(User, { lazy: true });
+    user = one(User, lazy);
   }
 
-  beforeAll(async () => {
-    await Table.connection.init(`
-      CREATE TABLE IF NOT EXISTS "user" (
-        id SERIAL PRIMARY KEY,
-        name TEXT
-      );
-
-      CREATE TABLE IF NOT EXISTS "post" (
-        id SERIAL PRIMARY KEY,
-        title TEXT,
-        user_id INTEGER REFERENCES "user"(id)
-      );
-
-      INSERT INTO "user" (name)
-      VALUES ('Gabe');
-
-      INSERT INTO "post" (title, user_id)
-      VALUES ('Hello World', 1);
-    `);
-  });
+  const ready = (async () => {
+    await Table.connection.insert("user", { name: "Gabe" });
+    await Table.connection.insert("post", { title: "Hello World", user_id: 1 });
+  })();
 
   it("will lazy load relation", async () => {
+    await ready;
     const post = await Post.one({ title: "Hello World" }, true);
-    
-    expect(() => post.user).toThrow(expect.any(Promise))
+
+    let pending: unknown;
+
+    try {
+      post.user;
+    }
+    catch (thrown) {
+      pending = thrown;
+    }
+
+    expect(pending).toBeInstanceOf(Promise);
+    expect(() => post.user).toThrow(expect.any(Promise));
+
+    await pending;
+
+    expect(post.user).toBeInstanceOf(User);
+    expect(post.user.name).toBe("Gabe");
+  })
+
+  it("will reset lazy relation on reload", async () => {
+    await ready;
+    const post = await Post.one({ title: "Hello World" }, true);
+
+    expect(() => post.user).toThrow(expect.any(Promise));
   })
 })
 
-describe("OneToOneField and lazy field logic", () => {
-  it("should throw a promise when accessing a lazy field and resolve correctly", async () => {
-    // TODO: Create a model with a lazy field, access it, catch thrown promise, await and check value
-  });
+describe("relationships", () => {
+  it("will not infer from ambiguous relations", async () => {
+    const { get } = await import('./get');
 
-  it("should use cache for OneToOneField relation if available", async () => {
-    // TODO: Create related entities, check that relation uses cache
-  });
+    class Table extends connect() {}
 
-  it("should handle errors when relation loading fails", async () => {
-    // TODO: Try to load a relation with missing/invalid id, expect error
-  });
+    class User extends Table {
+      static table = "user";
+      posts = get(Post);
+    }
 
-  it("should return a function for lazy relations and resolve correctly", async () => {
-    // TODO: Create a lazy relation, check that returned value is a function, call and check result
-  });
+    class Post extends Table {
+      static table = "post";
+      author = one(User);
+      editor = one(User);
+    }
 
-  it("should return cached instance if present, otherwise load it", async () => {
-    // TODO: Insert entity, check cached returns instance, remove from cache, check loads from DB
-  });
-});
+    const user = await User.insert({});
+
+    expect(() => user.posts).toThrow("There are multiple relationships");
+  })
+})

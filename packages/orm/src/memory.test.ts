@@ -1,0 +1,143 @@
+import { describe, expect, it } from 'vitest';
+
+import { memory } from './memory';
+
+describe("insert", () => {
+  it("will assign incrementing ids", async () => {
+    const db = memory();
+
+    await expect(db.insert("user", { name: "A" }, true)).resolves.toEqual({ id: 1, name: "A" });
+    await expect(db.insert("user", { name: "B" }, true)).resolves.toEqual({ id: 2, name: "B" });
+  })
+
+  it("will not return row unless asked", async () => {
+    const db = memory();
+
+    await expect(db.insert("user", { name: "A" })).resolves.toBeUndefined();
+    await expect(db.get("user", [])).resolves.toEqual([{ id: 1, name: "A" }]);
+  })
+
+  it("will continue after explicit id", async () => {
+    const db = memory();
+
+    await db.insert("user", { id: 5 });
+    await db.insert("user", { id: 2 });
+
+    await expect(db.insert("user", {}, true)).resolves.toEqual({ id: 6 });
+  })
+
+  it("will not share rows", async () => {
+    const db = memory();
+    const row = await db.insert("user", { name: "A" }, true);
+
+    row.name = "B";
+
+    const [got] = await db.get("user", []);
+
+    got.name = "C";
+
+    await expect(db.get("user", [])).resolves.toEqual([{ id: 1, name: "A" }]);
+  })
+})
+
+describe("get", () => {
+  const db = memory();
+  const ready = (async () => {
+    for (const [name, age] of [["Gabe", 30], ["Alice", 25], ["Bob", null], ["alex", 25]] as const)
+      await db.insert("user", { name, age });
+  })();
+
+  async function ids(...constraints: [string, string, any?][]){
+    await ready;
+    const rows = await db.get("user", constraints);
+    return rows.map(row => row.id);
+  }
+
+  it("will return empty for unknown table", async () => {
+    await expect(db.get("nope", [])).resolves.toEqual([]);
+  })
+
+  it.each([
+    ["=", 25, [2, 4]],
+    ["!=", 25, [1]],
+    [">", 25, [1]],
+    ["<", 30, [2, 4]],
+    [">=", 25, [1, 2, 4]],
+    ["<=", 25, [2, 4]],
+    ["IN", [30, null], [1]],
+    ["NOT IN", [30], [2, 4]],
+    ["IS NULL", undefined, [3]],
+    ["IS NOT NULL", undefined, [1, 2, 4]]
+  ])("will match %s", async (op, value, expected) => {
+    await expect(ids(["age", op, value])).resolves.toEqual(expected);
+  })
+
+  it("will match LIKE", async () => {
+    await expect(ids(["name", "LIKE", "A%"])).resolves.toEqual([2]);
+    await expect(ids(["name", "LIKE", "_ob"])).resolves.toEqual([3]);
+    await expect(ids(["name", "LIKE", "%.%"])).resolves.toEqual([]);
+  })
+
+  it("will combine constraints", async () => {
+    await expect(ids(["age", "=", 25], ["name", "LIKE", "a%"])).resolves.toEqual([4]);
+  })
+
+  it("will sort", async () => {
+    await expect(ids(["id", "desc"])).resolves.toEqual([4, 3, 2, 1]);
+    await expect(ids(["name", "asc"])).resolves.toEqual([2, 3, 1, 4]);
+  })
+
+  it("will sort by many fields", async () => {
+    await expect(ids(["age", "IS NOT NULL"], ["age", "asc"], ["id", "desc"])).resolves.toEqual([4, 2, 1]);
+  })
+
+  it("will sort null first", async () => {
+    await expect(ids(["age", "asc"], ["id", "asc"])).resolves.toEqual([3, 2, 4, 1]);
+    await expect(ids(["age", "desc"], ["id", "asc"])).resolves.toEqual([1, 2, 4, 3]);
+  })
+
+  it("will keep order of ties", async () => {
+    await expect(ids(["age", "=", 25], ["age", "asc"])).resolves.toEqual([2, 4]);
+  })
+
+  it("will limit and offset", async () => {
+    await ready;
+
+    const page = await db.get("user", [["id", "asc"]], 2, 1);
+    const rest = await db.get("user", [["id", "asc"]], undefined, 3);
+
+    expect(page.map(row => row.id)).toEqual([2, 3]);
+    expect(rest.map(row => row.id)).toEqual([4]);
+  })
+
+  it("will throw on unsupported operator", async () => {
+    await expect(ids(["age", "~", 1])).rejects.toThrow("Unsupported operator: ~");
+  })
+})
+
+describe("update", () => {
+  it("will update row by id", async () => {
+    const db = memory();
+
+    await db.insert("user", { name: "A" });
+    await db.insert("user", { name: "B" });
+    await db.update("user", 2, { name: "C" });
+
+    await expect(db.get("user", [])).resolves.toEqual([
+      { id: 1, name: "A" },
+      { id: 2, name: "C" }
+    ]);
+  })
+})
+
+describe("remove", () => {
+  it("will remove row by id", async () => {
+    const db = memory();
+
+    await db.insert("user", { name: "A" });
+    await db.insert("user", { name: "B" });
+    await db.remove("user", 1);
+
+    await expect(db.get("user", [])).resolves.toEqual([{ id: 2, name: "B" }]);
+  })
+})

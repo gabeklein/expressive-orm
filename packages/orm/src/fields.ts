@@ -1,4 +1,6 @@
-import { Config, Field, Nullable } from './Field';
+import { def } from '@expressive/mvc';
+
+import { Async, Config, Field, Nullable } from './Field';
 import { type Type } from './Type';
 
 export type Infer<T extends any[], Base> =
@@ -8,47 +10,51 @@ export type Infer<T extends any[], Base> =
       : Infer<Rest, Base>
     : Base;
 
-export type Instruction = <T extends Type>(key: string, parent: Type.Class<T>) => Field | void;
+const FIELDS = new WeakMap<Function, Map<string, Field>>();
 
-const USE = new Map<symbol, Instruction>();
+function field<T>(create: (key: string, type: Type.Class) => Field) {
+  return def((key, subject: Type, store: Record<string, unknown>) => {
+    const type = subject.constructor as Type.Class;
+    let fields = FIELDS.get(type);
+    let load: (() => Async<unknown>) | undefined;
+    let pending: Promise<unknown> | undefined;
 
-function init<T extends Type>(type: Type.Class<T>) {
-  const fields = new Map<string, Field>();
-  const base = new (type as any)() as Type;
+    if (!fields)
+      FIELDS.set(type, fields = new Map());
 
-  for (const key in base) {
-    const value = (base as any)[key];
-    const instruction = USE.get(value);
+    if (!fields.has(key))
+      fields.set(key, create(key, type));
 
-    if (typeof instruction === 'function')
-      USE.delete(value);
-    else
-      continue;
+    return {
+      value: undefined,
+      set(next: unknown) {
+        if (typeof next == 'function') {
+          load = next as () => Async<unknown>;
+          pending = undefined;
+          throw false;
+        }
 
-    const config = instruction(key, type);
+        load = undefined;
+      },
+      get() {
+        if (!load)
+          return store[key];
 
-    if (config)
-      fields.set(key, config);
-  }
-
-  return fields;
-}
-
-function use<T>(cb: Instruction) {
-  const symbol = Symbol();
-  USE.set(symbol, cb);
-  return symbol as unknown as T;
+        throw pending ||= Promise.resolve(load()).then((value) => {
+          (subject as any)[key] = value;
+        });
+      }
+    };
+  }) as T;
 }
 
 function column<T extends Config[], Base>(base: Config, ...config: T): Infer<T, Base> {
-  return use((key) => new Field(key, base, ...config)) as Infer<T, Base>;
+  return field((key) => new Field(key, base, ...config));
 }
-
 
 function str<T extends Config[]>(...config: T): Infer<T, string> {
   return column({ type: String }, ...config);
 }
-
 
 function num<T extends Config[]>(...config: T): Infer<T, number> {
   return column({
@@ -60,7 +66,6 @@ function num<T extends Config[]>(...config: T): Infer<T, number> {
   }, ...config);
 }
 
-
 function bool<T extends Config[]>(...config: T): Infer<T, boolean> {
   return column({
     type: Boolean,
@@ -69,7 +74,6 @@ function bool<T extends Config[]>(...config: T): Infer<T, boolean> {
   }, ...config);
 }
 
-
 function date<T extends Config[]>(...config: T): Infer<T, Date> {
   return column({
     type: Date,
@@ -77,7 +81,6 @@ function date<T extends Config[]>(...config: T): Infer<T, Date> {
     get: (value: string) => value ? new Date(value) : undefined,
   }, ...config);
 }
-
 
 function uuid<T extends Config[]>(...config: T): Infer<T, string> {
   return column({ type: String }, ...config);
@@ -97,15 +100,15 @@ const orNull = { nullable: true } as const;
 const optional = { optional: true } as const;
 
 export {
+  FIELDS,
   Field,
-  init,
+  field,
   json,
   str,
   num,
   bool,
   date,
   uuid,
-  use,
   orNull,
   optional,
 }
