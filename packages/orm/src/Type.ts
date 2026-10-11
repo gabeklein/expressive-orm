@@ -88,7 +88,7 @@ class NotReady {
 }
 
 const LOADED = new WeakMap<Type.Connection, Map<typeof Type, Map<number, Type>>>();
-const SAVED = new WeakMap<Type, Record<string, unknown>>();
+const SAVED = new WeakMap<Type, Record<string, unknown> | null>();
 
 async function decode(type: typeof Type, row: Record<string, any>, partial?: boolean) {
   const values: Record<string, unknown> = {};
@@ -117,6 +117,11 @@ function settle(entity: Type, values: Record<string, unknown>, row: Record<strin
   }
 
   SAVED.set(entity, saved);
+}
+
+function exists(entity: Type) {
+  if (SAVED.get(entity) === null)
+    throw new Error(`${entity.constructor.name} ${entity.id} was deleted.`);
 }
 
 interface Type {
@@ -159,6 +164,8 @@ abstract class Type extends State {
   protected async onDelete?(): Promise<void>;
 
   async save(): Promise<this> {
+    exists(this);
+
     const type = this.constructor as typeof Type;
     const { connection, ref } = type;
     const dirty = DIRTY.get(this) || {};
@@ -194,17 +201,24 @@ abstract class Type extends State {
   }
 
   async update(data: Type.Update<this>) {
+    exists(this);
     this.set(data as Type.Compat<this>);
     await this.save();
   }
 
   async delete() {
-    const { connection, ref } = this.constructor as typeof Type;
+    exists(this);
+
+    const type = this.constructor as typeof Type;
 
     if (typeof this.onDelete === "function")
       await this.onDelete();
 
-    await connection.remove(ref, this.id);
+    await type.connection.remove(type.ref, this.id);
+
+    type.loaded.delete(this.id);
+    SAVED.set(this, null);
+    this.set(null);
   }
 
   static schema?: string;

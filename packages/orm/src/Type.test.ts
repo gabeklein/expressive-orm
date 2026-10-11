@@ -451,6 +451,36 @@ describe("delete", () => {
     await expect(User.find()).resolves.toEqual([]);
   })
 
+  it("will evict and destroy entity", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    const user = await User.insert({ name: "John" });
+    const destroyed = vi.fn();
+
+    user.set(null, destroyed);
+    await user.delete();
+
+    expect(destroyed).toHaveBeenCalled();
+    expect(User.loaded.has(user.id)).toBe(false);
+  })
+
+  it("will throw on write after delete", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    const user = await User.insert({ name: "John" });
+
+    await user.delete();
+
+    await expect(user.save()).rejects.toThrow(`User ${user.id} was deleted.`);
+    await expect(user.update({ name: "Bob" })).rejects.toThrow(`User ${user.id} was deleted.`);
+    await expect(user.delete()).rejects.toThrow(`User ${user.id} was deleted.`);
+    expect(user.name).toBe("John");
+  })
+
   it("will call onDelete", async () => {
     const didDelete = vi.fn();
 
