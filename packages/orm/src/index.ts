@@ -6,3 +6,6 @@ export * from './where';
 export { one, lazy } from './one';
 export { rows } from './rows';
 export { memory } from './memory';
+export { Query } from './query/Query';
+export { Builder } from './query/Builder';
+export { DataTable, Parameter } from './query/Value';

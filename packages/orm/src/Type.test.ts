@@ -3,6 +3,7 @@ import { State } from '@expressive/mvc';
 
 import { Field } from './Field';
 import { memory } from './memory';
+import { Query } from './query/Query';
 import { Type } from './Type';
 import { asc, desc, equal, greaterThan, isIn, Where } from './where';
 import { bool, date, json, num, one, optional, orNull, str } from '.';
@@ -115,6 +116,26 @@ describe("fields", () => {
     expect(a.nullable).toBe(true);
     expect(b.optional).toBe(true);
     expect(c.nullable).toBe(true);
+  })
+
+  it("will carry column metadata", () => {
+    class User extends connect() {
+      name = str({ type: "varchar", length: 3, unique: true });
+    }
+
+    class Post extends connect() {
+      user = one(User);
+    }
+
+    const name = User.fields.get("name")!;
+
+    expect(name.property).toBe("name");
+    expect(name.datatype).toBe("varchar");
+    expect(name.length).toBe(3);
+    expect(name.unique).toBe(true);
+    expect(name.kind).toBe(String);
+    expect(name.parent).toBe(User);
+    expect(Post.fields.get("user")!.reference).toBe(User.fields.get("id"));
   })
 
   it("will output values", async () => {
@@ -629,9 +650,71 @@ describe("find", () => {
 
   it("will accept constraints", async () => {
     await ready;
-    const users = await User.query([["name", "=", "Alice"], ["foo", "=", 1]]);
+    const users = await User["fetch"]([["name", "=", "Alice"], ["foo", "=", 1]]);
 
     expect(users.map(x => x.id)).toEqual([2]);
+  })
+})
+
+describe("query", () => {
+  class User extends connect() {
+    static table = "user";
+    name = str();
+    age = num();
+  }
+
+  const ready = (async () => {
+    for (const [name, age] of [["Gabe", 30], ["Alice", 25], ["Bob", 40]] as const)
+      await User.insert({ name, age });
+  })();
+
+  it("will select entities", async () => {
+    await ready;
+    const query = User.query();
+    const users = await query;
+
+    expect<Query.Selects<Query.From<User>>>(query);
+    expect(String(query)).toMatchInlineSnapshot(`
+      "from user
+      select user"
+    `);
+    expect(users.map(x => x.name)).toEqual(["Gabe", "Alice", "Bob"]);
+    await expect(User.one(1)).resolves.toBe(users[0]);
+  })
+
+  it("will filter entities", async () => {
+    await ready;
+    const query = User.query((user, where) => {
+      where(user.age).over(28);
+      where(user.name).asc();
+    });
+
+    expect(String(query)).toMatchInlineSnapshot(`
+      "from user
+      where user.age > 28
+      order user.name asc
+      select user"
+    `);
+    expect((await query).map(x => x.name)).toEqual(["Bob", "Gabe"]);
+  })
+
+  it("will select a projection", async () => {
+    await ready;
+    const query = User.query((user, where) => {
+      where(user.age).under(30);
+      return { name: user.name };
+    });
+
+    expect<Query.Selects<{ name: string }>>(query);
+    await expect(query).resolves.toEqual([{ name: "Alice" }]);
+  })
+
+  it("will throw without prepare", async () => {
+    class Other extends Type {
+      static table = "other";
+    }
+
+    await expect(Other.query()).rejects.toThrow("Query needs a connection with prepare() to run.");
   })
 })
 
