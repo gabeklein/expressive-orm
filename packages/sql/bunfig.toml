@@ -1,4 +1,0 @@
-[test]
-coverage = true
-coverageSkipTestFiles = true
-coverageThreshold = { lines = 0.40, functions = 0.33 }

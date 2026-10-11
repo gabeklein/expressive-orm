@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from 'vitest';
 
 // packages/sqlite/src/columns/Num.test.ts
 import { Nullable, Num, Table } from '..';

@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, mock } from "bun:test";
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { Table, str, asc, greaterThan, one } from "../tests/Table";
 
@@ -10,7 +10,7 @@ it("will allow for methods", async () => {
     );  
   `);
 
-  const didGreet = mock();
+  const didGreet = vi.fn();
 
   class User extends Table {
     static table = "user";
