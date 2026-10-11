@@ -28,11 +28,15 @@ bun run changeset    # Write a changeset
 
 ## Testing
 
-Runner: `bun test`, with `import { describe, it, expect, mock } from 'bun:test'`. Each package's `bunfig.toml` turns coverage on and sets its gate. Bun applies the threshold per file and exits 1 without a message when any file is under it - read the coverage table. Gates ratchet: raise a package's threshold in the PR that raises its coverage, never lower one. `packages/orm` gates at 100% once its rebuild lands - a conditional arm is exercised by a test or deleted as dead code; `sql` and the drivers climb as the rebuild touches them.
+Runner: **vitest** with istanbul coverage, executed on node (`bun run test` invokes it - never call node directly). Config is centralized in root `vitest.config.ts`, which defines the workspace projects and exports `suite(thresholds?)`; per-package `vitest.config.ts` files are two-liners calling it. `suite()` gates statements, branches, functions and lines at 100%; a package below that passes its current floors explicitly. Floors ratchet: raise them in the PR that raises coverage, never lower one. `packages/orm` drops its floors and takes the 100% default once its rebuild lands - a conditional arm is exercised by a test or deleted as dead code; `sql` and the drivers climb as the rebuild touches them.
 
-Tests live in `*.test.ts` files adjacent to the source they cover. `packages/sql/src/tests` and `packages/orm/tests` predate this rule and shrink as the rebuild touches them; do not add to them.
+```ts
+import { vi, describe, it, expect } from 'vitest';
+```
 
-The memory driver in `packages/orm` is the test floor for entity behaviour. SQL rendering is asserted by inline snapshots in `sql` and the drivers. `postgres` tests run on PGLite; the `pg` connection tests expect nothing listening on 5432.
+Use `vi.fn()` for mocks and `vi.spyOn(...)` for spies. Tests live in `*.test.ts` files adjacent to the source they cover. `packages/sql/src/tests` and `packages/orm/tests` predate this rule and shrink as the rebuild touches them; do not add to them.
+
+The memory driver in `packages/orm` is the test floor for entity behaviour. SQL rendering is asserted by inline snapshots in `sql` and the drivers. `postgres` tests run on PGLite; the `pg` connection test expects nothing listening on 5432.
 
 Naming: positive `it('will create instance')`, negative `it('will not trigger update')`, error `it('will throw if not found')`.
 

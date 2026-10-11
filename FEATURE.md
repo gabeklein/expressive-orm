@@ -8,7 +8,7 @@
 - Merge `main` into the trunk as it moves. A seam missing in mvc lands on `expressive-mvc` `main` as its own PR; the trunk takes the released version, never a link.
 - Stack PRs: each targets the previous one's branch, the bottom one the trunk; merge a lower branch up into the ones above it as it moves.
 - `pr.yml` verifies PRs into any base: typecheck, tests under each package's coverage gate, build, changeset status. Gates ratchet up as the rebuild lands; `orm` reaches 100% in PR 1.
-- Tests: `bun test`, adjacent `*.test.ts`. The memory driver is the test floor; PGLite and sqlite suites stay in their adapters.
+- Tests: vitest via `bun run test`, adjacent `*.test.ts`, root `vitest.config.ts` as in expressive-mvc. The memory driver is the test floor; PGLite and sqlite suites stay in their adapters.
 - Policy lives in `AGENTS.md`; changesets per user-facing change, written in the PR that makes it.
 - Trunk commits carry no trailers.
 
