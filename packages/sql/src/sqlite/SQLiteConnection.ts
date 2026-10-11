@@ -21,8 +21,6 @@ export class SQLiteConnection extends Connection {
     this.filename = filename || ':memory:';
   }
 
-  // Lazily resolve a driver on first use - keeps construction synchronous while
-  // engine selection (and any ESM driver import) stays async.
   protected db(){
     return this.engine ??= createEngine(this.filename);
   }
@@ -86,14 +84,12 @@ export class SQLiteConnection extends Connection {
     const fields = Array.from(type.fields.values());
     const db = await this.db();
 
-    // Check if table exists
     const tableExists = await db.get(
       `SELECT name FROM sqlite_master WHERE type='table' AND name=?`, [table]);
 
     if (!tableExists)
       return false;
 
-    // Get column information
     const columns = await db.all(`PRAGMA table_info(${table})`) as TableInfo[];
 
     for (const field of fields) {
@@ -115,7 +111,6 @@ export class SQLiteConnection extends Connection {
     const { column, nullable, reference } = field;
     const parent = field.parent!;
 
-    // Check datatype
     const expected = affinity(field);
 
     if (info.type.toUpperCase() !== expected)
@@ -123,7 +118,6 @@ export class SQLiteConnection extends Connection {
         `Column ${column} in table ${parent.table} has type ${info.type}, expected ${expected}`
       );
 
-    // Check nullable constraint
     if (info.notnull === (nullable ? 1 : 0))
       throw new Error(
         `Column ${column} in table ${parent.table} has incorrect nullable value`
