@@ -1,7 +1,7 @@
 {
   "name": "@expressive/sqlite",
   "version": "0.4.0",
-  "description": "SQLite adapter for Expressive SQL.",
+  "description": "Deprecated - use @expressive/sql, which includes the SQLite connection.",
   "license": "ISC",
   "type": "module",
   "publishConfig": {
@@ -30,19 +30,13 @@
     "test": "bun run typecheck && bun run coverage"
   },
   "dependencies": {
-    "@expressive/sql": "^0.4.0",
-    "sql-formatter": "^10.7.2"
-  },
-  "optionalDependencies": {
-    "better-sqlite3": "^11.7.0"
+    "@expressive/sql": "workspace:^"
   },
   "devDependencies": {
     "@expressive/mvc": "^0.88.0",
-    "@expressive/orm": "^0.12.1",
     "tsdown": "^0.20.1"
   },
   "peerDependencies": {
-    "@expressive/mvc": "^0.88.0",
-    "@expressive/orm": "^0.12.1"
+    "@expressive/mvc": "^0.88.0"
   }
 }
