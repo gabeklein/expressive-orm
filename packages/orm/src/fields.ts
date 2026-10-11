@@ -1,6 +1,6 @@
 import { def } from '@expressive/mvc';
 
-import { Async, Config, Field, Nullable } from './Field';
+import { Config, Field, Nullable } from './Field';
 import { type Type } from './Type';
 
 export type Infer<T extends any[], Base> =
@@ -12,12 +12,13 @@ export type Infer<T extends any[], Base> =
 
 const FIELDS = new WeakMap<Function, Map<string, Field>>();
 
-function field<T>(create: (key: string, type: Type.Class) => Field) {
+function field<T, F extends Field = Field>(
+  create: (key: string, type: Type.Class) => F,
+  config?: (field: F, subject: Type, store: Record<string, unknown>) => def.Config
+) {
   return def((key, subject: Type, store: Record<string, unknown>) => {
     const type = subject.constructor as Type.Class;
     let fields = FIELDS.get(type);
-    let load: (() => Async<unknown>) | undefined;
-    let pending: Promise<unknown> | undefined;
 
     if (!fields)
       FIELDS.set(type, fields = new Map());
@@ -25,26 +26,9 @@ function field<T>(create: (key: string, type: Type.Class) => Field) {
     if (!fields.has(key))
       fields.set(key, create(key, type));
 
-    return {
-      value: undefined,
-      set(next: unknown) {
-        if (typeof next == 'function') {
-          load = next as () => Async<unknown>;
-          pending = undefined;
-          throw false;
-        }
-
-        load = undefined;
-      },
-      get() {
-        if (!load)
-          return store[key];
-
-        throw pending ||= Promise.resolve(load()).then((value) => {
-          (subject as any)[key] = value;
-        });
-      }
-    };
+    return config
+      ? config(fields.get(key) as F, subject, store)
+      : { value: undefined };
   }) as T;
 }
 

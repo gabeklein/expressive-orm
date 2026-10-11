@@ -40,16 +40,17 @@ Baseline: `@expressive/mvc` 0.88.0.
 One PR each, in order.
 
 1. **`Type extends State`.** `Type` on State; field helpers as `def`; per-class metadata via the `type` hook; memory driver (floor only); port `Type.test.ts` and `one.test.ts` with the renames. PGLite harness retired.
-2. **Relations.** `one()` on mvc suspense, eager and lazy; `rows()` handle; identity map on the connection.
+2. **Relations.** `one()` on mvc suspense, eager and lazy; a related entity is a reference, never adopted; `rows()` handle with `find`, `one`, `insert`. The identity map stays a `WeakMap` keyed by connection.
 3. **Writes.** Dirty tracking, `save()`, `update()`, `delete()`, `onDelete`; `insert` returning the entity; `all()` paging; `subset`.
 4. **`Query` moves in.** Builder, values, computed, `Query` factory from sql; `Builder.use()` structural over `Type`'s metadata; `From<T>` over value-typed classes (`T[K] extends Type ? From<T[K]> : Field<T[K]>`); `prepare` capability; memory driver executes the builder.
 5. **sql thinned.** Generator base, SQL connection base and schema sync remain, peered on orm; `sql.Table` retired or kept as builder-only base; string snapshot tests stay here.
-6. **Adapters.** sqlite and postgres implement the floor over `Query`, keep `prepare` and `sync`; postgres `subscribe` via LISTEN/NOTIFY.
+6. **Adapters.** sqlite and postgres implement the floor over `Query`, keep `prepare` and `sync`; postgres `subscribe` via LISTEN/NOTIFY. Connections become States and own the identity map.
 7. **Docs + release.** README per package, changesets, 0.x of orm first so dev can take it.
 
 ## Open
 
 - mvc: `State.Assign<T>` types methods as `(this: T, ...)`, so a State with a method and a `this`-typed member is invariant and its subclasses stop being assignable to it. `Type` re-declares State's `set` overloads with `Compat<this>` until this is fixed upstream; the "will be assignable to Type" test pins it.
+- `rows()` handle `count` - deferred from PR 2; lands with a driver aggregate or the builder.
 - Static `Type.query(constraints)` is still public; PR 4 reserves `query` for the builder, so rename or protect it there.
 - `Type.fields` forces one `new()` + `set(null)` when no instance has activated - a `new()` hook with side effects runs once for metadata. Revisit if it bites.
 - Which base statics cross to a client twin, and how orm declares it.

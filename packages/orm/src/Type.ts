@@ -2,11 +2,12 @@ import { State } from '@expressive/mvc';
 
 import { FIELDS, num } from './fields';
 import { Field, underscore } from './Field';
+import type { Rows } from './rows';
 import { desc, equal, Where } from './where';
 
 type Values<T extends Type> = {
   [K in Exclude<keyof T, keyof Type> as (
-    T[K] extends Type.Class ? never : K
+    T[K] extends Type.Class | Rows<any, any> ? never : K
   )]: T[K];
 }
 
@@ -17,7 +18,7 @@ type Update<T extends Type> = {
 }
 
 type ClassKeys<T> = {
-  [K in keyof T]: T[K] extends Type.Class ? K : T[K] extends (...args: any[]) => any ? K : never
+  [K in keyof T]: T[K] extends Type.Class | Rows<any, any> | ((...args: any[]) => any) ? K : never
 }[keyof T];
 
 type Fields<T extends Type> = Exclude<keyof T, keyof Type | ClassKeys<T>>;
@@ -135,9 +136,9 @@ abstract class Type extends State {
     const row = await type.prepare(data, true);
     await type.connection.update(type.ref, this.id, row);
 
-    for (const [key] of type.fields)
-      if (key in data)
-        (this as any)[key] = (data as any)[key];
+    for (const field of type.fields.values())
+      if (field.column in row)
+        (this as any)[field.key] = await field.get(row[field.column], row);
   }
 
   async delete() {
