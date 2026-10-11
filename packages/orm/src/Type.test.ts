@@ -204,8 +204,21 @@ describe("insert", () => {
     await User.insert({ name: "John" });
 
     expect(User.ref).toBe("app.user");
-    expect(User.ref).toBe("app.user");
     await expect(User.connection.get("app.user", [])).resolves.toEqual([{ id: 1, name: "John" }]);
+  })
+
+  it("will not inherit a parent's ref", () => {
+    class Person extends connect() {
+      static table = "person";
+    }
+
+    expect(Person.ref).toBe("person");
+
+    class Author extends Person {
+      static table = "author";
+    }
+
+    expect(Author.ref).toBe("author");
   })
 })
 
@@ -237,6 +250,19 @@ describe("update", () => {
     expect(update).not.toHaveBeenCalled();
   })
 
+  it("will write once", async () => {
+    const update = vi.spyOn(User.connection, "update");
+    const user = await User.insert({ name: "John" });
+
+    user.age = 20;
+    await user.update({ name: "Bob" });
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith(User.ref, user.id, { name: "Bob", age: 20 });
+
+    update.mockRestore();
+  })
+
   it("will update by id", async () => {
     const user = await User.insert({ name: "John" });
 
@@ -246,6 +272,182 @@ describe("update", () => {
 
     expect(fresh).toBe(user);
     expect(user.name).toBe("Bob");
+  })
+})
+
+describe("save", () => {
+  class User extends connect() {
+    name = str();
+    age = num(orNull);
+  }
+
+  it("will insert unsaved entity", async () => {
+    const user = User.new({ name: "John" });
+    const saved = await user.save();
+
+    expect(saved).toBe(user);
+    expect(user.id).toBeDefined();
+    expect(User.loaded.get(user.id)).toBe(user);
+    await expect(User.one(user.id)).resolves.toBe(user);
+  })
+
+  it("will assign defaults from inserted row", async () => {
+    const db = memory();
+
+    class Post extends Type {
+      static connection = {
+        ...db,
+        insert: (table: string, row: Record<string, any>) => db.insert(table, { status: "draft", ...row }, true)
+      };
+
+      status = str(optional);
+    }
+
+    const post = Post.new();
+    const didUpdate = vi.fn();
+
+    post.set(didUpdate);
+    await post.save();
+
+    expect(post.id).toBe(1);
+    expect(post.status).toBe("draft");
+    expect(didUpdate).toHaveBeenCalledWith("id", post);
+    expect(didUpdate).toHaveBeenCalledWith("status", post);
+  })
+
+  it("will throw on missing required field", async () => {
+    const user = User.new();
+
+    await expect(user.save()).rejects.toThrow("Missing required field: name");
+  })
+
+  it("will write only dirty columns", async () => {
+    const user = await User.insert({ name: "John" });
+    const update = vi.spyOn(User.connection, "update");
+
+    user.age = 30;
+    await user.save();
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith(User.ref, user.id, { age: 30 });
+
+    update.mockRestore();
+  })
+
+  it("will not save if nothing is dirty", async () => {
+    const user = await User.insert({ name: "John" });
+    const update = vi.spyOn(User.connection, "update");
+
+    await expect(user.save()).resolves.toBe(user);
+
+    user.age = 30;
+    await user.save();
+    await user.save();
+
+    expect(update).toHaveBeenCalledTimes(1);
+
+    update.mockRestore();
+  })
+
+  it("will not save value restored to persisted", async () => {
+    const user = await User.insert({ name: "John" });
+    const update = vi.spyOn(User.connection, "update");
+
+    user.name = "Bob";
+    user.name = "John";
+    await user.save();
+
+    expect(update).not.toHaveBeenCalled();
+
+    update.mockRestore();
+  })
+
+  it("will clear nullable column", async () => {
+    const user = await User.insert({ name: "John", age: 30 });
+
+    user.age = undefined;
+    await user.save();
+
+    const [row] = await User.connection.get(User.ref, [["id", "=", user.id]]);
+
+    expect(row.age).toBeNull();
+    expect(user.age).toBeNull();
+  })
+
+  it("will be clean after hydration", async () => {
+    const user = await User.insert({ name: "John" });
+    const update = vi.spyOn(User.connection, "update");
+
+    user.name = "Bob";
+    await User.one(user.id, true);
+    await user.save();
+
+    expect(user.name).toBe("John");
+    expect(update).not.toHaveBeenCalled();
+
+    update.mockRestore();
+  })
+
+  it("will update entity constructed with id", async () => {
+    const { id } = await User.insert({ name: "John" });
+    const user = User.new({ id, name: "Bob" });
+
+    await user.save();
+
+    const [row] = await User.connection.get(User.ref, [["id", "=", id]]);
+
+    expect(row.name).toBe("Bob");
+  })
+
+  it("will notify observers on read-back", async () => {
+    class Event extends connect() {
+      when = date();
+    }
+
+    const event = await Event.insert({ when: new Date(0) });
+    const assigned = new Date(1);
+    const didUpdate = vi.fn();
+
+    event.when = assigned;
+    event.set(didUpdate);
+    await event.save();
+
+    expect(didUpdate).toHaveBeenCalledWith("when", event);
+    expect(event.when).not.toBe(assigned);
+    expect(event.when).toEqual(assigned);
+  })
+
+  it("will dirty foreign key on relation change", async () => {
+    class Table extends connect() {}
+
+    class Author extends Table {
+      static table = "author";
+      name = str();
+    }
+
+    class Book extends Table {
+      static table = "book";
+      name = str();
+      author = one(Author);
+    }
+
+    const gabe = await Author.insert({ name: "Gabe" });
+    const alice = await Author.insert({ name: "Alice" });
+    const book = await Book.insert({ name: "Book", author: gabe });
+    const update = vi.spyOn(Book.connection, "update");
+
+    book.author = gabe;
+    await book.save();
+
+    expect(update).not.toHaveBeenCalled();
+
+    book.author = alice;
+    await book.save();
+
+    expect(update).toHaveBeenCalledWith("book", book.id, { author_id: alice.id });
+    expect(book.author).toBe(alice);
+
+    update.mockRestore();
   })
 })
 
@@ -260,6 +462,36 @@ describe("delete", () => {
     await user.delete();
 
     await expect(User.find()).resolves.toEqual([]);
+  })
+
+  it("will evict and destroy entity", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    const user = await User.insert({ name: "John" });
+    const destroyed = vi.fn();
+
+    user.set(null, destroyed);
+    await user.delete();
+
+    expect(destroyed).toHaveBeenCalled();
+    expect(User.loaded.has(user.id)).toBe(false);
+  })
+
+  it("will throw on write after delete", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    const user = await User.insert({ name: "John" });
+
+    await user.delete();
+
+    await expect(user.save()).rejects.toThrow(`User ${user.id} was deleted.`);
+    await expect(user.update({ name: "Bob" })).rejects.toThrow(`User ${user.id} was deleted.`);
+    await expect(user.delete()).rejects.toThrow(`User ${user.id} was deleted.`);
+    expect(user.name).toBe("John");
   })
 
   it("will call onDelete", async () => {

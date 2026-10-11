@@ -11,6 +11,7 @@ export type Infer<T extends any[], Base> =
     : Base;
 
 const FIELDS = new WeakMap<Function, Map<string, Field>>();
+const DIRTY = new WeakMap<Type, Record<string, unknown>>();
 
 function field<T, F extends Field = Field>(
   create: (key: string, type: Type.Class) => F,
@@ -26,9 +27,24 @@ function field<T, F extends Field = Field>(
     if (!fields.has(key))
       fields.set(key, create(key, type));
 
-    return config
+    const output = config
       ? config(fields.get(key) as F, subject, store)
       : { value: undefined };
+
+    return {
+      ...output,
+      set(next: unknown, prev: unknown) {
+        let dirty = DIRTY.get(subject);
+
+        if (!dirty)
+          DIRTY.set(subject, dirty = {});
+
+        dirty[key] = next;
+
+        if (typeof output.set == "function")
+          return output.set(next, prev);
+      }
+    };
   }) as T;
 }
 
@@ -84,6 +100,7 @@ const orNull = { nullable: true } as const;
 const optional = { optional: true } as const;
 
 export {
+  DIRTY,
   FIELDS,
   Field,
   field,
