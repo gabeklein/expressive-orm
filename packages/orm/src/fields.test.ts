@@ -230,6 +230,7 @@ describe("json", () => {
 
     expect(field.constructor).toBe(Field);
     expect(field.kind).toBe(Object);
+    expect(field.datatype).toBe("text");
   })
 })
 

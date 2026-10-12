@@ -46,6 +46,24 @@ describe("schema", () => {
     `);
   });
 
+  it("will render json as text and an unknown datatype as declared", async () => {
+    class Doc extends Type {
+      data = json<{ a: number }>();
+      blob = json({ type: "blob" });
+    }
+
+    const sql = TestConnection.new({ Doc });
+
+    expect(String(sql.schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
+        doc (
+          id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+          data TEXT NOT NULL,
+          blob BLOB NOT NULL
+        );"
+    `);
+  });
+
   it("will create FK constraints", async () => {
     class Foo extends Type {
       bar = one(Bar);
