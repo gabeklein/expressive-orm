@@ -1,12 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 import { State } from '@expressive/mvc';
 
+import { Connection } from './Connection';
 import { Field } from './Field';
 import { memory } from './memory';
 import { Query } from './query/Query';
 import { Type } from './Type';
 import { asc, desc, equal, greaterThan, isIn, Where } from './where';
 import { bool, date, json, num, one, optional, orNull, str, uuid } from '.';
+
+function spy<K extends "select" | "insert" | "update" | "remove">(connection: Connection, key: K) {
+  void connection[key];
+  return vi.spyOn(connection, key);
+}
 
 function connect(){
   return class Table extends Type {
@@ -225,7 +231,7 @@ describe("insert", () => {
     await User.insert({ name: "John" });
 
     expect(User.ref).toBe("app.user");
-    await expect(User.connection.get("app.user", [])).resolves.toEqual([{ id: 1, name: "John" }]);
+    await expect(User.connection.select("app.user", [])).resolves.toEqual([{ id: 1, name: "John" }]);
   })
 
   it("will derive table from each class name", () => {
@@ -266,13 +272,13 @@ describe("update", () => {
     expect(user.age).toBe(30);
     expect(user.name).toBe("John");
 
-    const [row] = await User.connection.get(User.ref, [["id", "=", user.id]]);
+    const [row] = await User.connection.select(User.ref, [["id", "=", user.id]]);
 
     expect(row).toEqual({ id: user.id, name: "John", age: 30 });
   })
 
   it("will not update if empty", async () => {
-    const update = vi.spyOn(User.connection, "update");
+    const update = spy(User.connection, "update");
     const user = await User.insert({ name: "John" });
 
     await user.update({});
@@ -281,7 +287,7 @@ describe("update", () => {
   })
 
   it("will write once", async () => {
-    const update = vi.spyOn(User.connection, "update");
+    const update = spy(User.connection, "update");
     const user = await User.insert({ name: "John" });
 
     user.age = 20;
@@ -323,12 +329,12 @@ describe("save", () => {
 
   it("will assign defaults from inserted row", async () => {
     const db = memory();
+    const { insert } = db;
 
     class Post extends Type {
-      static connection = {
-        ...db,
-        insert: (table: string, row: Record<string, any>) => db.insert(table, { status: "draft", ...row }, true)
-      };
+      static connection = Object.assign(db, {
+        insert: (table: string, row: Record<string, any>) => insert(table, { status: "draft", ...row }, true)
+      });
 
       status = str(optional);
     }
@@ -353,7 +359,7 @@ describe("save", () => {
 
   it("will write only dirty columns", async () => {
     const user = await User.insert({ name: "John" });
-    const update = vi.spyOn(User.connection, "update");
+    const update = spy(User.connection, "update");
 
     user.age = 30;
     await user.save();
@@ -366,7 +372,7 @@ describe("save", () => {
 
   it("will not save if nothing is dirty", async () => {
     const user = await User.insert({ name: "John" });
-    const update = vi.spyOn(User.connection, "update");
+    const update = spy(User.connection, "update");
 
     await expect(user.save()).resolves.toBe(user);
 
@@ -381,7 +387,7 @@ describe("save", () => {
 
   it("will not save value restored to persisted", async () => {
     const user = await User.insert({ name: "John" });
-    const update = vi.spyOn(User.connection, "update");
+    const update = spy(User.connection, "update");
 
     user.name = "Bob";
     user.name = "John";
@@ -398,7 +404,7 @@ describe("save", () => {
     user.age = undefined;
     await user.save();
 
-    const [row] = await User.connection.get(User.ref, [["id", "=", user.id]]);
+    const [row] = await User.connection.select(User.ref, [["id", "=", user.id]]);
 
     expect(row.age).toBeNull();
     expect(user.age).toBeNull();
@@ -406,7 +412,7 @@ describe("save", () => {
 
   it("will be clean after hydration", async () => {
     const user = await User.insert({ name: "John" });
-    const update = vi.spyOn(User.connection, "update");
+    const update = spy(User.connection, "update");
 
     user.name = "Bob";
     await User.one(user.id, true);
@@ -424,7 +430,7 @@ describe("save", () => {
 
     await user.save();
 
-    const [row] = await User.connection.get(User.ref, [["id", "=", id]]);
+    const [row] = await User.connection.select(User.ref, [["id", "=", id]]);
 
     expect(row.name).toBe("Bob");
   })
@@ -464,7 +470,7 @@ describe("save", () => {
     const gabe = await Author.insert({ name: "Gabe" });
     const alice = await Author.insert({ name: "Alice" });
     const book = await Book.insert({ name: "Book", author: gabe });
-    const update = vi.spyOn(Book.connection, "update");
+    const update = spy(Book.connection, "update");
 
     book.author = gabe;
     await book.save();
@@ -1015,3 +1021,250 @@ describe("identity map", () => {
     expect(User.loaded.get(user.id)).toBeUndefined();
   });
 });
+
+describe("live rows", () => {
+  class Live extends Connection {
+    _db = memory();
+    _emit?: (change: Connection.Change) => void;
+    _subscribed = 0;
+
+    select(...args: Parameters<Connection["select"]>){
+      return this._db.select(...args);
+    }
+
+    insert(...args: Parameters<Connection["insert"]>){
+      return this._db.insert(...args);
+    }
+
+    update(...args: Parameters<Connection["update"]>){
+      return this._db.update(...args);
+    }
+
+    remove(...args: Parameters<Connection["remove"]>){
+      return this._db.remove(...args);
+    }
+
+    subscribe(listener: (change: Connection.Change) => void){
+      this._emit = listener;
+      this._subscribed++;
+
+      return () => {
+        this._emit = undefined;
+      };
+    }
+  }
+
+  const settled = () => new Promise(res => setTimeout(res));
+
+  it("will update a loaded entity", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    const user = await User.insert({ name: "Gabe" });
+    const didUpdate = vi.fn();
+
+    user.get(current => {
+      didUpdate(current.name);
+    });
+
+    await User.connection.update(User.ref, user.id, { name: "Bob" });
+    await settled();
+
+    expect(user.name).toBe("Bob");
+    expect(didUpdate).toHaveBeenLastCalledWith("Bob");
+  })
+
+  it("will not overwrite unsaved fields", async () => {
+    class User extends connect() {
+      name = str();
+      age = num(orNull);
+    }
+
+    const user = await User.insert({ name: "Gabe" });
+    const update = spy(User.connection, "update");
+
+    user.name = "Local";
+
+    await User.connection.update(User.ref, user.id, { name: "Remote", age: 30 });
+    await settled();
+
+    expect(user.name).toBe("Local");
+    expect(user.age).toBe(30);
+
+    await user.save();
+
+    expect(update).toHaveBeenLastCalledWith(User.ref, user.id, { name: "Local" });
+  })
+
+  it("will not refresh an unchanged date", async () => {
+    class Event extends connect() {
+      at = date();
+    }
+
+    const event = await Event.insert({ at: new Date(1000) });
+    const { at } = event;
+
+    await Event.connection.update(Event.ref, event.id, { at: new Date(1000).toISOString() });
+    await settled();
+
+    expect(event.at).toBe(at);
+
+    await Event.connection.update(Event.ref, event.id, { at: new Date(2000).toISOString() });
+    await settled();
+
+    expect(event.at).toEqual(new Date(2000));
+  })
+
+  it("will destroy a deleted entity", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    const user = await User.insert({ name: "Gabe" });
+
+    await User.connection.remove(User.ref, user.id);
+    await settled();
+
+    expect(user.get(null)).toBe(true);
+    expect(User.loaded.has(user.id)).toBe(false);
+    await expect(user.save()).rejects.toThrow(`User ${user.id} was deleted.`);
+  })
+
+  it("will not touch entities on insert", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    const user = await User.insert({ name: "Gabe" });
+
+    await User.connection.insert(User.ref, { id: user.id, name: "Copy" });
+    await settled();
+
+    expect(user.name).toBe("Gabe");
+  })
+
+  it("will ignore rows not loaded", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class Post extends Type {
+      static connection = User.connection;
+      title = str();
+    }
+
+    const user = await User.insert({ name: "Gabe" });
+
+    await Post.insert({ title: "Hello" });
+    await User.connection.update(User.ref, 9, { name: "Nobody" });
+    await User.connection.update(Post.ref, user.id, { title: "Bye" });
+    await settled();
+
+    expect(user.name).toBe("Gabe");
+  })
+
+  it("will reload a change without a row", async () => {
+    class User extends Type {
+      static connection = Live.new();
+      name = str();
+    }
+
+    const db = User.connection as Live;
+    const user = await User.insert({ name: "Gabe" });
+
+    await db._db.update(User.ref, user.id, { name: "Bob" });
+    db._emit!({ table: User.ref, op: "update", id: user.id });
+    await settled();
+
+    expect(user.name).toBe("Bob");
+
+    await db._db.remove(User.ref, user.id);
+    db._emit!({ table: User.ref, op: "update", id: user.id });
+    await settled();
+
+    expect(user.name).toBe("Bob");
+  })
+
+  it("will subscribe once until destroyed", async () => {
+    class User extends Type {
+      static connection = Live.new();
+      name = str();
+    }
+
+    class Post extends Type {
+      static connection = User.connection;
+      title = str();
+    }
+
+    const db = User.connection as Live;
+
+    await User.insert({ name: "Gabe" });
+    await Post.insert({ title: "Hello" });
+
+    expect(db._subscribed).toBe(1);
+    expect(db._emit).toBeDefined();
+
+    db.set(null);
+
+    expect(db._emit).toBeUndefined();
+    await User.insert({ name: "Bob" });
+    expect(db._subscribed).toBe(1);
+  })
+
+  it("will settle a loaded entity on static update", async () => {
+    class User extends Type {
+      static connection = Live.new();
+      name = str();
+    }
+
+    const user = await User.insert({ name: "Gabe" });
+
+    await User.update(user.id, { name: "Bob" });
+    await User.update(9, { name: "Nobody" });
+
+    expect(user.name).toBe("Bob");
+  })
+})
+
+describe("renamed key column", () => {
+  it("will round trip a numeric key", async () => {
+    class User extends connect() {
+      id = num({ column: "user_id", primary: true });
+      name = str();
+    }
+
+    const user = await User.insert({ name: "Gabe" });
+    const [row] = await User.connection.select(User.ref, []);
+
+    expect(user.id).toBe(1);
+    expect(row).toEqual({ user_id: 1, name: "Gabe" });
+    await expect(User.one(1)).resolves.toBe(user);
+
+    await user.update({ name: "Bob" });
+    await expect(User.connection.select(User.ref, [])).resolves.toEqual([{ user_id: 1, name: "Bob" }]);
+
+    await User.update(1, { name: "Ann" });
+    expect(user.name).toBe("Ann");
+
+    await user.delete();
+    await expect(User.connection.select(User.ref, [])).resolves.toEqual([]);
+  })
+
+  it("will round trip a string key", async () => {
+    class Doc extends connect() {
+      id = uuid({ column: "doc_id", primary: true });
+      title = str();
+    }
+
+    const doc = await Doc.insert({ id: "a1", title: "Hello" });
+
+    await expect(Doc.one("a1", true)).resolves.toBe(doc);
+
+    await doc.update({ title: "Bye" });
+    await expect(Doc.connection.select(Doc.ref, [])).resolves.toEqual([{ doc_id: "a1", title: "Bye" }]);
+
+    await doc.delete();
+    await expect(Doc.one("a1", false)).resolves.toBeUndefined();
+  })
+})

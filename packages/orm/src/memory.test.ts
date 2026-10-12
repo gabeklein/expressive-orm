@@ -18,7 +18,7 @@ describe("insert", () => {
     const db = memory();
 
     await expect(db.insert("user", { name: "A" })).resolves.toBeUndefined();
-    await expect(db.get("user", [])).resolves.toEqual([{ id: 1, name: "A" }]);
+    await expect(db.select("user", [])).resolves.toEqual([{ id: 1, name: "A" }]);
   })
 
   it("will continue after explicit id", async () => {
@@ -36,15 +36,15 @@ describe("insert", () => {
 
     row.name = "B";
 
-    const [got] = await db.get("user", []);
+    const [got] = await db.select("user", []);
 
     got.name = "C";
 
-    await expect(db.get("user", [])).resolves.toEqual([{ id: 1, name: "A" }]);
+    await expect(db.select("user", [])).resolves.toEqual([{ id: 1, name: "A" }]);
   })
 })
 
-describe("get", () => {
+describe("select", () => {
   const db = memory();
   const ready = (async () => {
     for (const [name, age] of [["Gabe", 30], ["Alice", 25], ["Bob", null], ["alex", 25]] as const)
@@ -53,12 +53,12 @@ describe("get", () => {
 
   async function ids(...constraints: [string, string, any?][]){
     await ready;
-    const rows = await db.get("user", constraints);
+    const rows = await db.select("user", constraints);
     return rows.map(row => row.id);
   }
 
   it("will return empty for unknown table", async () => {
-    await expect(db.get("nope", [])).resolves.toEqual([]);
+    await expect(db.select("nope", [])).resolves.toEqual([]);
   })
 
   it.each([
@@ -107,8 +107,8 @@ describe("get", () => {
   it("will limit and offset", async () => {
     await ready;
 
-    const page = await db.get("user", [["id", "asc"]], 2, 1);
-    const rest = await db.get("user", [["id", "asc"]], undefined, 3);
+    const page = await db.select("user", [["id", "asc"]], 2, 1);
+    const rest = await db.select("user", [["id", "asc"]], undefined, 3);
 
     expect(page.map(row => row.id)).toEqual([2, 3]);
     expect(rest.map(row => row.id)).toEqual([4]);
@@ -127,7 +127,7 @@ describe("update", () => {
     await db.insert("user", { name: "B" });
     await db.update("user", 2, { name: "C" });
 
-    await expect(db.get("user", [])).resolves.toEqual([
+    await expect(db.select("user", [])).resolves.toEqual([
       { id: 1, name: "A" },
       { id: 2, name: "C" }
     ]);
@@ -142,7 +142,7 @@ describe("remove", () => {
     await db.insert("user", { name: "B" });
     await db.remove("user", 1);
 
-    await expect(db.get("user", [])).resolves.toEqual([{ id: 2, name: "B" }]);
+    await expect(db.select("user", [])).resolves.toEqual([{ id: 2, name: "B" }]);
   })
 })
 
@@ -178,5 +178,54 @@ describe("prepare", () => {
     });
 
     await expect(query).rejects.toThrow("Query templates are not supported by the memory driver.");
+  })
+})
+
+describe("subscribe", () => {
+  class User extends Type {
+    static table = "user";
+    static connection = memory();
+    name = str();
+  }
+
+  it("will report writes", async () => {
+    const db = memory();
+    const changes: unknown[] = [];
+    const stop = db.subscribe!(change => changes.push(change));
+
+    await db.insert("user", { name: "A" });
+    await db.update("user", 1, { name: "B" });
+    await db.update("user", 2, { name: "C" });
+    await db.remove("user", 1);
+
+    stop();
+    await db.insert("user", { name: "D" });
+
+    expect(changes).toEqual([
+      { table: "user", op: "insert", id: 1, row: { id: 1, name: "A" } },
+      { table: "user", op: "update", id: 1, row: { name: "B" } },
+      { table: "user", op: "delete", id: 1 }
+    ]);
+  })
+
+  it("will report writes by query", async () => {
+    const changes: unknown[] = [];
+
+    User.connection.subscribe!(change => changes.push(change));
+
+    await Query(where => void where(User, { name: "A" }));
+    await Query(where => {
+      const user = where(User);
+      where(user).update({ name: "B" });
+    });
+    await Query(where => {
+      where(where(User)).delete();
+    });
+
+    expect(changes).toEqual([
+      { table: "user", op: "insert", id: 1, row: { id: 1, name: "A" } },
+      { table: "user", op: "update", id: 1, row: { name: "B" } },
+      { table: "user", op: "delete", id: 1 }
+    ]);
   })
 })
