@@ -44,7 +44,7 @@
       "peerDependencies": {
         "@electric-sql/pglite": "^0.2.16",
         "@expressive/mvc": "^0.88.0",
-        "pg": "*",
+        "pg": "^8.0.0",
       },
       "optionalPeers": [
         "@electric-sql/pglite",

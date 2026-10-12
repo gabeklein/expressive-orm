@@ -6,7 +6,7 @@ Contributor guide for AI agents working in this repository.
 
 Expressive ORM - entities on `@expressive/mvc` State with a pluggable driver contract and a `Query` builder. `@expressive/sql` holds the SQL toolkit, the SQL datatype vocabulary and SQLite, and re-exports orm; `@expressive/postgres` builds on it and re-exports it. `@expressive/sqlite` is a deprecated re-export of sql. Root `FEATURE.md` on a trunk branch holds the agreed scope and build plan for work in progress - read it first.
 
-Monorepo: bun workspaces + changesets. Everything runs under bun (`bun install`, `bun run test`, `bun run build`); never call node or npm directly. Node appears only in `release.yml`, where `changeset publish` shells to npm for the OIDC-authenticated publish.
+Monorepo: bun workspaces + changesets. Install, scripts and builds run under bun (`bun install`, `bun run test`, `bun run build`); tests run on vitest, which executes on node (`bun run test` invokes it). Never call node or npm directly. npm appears only in CI: `pr.yml`'s pack validation (`npm publish --dry-run`) and `release.yml`, where `changeset publish` shells to npm for the OIDC-authenticated publish.
 
 ## Structure
 
@@ -21,7 +21,9 @@ packages/sqlite   - Deprecated re-export of @expressive/sql (@expressive/sqlite)
 
 ```bash
 bun install          # Install deps
-bun run test         # Per package: tsc --noEmit, then bun test with coverage gates
+bun run test         # Per package: typecheck, then coverage
+bun run typecheck    # tsc --noEmit per package
+bun run coverage     # vitest with coverage gates per package
 bun run build        # tsdown per package
 bun run changeset    # Write a changeset
 ```
@@ -45,6 +47,7 @@ Naming: positive `it('will create instance')`, negative `it('will not trigger up
 - Entities extend `State`; fields are `def` instructions. Anything a State already provides - construction, assignment, observation, destruction - is not reimplemented here.
 - Driver-agnostic logic belongs in `packages/orm`. SQL strings belong in `sql` or a driver, never in `orm`.
 - Update tests alongside behavioural or type changes - tests must fail without the change.
+- A user-facing change updates the root README (and a package README it touches); every sample there runs against the built dists.
 - Merged code carries essentially no comments. Strip explanatory comments before committing; keep one only where the code would otherwise be misread.
 - **Ask before adding public surface.** No new exported functions, classes, types, fields, statics or contract methods without confirming first. Prefer reshaping existing surface.
 - Keep `@expressive/mvc` as a peer; take its released version, never a link. A seam missing in mvc lands on `expressive-mvc` `main` as its own PR.
@@ -62,4 +65,4 @@ Naming: positive `it('will create instance')`, negative `it('will not trigger up
 
 ## Releasing
 
-All four packages publish. Internal dependencies are carets of the current release, not `workspace:` ranges - `changeset publish` packs with npm, which does not rewrite them. Merged changesets accumulate on `main`; `release.yml` maintains a "chore: version packages" PR and publishes from CI when it merges. No local publishing.
+All four packages publish; `@expressive/sqlite` is a deprecated shim, marked with `npm deprecate` by the maintainer after it publishes. Users install `@expressive/sql` or `@expressive/postgres`; the root README is the guide, each package README a short entry pointing to it. Internal dependencies are carets of the current release, not `workspace:` ranges - `changeset publish` packs with npm, which does not rewrite them. Merged changesets accumulate on `main`; `release.yml` maintains a "chore: version packages" PR and publishes from CI when it merges. No local publishing.

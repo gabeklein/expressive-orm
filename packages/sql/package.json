@@ -1,8 +1,27 @@
 {
   "name": "@expressive/sql",
   "version": "0.4.4",
-  "description": "SQL toolkit and embedded SQLite store for Expressive ORM.",
+  "description": "Expressive ORM on SQL: entities, Query and an embedded SQLite store from one import.",
+  "keywords": [
+    "orm",
+    "sql",
+    "sqlite",
+    "entity",
+    "reactive",
+    "query-builder",
+    "expressive",
+    "mvc"
+  ],
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabeklein/expressive-orm.git",
+    "directory": "packages/sql"
+  },
+  "homepage": "https://github.com/gabeklein/expressive-orm/tree/main/packages/sql#readme",
+  "bugs": {
+    "url": "https://github.com/gabeklein/expressive-orm/issues"
+  },
   "type": "module",
   "publishConfig": {
     "access": "public"

@@ -3,823 +3,426 @@
 <p align="center">
   <img height="90" src=".github/logo.svg" alt="Expressive Logo"/>
   <h1 align="center">
-    Expressive Query
+    Expressive ORM
   </h1>
 </p>
 
 <h4 align="center">
-  Accessible SQL for your apps.
+  Entities as reactive State, stored in SQL.
 </h4>
- 
+
 <p align="center">
   <a href="https://www.npmjs.com/package/@expressive/sql"><img alt="NPM" src="https://badge.fury.io/js/%40expressive%2Fsql.svg"></a>
 </p>
 
-<p align="center">
-  Define classes to power your queries by extending <code>Table</code>.<br/>
-  The <code>Query</code> factory helps you compose one-to-one SQL and execute them.<br/>
-  Columns you return are selected and ready for type-safe use!<br/>
-</p>
-
 <br/>
 
-> [!NOTE]  
-> Library is experimental and documentation is in progress.
-> Current README is geared as a tech demo to show what I'm working on! :)
+An entity is a class extending `Type`, which extends [`@expressive/mvc`](https://github.com/gabeklein/expressive-mvc) `State`: one class is the schema, the domain model and an observable object. Everything comes from one import. `@expressive/sql` runs on embedded SQLite with nothing else installed; `@expressive/postgres` is the upgrade, and keeps loaded entities live as their rows change.
 
+## Install
 
-<br/>
-<h1 id="overview-section">Overview</h1>
-
-Classes which extend `Table` can manage your data with high safety and convenience. This project aims to make using SQL in Javascript apps completely frictionless.
-
-<br/>
-
-## Benefits over other ORMs
-
-- **No DSL or magic** - Everything is plain JavaScript/TypeScript
-- **Type safety without decorators** - Full type inference without complex setup
-- **Declarative and SQL-first** - The API closely follows SQL semantics - No chaining! ⛓️‍💥
-- **Context agnostic** - The query system handles database syntax specifics for you.
-- **Uber Extensible** - Fields and Tables can be extended and customized to fit most needs.
-- **Performance** - Very minimal overhead over actual SQL clients, memory efficient at high volume. 
-
-<br/>
-
-
-
-## Define your schema
-
-With the base SQL module, you can define your database schema using classes that extend `Table`. Field factories let you customize columns with types, defaults, validation, and more.
-
-```bash
-npm i @expressive/sql
+```sh
+npm install @expressive/sql @expressive/mvc
 ```
 
-```typescript
-// src/database/tables.ts
+SQLite is built into Bun and Node 24. Elsewhere add one of `better-sqlite3`, `sqlite3` or `@libsql/client`; the first found is used.
 
-import { Table, Str, Num, Bool, Time } from '@expressive/sql';
-import { hash } from "./lib/passwords";
+For Postgres:
 
-class User extends Table {
-  // Fields without nullable option default to not nullable
-  name = Str();
-  email = Str({ unique: true });
-
-  // Explicitly nullable fields
-  nickName = Str({ nullable: true });
-
-  // Custom type, length, and setter
-  password = Str({ type: "varchar", length: 40, set: hash });
-
-  // Fallback values (like SQL DEFAULT)
-  createdAt = Time({ fallback: "NOW" });
-}
-
-class Post extends Table {
-  authorId = Num();
-  title = Str();
-  content = Str();
-
-  // Boolean with fallback
-  published = Bool({ fallback: false });
-
-  // Time fields
-  createdAt = Time({ fallback: "NOW" });
-  updatedAt = Time({ nullable: true });
-}
-
-export { User, Post }
+```sh
+npm install @expressive/postgres @expressive/mvc pg
+# or embedded, in WASM
+npm install @expressive/postgres @expressive/mvc @electric-sql/pglite
 ```
 
-Tables you create are type-safe out of the box! No special decorators or interface types needed.
+`@expressive/postgres` re-exports `@expressive/sql`, which re-exports `@expressive/orm`. Import from the one package you installed.
 
-```typescript
-// lib/database/tables.d.ts (built with tsc)
+## Entities
 
-declare class Table extends Base {
-    id: Primary.Int;
-}
+```ts
+import { Type, bool, date, json, num, orNull, str, uuid } from '@expressive/sql';
 
-declare class User extends Table {
-    name: Str.Text;
-    nickName: Str.Text & Nullable;
-    email: Str.Text;
-    password: Str.VarChar;
-    createdAt: Time.Timestamp & Optional;
-}
-
-declare class Post extends Table {
-    authorId: Num.Int;
-    title: Str.Text;
-    content: Str.Text;
-    published: Bool.Boolean & Optional;
-    createdAt: Time.Timestamp & Optional;
-    updatedAt: Time.Timestamp & Nullable;
-}
-
-export { Post, User };
-```
-
-### Field Types
-
-The library provides several field type factories to define your table columns:
-
-- `Str()` - String fields (text, varchar, etc.)
-- `Num()` - Numeric fields (integer, float, decimal, etc.)
-- `Bool()` - Boolean fields
-- `Time()` - Date and time fields
-- `One()` - Foreign key relationship to another table
-
-Each field type accepts options to customize behavior:
-
-```typescript
-class Product extends Table {
-  // Basic string field
-  name = Str();
-
-  // Varchar with length limit
-  sku = Str({ type: 'varchar', length: 20 });
-
-  // Numeric with precision
-  price = Num({ type: 'numeric', precision: 10, scale: 2 });
-
-  // Boolean with default
-  inStock = Bool({ fallback: true });
-
-  // Nullable field
-  description = Str({ nullable: true });
-
-  // Unique constraint
-  barcode = Str({ unique: true, nullable: true });
+class User extends Type {
+  name = str();
+  email = str({ type: "varchar", length: 255, unique: true });
+  age = num(orNull);
+  admin = bool({ fallback: false });
+  joined = date({ fallback: "NOW" });
+  prefs = json<{ theme: string }>(orNull);
+  token = uuid(orNull, { column: "api_token" });
 }
 ```
 
-<br />
+| Helper | Value |
+|---|---|
+| `str()` | `string` |
+| `num()` | `number` |
+| `bool()` | `boolean` |
+| `date()` | `Date` |
+| `json<T>()` | `T`, stored as text |
+| `uuid()` | `string` |
 
-## Connecting to your database
+Options, in any order:
 
-Pick an adapter which fits your needs:
+- `orNull` (or `null`) - nullable; the value is `T | undefined`.
+- `optional` - may be left out of an insert, for a column the database fills; on Postgres a missing column is tolerated and reads `undefined`.
+- `{ column }` - column name; default is the property in snake case.
+- `{ fallback }` - column default, also optional on insert. `"NOW"` is `CURRENT_TIMESTAMP`.
+- `{ unique, type, length, precision, scale }` - see [Datatypes](#datatypes).
 
-```bash
-# PostgreSQL
-npm i @expressive/postgres pg
+The table is the class name in snake case; `static table` overrides it, `static schema` qualifies it.
 
-# PGLite (embedded PostgreSQL)
-npm i @expressive/postgres @electric-sql/pglite
+Every entity has `id = num({ primary: true, increment: true })`. Redeclare it to rename the column or change its type:
 
-# SQLite (Bun or Node >= 24 built in; otherwise add better-sqlite3, sqlite3 or @libsql/client)
-npm i @expressive/sql
+```ts
+import { Type, num, str, uuid } from '@expressive/sql';
 
-# MySQL
-npm i @expressive/mysql mysql2
-```
-
-<br />
-
-For this example, we'll use Postgres:
-
-```typescript
-// src/database/index.ts
-
-import { PGConnection } from '@expressive/postgres';
-import * as tables from './tables';
-
-// Create a connection and link your tables
-export async function connect() {
-  await PGConnection.new(tables, {
-    host: process.env.DB_HOST,
-    port: 5432,
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-  });
+class Account extends Type {
+  id = num({ column: "account_id", primary: true, increment: true });
+  name = str();
 }
 
-// Reexport tables for convenience
-export * from './tables';
-
-// Export Query so everything is consolidated
-export { Query } from '@expressive/sql';
+class Session extends Type {
+  id = uuid({ primary: true });
+}
 ```
 
-When you connect, all `Table` classes are validated against the database schema. If any mismatch is found, the connection will throw - ensuring you operate on the data you expect.
+`Account["id"]` is a `number`, `Session["id"]` a `string`; `one(id)`, `update(id)` and relations follow it.
 
-### Other Database Adapters
+## Connect
 
-```typescript
-// PGLite (embedded)
-import { PGLiteConnection } from '@expressive/postgres';
-await PGLiteConnection.new(tables, { dataDir: './data' });
-
-// SQLite
+```ts
 import { SQLiteConnection } from '@expressive/sql';
-await SQLiteConnection.new(tables, './database.db');
 
-// MySQL
-import { MySQLConnection } from '@expressive/mysql';
-await new MySQLConnection(tables, {
-  host: 'localhost',
-  database: 'myapp',
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD
-});
+const db = await SQLiteConnection.new([User, Account, Session], "app.db");
 ```
 
-<br />
+`new(types, ...)` binds each class to the connection. Awaiting it runs `sync`: missing tables are created, existing ones checked against the classes. Omit the filename for an in-memory database. `await db.close()` releases it and destroys every entity loaded through it.
 
-## Querying your data
+```ts
+import { PGConnection, PGLiteConnection } from '@expressive/postgres';
 
-The `Query` function is a powerful factory which generates both the SQL query and the parser that transforms results into JavaScript objects with the shape you specify.
+const pg = await PGConnection.new([User], "postgres://localhost/app");
+const lite = await PGLiteConnection.new([Account], "./data");
+```
 
-```typescript
-import { Query, Post, User } from './database';
+`PGConnection` takes a connection string, a `pg` `PoolConfig` or a `Pool`. `PGLiteConnection` takes a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`.
 
-async function getPosts() {
-  return await Query(where => {
-    const post = where(Post);
-    const author = where(User);
+Without SQL, `memory()` keeps rows in arrays - for tests and prototypes:
 
-    // Join tables by equating fields
-    where(post.authorId).equal(author.id);
+```ts
+import { Type, memory, str } from '@expressive/sql';
 
-    // Filter with WHERE clauses
-    where(post.published).equal(true);
-
-    // Return the shape you want
-    return {
-      title: post.title,
-      author: author.name,
-      content: post.content,
-      date: post.createdAt
-    };
-  });
+class Note extends Type {
+  static connection = memory();
+  text = str();
 }
 ```
 
-The return type is automatically inferred from your selection:
+## Read and write
 
-```typescript
-declare function getPosts(): Promise<{
-    title: string;
-    author: string;
-    content: string;
-    date: Date;
-}[]>
+```ts
+import { asc, greaterThan, isLike, lessThan } from '@expressive/sql';
+
+const gabe = await User.insert({ name: "Gabe", email: "gabe@example.com", age: 35 });
+
+await User.one(gabe.id);                       // same instance, from the identity map
+await User.one({ email: "gabe@example.com" }); // throws if not found
+await User.one({ name: "Nobody" }, false);     // undefined if not found
+
+const users = await User.find({
+  name: [isLike("G%"), asc()],
+  age: [greaterThan(17), lessThan(65)]
+}, 10, 0);
+
+for await (const page of User.all(100))
+  console.log(page.length);
 ```
 
-### Return Variations
+Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, and `asc` / `desc` for order. A plain value is `equal`; an array applies each.
 
-```typescript
-// Return specific fields as an object
-const results = await Query(where => {
-  const user = where(User);
-  return {
-    name: user.name,
-    email: user.email
-  };
-});
+```ts
+const ann = User.new({ name: "Ann", email: "ann@example.com" });
 
-// Return entire table
-const users = await Query(where => {
-  const user = where(User);
-  return user;
-});
+await ann.save();
 
-// Return a single field
-const emails = await Query(where => {
-  const user = where(User);
-  return user.email;
-});
+ann.age = 28;
+await ann.save();
 
-// Return nested objects (generates SQL aliases)
-const results = await Query(where => {
-  const user = where(User);
-  return {
-    user: {
-      id: user.id,
-      name: user.name
-    },
-    contact: {
-      email: user.email
-    }
-  };
-});
-
-// Count query (no return = COUNT(*))
-const count = await Query(where => {
-  const user = where(User);
-  where(user.email).equal('test@example.com');
-  // No return statement = COUNT(*)
-});
+await ann.update({ admin: true });
+await User.update(ann.id, { age: 29 });
+await ann.delete();
 ```
 
-<br />
+`Type.new(values)` builds an unsaved entity; `insert(data)` is `new(data).save()`. Assigning a field marks it dirty, and `save()` writes only dirty columns - an insert when there is no `id`, an update otherwise. `update(data)` assigns, then saves. `delete()` removes the row and destroys the instance.
 
-## Inserting Data
+## Relations
 
-```typescript
-// Insert a user
-const userId = await User.insert({ 
-  name: 'John Doe', 
-  email: 'john@example.com',
-  password: 'hashedpassword123'
-});
+```ts
+import { Type, lazy, one, orNull, rows, str } from '@expressive/sql';
 
-// Insert a post
-await Post.insert({
-  title: 'Hello World',
-  content: 'This is my first post!',
-  published: true,
-  author: userId
-});
-```
+class Author extends Type {
+  name = str();
+  posts = rows(Post, "author");
+}
 
-<br />
-
-## Updating Data
-
-The `Query` factory can also be used to update records!
-
-```typescript
-// John wants to set his account to private or something.
-const count = await Query(where => {
-  const post = where(Post);
-  const user = where(User);
-
-  where(post.userId).equals(user.id);
-  where(user.email).equals("john@example.com");
-
-  where(post).update({ 
-    published: false
-  });
-});
-
-// count === 10
-```
-
-<br />
-
-# Concepts
-
-### Tables
-
-Tables are defined as classes that extend the `Table` base class. Each property represents a piece of data, usually a column, in the database.
-
-<br />
-
-```typescript
-class Product extends Table {
-  name = Str();
-  price = Num({ type: 'numeric', precision: 10, scale: 2 });
-  inStock = Bool({ fallback: true });
-  description = Str({ nullable: true });
+class Post extends Type {
+  title = str();
+  author = one(Author);
+  editor = one(Author, orNull, lazy, { column: "editor_id" });
 }
 ```
 
-### Field Types
+`one(Other)` stores `other_id` - a second relation to the same class needs its own `column` - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. Assign an entity or an id.
 
-The library provides several field types to define your table columns:
+`rows(Other, key?)` is a handle on the rows pointing back - `find`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class.
 
-- `Str()` - String fields (text, varchar, etc.)
-- `Num()` - Numeric fields (integer, float, decimal, etc.)
-- `Bool()` - Boolean fields
-- `Time()` - Date and time fields
-- `One()` - Foreign key relationship to another table
+```ts
+const author = await Author.insert({ name: "Gabe" });
+const post = await author.posts.insert({ title: "Hello", editor: author });
 
-Each field type accepts options to customize the field's behavior, such as nullable, unique, length, etc.
-
-### Query Builder
-
-The query builder provides a fluent API for building SQL queries:
-
-```typescript
-const query = Query(where => {
-  const user = where(User);
-  const post = where(Post);
-  
-  // here, we declare a join by equating two fields.
-  where(post.author).equal(user.id);
-
-  // these are our where clauses.
-  where(user.name).equal('John');
-  where(post.published).equal(true);
-  
-  // this is our selection.
-  return {
-    content: post.content,
-    author: user.name
-  };
-});
-
-// Execute the query
-const results = await query;
-
-// Use results as needed.
-console.log(`Found ${results.length} results.`)
-
-// results are implicitly the types you returned in your Query factory.
-// The real selection knows where to put the values, even if deeply nested.
-for(const { content, author } of results)
-  console.log(`${author} said: ${content}`)
-
-/*
-  Found 5 results.
-  John said: Hello world!
-  John said: I love SQL!
-  John said: Expressive is next level!
-  John said: Wow I can do so much with this!
-  John said: SQL is the best!
-*/
-
-// You can also stringify a query to see generated SQL! 👀
-console.log(query);
-
-/*
-  SELECT "post"."content" as "content", "user"."name" AS "author"
-  FROM "post" AS "post"
-  JOIN "user" AS "user" ON "post"."author_id" = "user"."id"
-  WHERE "user"."name" = 'John'
-  AND "post"."published" = true
-*/
+await author.posts.find();                  // [post]
+await author.posts.one({ title: "Hello" }); // post
+console.log(post.author === author);        // true
 ```
 
-### Sorting & Limits
+## Entities are States
 
-Sort results and limit the number of rows returned:
+Observe entities, render them, nest them - see [expressive-mvc](https://github.com/gabeklein/expressive-mvc).
 
-```typescript
-// Sort by one field
-await Query(where => {
-  const user = where(User);
-  where(user.createdAt).desc();
-  return user;
-});
-// ORDER BY user.created_at DESC
+```ts
+const user = await User.one({ email: "gabe@example.com" });
 
-// Multiple column sorting
-await Query(where => {
-  const user = where(User);
-  where(user.email).asc();      // First by email
-  where(user.createdAt).desc(); // Then by created date
-  return user;
-});
-// ORDER BY user.email ASC, user.created_at DESC
-
-// Limit results
-await Query(where => {
-  const user = where(User);
-  where(10); // LIMIT 10
-  return user;
+user.get(({ name, age }) => {
+  console.log(name, age);
 });
 
-// Combine sorting and limits
-await Query(where => {
-  const post = where(Post);
-  where(post.createdAt).desc();
-  where(5); // Get 5 most recent posts
-  return post;
+user.set(key => {
+  console.log("changed", key);
+});
+
+await user.update({ age: 36 });
+```
+
+`get(effect)` runs now and again when a property it read changes. `set(callback)` is called for every change. Both return a function to stop.
+
+A lazy relation suspends: its first read throws a promise, which an effect or a React component waits for.
+
+```ts
+const [first] = await Post.find({ title: "Hello" });
+
+first.get(({ editor }) => {
+  console.log(editor?.name);
 });
 ```
 
-### Joins
+## Query
 
-Joins are created by comparing fields from different tables:
+`Query` builds a statement from a callback. `where(Class)` adds a table and returns its columns, `where(column)` a condition; the return value is the selection.
 
-```typescript
-const query = Query(where => {
-  const post = where(Post);
+```ts
+import { Query } from '@expressive/sql';
+
+const names = await Query(where => {
   const user = where(User);
 
-  // This creates an INNER JOIN
-  where(post.authorId).equal(user.id);
+  where(user.age).over(17);
+  where(user.name).asc();
+  where(10);
 
-  // Additional WHERE clauses
-  where(post.published).equal(true);
-  where(user.email).equal('john@example.com');
-
-  return {
-    postTitle: post.title,
-    authorName: user.name,
-    content: post.content
-  };
+  return user.name;
 });
-```
 
-```sql
-SELECT post.title AS "postTitle", user.name AS "authorName", post.content AS "content"
-FROM post
-INNER JOIN user ON post.author_id = user.id
-WHERE post.published = true AND user.email = 'john@example.com'
-```
-
-### Filtering
-
-Filter your queries using various comparison operators. JavaScript values are automatically converted based on field type:
-
-```typescript
-const query = Query(where => {
+const titles = await Query(where => {
   const post = where(Post);
 
-  // Equal
-  where(post.published).equal(true);
+  where(post.author.name).equal("Gabe");
 
-  // Not equal
-  where(post.title).not('Hello');
-
-  // Greater than
-  where(post.createdAt).over(new Date('2023-01-01'));
-
-  // Greater than or equal
-  where(post.views).over(100, true);
-
-  // Less than
-  where(post.createdAt).under(new Date('2024-01-01'));
-
-  // Less than or equal
-  where(post.views).under(1000, true);
-
-  // IN operator
-  where(post.status).in(['draft', 'published']);
-
-  return post;
+  return { title: post.title, by: post.author.name };
 });
 ```
 
-### Grouping Conditions
+- Return a column for its values, an object for rows of that shape, a table for entities.
+- `where(...conditions)` groups them with `or`; a group inside a group alternates to `and`.
+- Comparisons: `equal`, `not`, `over`, `under` (`true` for or-equal), `in`.
+- A `one()` relation joins on access: inner when required, left when nullable. `where(Other)` joins another table, `where(Other, true)` left joins it.
+- `query.one()` resolves the first row, `query.one(true)` throws without one.
 
-By default, multiple conditions are combined with AND:
+```ts
+const promoted = await Query(where => {
+  const user = where(User);
 
-```typescript
+  where(user.age).over(30);
+  where(user).update({ admin: true });
+});
+
 await Query(where => {
   const user = where(User);
 
-  // These are ANDed together
-  where(user.email).equal('test@example.com');
-  where(user.createdAt).over(new Date('2023-01-01'));
+  where(user.name).equal("Nobody");
+  where(user).delete();
+});
+
+await Query(where => {
+  where(User, { name: "Cam", email: "cam@example.com" });
+});
+```
+
+A write resolves the rows affected. A function returned from the callback makes a template, built once:
+
+```ts
+const byName = Query(where => (name: string) => {
+  const user = where(User);
+
+  where(user.name).equal(name);
 
   return user;
 });
-// WHERE user.email = 'test@example.com' AND user.created_at > '2023-01-01'
+
+const [found] = await byName("Gabe");
 ```
 
-To create OR conditions, nest them in a group:
+`Type.query` starts from the class:
 
-```typescript
-await Query(where => {
-  const user = where(User);
-
-  // This creates an OR group
-  where(
-    where(user.role).equal('admin'),
-    where(user.role).equal('moderator')
-  );
-
-  return user;
+```ts
+const admins = User.query((user, where) => {
+  where(user.admin).equal(true);
 });
-// WHERE user.role = 'admin' OR user.role = 'moderator'
+
+console.log(String(admins));
 ```
 
-### Complex Conditions
+`String(query)` is the SQL the connection runs; without a connection, or on `memory()`, it lists the query's intent. A second callback argument holds math (`add`, `sub`, `mul`, `div`, `mod`, `neg`) and `bit` operators; a template string, from `where` or that helper, embeds raw SQL. `memory()` runs everything but raw SQL.
 
-Build complex logic using nested groups. Groups alternate between AND/OR based on nesting level:
+## Live rows
 
-```typescript
-Query(where => {
-  const post = where(Post);
+A connection with `subscribe` keeps loaded entities current with changes made elsewhere - another process, another client, a `Query` update. Observers see them as any other change.
 
-  where(
-    where(post.title).equal('Hello'),
-    where(
-      where(post.published).equal(true),
-      where(post.createdAt).over(new Date('2023-01-01'))
-    )
-  );
+```ts
+import { PGlite } from '@electric-sql/pglite';
+import { PGLiteConnection, Type, str } from '@expressive/postgres';
 
-  return post;
-});
-```
-
-Translates to:
-
-```sql
-SELECT post.*
-FROM post
-WHERE post.title = 'Hello'
-   OR (post.published = true AND post.created_at > '2023-01-01')
-```
-
-### Advanced Grouping
-
-```typescript
-Query(where => {
-  const item = where(Item);
-
-  // Must be in stock
-  where(item.inStock).equal(true);
-
-  // AND (red OR blue)
-  where(
-    where(item.color).equal('red'),
-    where(item.color).equal('blue')
-  );
-
-  // AND (small OR medium OR large)
-  where(
-    where(item.size).equal('small'),
-    where(item.size).equal('medium'),
-    where(item.size).equal('large')
-  );
-
-  return item;
-});
-```
-
-```sql
-WHERE item.in_stock = true
-  AND (item.color = 'red' OR item.color = 'blue')
-  AND (item.size = 'small' OR item.size = 'medium' OR item.size = 'large')
-```
-
-## Advanced Features
-
-### Custom Column Names
-
-Map JavaScript property names to different database column names:
-
-```typescript
-class User extends Table {
-  firstName = Str({ column: 'first_name' });
-  lastName = Str({ column: 'last_name' });
+class Task extends Type {
+  title = str();
 }
 
-// Use JavaScript property names in your code
-await User.insert({
-  firstName: 'John',
-  lastName: 'Doe'
-});
+const client = new PGlite();
+const tasks = await PGLiteConnection.new([Task], client);
+const task = await Task.insert({ title: "Draft" });
+
+task.get(({ title }) => console.log(title));
+
+await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 ```
 
-### Custom Table Names
+- An update settles into the fields not changed locally: unsaved edits win, and a later `save()` writes them.
+- A delete destroys the entity.
+- An insert changes nothing loaded.
 
-Customize the table name using the Primary factory:
+`memory()` reports every write, floor or `Query`. Postgres uses LISTEN/NOTIFY: `sync` installs a trigger per table (Postgres 14+) - see [`@expressive/postgres`](packages/postgres). SQLite has no live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
 
-```typescript
-import { Primary } from '@expressive/sql';
+## Datatypes
 
-class BlogPost extends Table {
-  id = Primary({
-    tableName: "legacy_blog_posts"
-  });
+`type` picks the column type. A config is portable: the same class syncs on SQLite and Postgres.
 
-  title = Str();
-  content = Str();
+| Helper | `type` | SQLite | Postgres |
+|---|---|---|---|
+| `str` | `text` (default), `varchar`, `char`, `uuid` | TEXT | TEXT, VARCHAR(n), CHAR(n), UUID |
+| `num` | `integer` (default), `smallint`, `bigint`, `real`, `float`, `double`, `numeric`, `decimal` | INTEGER, REAL, NUMERIC | the type, `(precision, scale)` where set |
+| `bool` | `boolean` (default), `integer` (1/0), `text` / `varchar` with `either` | INTEGER, TEXT | BOOLEAN, INTEGER, TEXT, VARCHAR |
+| `date` | `timestamp` (default), `date`, `time`, `integer` (unix seconds), `text` | TEXT, INTEGER | TIMESTAMP(p), DATE, TIME(p), INTEGER, TEXT |
+| `one` | `integer` (default), `bigint` | INTEGER | INTEGER, BIGINT |
+
+Postgres only: `num({ type: "serial" })`, `timezone: true` on `timestamp` and `time`, and `date({ type: "interval", fields })` - for schema; its values do not yet round-trip.
+
+Every connection validates on write: `varchar` and `char` length, integer ranges, `numeric` precision and scale.
+
+```ts
+import { Type, bool, num, str } from '@expressive/sql';
+
+class Product extends Type {
+  code = str({ type: "char", length: 3 });
+  price = num({ type: "numeric", precision: 10, scale: 2 });
+  listed = bool({ type: "text", either: ["yes", "no"] });
 }
 ```
 
-### Data Validation
+Add a datatype by augmenting the helper's `Types`:
 
-Fields automatically validate data based on their type and constraints:
+```ts
+import { StringColumn, Type, str } from '@expressive/postgres';
 
-```typescript
-class Product extends Table {
-  price = Num({ type: 'numeric', precision: 5, scale: 2 });
+declare module '@expressive/orm' {
+  namespace str {
+    interface Inet extends StringColumn { type: "inet" }
+    interface Types { inet: Inet }
+  }
 }
 
-// This will throw a validation error
-await Product.insert({ price: 1000.123 });
-// Error: Value of `price` exceeds precision (5,2)
+class Device extends Type {
+  address = str({ type: "inet" });
+}
 ```
 
-### Custom Getters and Setters
+## Drivers
 
-Transform data when reading from or writing to the database:
+A connection is a `Connection`, itself a State. The floor every driver implements, keyed by table name and the class's primary column:
 
-```typescript
-import { hash } from './lib/passwords';
+| Method | Does |
+|---|---|
+| `select(table, constraints, limit?, offset?)` | rows matching `[column, op, value]` tuples |
+| `insert(table, data, returns?)` | inserts a row, returning it when asked |
+| `update(table, id, data)` | updates one row |
+| `remove(table, id)` | deletes one row |
 
-class User extends Table {
-  // Hash password before storing
-  password = Str({
-    set: (value) => hash(value),
-    get: (value) => value // Return as-is from DB
-  });
+Optional capabilities: `prepare(builder)` runs a `Query` - without it `Query` and `Type.query` throw; `subscribe(listener)` reports changes for live rows; `sync(fix?)` checks or creates the schema, and runs when the connection is awaited.
 
-  // Format data on read
-  email = Str({
-    get: (value) => value.toLowerCase()
-  });
+To write a driver, extend `Connection` from `@expressive/orm` and implement the floor - entities, relations, writes and the identity map work on that alone. For a SQL database extend `Connection` from `@expressive/sql`: it implements the floor over `Query`, leaving `prepare` (with a `Generator` subclass for the dialect) and `sync`.
+
+```ts
+import { Connection, Type, memory, str } from '@expressive/orm';
+
+class Logged extends Connection {
+  inner = memory();
+
+  select(...args: Parameters<Connection["select"]>){
+    console.log("select", args[0]);
+    return this.inner.select(...args);
+  }
+
+  insert(...args: Parameters<Connection["insert"]>){
+    console.log("insert", args[0]);
+    return this.inner.insert(...args);
+  }
+
+  update(...args: Parameters<Connection["update"]>){
+    return this.inner.update(...args);
+  }
+
+  remove(...args: Parameters<Connection["remove"]>){
+    return this.inner.remove(...args);
+  }
 }
 
-const user = await User.insert({
-  password: 'plaintext123',  // Automatically hashed
-  email: 'USER@EXAMPLE.COM'
-});
+class Item extends Type {
+  label = str();
+}
 
-console.log(user.email); // "user@example.com"
+Logged.new([Item]);
+
+await Item.insert({ label: "one" });
+await Item.find();
 ```
 
-### Math Operations
+## Deprecated
 
-Perform mathematical operations in queries using the function parameter:
+`@expressive/sqlite` re-exports `@expressive/sql` and is removed in a later release. Install `@expressive/sql` and change the import:
 
-```typescript
-const query = Query((where, fn) => {
-  const { add, sub, mul, div, neg } = fn;
-  const item = where(Item);
-
-  return {
-    total: mul(item.price, item.quantity),
-    discounted: mul(item.price, sub(1, item.discount)),
-    taxed: add(item.price, mul(item.price, 0.1)),
-    negated: neg(item.price)
-  };
-});
+```diff
+- import { SQLiteConnection } from '@expressive/sqlite';
++ import { SQLiteConnection } from '@expressive/sql';
 ```
-
-Nest expressions for complex calculations:
-
-```typescript
-Query((where, fn) => {
-  const { add, mul } = fn;
-  const item = where(Item);
-
-  // (price + 5) * quantity
-  return mul(add(item.price, 5), item.quantity);
-});
-// SELECT (item.price + 5) * item.quantity FROM item
-```
-
-Use template functions for custom SQL expressions:
-
-```typescript
-Query((where, fn) => {
-  const item = where(Item);
-
-  return {
-    custom: fn(`${item.price} * (${item.quantity} + 5)`)
-  };
-});
-// SELECT item.price * (item.quantity + 5) AS "custom"
-```
-
-### Inspecting Generated SQL
-
-View the generated SQL by stringifying a query:
-
-```typescript
-const query = Query(where => {
-  const user = where(User);
-  const post = where(Post);
-
-  where(post.authorId).equal(user.id);
-  where(user.name).equal('John');
-  where(post.published).equal(true);
-
-  return {
-    content: post.content,
-    author: user.name
-  };
-});
-
-console.log(String(query));
-/*
-  SELECT
-    post.content AS "content",
-    user.name AS "author"
-  FROM post
-  INNER JOIN user ON post.author_id = user.id
-  WHERE user.name = 'John' AND post.published = true
-*/
-
-const results = await query; // Execute when ready
-```
-
-## More Features
-
-The library includes additional capabilities:
-
-- **Transactions** - Atomic operations across multiple queries
-- **Connection pooling** - Efficient database connection management
-- **Schema validation** - Automatic checking against database schema
-- **Custom field types** - Extend base field types for specific needs
-- **Query composition** - Build reusable query fragments
-
-<br/><br/>
-
-<h2 align="center"> 🚧 More Documentation Coming Soon! 🏗 </h2>
-<p align="center">
-  This documentation covers core features. Additional topics like<br/>
-  transactions, migrations, schema management, and more are being documented!
-</p>
-
-<br/><br/>
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License.
+ISC

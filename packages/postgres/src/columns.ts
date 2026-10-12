@@ -53,6 +53,9 @@ export class TimeColumn extends SQLTimeColumn {
   }
 
   get(value: unknown) {
+    if (this.type === "time" && this.timezone && typeof value == "string")
+      return new Date(`1970-01-01T${value.replace(/([+-]\d\d)$/, "$1:00")}`);
+
     if (this.type === "timestamp" && !this.timezone)
       if (value instanceof Date)
         return new Date(value.getTime() - value.getTimezoneOffset() * 60000);
