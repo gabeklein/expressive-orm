@@ -115,7 +115,7 @@ function settle(entity: Type, values: Record<string, unknown>, row: Record<strin
   const dirty = DIRTY.get(entity);
   const saved = SAVED.get(entity) || {};
 
-  entity.set(values as Type.Compat<Type>);
+  entity.set(values as State.Assign<Type>);
 
   for (const key in values) {
     const { column } = fields.get(key)!;
@@ -169,16 +169,6 @@ async function receive(connection: Type.Connection, { table, op, id, row }: Conn
 function exists(entity: Type) {
   if (SAVED.get(entity) === null)
     throw new Error(`${entity.constructor.name} ${entity.id} was deleted.`);
-}
-
-interface Type {
-  set(): State.Updated<this>;
-  set(assign?: Type.Compat<this>, silent?: boolean): State.Updated<this>;
-  set(callback: State.OnEvent<this>): () => boolean;
-  set(key: State.Event<this>): State.Updated<this>;
-  set(status: null): void;
-  set<K extends State.Event<this>>(event: K | null, callback: State.OnEvent<this>): () => boolean;
-  set<K extends State.Event<this>>(key: K, config: State.Define<this, K>): State.Updated<this>;
 }
 
 abstract class Type extends State {
@@ -250,7 +240,7 @@ abstract class Type extends State {
 
   async update(data: Type.Update<this>) {
     exists(this);
-    this.set(data as Type.Compat<this>);
+    this.set(data as State.Assign<this>);
     await this.save();
   }
 

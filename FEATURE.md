@@ -67,7 +67,6 @@ The trunk is release-ready: four minors - `@expressive/orm` 0.13.0, `@expressive
 
 ## Open
 
-- mvc: `State.Assign<T>` types methods as `(this: T, ...)`, so a State with a method and a `this`-typed member is invariant and its subclasses stop being assignable to it. `Type` re-declares State's `set` overloads with `Compat<this>` until this is fixed upstream; the "will be assignable to Type" test pins it.
 - `rows()` handle `count` - deferred from PR 2; lands with a driver aggregate or the builder.
 - `Type.fields` forces one `new()` + `set(null)` when no instance has activated - a `new()` hook with side effects runs once for metadata. Revisit if it bites.
 - Which base statics cross to a client twin, and how orm declares it.

@@ -49,3 +49,5 @@ Rebuilt on `@expressive/mvc`. Entities are States, the driver contract is a smal
 - Exports for drivers and generators: `Connection`, `Builder`, `Computed`, `DataField`, `DataTable`, `Parameter`, `QueryTemplate`. `Builder` carries `offset`.
 
 **Packaging.** ESM only, built with tsdown; modules no longer trip over circular imports when evaluated one by one. Most applications install `@expressive/sql`, which depends on and re-exports this package. The PGLite test harness is removed.
+
+Requires `@expressive/mvc` `^0.88.1`.

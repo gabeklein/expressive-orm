@@ -48,10 +48,10 @@
     "test": "bun run typecheck && bun run coverage"
   },
   "devDependencies": {
-    "@expressive/mvc": "^0.88.0",
+    "@expressive/mvc": "^0.88.1",
     "tsdown": "^0.20.1"
   },
   "peerDependencies": {
-    "@expressive/mvc": "^0.88.0"
+    "@expressive/mvc": "^0.88.1"
   }
 }

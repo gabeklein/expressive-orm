@@ -19,16 +19,6 @@ declare namespace Connection {
   };
 }
 
-interface Connection {
-  set(): State.Updated<this>;
-  set(assign?: State.Partial<this>, silent?: boolean): State.Updated<this>;
-  set(callback: State.OnEvent<this>): () => boolean;
-  set(key: State.Event<this>): State.Updated<this>;
-  set(status: null): void;
-  set<K extends State.Event<this>>(event: K | null, callback: State.OnEvent<this>): () => boolean;
-  set<K extends State.Event<this>>(key: K, config: State.Define<this, K>): State.Updated<this>;
-}
-
 abstract class Connection extends State {
   readonly using: ReadonlySet<Query.Table>;
   readonly ready: boolean = false;

@@ -23,3 +23,5 @@
 - `RETURNING` renders through sql's generator; a query without a connection prints orm's intent dump.
 
 **Packaging.** ESM only, built with tsdown.
+
+Requires `@expressive/mvc` `^0.88.1`.
