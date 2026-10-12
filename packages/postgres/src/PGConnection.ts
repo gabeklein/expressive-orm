@@ -1,14 +1,11 @@
 import type { Connection } from '@expressive/sql';
-import type { Pool, PoolConfig } from 'pg';
+import type { Notification, Pool, PoolConfig } from 'pg';
 
 import { PostgresConnection } from './PostgresConnection';
 
 export class PGConnection extends PostgresConnection {
   protected declare engine: Promise<Pool>;
 
-  constructor(using: Connection.Types, connectionString: string)
-  constructor(using: Connection.Types, config: PoolConfig)
-  constructor(using: Connection.Types, pool: Pool)
   constructor(using: Connection.Types, arg2: string | PoolConfig | Pool) {
     super(using);
 
@@ -38,8 +35,22 @@ export class PGConnection extends PostgresConnection {
     await (await this.engine).query(sql);
   }
 
+  protected async listen(channel: string, callback: (payload: string) => void) {
+    const client = await (await this.engine).connect();
+    const notify = (message: Notification) => callback(message.payload!);
+
+    client.on('notification', notify);
+    await client.query(`LISTEN ${channel}`);
+
+    return async () => {
+      client.off('notification', notify);
+      await client.query(`UNLISTEN ${channel}`);
+      client.release();
+    };
+  }
+
   async close(): Promise<void> {
-    await (await this.engine).end();
     await super.close();
+    await (await this.engine).end();
   }
 }

@@ -982,7 +982,7 @@ describe("update", () => {
         color: "pink""
     `);
     await expect(query).resolves.toBe(1);
-    await expect(Foo.connection.get("foo", [])).resolves.toEqual([
+    await expect(Foo.connection.select("foo", [])).resolves.toEqual([
       { id: 1, value: "new!", color: "pink" },
       { id: 2, value: "b", color: "blue" }
     ]);
@@ -1008,7 +1008,7 @@ describe("update", () => {
     `);
     await expect(query).resolves.toBe(1);
 
-    const [foo] = await Foo.connection.get("foo", [["id", "=", 2]]);
+    const [foo] = await Foo.connection.select("foo", [["id", "=", 2]]);
 
     expect(foo).toEqual({ id: 2, value: "from bar", color: "blue", note: null });
   })
@@ -1056,7 +1056,7 @@ describe("update", () => {
         age: input.age"
     `);
     await expect(query).resolves.toBe(2);
-    await expect(Users.connection.get("users", [])).resolves.toEqual([
+    await expect(Users.connection.select("users", [])).resolves.toEqual([
       { id: 1, name: "John", age: 30 },
       { id: 2, name: "Jane", age: 25 },
       { id: 3, name: "Joe", age: 0 }
@@ -1103,7 +1103,7 @@ describe("delete", () => {
       delete foo"
     `);
     await expect(query).resolves.toBe(1);
-    await expect(Foo.connection.get("foo", [])).resolves.toHaveLength(1);
+    await expect(Foo.connection.select("foo", [])).resolves.toHaveLength(1);
   })
 
   it("will delete with joins", async () => {
@@ -1121,7 +1121,7 @@ describe("delete", () => {
       delete foo"
     `);
     await expect(query).resolves.toBe(1);
-    await expect(Foo.connection.get("foo", [])).resolves.toEqual([]);
+    await expect(Foo.connection.select("foo", [])).resolves.toEqual([]);
   })
 })
 

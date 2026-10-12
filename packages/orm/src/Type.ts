@@ -1,8 +1,8 @@
 import { State } from '@expressive/mvc';
 
+import { Connection } from './Connection';
 import { DIRTY, FIELDS, num } from './fields';
 import { Field, Omits, Optional, underscore } from './Field';
-import type { Builder } from './query/Builder';
 import { Query } from './query/Query';
 import type { Rows } from './rows';
 import { desc, equal, Where } from './where';
@@ -56,13 +56,7 @@ declare namespace Type {
     value?: any
   ]
 
-  interface Connection {
-    get: (table: string, constraints: Constraint[], limit?: number, offset?: number) => Promise<any[]>;
-    insert: (table: string, data: Record<string, any>, returns?: boolean) => Promise<any>;
-    update: (table: string, id: string | number, data: Record<string, any>) => Promise<void>;
-    remove: (table: string, id: string | number) => Promise<void>;
-    prepare?: (builder: Builder) => Builder.Statement;
-  }
+  type Connection = import('./Connection').Connection.Ready;
 
   export {
     Class,
@@ -83,14 +77,26 @@ async function reject(): Promise<never> {
   throw new Error("No database connection. Please set Type.connection to a valid Connection instance.");
 }
 
-class NotReady {
-  get = reject;
-  insert = reject;
-  update = reject;
-  remove = reject;
+class NotReady extends Connection {
+  select(){
+    return reject();
+  }
+
+  insert(){
+    return reject();
+  }
+
+  update(){
+    return reject();
+  }
+
+  remove(){
+    return reject();
+  }
 }
 
-const LOADED = new WeakMap<Type.Connection, Map<typeof Type, Map<unknown, Type>>>();
+let DETACHED: Connection | undefined;
+
 const INSERT = new WeakSet<Type>();
 const SAVED = new WeakMap<Type, Record<string, unknown> | null>();
 
@@ -123,6 +129,43 @@ function settle(entity: Type, values: Record<string, unknown>, row: Record<strin
   SAVED.set(entity, saved);
 }
 
+async function receive(connection: Type.Connection, { table, op, id, row }: Connection.Change) {
+  for (const [type, loaded] of connection._loaded) {
+    if (type.ref !== table)
+      continue;
+
+    const primary = type.fields.get("id")!;
+    const key = await primary.get(id);
+    const entity = loaded.get(key);
+
+    if (!entity || op == "insert")
+      continue;
+
+    if (op == "delete") {
+      loaded.delete(key);
+      SAVED.set(entity, null);
+      entity.set(null);
+      continue;
+    }
+
+    const [current = {}] = row ? [row] : await connection.select(table, [[primary.column, "=", id]], 1);
+    const values = await decode(type, current, true);
+    const dirty = DIRTY.get(entity)!;
+    const apply: Record<string, unknown> = {};
+
+    for (const key in values) {
+      const next = values[key];
+
+      if (key in dirty || next instanceof Date && +next === +(entity as any)[key])
+        continue;
+
+      apply[key] = next;
+    }
+
+    settle(entity, apply, current);
+  }
+}
+
 function exists(entity: Type) {
   if (SAVED.get(entity) === null)
     throw new Error(`${entity.constructor.name} ${entity.id} was deleted.`);
@@ -142,15 +185,16 @@ abstract class Type extends State {
   id: Optional<string | number> = num({ primary: true, increment: true });
 
   static get loaded(){
-    let types = LOADED.get(this.connection);
-
-    if(!types)
-      LOADED.set(this.connection, types = new Map());
-
+    const { connection } = this;
+    const types = connection._loaded;
     let map = types.get(this);
 
-    if(!map)
+    if (!map) {
+      if (!types.size && connection.subscribe && !connection.get(null))
+        connection.get(null, connection.subscribe(change => receive(connection, change)));
+
       types.set(this, map = new Map());
+    }
 
     return map;
   }
@@ -171,7 +215,7 @@ abstract class Type extends State {
     exists(this);
 
     const type = this.constructor as typeof Type;
-    const { connection, ref } = type;
+    const { connection, loaded, ref } = type;
     const dirty = DIRTY.get(this) || {};
 
     if (INSERT.delete(this) || this.id == null) {
@@ -179,7 +223,7 @@ abstract class Type extends State {
       const inserted = await connection.insert(ref, row, true);
 
       settle(this, await decode(type, inserted), inserted);
-      type.loaded.set(this.id, this);
+      loaded.set(this.id, this);
 
       return this;
     }
@@ -214,20 +258,28 @@ abstract class Type extends State {
     exists(this);
 
     const type = this.constructor as typeof Type;
+    const { connection, loaded, ref } = type;
 
     if (typeof this.onDelete === "function")
       await this.onDelete();
 
-    await type.connection.remove(type.ref, this.id);
+    await connection.remove(ref, this.id);
 
-    type.loaded.delete(this.id);
+    loaded.delete(this.id);
     SAVED.set(this, null);
     this.set(null);
   }
 
   static schema?: string;
   static subset?: Record<string, unknown>;
-  static connection: Type.Connection = new NotReady();
+  static get connection(): Type.Connection {
+    return DETACHED ||= NotReady.new();
+  }
+
+  static set connection(value: Type.Connection) {
+    Object.defineProperty(this, 'connection', { value, writable: true, configurable: true });
+  }
+
   static get table(): string {
     return underscore(this.name);
   }
@@ -281,7 +333,14 @@ abstract class Type extends State {
   }
 
   static async update<T extends Type>(this: Type.Class<T>, id: T["id"], data: Type.Update<T>) {
-    await this.connection.update(this.ref, id, await this.prepare(data, true));
+    const { connection, loaded, ref } = this;
+    const row = await this.prepare(data, true);
+    const entity = loaded.get(id);
+
+    await connection.update(ref, id, row);
+
+    if (entity)
+      settle(entity, await decode(this, row, true), row);
   }
 
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>): Promise<T> {
@@ -358,7 +417,7 @@ abstract class Type extends State {
       }
     }
 
-    const rows = await connection.get(ref, query, limit, offset);
+    const rows = await connection.select(ref, query, limit, offset);
     return Promise.all(rows.map(row => this.parse(row) as Promise<T>));
   }
 

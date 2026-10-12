@@ -26,7 +26,7 @@ describe("schema", () => {
 
     expect<{ created: Date, updated: Date | undefined, birthDate: Date }>(undefined as unknown as TimeRecords);
 
-    const { schema } = new TestConnection([ TimeRecords ]);
+    const { schema } = TestConnection.new([ TimeRecords ]);
 
     expect(String(schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
@@ -53,7 +53,7 @@ describe("schema", () => {
       created = date({ fallback: "NOW" });
     }
 
-    const { schema } = new TestConnection([ Records ]);
+    const { schema } = TestConnection.new([ Records ]);
 
     expect(String(schema)).toContain("created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP");
   });

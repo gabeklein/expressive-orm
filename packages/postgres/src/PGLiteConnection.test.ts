@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it, test } from 'vitest';
+import { afterEach, describe, expect, it, test, vi } from 'vitest';
 
 import { PGlite } from '@electric-sql/pglite';
 
-import { asc, bool, date, desc, greaterThan, isIn, isLike, isNull, notNull, num, one, Query, str, Type } from '@expressive/orm';
+import { asc, bool, date, desc, greaterThan, isIn, isLike, isNull, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
 import type { Connection } from '@expressive/sql';
 
 import { PGLiteConnection } from './PGLiteConnection';
@@ -21,10 +21,9 @@ class TestConnection extends PGLiteConnection {
   }
 
   async close(): Promise<void> {
+    this.set(null);
+    await this._unlisten;
     await shared.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
-
-    for(const type of this.using)
-      Reflect.deleteProperty(type, "connection");
   }
 }
 
@@ -39,11 +38,11 @@ describe("persistence", () => {
     
     const pg = new PGlite();
 
-    await new PGLiteConnection([ Users ], pg);
+    await PGLiteConnection.new([ Users ], pg);
     await Users.insert({ name: "Gabe" });
 
     Reflect.deleteProperty(Users, "connection");
-    await new PGLiteConnection([ Users ], pg);
+    await PGLiteConnection.new([ Users ], pg);
 
     const user = await Users.one();
 
@@ -61,11 +60,11 @@ describe("persistence", () => {
     
     const pg = new PGlite();
 
-    await new PGLiteConnection([ User ], pg).sync(true);
+    await PGLiteConnection.new([ User ], pg).sync(true);
 
     await expect((async () => {
       Reflect.deleteProperty(User, "connection");
-      return new PGLiteConnection([ User, FooBar ], pg).sync(false);
+      return PGLiteConnection.new([ User, FooBar ], pg).sync(false);
     })()).rejects.toThrow("Table foo_bar is expected but does not exist.");
   });
 
@@ -81,10 +80,10 @@ describe("persistence", () => {
     
     const pg = new PGlite();
 
-    await new PGLiteConnection([ User1 ], pg);
+    await PGLiteConnection.new([ User1 ], pg);
 
     await expect((async () => {
-      return new PGLiteConnection([ User2 ], pg);
+      return PGLiteConnection.new([ User2 ], pg);
     })()).rejects.toThrow('Column "rank" does not exist in table user');
   });
   
@@ -97,7 +96,7 @@ describe("persistence", () => {
 
     await pg.exec('CREATE TABLE "item" ("id" INTEGER NOT NULL PRIMARY KEY, "name" VARCHAR NOT NULL);');
 
-    await expect(new PGLiteConnection([ Item ], pg).sync(false)).resolves.toBeDefined();
+    await expect(PGLiteConnection.new([ Item ], pg).sync(false)).resolves.toBeDefined();
   });
 
   it('will ignore missing column if marked as optional', async () => {
@@ -109,7 +108,7 @@ describe("persistence", () => {
     const pg = new PGlite();
 
     await pg.exec('CREATE TABLE "item" ("id" INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "name" TEXT NOT NULL);');
-    await new PGLiteConnection([ Item ], pg).sync(false);
+    await PGLiteConnection.new([ Item ], pg).sync(false);
 
     const field = Item.fields.get("note")!;
 
@@ -142,7 +141,7 @@ describe("persistence", () => {
       );
     `);
 
-    await expect(new PGLiteConnection([ Post, Author ], pg).sync(false)).rejects.toThrow(
+    await expect(PGLiteConnection.new([ Post, Author ], pg).sync(false)).rejects.toThrow(
       'Schema verification failed:\n' +
       'Column "title" in table post has incorrect nullable value\n' +
       'Column "rank" in table post has type "text", expected "integer"\n' +
@@ -165,7 +164,7 @@ describe("persistence", () => {
 
     await pg.exec('CREATE TABLE "post" ("id" INTEGER NOT NULL PRIMARY KEY, "author_id" INTEGER NOT NULL);');
 
-    await expect(new PGLiteConnection([ Post ], pg).sync(false)).rejects.toThrow(
+    await expect(PGLiteConnection.new([ Post ], pg).sync(false)).rejects.toThrow(
       'Column "author_id" in table post references a foreign connection'
     );
   });
@@ -183,7 +182,7 @@ describe("persistence", () => {
 
     await pg.exec('CREATE TABLE "post" ("id" INTEGER NOT NULL PRIMARY KEY, "author_id" INTEGER NOT NULL);');
 
-    await expect(new PGLiteConnection([ Post, Author ], pg).sync(false)).rejects.toThrow(
+    await expect(PGLiteConnection.new([ Post, Author ], pg).sync(false)).rejects.toThrow(
       'Referenced table author does not exist'
     );
   });
@@ -192,7 +191,7 @@ describe("persistence", () => {
     class Foo extends Type {}
     class Bar extends Type {}
 
-    await expect(new PGLiteConnection([ Foo, Bar ], new PGlite()).sync(false)).rejects.toThrow(
+    await expect(PGLiteConnection.new([ Foo, Bar ], new PGlite()).sync(false)).rejects.toThrow(
       'Tables foo, bar are expected but do not exist.'
     );
   });
@@ -200,7 +199,7 @@ describe("persistence", () => {
   it('will throw if already active', async () => {
     class Foo extends Type {}
 
-    const conn = await new PGLiteConnection([ Foo ], new PGlite());
+    const conn = await PGLiteConnection.new([ Foo ], new PGlite());
 
     await expect(conn.sync()).rejects.toThrow('Connection is already active.');
   });
@@ -214,7 +213,7 @@ describe("schema", () => {
       age = num();
     }
   
-    await new TestConnection([ Users ]);
+    await TestConnection.new([ Users ]);
   
     await Users.insert({
       name: "Gabe",
@@ -228,12 +227,12 @@ describe("schema", () => {
       fooBar = bool();
     }
   
-    const conn = new TestConnection({ FooBar });
+    const conn = TestConnection.new({ FooBar });
   
     expect(String(conn.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "foo_bar" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          "id" INTEGER NOT NULL GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
           "foo_bar" BOOLEAN NOT NULL
         );"
     `);
@@ -248,18 +247,18 @@ describe("schema", () => {
       value = num();
     }
   
-    const conn = await new TestConnection({ Foo, Bar });
+    const conn = await TestConnection.new({ Foo, Bar });
   
     expect(String(conn.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "foo" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          "id" INTEGER NOT NULL GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
           "bar_id" INTEGER NOT NULL
         );
 
       CREATE TABLE
         "bar" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          "id" INTEGER NOT NULL GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
           "value" INTEGER NOT NULL
         );
 
@@ -279,12 +278,12 @@ describe("types", () => {
       });
     }
 
-    const conn = await new TestConnection({ Test });
+    const conn = await TestConnection.new({ Test });
 
     expect(String(conn.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "test" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          "id" INTEGER NOT NULL GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
           "value1" BOOLEAN NOT NULL,
           "value2" VARCHAR(3) NOT NULL
         );"
@@ -316,12 +315,12 @@ describe("types", () => {
       date = date();
     }
 
-    const conn = await new TestConnection([ Test ]);
+    const conn = await TestConnection.new([ Test ]);
 
     expect(String(conn.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "test" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          "id" INTEGER NOT NULL GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
           "date" TIMESTAMP NOT NULL
         );"
     `);
@@ -350,7 +349,7 @@ describe("select", () => {
   }
 
   async function prepare(){
-    await new TestConnection({ Foo });
+    await TestConnection.new({ Foo });
     await Foo.insert({ bar: "hello", baz: "world" });
   }
 
@@ -409,7 +408,7 @@ describe("select", () => {
   })
 
   it("will select without tables", async () => {
-    const conn = await new TestConnection([]);
+    const conn = await TestConnection.new([]);
     const query = Query(where => {
       where.connection = conn;
 
@@ -432,7 +431,7 @@ describe("template", () => {
   }
 
   async function prepare(){
-    await new TestConnection([Foo]);
+    await TestConnection.new([Foo]);
     await Query(where => {
       where(Foo,
         { first: "John", last: "Doe",   color: "red" },
@@ -499,7 +498,7 @@ describe("template", () => {
   })
   
   it("will select a parameter value", async () => {
-    const conn = await new TestConnection([]);
+    const conn = await TestConnection.new([]);
     const query = Query(where => {
       where.connection = conn;
       return (color: string) => color;
@@ -514,7 +513,7 @@ describe("template", () => {
   });
 
   it("will select a parameter in property", async () => {
-    const conn = await new TestConnection([]);
+    const conn = await TestConnection.new([]);
     const query = Query(where => {
       where.connection = conn;
       return (color: string) => ({ color });
@@ -580,7 +579,7 @@ describe("insert", () => {
       age = num();
     }
     
-    await new TestConnection({ Users });
+    await TestConnection.new({ Users });
   
     const names = ["john", "jane", "bob", "alice"];
     const insert = Query(where => {
@@ -630,7 +629,7 @@ describe("query", () => {
   }
 
   it("will insert a single row", async () => {
-    await new TestConnection([User]);
+    await TestConnection.new([User]);
     
     const query = Query(where => {
       return where(User, { name: "John" }).id;
@@ -654,7 +653,7 @@ describe("query", () => {
       color = str();
     }
 
-    await new TestConnection([User, Info]);
+    await TestConnection.new([User, Info]);
     
     const query = Query(where => {
       const user = where(User, { name: "John" });
@@ -691,7 +690,7 @@ describe("query", () => {
       color = str();
     }
   
-    await new TestConnection([User, Info]);
+    await TestConnection.new([User, Info]);
   
     await Query(where => {
       where(User, { name: "John" }, { name: "Jane" }, { name: "Joe" });
@@ -723,7 +722,7 @@ describe("query", () => {
   });
 
   it("will insert iterable data", async () => {
-    await new TestConnection([User]);
+    await TestConnection.new([User]);
   
     const data = [
       { name: "John" },
@@ -762,7 +761,7 @@ it("will update from data", async () => {
     age = num();
   }
 
-  await new TestConnection([Users]);
+  await TestConnection.new([Users]);
 
   await Query(where => {
     where(Users,
@@ -827,7 +826,7 @@ describe("floor", () => {
   }
 
   it("will round trip entities", async () => {
-    await new TestConnection([Author, Post]);
+    await TestConnection.new([Author, Post]);
 
     const gabe = await Author.insert({ name: "Gabe" });
     const first = await Post.insert({ author: gabe, title: "First", draft: false, published: new Date("2024-01-01T00:00:00Z") });
@@ -882,6 +881,174 @@ describe("floor", () => {
     const [renamed] = await Query(where => where(Author).name);
 
     expect(renamed).toBe("Bob");
+  })
+})
+
+describe("live rows", () => {
+  it("will update a loaded entity", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+
+    const user = await User.insert({ name: "Gabe" });
+    const names: string[] = [];
+
+    user.get(current => {
+      names.push(current.name);
+    });
+
+    await shared.query(`UPDATE "user" SET name = 'Bob' WHERE id = $1`, [user.id]);
+    await vi.waitFor(() => expect(user.name).toBe("Bob"));
+
+    expect(names).toEqual(["Gabe", "Bob"]);
+  })
+
+  it("will destroy a deleted entity", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+
+    const user = await User.insert({ name: "Gabe" });
+
+    await shared.query(`DELETE FROM "user" WHERE id = $1`, [user.id]);
+    await vi.waitFor(() => expect(user.get(null)).toBe(true));
+
+    expect(User.loaded.has(user.id)).toBe(false);
+  })
+
+  it("will keep unsaved fields", async () => {
+    class User extends Type {
+      name = str();
+      age = num();
+    }
+
+    await TestConnection.new([User]);
+
+    const user = await User.insert({ name: "Gabe", age: 1 });
+
+    user.name = "Local";
+
+    await shared.query(`UPDATE "user" SET name = 'Remote', age = 30 WHERE id = $1`, [user.id]);
+    await vi.waitFor(() => expect(user.age).toBe(30));
+
+    expect(user.name).toBe("Local");
+  })
+
+  it("will decode a timestamp", async () => {
+    class Event extends Type {
+      at = date();
+    }
+
+    await TestConnection.new([Event]);
+
+    const event = await Event.insert({ at: new Date("2024-01-01T00:00:00Z") });
+
+    await shared.query(`UPDATE "event" SET at = '2024-06-01 12:00:00' WHERE id = $1`, [event.id]);
+    await vi.waitFor(() => expect(event.at).toEqual(new Date("2024-06-01T12:00:00Z")));
+  })
+
+  it("will reload a row too large to notify", async () => {
+    class Doc extends Type {
+      body = str();
+    }
+
+    await TestConnection.new([Doc]);
+
+    const doc = await Doc.insert({ body: "short" });
+    const body = "x".repeat(9000);
+
+    await shared.query(`UPDATE "doc" SET body = $1 WHERE id = $2`, [body, doc.id]);
+    await vi.waitFor(() => expect(doc.body).toBe(body));
+  })
+
+  it("will follow a renamed key column", async () => {
+    class User extends Type {
+      id = num({ column: "user_id", primary: true });
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+
+    const user = await User.insert({ id: 7, name: "Gabe" });
+
+    await shared.query(`UPDATE "user" SET name = 'Bob' WHERE user_id = 7`);
+    await vi.waitFor(() => expect(user.name).toBe("Bob"));
+  })
+
+  it("will ignore tables not used", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = await TestConnection.new([User]);
+    const listener = vi.fn();
+    const stop = db.subscribe(listener);
+
+    await shared.query(`SELECT pg_notify('expressive_orm', '{"table":"other","op":"delete","id":1}')`);
+    await shared.query(`SELECT pg_notify('expressive_orm', '{"table":"user","op":"delete","id":1}')`);
+    await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(1));
+
+    stop();
+
+    expect(listener).toHaveBeenCalledWith({ table: "user", op: "delete", id: 1 });
+  })
+})
+
+describe("renamed key column", () => {
+  it("will round trip a numeric key", async () => {
+    class User extends Type {
+      id = num({ column: "user_id", primary: true });
+      name = str();
+    }
+
+    const db = await TestConnection.new([User]);
+    const user = await User.insert({ id: 1, name: "Gabe" });
+
+    await expect(db.select("user", [])).resolves.toEqual([{ user_id: 1, name: "Gabe" }]);
+    await expect(User.one(1, true)).resolves.toBe(user);
+
+    await user.update({ name: "Bob" });
+    await User.update(1, { name: "Ann" });
+    await expect(db.select("user", [])).resolves.toEqual([{ user_id: 1, name: "Ann" }]);
+    expect(user.name).toBe("Ann");
+
+    await user.delete();
+    await expect(db.select("user", [])).resolves.toEqual([]);
+  })
+
+  it("will round trip a string key", async () => {
+    class Doc extends Type {
+      id = uuid({ column: "doc_id", primary: true });
+      title = str();
+    }
+
+    const db = await TestConnection.new([Doc]);
+    const doc = await Doc.insert({ id: "a1", title: "Hello" });
+
+    await expect(Doc.one("a1", true)).resolves.toBe(doc);
+
+    await doc.update({ title: "Bye" });
+    await expect(db.select("doc", [])).resolves.toEqual([{ doc_id: "a1", title: "Bye" }]);
+
+    await doc.delete();
+    await expect(Doc.one("a1", false)).resolves.toBeUndefined();
+  })
+
+  it("will accept an explicit generated id", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+
+    const user = await User.insert({ id: 5, name: "Gabe" });
+
+    expect(user.id).toBe(5);
+    await expect(User.one(5, true)).resolves.toBe(user);
   })
 })
 
