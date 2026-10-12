@@ -295,6 +295,7 @@ describe("date", () => {
 
       expect(timestampField.get("2023-01-15 14:30:45")).toEqual(new Date("2023-01-15T14:30:45Z"));
       expect(timestampField.get("2023-01-15T14:30:45.5")).toEqual(new Date("2023-01-15T14:30:45.500Z"));
+      expect(timestampField.get(null)).toBeUndefined();
 
     });
 
