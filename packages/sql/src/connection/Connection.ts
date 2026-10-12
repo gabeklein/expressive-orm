@@ -4,60 +4,28 @@ import '../columns/One';
 import '../columns/Str';
 import '../columns/Time';
 
-import { Builder, Field, Parameter, Query, Type } from '@expressive/orm';
+import { Builder, Connection as Base, Field, Parameter, Query, Type } from '@expressive/orm';
 
 declare namespace Connection {
-  type Types =
-    | Query.Table[]
-    | { [key: string | number]: Query.Table };
+  type Types = Base.Types;
 
-  type Ready<T extends Connection = Connection> = Omit<T, "then">;
+  type Ready<T extends Connection = Connection> = Base.Ready<T>;
+
+  type Change = Base.Change;
 }
 
 function ref({ schema, table }: Query.Table){
   return schema ? `${schema}.${table}` : table;
 }
 
-abstract class Connection implements Type.Connection {
-  readonly using: Readonly<Set<Query.Table>>;
-  readonly ready: boolean = false;
-
-  constructor(using: Connection.Types){
-    this.using = new Set(Object.values(using).map(type => {
-      if(type.hasOwnProperty('connection'))
-        throw new Error(`Type ${type.name} already has assigned connection.`);
-
-      type.connection = this;
-      return type;
-    }))
-  }
-
-  async then(
-    onfulfilled?: (value: Connection.Ready<this>) => any,
-    onrejected?: (reason: any) => any) {
-
-    return (this.ready ? Promise.resolve() : this.sync())
-      .then(() => {
-        Object.defineProperty(this, 'then', { value: undefined });
-
-        if (onfulfilled)
-          onfulfilled(this);
-      })
-      .catch(onrejected);
-  }
-
+abstract class Connection extends Base {
   abstract get schema(): string;
-
-  async close(){
-    for(const type of this.using)
-      delete type.connection;
-  }
 
   abstract sync(fix?: boolean): Promise<this>;
 
   abstract prepare(builder: Builder): Builder.Statement;
 
-  async get(table: string, constraints: Type.Constraint[], limit?: number, offset?: number){
+  async select(table: string, constraints: Type.Constraint[], limit?: number, offset?: number){
     const { builder, target, bind, run } = statement(this, table);
 
     for (const [column, op, value] of constraints) {

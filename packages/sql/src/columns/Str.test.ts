@@ -24,7 +24,7 @@ describe("schema", () => {
 
     expect<{ name: string, email: string | undefined }>(undefined as unknown as Users);
 
-    const { schema } = new TestConnection([ Users ]);
+    const { schema } = TestConnection.new([ Users ]);
 
     expect(String(schema)).toMatchInlineSnapshot(`
       "CREATE TABLE

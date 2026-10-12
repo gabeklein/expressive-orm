@@ -28,7 +28,7 @@ describe("schema", () => {
 
     expect<{ int: number, real: number, nullable: number | undefined }>(undefined as unknown as Numbers);
 
-    const { schema } = new TestConnection([ Numbers ]);
+    const { schema } = TestConnection.new([ Numbers ]);
 
     expect(String(schema)).toMatchInlineSnapshot(`
       "CREATE TABLE

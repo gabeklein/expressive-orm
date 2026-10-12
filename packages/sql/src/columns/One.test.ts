@@ -14,7 +14,7 @@ it("will render a foreign key by its affinity", () => {
     editor = one(Author, { type: "bigint", column: "editor_id", nullable: true });
   }
 
-  const { schema } = new TestConnection([ Author, Post ]);
+  const { schema } = TestConnection.new([ Author, Post ]);
 
   expect(Post.fields.get("editor")!.datatype).toBe("bigint");
   expect(String(schema)).toMatchInlineSnapshot(`
