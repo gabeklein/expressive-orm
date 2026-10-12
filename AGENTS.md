@@ -11,7 +11,7 @@ Monorepo: bun workspaces + changesets. Everything runs under bun (`bun install`,
 ## Structure
 
 ```
-packages/orm      - Entities, fields, relations, driver contract, Query (@expressive/orm)
+packages/orm      - Entities, fields, relations, Connection (driver base and identity map), memory driver, Query (@expressive/orm)
 packages/sql      - SQL generator and connection base, datatype vocabulary, SQLite driver with runtime-selected engine (@expressive/sql)
 packages/postgres - Postgres and PGLite driver (@expressive/postgres)
 packages/sqlite   - Deprecated re-export of @expressive/sql (@expressive/sqlite)
