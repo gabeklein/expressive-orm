@@ -1,8 +1,27 @@
 {
   "name": "@expressive/postgres",
   "version": "0.4.7",
-  "description": "Postgres adapter for Expressive SQL.",
+  "description": "Postgres and PGLite connections for Expressive ORM, with live rows over LISTEN/NOTIFY.",
+  "keywords": [
+    "orm",
+    "postgres",
+    "postgresql",
+    "pglite",
+    "live",
+    "entity",
+    "reactive",
+    "expressive"
+  ],
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabeklein/expressive-orm.git",
+    "directory": "packages/postgres"
+  },
+  "homepage": "https://github.com/gabeklein/expressive-orm/tree/main/packages/postgres#readme",
+  "bugs": {
+    "url": "https://github.com/gabeklein/expressive-orm/issues"
+  },
   "type": "module",
   "publishConfig": {
     "access": "public"
@@ -43,7 +62,8 @@
   },
   "peerDependencies": {
     "@electric-sql/pglite": "^0.2.16",
-    "@expressive/mvc": "^0.88.0"
+    "@expressive/mvc": "^0.88.0",
+    "pg": "^8.0.0"
   },
   "peerDependenciesMeta": {
     "@electric-sql/pglite": {
