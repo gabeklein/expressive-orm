@@ -7,8 +7,6 @@ export class PGLiteConnection extends PostgresConnection {
   protected declare engine: Promise<PGlite>;
   dataDir?: string;
 
-  constructor(using: Connection.Types, engine: PGlite)
-  constructor(using: Connection.Types, dataDir?: string, config?: PGliteOptions)
   constructor(using: Connection.Types, arg2?: string | PGlite, config?: PGliteOptions) {
     super(using);
 
@@ -40,8 +38,12 @@ export class PGLiteConnection extends PostgresConnection {
     await (await this.engine).exec(sql);
   }
 
+  protected async listen(channel: string, callback: (payload: string) => void) {
+    return (await this.engine).listen(channel, callback);
+  }
+
   async close(): Promise<void> {
-    await (await this.engine).close();
     await super.close();
+    await (await this.engine).close();
   }
 }
