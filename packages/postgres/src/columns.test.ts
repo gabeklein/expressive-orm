@@ -325,6 +325,13 @@ describe("date", () => {
       expect(retrieved).toBeInstanceOf(Date);
     });
 
+    it("will read time with timezone", () => {
+      const timeField = column(() => date({ type: "time", timezone: true }));
+
+      expect(timeField.get("14:30:45+00")).toEqual(new Date("1970-01-01T14:30:45Z"));
+      expect(timeField.get("14:30:45.5+05:30")).toEqual(new Date("1970-01-01T09:00:45.5Z"));
+    });
+
     it("will validate timestamp with timezone", () => {
       const tzField = column(() => date({
         type: "timestamp",

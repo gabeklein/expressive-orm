@@ -341,6 +341,19 @@ describe("types", () => {
     expect<Date>(value).toEqual(now);
   })
 
+  it("will insert and retrieve a time with timezone", async () => {
+    class Test extends Type {
+      at = date({ type: "time", timezone: true });
+    }
+
+    await TestConnection.new([Test]);
+    await Test.insert({ at: new Date("1970-01-01T12:34:56Z") });
+
+    const test = await Test.one(1, true);
+
+    expect(test.at).toEqual(new Date("1970-01-01T12:34:56Z"));
+  })
+
   it("will insert and retrieve json", async () => {
     class Test extends Type {
       data = json<{ tags: string[] }>();
