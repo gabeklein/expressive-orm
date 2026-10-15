@@ -1,4 +1,4 @@
-import { State } from '@expressive/mvc';
+import { Model } from '@expressive/mvc';
 
 import type { Builder } from './query/Builder';
 import type { Query } from './query/Query';
@@ -19,7 +19,7 @@ declare namespace Connection {
   };
 }
 
-abstract class Connection extends State {
+abstract class Connection extends Model {
   readonly using: ReadonlySet<Query.Table>;
   readonly ready: boolean = false;
 
@@ -49,8 +49,8 @@ abstract class Connection extends State {
     });
   }
 
-  static new<T extends State, A extends unknown[]>(this: new (...args: A) => T, ...args: A): T {
-    return State.new.apply(this as any, args as any) as T;
+  static new<T extends Model, A extends unknown[]>(this: new (...args: A) => T, ...args: A): T {
+    return Model.new.apply(this as any, args as any) as T;
   }
 
   async then(

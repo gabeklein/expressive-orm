@@ -2,16 +2,16 @@
 "@expressive/orm": minor
 ---
 
-Rebuilt on `@expressive/mvc`. Entities are States, the driver contract is a small floor with optional capabilities, and `Query` lives here.
+Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a small floor with optional capabilities, and `Query` lives here.
 
-**Entities are States.** `Type` extends `State` from `@expressive/mvc`, now a peer dependency (`^0.89.0`). Observe an entity with `get(effect)` or `set(callback)`; destroy it with `set(null)`. Field helpers (`str`, `num`, `bool`, `date`, `uuid`, `json`, `one`) are `def` instructions; the private `use`/`init` registry is gone.
+**Entities are Models.** `Type` extends `Model` from `@expressive/mvc`, now a peer dependency (`^0.89.0`). Observe an entity with `get(effect)` or `set(callback)`; destroy it with `set(null)`. Field helpers (`str`, `num`, `bool`, `date`, `uuid`, `json`, `one`) are `def` instructions; the private `use`/`init` registry is gone.
 
 **Renamed**
 
 - Static `Type.get(where, limit, offset)` is `Type.find`.
 - Field `get(Child)` is `rows(Child, key?)`: a handle with `find`, `one` and `insert` applying the foreign key. It no longer mints a subclass of `Child`.
-- `Type.new(values)` is State's: it builds an unsaved entity synchronously. Persist with `insert(data)`, which now returns the saved entity.
-- The driver floor's `get(table, constraints, limit, offset)` is `select` - `get` is State's.
+- `Type.new(values)` is Model's: it builds an unsaved entity synchronously. Persist with `insert(data)`, which now returns the saved entity.
+- The driver floor's `get(table, constraints, limit, offset)` is `select` - `get` is Model's.
 - The constraint query behind `find`, `one` and `all` is the protected `fetch`.
 - A `Field`'s JS constructor moves from `type` to `kind`; `type` is the datatype string.
 
@@ -37,7 +37,7 @@ Rebuilt on `@expressive/mvc`. Entities are States, the driver contract is a smal
 
 **Connections**
 
-- `Connection` is an abstract class extending `State`, exported from here. Construct one with `.new(types, ...)`, or bare `new` as a field of a State that owns it. `using` binds each class's `Type.connection`; `close()` destroys the connection, its identity map and every entity loaded through it, and unbinds the classes. Awaiting a connection runs `sync` once, when it has one.
+- `Connection` is an abstract class extending `Model`, exported from here. Construct one with `.new(types, ...)`, or bare `new` as a field of a Model that owns it. `using` binds each class's `Type.connection`; `close()` destroys the connection, its identity map and every entity loaded through it, and unbinds the classes. Awaiting a connection runs `sync` once, when it has one.
 - The floor is `select`, `insert`, `update(id)` and `remove(id)`, keyed by the class's primary column. Optional: `prepare(builder)` for `Query`, `subscribe(listener)` for live rows, `sync(fix?)` for schema.
 - The identity map is held per connection instead of module-global.
 

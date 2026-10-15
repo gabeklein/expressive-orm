@@ -8,7 +8,7 @@
 </p>
 
 <h4 align="center">
-  Entities as reactive State, stored in SQL.
+  Entities as reactive Models, stored in SQL.
 </h4>
 
 <p align="center">
@@ -17,7 +17,7 @@
 
 <br/>
 
-An entity is a class extending `Type`, which extends [`@expressive/mvc`](https://github.com/gabeklein/expressive-mvc) `State`: one class is the schema, the domain model and an observable object. Everything comes from one import. `@expressive/sql` runs on embedded SQLite with nothing else installed; `@expressive/postgres` is the upgrade, and keeps loaded entities live as their rows change.
+An entity is a class extending `Type`, which extends [`@expressive/mvc`](https://github.com/gabeklein/expressive-mvc) `Model`: one class is the schema, the domain model and an observable object. Everything comes from one import. `@expressive/sql` runs on embedded SQLite with nothing else installed; `@expressive/postgres` is the upgrade, and keeps loaded entities live as their rows change.
 
 ## Install
 
@@ -186,7 +186,7 @@ await author.posts.one({ title: "Hello" }); // post
 console.log(post.author === author);        // true
 ```
 
-## Entities are States
+## Entities are Models
 
 Observe entities, render them, nest them - see [expressive-mvc](https://github.com/gabeklein/expressive-mvc).
 
@@ -366,7 +366,7 @@ class Device extends Type {
 
 ## Drivers
 
-A connection is a `Connection`, itself a State. The floor every driver implements, keyed by table name and the class's primary column:
+A connection is a `Connection`, itself a Model. The floor every driver implements, keyed by table name and the class's primary column:
 
 | Method | Does |
 |---|---|
