@@ -24,4 +24,4 @@
 
 **Packaging.** ESM only, built with tsdown.
 
-Requires `@expressive/mvc` `^0.88.1`.
+Requires `@expressive/mvc` `^0.89.0`.

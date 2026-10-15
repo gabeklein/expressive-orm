@@ -47,10 +47,10 @@
     "@expressive/sql": "^0.4.4"
   },
   "devDependencies": {
-    "@expressive/mvc": "^0.88.1",
+    "@expressive/mvc": "^0.89.0",
     "tsdown": "^0.20.1"
   },
   "peerDependencies": {
-    "@expressive/mvc": "^0.88.1"
+    "@expressive/mvc": "^0.89.0"
   }
 }

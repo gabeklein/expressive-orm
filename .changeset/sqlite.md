@@ -11,4 +11,4 @@ Deprecated: install `@expressive/sql`, which now holds `SQLiteConnection` and it
 
 Everything in `@expressive/sql`'s notes applies: entities are `@expressive/orm` `Type` subclasses, `Table` and its columns are gone, and connections construct with `SQLiteConnection.new(types, filename?)`. ESM only.
 
-Requires `@expressive/mvc` `^0.88.1`.
+Requires `@expressive/mvc` `^0.89.0`.

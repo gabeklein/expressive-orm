@@ -16,7 +16,7 @@
 
 A State is reactive, owned, placed, observable and - through dev - remote. It is not durable. The entity is a State whose identity is a row: the same class is the domain model, the schema, the server instance and the client twin. Drivers are pluggable behind a small contract; SQL is the top rung, not the floor.
 
-Baseline: `@expressive/mvc` 0.88.0.
+Baseline: `@expressive/mvc` 0.89.0.
 
 ## Agreed shape
 
