@@ -67,6 +67,8 @@ The trunk is release-ready: four minors - `@expressive/orm` 0.13.0, `@expressive
 
 ## Open
 
+- `values` on an entity whose lazy `one()` has not loaded now suspends (mvc 0.89 getters suspend on a pending read) where it used to warn and return `undefined`. Untested; decide whether `values` should skip unloaded relations.
+- mvc: the value an async effect resolves to is the effect's tracking proxy, not the entity (`user.is === post.user`, `user !== post.user`). Raise upstream.
 - `rows()` handle `count` - deferred from PR 2; lands with a driver aggregate or the builder.
 - `Type.fields` forces one `new()` + `set(null)` when no instance has activated - a `new()` hook with side effects runs once for metadata. Revisit if it bites.
 - Which base statics cross to a client twin, and how orm declares it.
