@@ -206,7 +206,7 @@ await user.update({ age: 36 });
 
 `get(effect)` runs now and again when a property it read changes. `set(callback)` is called for every change. Both return a function to stop.
 
-A lazy relation suspends: its first read throws a promise, which an effect or a React component waits for.
+A lazy relation suspends: its first read throws a promise, which an effect or a React component waits for. Await an async effect to read one once it loads.
 
 ```ts
 const [first] = await Post.find({ title: "Hello" });
@@ -214,6 +214,8 @@ const [first] = await Post.find({ title: "Hello" });
 first.get(({ editor }) => {
   console.log(editor?.name);
 });
+
+const editor = await first.get(async ($) => $.editor);
 ```
 
 ## Query
