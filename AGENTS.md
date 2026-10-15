@@ -4,7 +4,7 @@ Contributor guide for AI agents working in this repository.
 
 ## Overview
 
-Expressive ORM - entities on `@expressive/mvc` State with a pluggable driver contract and a `Query` builder. `@expressive/sql` holds the SQL toolkit, the SQL datatype vocabulary and SQLite, and re-exports orm; `@expressive/postgres` builds on it and re-exports it. `@expressive/sqlite` is a deprecated re-export of sql. Root `FEATURE.md` on a trunk branch holds the agreed scope and build plan for work in progress - read it first.
+Expressive ORM - entities on `@expressive/mvc` Model with a pluggable driver contract and a `Query` builder. `@expressive/sql` holds the SQL toolkit, the SQL datatype vocabulary and SQLite, and re-exports orm; `@expressive/postgres` builds on it and re-exports it. `@expressive/sqlite` is a deprecated re-export of sql. Root `FEATURE.md` on a trunk branch holds the agreed scope and build plan for work in progress - read it first.
 
 Monorepo: bun workspaces + changesets. Install, scripts and builds run under bun (`bun install`, `bun run test`, `bun run build`); tests run on vitest, which executes on node (`bun run test` invokes it). Never call node or npm directly. npm appears only in CI: `pr.yml`'s pack validation (`npm publish --dry-run`) and `release.yml`, where `changeset publish` shells to npm for the OIDC-authenticated publish.
 
@@ -44,7 +44,7 @@ Naming: positive `it('will create instance')`, negative `it('will not trigger up
 
 ## Conventions
 
-- Entities extend `State`; fields are `def` instructions. Anything a State already provides - construction, assignment, observation, destruction - is not reimplemented here.
+- Entities extend `Model`; fields are `def` instructions. Anything a Model already provides - construction, assignment, observation, destruction - is not reimplemented here.
 - Driver-agnostic logic belongs in `packages/orm`. SQL strings belong in `sql` or a driver, never in `orm`.
 - Update tests alongside behavioural or type changes - tests must fail without the change.
 - A user-facing change updates the root README (and a package README it touches); every sample there runs against the built dists.

@@ -1,6 +1,6 @@
 # Expressive ORM on mvc
 
-`@expressive/orm` rebuilt on `@expressive/mvc` State, with `Query` moved in from `@expressive/sql`. Scope and agreed shape - update as decisions land.
+`@expressive/orm` rebuilt on `@expressive/mvc` Model, with `Query` moved in from `@expressive/sql`. Scope and agreed shape - update as decisions land.
 
 ## Workflow
 
@@ -14,13 +14,13 @@
 
 ## Why
 
-A State is reactive, owned, placed, observable and - through dev - remote. It is not durable. The entity is a State whose identity is a row: the same class is the domain model, the schema, the server instance and the client twin. Drivers are pluggable behind a small contract; SQL is the top rung, not the floor.
+A Model is reactive, owned, placed, observable and - through dev - remote. It is not durable. The entity is a Model whose identity is a row: the same class is the domain model, the schema, the server instance and the client twin. Drivers are pluggable behind a small contract; SQL is the top rung, not the floor.
 
-Baseline: `@expressive/mvc` 0.88.0.
+Baseline: `@expressive/mvc` 0.89.0.
 
 ## Agreed shape
 
-- **`Type extends State`.** Fields are `def` instructions. `Type.new(values)` is State's sync construct of an unsaved entity, hydration included (`State.new` accepts an assign overlay). Columns are writable and dirty-tracked; `save()` flushes, `update(data)` is assign then save. `delete()` removes the row and destroys the instance.
+- **`Type extends Model`.** Fields are `def` instructions. `Type.new(values)` is Model's sync construct of an unsaved entity, hydration included (`Model.new` accepts an assign overlay). Columns are writable and dirty-tracked; `save()` flushes, `update(data)` is assign then save. `delete()` removes the row and destroys the instance.
 - **Field helpers** `str`, `num`, `bool`, `date`, `uuid`, `json` keep their config grammar (`orNull`, `optional`, `{ column }`, codecs). Config is a superset of sql's `Field` - `datatype`, `length`, `unique`, `fallback`, `increment`, `primary`, `reference` - unused by floor drivers, read by schema sync and the builder. Codecs are sync; an optional async `prepare` hook covers hashing.
 - **Relations.** `one(Other, orNull, lazy)` is a `def` whose getter suspends through mvc. `rows(Other)` returns a bound collection handle (`find`, `one`, `insert`, `count`) with the foreign key implied - replaces `get(Child)`'s minted subclass.
 - **Primary key.** `id` is the property; type (number or string) and column are configurable. The base `id` is `num({ primary: true, increment: true })` typed `string | number`; a subclass redeclares it with any helper carrying `primary`, and the helper's type narrows it - `id = num({ column: "user_id", primary: true })` is a `number`, `id = uuid({ primary: true })` a `string`. No type parameter on `Type`. `one(id)`, `update(id)`, the identity map and relation inputs follow `T["id"]`. sql's `Primary()` init hooks are not ported - statics cover table and schema.
@@ -28,11 +28,11 @@ Baseline: `@expressive/mvc` 0.88.0.
 - **One SQL vocabulary, in sql.** sql augments the helpers once and registers the column classes (`StringColumn`, `NumericColumn`, `BooleanColumn`, `TimeColumn`, `ForeignColumn`, exported) carrying shared validation - `varchar`/`char` length, integer ranges, numeric precision and scale. `str`: `text` (default), `varchar`, `char`, `uuid`; `num`: `integer` (default), `smallint`, `bigint`, `real`, `float`, `double`, `numeric`, `decimal`; `bool`: `boolean` (default, a JS boolean), `integer` (1/0), `text` and `varchar` with `either`; `date`: `timestamp` (default), `date`, `time`, `integer` (unix seconds), `text`; `one`: `integer` (default), `bigint`. A field's `datatype` is the real type; SQLite renders its affinity (`TEXT`, `INTEGER`, `REAL`, `NUMERIC`) in DDL, Postgres the type. postgres adds only what SQLite cannot express - `num` `serial`, `date` `interval` with `fields`, `timezone` on `timestamp` and `time` - merged into the same interfaces without redeclaring a member, and subclasses `TimeColumn`. A column config moves from SQLite to Postgres unchanged. The augmentations live in modules whose class the package root exports, so the built `index.d.ts` carries them to a consumer importing only a connection.
 - **Insert optionality.** `optional`, `fallback`, `increment` and `primary` make a key optional in `Type.Insert` and `Query.Insert` through a `"~optional"` brand on the property type; `nullable` keeps `| undefined`.
 - **Portable query shape.** `{ name: isLike('a%'), id: desc() }` compiles to constraint tuples. Serialisable, served by every driver through the floor.
-- **Class metadata per class.** `fields: Map<string, Field>`, `table`, `schema`, `connection` - exactly what the builder reads. Collected once per class via `State.on({ type })`.
+- **Class metadata per class.** `fields: Map<string, Field>`, `table`, `schema`, `connection` - exactly what the builder reads. Collected once per class via `Model.on({ type })`.
 - **Connection per class, resolvable.** `static connection` stays (multi-provider), read through a getter so a host can default it from context.
-- **`Connection extends State`.** orm's abstract `Connection` holds `using` (binding each class's `Type.connection`, throwing for a class already bound), `ready`, the thenable that runs `sync` once when present, and `close()` as destruction. Construct with `.new(...)` - typed over the subclass constructor - or bare `new` as a field of a host State that owns it. sql's `Connection` extends it with the SQL floor over `Query`, `prepare` through the generator and schema; `memory()` returns an unexported `Memory` subclass. `Type.Connection` names the contract: the class without `then`, which a `Query` or class static holds.
+- **`Connection extends Model`.** orm's abstract `Connection` holds `using` (binding each class's `Type.connection`, throwing for a class already bound), `ready`, the thenable that runs `sync` once when present, and `close()` as destruction. Construct with `.new(...)` - typed over the subclass constructor - or bare `new` as a field of a host Model that owns it. sql's `Connection` extends it with the SQL floor over `Query`, `prepare` through the generator and schema; `memory()` returns an unexported `Memory` subclass. `Type.Connection` names the contract: the class without `then`, which a `Query` or class static holds.
 - **Identity map on the connection.** A plain `Map` per class in the connection's unmanaged `_loaded` - lookups need no reactivity. Destroying the connection destroys every entity loaded through it and unbinds its `using` classes. A class reaching the floor through a connection registers its map there, which is how memory resolves a table's key column. No module-scope registries; placement (context, `static global`) is a host's concern.
-- **Driver contract.** Floor: `select(table, constraints, limit, offset)` - not `get`, which is State's - `insert`, `update(id)`, `remove(id)`, keyed by the class's primary column. Capabilities, each optional: `prepare(builder)` for `Query`, `subscribe` for live rows, `sync` for schema. `Type.query(where => ...)` throws unless the resolved connection has `prepare`.
+- **Driver contract.** Floor: `select(table, constraints, limit, offset)` - not `get`, which is Model's - `insert`, `update(id)`, `remove(id)`, keyed by the class's primary column. Capabilities, each optional: `prepare(builder)` for `Query`, `subscribe` for live rows, `sync` for schema. `Type.query(where => ...)` throws unless the resolved connection has `prepare`.
 - **Live rows.** `subscribe(listener)` returns a stop function; a driver reports changes it did not necessarily make through this instance as `{ table, op: "insert" | "update" | "delete", id, row? }` - `table` the class's `ref`, `id` and `row` as stored. orm subscribes when the first class registers its identity map and stops when the connection is destroyed. An `update` for a loaded entity decodes `row` - or reloads it through `select` when absent - and settles the fields not dirty locally: unsaved edits win, and a later `save()` writes them. A `Date` equal in time is not reassigned. A `delete` evicts and destroys the entity. An `insert` changes nothing - the seam for table-level listeners. Applications observe entities; there is no `connection.subscribe(Type, cb)`. Memory reports every write through it, floor or `Query`. Postgres installs one `expressive_notify()` function and a per-table trigger on `sync`, `pg_notify`ing channel `expressive_orm` with the row unless the payload passes 8000 bytes; `PGConnection` listens on a client checked out of its pool, `PGLiteConnection` through PGLite's `listen`. SQLite has none - neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
 - **`Query` ships here.** Builder, values, computed ops record intent; a driver's `prepare` renders or executes it. The string generator stays in sql. `String(query)` with no connection dumps intent.
 - **Memory driver in core.** Floor plus `prepare` executed as procedures over arrays - the test floor and the first non-SQL driver. Templates unsupported.
@@ -43,13 +43,13 @@ Baseline: `@expressive/mvc` 0.88.0.
 - **One `Field`.** `type` is the datatype string; the JS constructor a helper records is `kind`. A relation field holds `entity`, `reference` (the target's `id` field) and `use(builder)`: a required `one()` inner joins, a nullable one left joins.
 - **Intent dump.** `String(query)` is the connection's rendering; without `prepare`, and in the memory driver, it is a line per clause: `from`/`join`/`left join`/`with` tables and their `on` conditions, a `where` per top-level filter (groups alternate `or`/`and` in parentheses), `insert`/`update` with indented `key: value` lines, `delete`, `order`, `limit`, then `select` - a value, indented aliases, a table for a whole entity, or `count`.
 - **Whole-entity selections hydrate.** A table proxy returned from the top of a query parses through the class's `parse`, so rows are identity-mapped entities; nested proxies and projections return plain objects.
-- **Not this repo.** Twin seams (static calls, keyed twins, entity references in replies, `Query` exports) are dev's, generic over State. orm declares, at most, which base statics may cross.
+- **Not this repo.** Twin seams (static calls, keyed twins, entity references in replies, `Query` exports) are dev's, generic over Model. orm declares, at most, which base statics may cross.
 
 ## Build plan
 
 One PR each, in order.
 
-1. **`Type extends State`.** `Type` on State; field helpers as `def`; per-class metadata via the `type` hook; memory driver (floor only); port `Type.test.ts` and `one.test.ts` with the renames. PGLite harness retired.
+1. **`Type extends Model`.** `Type` on Model; field helpers as `def`; per-class metadata via the `type` hook; memory driver (floor only); port `Type.test.ts` and `one.test.ts` with the renames. PGLite harness retired.
 2. **Relations.** `one()` on mvc suspense, eager and lazy; a related entity is a reference, never adopted; `rows()` handle with `find`, `one`, `insert`. The identity map stays a `WeakMap` keyed by connection.
 3. **Writes.** Dirty tracking, `save()`, `update()`, `delete()`, `onDelete`; `insert` returning the entity; `all()` paging; `subset`.
 4. **`Query` moves in.** *Landed in substance.* Builder, values, computed, `Query` factory from sql; `Builder.use()` structural over `Type`'s metadata; `From<T>` over value-typed classes (`T[K] extends Type ? From<T[K]> : Field<T[K]>`); `prepare` capability; memory driver executes the builder.
@@ -58,7 +58,7 @@ One PR each, in order.
    - **5b. sql thinned, adapters re-pointed.** *Landed in substance.* Generator base and SQL connection base remain, peered on orm, the floor over `Query` in the base; `sql.Table`, its columns and sql's `Query` retire; sqlite and postgres augment and subclass orm's helpers and render schema from orm's metadata; string snapshot tests live beside the generator. Entities round-trip on sqlite and PGLite.
 6. **Adapters.**
    - **6a. Package consolidation.** sql absorbs sqlite - dialect, connection, driver autodetect and tests; sql depends on and re-exports orm, postgres on and re-exports sql; one SQL datatype vocabulary in sql, postgres declaring only its extras; augmentations reach consumers through the built `index.d.ts`; `@expressive/sqlite` a deprecated re-export. SQLite `sync` awaits validation and creates only missing tables, so a file reopens.
-   - **6b.** *Landed in substance.* Connections are States owning the identity map; `subscribe` in memory and postgres via LISTEN/NOTIFY; the renamed-key-column round trip on memory, SQLite and PGLite. An incrementing Postgres `id` is `GENERATED BY DEFAULT AS IDENTITY`, accepting an explicit id as SQLite and memory do.
+   - **6b.** *Landed in substance.* Connections are Models owning the identity map; `subscribe` in memory and postgres via LISTEN/NOTIFY; the renamed-key-column round trip on memory, SQLite and PGLite. An incrementing Postgres `id` is `GENERATED BY DEFAULT AS IDENTITY`, accepting an explicit id as SQLite and memory do.
 7. **Docs + release.** *Landed.* Root README replaced for the rebuilt API, a README per package, every sample run against the built dists (SQLite in memory, PGLite, `memory()`) and under `tsc`; package metadata (`description`, `keywords`, `repository`, `homepage`, `bugs`, `pg` as an optional peer); the trunk's changesets consolidated into one release note per package. Sample runs fixed `json` (no datatype, so Postgres rejected the table) and `time` with `timezone` (read as an invalid date).
 
 ## Release
@@ -67,15 +67,16 @@ The trunk is release-ready: four minors - `@expressive/orm` 0.13.0, `@expressive
 
 ## Open
 
-- mvc: `State.Assign<T>` types methods as `(this: T, ...)`, so a State with a method and a `this`-typed member is invariant and its subclasses stop being assignable to it. `Type` re-declares State's `set` overloads with `Compat<this>` until this is fixed upstream; the "will be assignable to Type" test pins it.
+- `values` on an entity whose lazy `one()` has not loaded now suspends (mvc 0.89 getters suspend on a pending read) where it used to warn and return `undefined`. Untested; decide whether `values` should skip unloaded relations.
+- mvc: the value an async effect resolves to is the effect's tracking proxy, not the entity (`user.is === post.user`, `user !== post.user`). Raise upstream.
 - `rows()` handle `count` - deferred from PR 2; lands with a driver aggregate or the builder.
 - `Type.fields` forces one `new()` + `set(null)` when no instance has activated - a `new()` hook with side effects runs once for metadata. Revisit if it bites.
 - Which base statics cross to a client twin, and how orm declares it.
 - Templates as inputs to a written column (`where(User, { name })` with `name` a template argument) - unsupported, as in sql.
 - Async codec hook naming and where it runs relative to the builder's sync digest.
 - A host defaulting `Type.connection` from context - a connection placed by a provider, resolved through the getter - is dev's concern.
-- Constructing a connection with bare `new` outside an owning State leaves it unactivated: mvc warns at the end of the tick. `.new()` is the root form.
-- `vi.spyOn` on a State method not yet read fails - tinyspy calls mvc's binding getter without a receiver. Tests read the method first; a fix belongs in mvc.
+- Constructing a connection with bare `new` outside an owning Model leaves it unactivated: mvc warns at the end of the tick. `.new()` is the root form.
+- `vi.spyOn` on a Model method not yet read fails - tinyspy calls mvc's binding getter without a receiver. Tests read the method first; a fix belongs in mvc.
 - A `pg` LISTEN that fails rejects unhandled; queries surface the same fault, but a pooler that drops notifications (transaction mode) does so silently.
 - Postgres `sync` reinstalls the trigger function and triggers each time, including `sync(false)`. Notifications carry the bare table name; postgres maps it to the class's `ref` through `using`, so a table no class uses is ignored.
 - A Postgres identity sequence does not advance past an explicit id - a later generated id can collide.
@@ -95,7 +96,7 @@ The trunk is release-ready: four minors - `@expressive/orm` 0.13.0, `@expressive
 
 ## Rejected
 
-- `Table` from sql as the entity base - properties typed as `Field` cannot be a State.
+- `Table` from sql as the entity base - properties typed as `Field` cannot be a Model.
 - Inline relation insert on assignment (a plain object assigned to `one()` creating a row) - too much magic for the first cut.
 - Module-global identity map - contradicts `sideEffects: false`.
 - A "lite" entity core in the mvc repo - turnkey sqlite needs schema generation, so dev depends on this repo either way.

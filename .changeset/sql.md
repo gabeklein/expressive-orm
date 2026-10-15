@@ -33,3 +33,5 @@
 **Connection base.** `Connection` extends orm's: it implements the floor - `select`, `insert`, `update`, `remove` - as builder statements against the class registered for the table, values bound as parameters and the class's primary column matched, so a renamed key round-trips. A dialect supplies `prepare` through a `Generator` subclass, and `sync`. `Generator` renders orm's `Builder`: `null` comparisons as `IS NULL` / `IS NOT NULL`, an insert with a selection with `RETURNING`, `offset` as `OFFSET`.
 
 **Packaging.** ESM only, built with tsdown.
+
+Requires `@expressive/mvc` `^0.89.0`.
