@@ -154,7 +154,7 @@ await User.update(ann.id, { age: 29 });
 await ann.delete();
 ```
 
-`Type.new(values)` builds an unsaved entity; `insert(data)` is `new(data).save()`. Assigning a field marks it dirty, and `save()` writes only dirty columns - an insert when there is no `id`, an update otherwise. `update(data)` assigns, then saves. `delete()` removes the row and destroys the instance.
+`Type.new(values)` builds an unsaved entity; `insert(data)` is `new(data).save()`. Assigning a field marks it dirty, and `save()` writes only dirty columns - an insert when there is no `id`, an update otherwise. `update(data)` assigns, then saves. `delete()` removes the row and destroys the instance. `entity.columns` is its row - decoded values by property, a relation as its id, never loading - in the shape `insert` takes; `entity.get()` is the full snapshot.
 
 ## Relations
 
