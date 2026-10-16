@@ -129,7 +129,7 @@ describe("select", () => {
     const [first, second] = await query;
 
     expect(first).toBeInstanceOf(Foo);
-    expect(first.values).toEqual({ id: 1, bar: "hello", baz: "world" });
+    expect(first.columns).toEqual({ id: 1, bar: "hello", baz: "world" });
     expect(second.bar).toBe("goodbye");
     await expect(Foo.one(1)).resolves.toBe(first);
   })

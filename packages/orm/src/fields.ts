@@ -28,6 +28,7 @@ type Exact<T extends any[], Types> = {
 
 const FIELDS = new WeakMap<Function, Map<string, Field>>();
 const DIRTY = new WeakMap<Type, Record<string, unknown>>();
+const PEEK = new WeakSet<Type>();
 
 function field<T, F extends Field = Field>(
   create: (key: string, type: Type.Class) => F,
@@ -268,6 +269,7 @@ export type { DataTypes, Exact, Has, OptionsOf };
 export {
   DIRTY,
   FIELDS,
+  PEEK,
   Field,
   field,
   json,

@@ -1,4 +1,4 @@
-import { DataTypes, Exact, field, Has, OptionsOf } from "./fields";
+import { DataTypes, Exact, field, Has, OptionsOf, PEEK } from "./fields";
 import { configure, Field, Nullable } from './Field';
 import type { Builder } from './query/Builder';
 import Type from "./Type";
@@ -119,6 +119,7 @@ function one<T extends Type, C extends one.Options[]>(from: Type.Class<T>, ...co
     },
     (field, subject, store) => {
       const { key, entity: Class } = field;
+      let id: string | number | undefined;
       let pending: string | number | undefined;
       let loading: Promise<unknown> | undefined;
       let failed: unknown;
@@ -142,6 +143,9 @@ function one<T extends Type, C extends one.Options[]>(from: Type.Class<T>, ...co
       return {
         value: undefined,
         get() {
+          if (PEEK.has(subject))
+            return id ?? (store[key] as Type | undefined)?.id;
+
           if (failed)
             throw failed;
 
@@ -158,6 +162,7 @@ function one<T extends Type, C extends one.Options[]>(from: Type.Class<T>, ...co
           return subject.get(key as any);
         },
         set(next: unknown) {
+          id = undefined;
           pending = undefined;
           loading = undefined;
           failed = undefined;
@@ -166,7 +171,7 @@ function one<T extends Type, C extends one.Options[]>(from: Type.Class<T>, ...co
             const loaded = Class.loaded.get(next);
 
             if (!loaded) {
-              pending = next;
+              id = pending = next;
               delete store[key];
               subject.set(key as any);
               throw false;

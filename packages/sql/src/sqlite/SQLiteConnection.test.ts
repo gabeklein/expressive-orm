@@ -174,7 +174,7 @@ describe("types", () => {
 
     const test = await Test.one();
 
-    expect(test.values).toEqual({
+    expect(test.columns).toEqual({
       id: 1, value1: true, value2: true
     });
 
@@ -269,7 +269,7 @@ describe("select", () => {
     const [foo] = await query;
 
     expect(foo).toBeInstanceOf(Foo);
-    expect(foo.values).toEqual({ id: 1, bar: "hello", baz: "world" });
+    expect(foo.columns).toEqual({ id: 1, bar: "hello", baz: "world" });
   })
 
   it("will select without tables", async () => {
@@ -475,7 +475,7 @@ describe("insert", () => {
 
     const results = await Users.query();
 
-    expect(results.map(user => user.values)).toEqual([
+    expect(results.map(user => user.columns)).toEqual([
       { "id": 1, "name": "john",  "email": "john@email.org",  "age": 25 },
       { "id": 2, "name": "jane",  "email": "jane@email.org",  "age": 26 },
       { "id": 3, "name": "bob",   "email": "bob@email.org",   "age": 27 },
@@ -541,7 +541,7 @@ it("will update from data", async () => {
 
   const results = await User.query();
 
-  expect(results.map(user => user.values)).toEqual([
+  expect(results.map(user => user.columns)).toEqual([
     { id: 1, name: "John", age: 30 },
     { id: 2, name: "Jane", age: 25 },
     { id: 3, name: "Joe", age: 0 },
