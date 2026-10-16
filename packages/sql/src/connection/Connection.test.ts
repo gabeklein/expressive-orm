@@ -55,7 +55,7 @@ describe("floor", () => {
       id: desc()
     }, 10, 5);
 
-    expect(foo.values).toEqual({ id: 1, name: "Gabe", rank: 3, active: true });
+    expect(foo.columns).toEqual({ id: 1, name: "Gabe", rank: 3, active: true });
     expect(db.log).toEqual([[
       "SELECT `foo`.`id` AS \"id\", `foo`.`name` AS \"name\", `foo`.`rank` AS \"rank\", `foo`.`active` AS \"active\" " +
       "FROM `foo` " +
@@ -86,7 +86,7 @@ describe("floor", () => {
 
     const foo = await Foo.insert({ name: "Bob", active: false });
 
-    expect(foo.values).toEqual({ id: 2, name: "Bob", rank: null, active: false });
+    expect(foo.columns).toEqual({ id: 2, name: "Bob", rank: null, active: false });
     expect(db.log).toEqual([[
       "INSERT INTO `foo` (`name`,`active`) SELECT ?,? " +
       "RETURNING `foo`.`id` AS \"id\", `foo`.`name` AS \"name\", `foo`.`rank` AS \"rank\", `foo`.`active` AS \"active\"",

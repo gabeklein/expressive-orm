@@ -7,7 +7,7 @@ import { memory } from './memory';
 import { Query } from './query/Query';
 import { Type } from './Type';
 import { asc, desc, equal, greaterThan, isIn, Where } from './where';
-import { bool, date, json, num, one, optional, orNull, str, uuid } from '.';
+import { bool, date, json, lazy, num, one, optional, orNull, str, uuid } from '.';
 
 function spy<K extends "select" | "insert" | "update" | "remove">(connection: Connection, key: K) {
   void connection[key];
@@ -143,17 +143,138 @@ describe("fields", () => {
     expect(name.parent).toBe(User);
     expect(Post.fields.get("user")!.reference).toBe(User.fields.get("id"));
   })
+})
 
-  it("will output values", async () => {
-    class User extends connect() {
-      name = str();
-      age = num(orNull);
-    }
+describe("columns", () => {
+  class Table extends connect() {}
 
+  class User extends Table {
+    static table = "user";
+    name = str();
+    age = num(orNull);
+  }
+
+  class Post extends Table {
+    static table = "post";
+    title = str();
+    when = date(orNull);
+    user = one(User);
+    editor = one(User, orNull, lazy, { column: "editor_id" });
+  }
+
+  const ready = (async () => {
+    await Table.connection.insert("user", { name: "Gabe" });
+    await Table.connection.insert("user", { name: "Bob" });
+    await Table.connection.insert("post", { title: "Hello", user_id: 1, editor_id: 2 });
+  })();
+
+  it("will output columns", async () => {
     const user = await User.insert({ name: "John" });
 
-    expect(user.values).toEqual({ id: 1, name: "John", age: undefined });
-    expect(Object.isFrozen(user.values)).toBe(true);
+    expect(user.columns).toEqual({ id: user.id, name: "John", age: undefined });
+    expect(Object.isFrozen(user.columns)).toBe(true);
+    expect(user.get()).not.toHaveProperty("columns");
+  })
+
+  it("will throw on assignment", () => {
+    const user = User.new({ name: "John" });
+
+    expect(() => user.columns = {}).toThrow(`${user}.columns is read-only.`);
+  })
+
+  it("will read eager relation as id", async () => {
+    await ready;
+    const post = await Post.one({ title: "Hello" });
+
+    expect(post.user).toBeInstanceOf(User);
+    expect(post.columns.user).toBe(1);
+  })
+
+  it("will read lazy relation as id without loading", async () => {
+    await ready;
+    User.loaded.delete(2);
+
+    const post = await Post.one({ title: "Hello" }, true);
+    const select = spy(Table.connection, "select");
+
+    expect(post.columns).toEqual({ id: post.id, title: "Hello", when: undefined, user: 1, editor: 2 });
+    expect(select).not.toHaveBeenCalled();
+
+    const pending = (() => { try { return post.editor } catch (e) { return e } })();
+
+    expect(pending).toBeInstanceOf(Promise);
+    expect(post.columns.editor).toBe(2);
+
+    await pending;
+
+    expect(select).toHaveBeenCalledTimes(1);
+    expect(post.columns.editor).toBe(2);
+
+    select.mockRestore();
+  })
+
+  it("will read unsaved relation by instance", async () => {
+    await ready;
+    const user = await User.one(1);
+    const post = Post.new({ title: "Draft", user });
+
+    expect(post.columns).toEqual({ id: undefined, title: "Draft", when: undefined, user: 1, editor: undefined });
+  })
+
+  it("will update effect on column and relation", async () => {
+    await ready;
+    const gabe = await User.one(1);
+    const bob = await User.one(2);
+    const post = Post.new({ title: "Draft", user: gabe });
+    const effect = vi.fn();
+
+    post.get($ => void effect($.columns));
+
+    expect(effect).toHaveBeenLastCalledWith(expect.objectContaining({ title: "Draft", user: 1 }));
+
+    post.title = "Final";
+    await expect.poll(() => effect.mock.calls.length).toBe(2);
+    expect(effect).toHaveBeenLastCalledWith(expect.objectContaining({ title: "Final", user: 1 }));
+
+    post.user = bob;
+    await expect.poll(() => effect.mock.calls.length).toBe(3);
+    expect(effect).toHaveBeenLastCalledWith(expect.objectContaining({ title: "Final", user: 2 }));
+  })
+
+  it("will update effect on settled live update", async () => {
+    await ready;
+    const post = await Post.one({ title: "Hello" });
+    const effect = vi.fn();
+
+    post.get($ => void effect($.columns.title));
+
+    await Table.connection.update("post", post.id, { title: "Changed" });
+
+    await expect.poll(() => effect.mock.calls.length).toBe(2);
+    expect(effect).toHaveBeenLastCalledWith("Changed");
+
+    await Table.connection.update("post", post.id, { title: "Hello" });
+  })
+
+  it("will insert from columns", async () => {
+    await ready;
+    const post = await Post.one({ title: "Hello" });
+    const { id, ...row } = post.columns;
+    const copy = await Post.insert(row);
+
+    expect(copy).not.toBe(post);
+    expect(copy.columns).toEqual({ ...post.columns, id: copy.id });
+  })
+
+  it("will serialize as JSON", async () => {
+    await ready;
+    const when = new Date("2024-01-01T00:00:00.000Z");
+    const user = await User.one(1);
+    const post = Post.new({ title: "Draft", when, user });
+
+    expect(JSON.parse(JSON.stringify(post.columns))).toEqual({
+      title: "Draft", when: when.toISOString(), user: 1
+    });
   })
 })
 
