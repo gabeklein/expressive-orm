@@ -24,7 +24,7 @@ describe("schema", () => {
 
     expect<{ active: boolean, optional: boolean | undefined, custom: boolean }>(undefined as unknown as Flags);
 
-    const { schema } = new TestConnection([ Flags ]);
+    const { schema } = TestConnection.new([ Flags ]);
 
     expect(String(schema)).toMatchInlineSnapshot(`
       "CREATE TABLE

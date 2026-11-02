@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { bool, Builder, equal, greaterThan, isIn, isLike, isNull, notEqual, notNull, asc, desc, num, str, Type } from '@expressive/orm';
 
@@ -14,7 +14,7 @@ class Recorder extends Connection {
   }
 
   async sync(){
-    Object.defineProperty(this, "ready", { value: true });
+    (this as Connection).set({ ready: true });
     return this;
   }
 
@@ -35,82 +35,6 @@ class Recorder extends Connection {
   }
 }
 
-describe("using", () => {
-  it("will bind types", async () => {
-    class Foo extends Type {}
-
-    const db = new Recorder([Foo]);
-
-    expect(Foo.connection).toBe(db);
-    expect(db.using).toEqual(new Set([Foo]));
-  })
-
-  it("will bind types by key", async () => {
-    class Foo extends Type {}
-
-    const db = new Recorder({ Foo });
-
-    expect(Foo.connection).toBe(db);
-  })
-
-  it("will throw if type already has a connection", () => {
-    class Foo extends Type {}
-
-    new Recorder([Foo]);
-
-    expect(() => new Recorder([Foo])).toThrow("Type Foo already has assigned connection.");
-  })
-
-  it("will unbind types on close", async () => {
-    class Foo extends Type {}
-
-    const db = new Recorder([Foo]);
-
-    await db.close();
-
-    expect(Foo.connection).not.toBe(db);
-    expect(() => new Recorder([Foo])).not.toThrow();
-  })
-})
-
-describe("then", () => {
-  it("will sync when awaited", async () => {
-    const db = new Recorder([]);
-    const sync = vi.spyOn(db, "sync");
-
-    expect(await db).toBe(db);
-    expect(sync).toHaveBeenCalledTimes(1);
-    expect(db.then).toBeUndefined();
-  })
-
-  it("will not sync if ready", async () => {
-    const db = new Recorder([]);
-    const sync = vi.spyOn(db, "sync");
-
-    Object.defineProperty(db, "ready", { value: true });
-
-    await db;
-
-    expect(sync).not.toHaveBeenCalled();
-  })
-
-  it("will sync without callbacks", async () => {
-    const db = new Recorder([]);
-
-    await db.then();
-
-    expect(db.ready).toBe(true);
-  })
-
-  it("will reject if sync fails", async () => {
-    const db = new Recorder([]);
-
-    vi.spyOn(db, "sync").mockRejectedValue(new Error("nope"));
-
-    await expect(db.then(undefined, (error: Error) => { throw error })).rejects.toThrow("nope");
-  })
-})
-
 describe("floor", () => {
   class Foo extends Type {
     name = str();
@@ -118,7 +42,7 @@ describe("floor", () => {
     active = bool();
   }
 
-  const db = new Recorder([Foo]);
+  const db = Recorder.new([Foo]);
 
   it("will get with constraints", async () => {
     db.log = [];
@@ -207,11 +131,11 @@ describe("floor", () => {
   })
 
   it("will throw for a table not used", async () => {
-    await expect(db.get("bar", [])).rejects.toThrow("Table bar is not used by this connection.");
+    await expect(db.select("bar", [])).rejects.toThrow("Table bar is not used by this connection.");
   })
 
   it("will throw for a column not in table", async () => {
-    await expect(db.get("foo", [["nope", "=", 1]])).rejects.toThrow("Column nope does not exist in foo.");
+    await expect(db.select("foo", [["nope", "=", 1]])).rejects.toThrow("Column nope does not exist in foo.");
   })
 
   it("will key tables by schema", async () => {
@@ -219,11 +143,11 @@ describe("floor", () => {
       static schema = "other";
     }
 
-    const other = new Recorder([Bar]);
+    const other = Recorder.new([Bar]);
 
     other.rows = [];
 
-    await expect(other.get("other.bar", [])).resolves.toEqual([]);
+    await expect(other.select("other.bar", [])).resolves.toEqual([]);
     expect(other.log[0][0]).toBe("SELECT `T0`.`id` AS \"id\" FROM `other`.`bar` T0");
   })
 })

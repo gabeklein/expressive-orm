@@ -188,7 +188,7 @@ import * as tables from './tables';
 
 // Create a connection and link your tables
 export async function connect() {
-  await new PGConnection(tables, {
+  await PGConnection.new(tables, {
     host: process.env.DB_HOST,
     port: 5432,
     database: process.env.DB_NAME,
@@ -211,11 +211,11 @@ When you connect, all `Table` classes are validated against the database schema.
 ```typescript
 // PGLite (embedded)
 import { PGLiteConnection } from '@expressive/postgres';
-await new PGLiteConnection(tables, { dataDir: './data' });
+await PGLiteConnection.new(tables, { dataDir: './data' });
 
 // SQLite
 import { SQLiteConnection } from '@expressive/sql';
-await new SQLiteConnection(tables, './database.db');
+await SQLiteConnection.new(tables, './database.db');
 
 // MySQL
 import { MySQLConnection } from '@expressive/mysql';

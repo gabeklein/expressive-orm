@@ -28,7 +28,7 @@ class TestConnection extends Connection {
 
 abstract class Table extends Type {}
 
-const db = new TestConnection([Table]);
+const db = TestConnection.new([Table]);
 
 describe("select", () => {
   class Foo extends Table {

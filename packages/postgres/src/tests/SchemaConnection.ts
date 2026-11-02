@@ -8,4 +8,8 @@ export class SchemaConnection extends PostgresConnection {
   }
 
   async exec() {}
+
+  async listen() {
+    return async () => {};
+  }
 }

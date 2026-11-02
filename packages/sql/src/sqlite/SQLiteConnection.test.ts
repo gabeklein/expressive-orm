@@ -2,9 +2,11 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { asc, bool, Builder, date, desc, greaterThan, isIn, isLike, isNull, json, notNull, num, one, Query, str, Type } from '@expressive/orm';
+import { asc, bool, Builder, date, desc, greaterThan, isIn, isLike, isNull, json, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
+
+import { spy } from '../../test.setup';
 
 import { SQLiteConnection } from './SQLiteConnection';
 import { TestConnection } from './TestConnection';
@@ -17,7 +19,7 @@ describe("schema", () => {
       age = num();
     }
 
-    await new TestConnection([ Users ]);
+    await TestConnection.new([ Users ]);
 
     const user = await Users.insert({
       name: "Gabe",
@@ -33,7 +35,7 @@ describe("schema", () => {
       fooBar = bool();
     }
 
-    const sql = new TestConnection({ FooBar });
+    const sql = TestConnection.new({ FooBar });
 
     expect(String(sql.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
@@ -53,7 +55,7 @@ describe("schema", () => {
       value = num();
     }
 
-    const sql = new TestConnection({ Foo, Bar });
+    const sql = TestConnection.new({ Foo, Bar });
 
     expect(String(sql.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
@@ -77,7 +79,7 @@ describe("schema", () => {
 
     class Bar extends Type {}
 
-    const sql = new TestConnection({ Foo, Bar });
+    const sql = TestConnection.new({ Foo, Bar });
 
     expect(String(sql.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
@@ -102,7 +104,7 @@ describe("schema", () => {
       created = date({ fallback: "NOW" });
     }
 
-    const sql = new TestConnection({ Foo });
+    const sql = TestConnection.new({ Foo });
 
     expect(String(sql.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
@@ -127,7 +129,7 @@ describe("types", () => {
       });
     }
 
-    const conn = await new TestConnection([Test]);
+    const conn = await TestConnection.new([Test]);
 
     expect(String(conn.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
@@ -168,7 +170,7 @@ describe("types", () => {
       date = date();
     }
 
-    const conn = await new TestConnection([ Test ]);
+    const conn = await TestConnection.new([ Test ]);
 
     expect(String(conn.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
@@ -201,7 +203,7 @@ describe("select", () => {
     baz = str();
   }
 
-  const db = new TestConnection({ Foo }, async () => {
+  const db = TestConnection.new({ Foo }, async () => {
     await Foo.insert({ bar: "hello", baz: "world" });
   });
 
@@ -273,7 +275,7 @@ describe("template", () => {
     color = str();
   }
 
-  new TestConnection([Foo], async () => {
+  TestConnection.new([Foo], async () => {
     await Query(where => {
       where(Foo,
         { first: "John", last: "Doe",   color: "red" },
@@ -333,7 +335,7 @@ describe("template", () => {
   })
 
   it("will select a parameter value", async () => {
-    const conn = await new TestConnection([]);
+    const conn = await TestConnection.new([]);
     const template = Query(where => {
       where.connection = conn;
       return (color: string) => color;
@@ -350,7 +352,7 @@ describe("template", () => {
   });
 
   it("will select a parameter in property", async () => {
-    const conn = await new TestConnection([]);
+    const conn = await TestConnection.new([]);
     const template = Query(where => {
       where.connection = conn;
       return (color: string) => ({ color })
@@ -420,7 +422,7 @@ describe("insert", () => {
       age = num();
     }
 
-    await new TestConnection([Users]);
+    await TestConnection.new([Users]);
 
     const names = ["john", "jane", "bob", "alice"];
     const insert = Query(where => {
@@ -480,7 +482,7 @@ it("will update from data", async () => {
     { name: "Jane", age: 25 },
   ];
 
-  await new TestConnection([User]);
+  await TestConnection.new([User]);
 
   await Query(where => {
     where(User,
@@ -542,7 +544,7 @@ describe("floor", () => {
   }
 
   it("will round trip entities", async () => {
-    await new TestConnection([Author, Post]);
+    await TestConnection.new([Author, Post]);
 
     const gabe = await Author.insert({ name: "Gabe" });
     const first = await Post.insert({ author: gabe, title: "First", draft: false, published: new Date("2024-01-01T00:00:00Z") });
@@ -595,7 +597,7 @@ describe("floor", () => {
   })
 
   it("will update by id", async () => {
-    await new TestConnection([Author]);
+    await TestConnection.new([Author]);
 
     const author = await Author.insert({ name: "Gabe" });
 
@@ -611,8 +613,8 @@ describe("floor", () => {
 
     class Bar extends Type {}
 
-    const db = new SQLiteConnection([Foo]);
-    const idle = new SQLiteConnection([Bar]);
+    const db = SQLiteConnection.new([Foo]);
+    const idle = SQLiteConnection.new([Bar]);
 
     await db;
     await db.close();
@@ -620,6 +622,48 @@ describe("floor", () => {
 
     expect(Foo.connection).not.toBe(db);
     expect(Bar.connection).not.toBe(idle);
+  })
+})
+
+describe("renamed key column", () => {
+  it("will round trip a numeric key", async () => {
+    class User extends Type {
+      id = num({ column: "user_id", primary: true });
+      name = str();
+    }
+
+    const db = await TestConnection.new([User]);
+    const user = await User.insert({ name: "Gabe" });
+
+    expect(user.id).toBe(1);
+    await expect(db.select("user", [])).resolves.toEqual([{ user_id: 1, name: "Gabe" }]);
+    await expect(User.one(1, true)).resolves.toBe(user);
+
+    await user.update({ name: "Bob" });
+    await User.update(1, { name: "Ann" });
+    await expect(db.select("user", [])).resolves.toEqual([{ user_id: 1, name: "Ann" }]);
+    expect(user.name).toBe("Ann");
+
+    await user.delete();
+    await expect(db.select("user", [])).resolves.toEqual([]);
+  })
+
+  it("will round trip a string key", async () => {
+    class Doc extends Type {
+      id = uuid({ column: "doc_id", primary: true });
+      title = str();
+    }
+
+    const db = await TestConnection.new([Doc]);
+    const doc = await Doc.insert({ id: "a1", title: "Hello" });
+
+    await expect(Doc.one("a1", true)).resolves.toBe(doc);
+
+    await doc.update({ title: "Bye" });
+    await expect(db.select("doc", [])).resolves.toEqual([{ doc_id: "a1", title: "Bye" }]);
+
+    await doc.delete();
+    await expect(Doc.one("a1", false)).resolves.toBeUndefined();
   })
 })
 
@@ -639,13 +683,13 @@ describe("sync", () => {
     }
 
     try {
-      const first = await new SQLiteConnection([Author, Post], file);
+      const first = await SQLiteConnection.new([Author, Post], file);
       const author = await Author.insert({ name: "Gabe", meta: { tags: ["a"] } });
 
       await Post.insert({ author: author.id });
       await first.close();
 
-      const second = await new SQLiteConnection([Author, Post], file);
+      const second = await SQLiteConnection.new([Author, Post], file);
       const post = await Post.one();
 
       expect(post.title).toBeNull();
@@ -662,7 +706,7 @@ describe("sync", () => {
   it("will throw for a missing table without fix", async () => {
     class Foo extends Type {}
 
-    const conn = new SQLiteConnection([Foo]);
+    const conn = SQLiteConnection.new([Foo]);
 
     await expect(conn.sync(false)).rejects.toThrow("Table foo does not exist.");
     await conn.close();
@@ -671,7 +715,7 @@ describe("sync", () => {
   it("will throw if already active", async () => {
     class Foo extends Type {}
 
-    const conn = await new TestConnection([Foo]);
+    const conn = await TestConnection.new([Foo]);
 
     await expect(conn.sync()).rejects.toThrow("Connection is already active.");
   })
@@ -684,7 +728,7 @@ describe("valid", () => {
   }
 
   async function check(type: Type.Class, ddl: string){
-    const conn = new SQLiteConnection([type]);
+    const conn = SQLiteConnection.new([type]);
 
     await (await conn["db"]()).exec(ddl);
 
@@ -692,7 +736,7 @@ describe("valid", () => {
   }
 
   it("will be false for a missing table", async () => {
-    const conn = new SQLiteConnection([Author]);
+    const conn = SQLiteConnection.new([Author]);
 
     expect(await conn.valid(Author)).toBe(false);
     await conn.close();
@@ -718,7 +762,7 @@ describe("valid", () => {
       author = one(Author);
     }
 
-    const other = new SQLiteConnection([Author]);
+    const other = SQLiteConnection.new([Author]);
 
     await expect(check(Post, "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, author_id INTEGER NOT NULL)"))
       .rejects.toThrow("Foreign key author.id cannot be checked by another connection");
@@ -731,7 +775,7 @@ describe("valid", () => {
       author = one(Author);
     }
 
-    const conn = new SQLiteConnection([Author, Post]);
+    const conn = SQLiteConnection.new([Author, Post]);
 
     await (await conn["db"]()).exec("CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, author_id INTEGER NOT NULL)");
     await expect(conn.valid(Post)).rejects.toThrow("Referenced table author does not exist");
@@ -743,7 +787,7 @@ describe("valid", () => {
       author = one(Author);
     }
 
-    const conn = new SQLiteConnection([Author, Post]);
+    const conn = SQLiteConnection.new([Author, Post]);
 
     await (await conn["db"]()).exec(
       "CREATE TABLE author (other INTEGER NOT NULL PRIMARY KEY);" +
@@ -760,7 +804,7 @@ describe("prepare", () => {
       name = str();
     }
 
-    const conn = new SQLiteConnection([Foo]);
+    const conn = SQLiteConnection.new([Foo]);
 
     await expect(Foo.find({})).rejects.toThrow(/^Error running SQL: no such table: foo\nSELECT/);
     await conn.close();
@@ -771,7 +815,7 @@ describe("prepare", () => {
       name = str();
     }
 
-    const conn = await new TestConnection([Foo]);
+    const conn = await TestConnection.new([Foo]);
     const builder = new Builder();
 
     builder.use(Foo);
@@ -784,9 +828,9 @@ describe("prepare", () => {
       name = str();
     }
 
-    const conn = new SQLiteConnection([Foo]);
+    const conn = SQLiteConnection.new([Foo]);
 
-    vi.spyOn(conn as any, "db").mockResolvedValue({
+    spy(conn as any, "db").mockResolvedValue({
       all: () => Promise.reject("nope")
     });
 
@@ -801,7 +845,7 @@ describe("prepare", () => {
 
     class Bar extends Type {}
 
-    new TestConnection([Foo, Bar]);
+    TestConnection.new([Foo, Bar]);
 
     expect(() => Query(where => {
       const foo = where(Foo);

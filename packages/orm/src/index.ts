@@ -1,3 +1,4 @@
+export { Connection } from './Connection';
 export { default, Type } from './Type';
 export type { Compat, Insert, Values } from './Type';
 export type { Infer } from './fields';

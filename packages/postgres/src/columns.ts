@@ -53,8 +53,11 @@ export class TimeColumn extends SQLTimeColumn {
   }
 
   get(value: unknown) {
-    if (value instanceof Date && this.type === "timestamp" && !this.timezone)
-      return new Date(value.getTime() - value.getTimezoneOffset() * 60000);
+    if (this.type === "timestamp" && !this.timezone)
+      if (value instanceof Date)
+        return new Date(value.getTime() - value.getTimezoneOffset() * 60000);
+      else if (typeof value == "string")
+        return super.get(value.replace(" ", "T") + "Z");
 
     return super.get(value);
   }

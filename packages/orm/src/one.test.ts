@@ -1,6 +1,7 @@
 import { Context } from '@expressive/mvc';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { Connection } from './Connection';
 import { memory } from './memory';
 import { lazy, one } from './one';
 import { Type } from './Type';
@@ -13,6 +14,11 @@ function caught(read: () => unknown){
   catch (thrown) {
     return thrown;
   }
+}
+
+function spy<K extends "select" | "insert" | "update" | "remove">(connection: Connection, key: K) {
+  void connection[key];
+  return vi.spyOn(connection, key);
 }
 
 function connect(){
@@ -86,7 +92,7 @@ describe("get", () => {
     const db = memory();
 
     class User extends Type {
-      static connection = { ...db, get: () => Promise.reject(new Error("offline")) };
+      static connection = Object.assign(memory(), { select: () => Promise.reject(new Error("offline")) });
       static table = "user";
       name = str();
     }
@@ -106,7 +112,7 @@ describe("get", () => {
     const db = memory();
 
     class User extends Type {
-      static connection = { ...db, get: () => Promise.reject("offline") };
+      static connection = Object.assign(memory(), { select: () => Promise.reject("offline") });
       static table = "user";
       name = str();
     }
@@ -180,7 +186,7 @@ describe("insert", () => {
 
     await post.update({ user: { name: "Bob" } });
 
-    const [row] = await Post.connection.get("post", [["id", "=", post.id]]);
+    const [row] = await Post.connection.select("post", [["id", "=", post.id]]);
     const bob = await User.one({ name: "Bob" });
 
     expect(row.user_id).toBe(bob.id);
@@ -283,7 +289,7 @@ describe("lazy", () => {
   it("will suspend until loaded", async () => {
     await ready;
     const post = await Post.one({ title: "Hello World" }, true);
-    const get = vi.spyOn(Table.connection, "get");
+    const get = spy(Table.connection, "select");
 
     expect(get).not.toHaveBeenCalled();
 
@@ -366,7 +372,7 @@ describe("lazy", () => {
     const db = memory();
 
     class User extends Type {
-      static connection = { ...db, get: () => Promise.reject(new Error("offline")) };
+      static connection = Object.assign(memory(), { select: () => Promise.reject(new Error("offline")) });
       static table = "user";
       name = str();
     }

@@ -80,7 +80,7 @@ export class SQLiteConnection extends Connection {
         throw new Error(`Table ${type.table} does not exist.`);
 
     await this.createSchema(missing);
-    Object.defineProperty(this, 'ready', { value: true });
+    (this as Connection).set({ ready: true });
 
     return this;
   }
