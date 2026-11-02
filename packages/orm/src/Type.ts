@@ -1,6 +1,6 @@
 import { State } from '@expressive/mvc';
 
-import { FIELDS, num } from './fields';
+import { DIRTY, FIELDS, num } from './fields';
 import { Field, underscore } from './Field';
 import type { Rows } from './rows';
 import { desc, equal, Where } from './where';
@@ -88,6 +88,41 @@ class NotReady {
 }
 
 const LOADED = new WeakMap<Type.Connection, Map<typeof Type, Map<number, Type>>>();
+const SAVED = new WeakMap<Type, Record<string, unknown> | null>();
+
+async function decode(type: typeof Type, row: Record<string, any>, partial?: boolean) {
+  const values: Record<string, unknown> = {};
+
+  for (const field of type.fields.values())
+    if (!partial || field.column in row)
+      values[field.key] = await field.get(row[field.column], row);
+
+  return values;
+}
+
+function settle(entity: Type, values: Record<string, unknown>, row: Record<string, any>) {
+  const { fields } = entity.constructor as typeof Type;
+  const dirty = DIRTY.get(entity);
+  const saved = SAVED.get(entity) || {};
+
+  entity.set(values as Type.Compat<Type>);
+
+  for (const key in values) {
+    const { column } = fields.get(key)!;
+
+    saved[column] = row[column];
+
+    if (dirty)
+      delete dirty[key];
+  }
+
+  SAVED.set(entity, saved);
+}
+
+function exists(entity: Type) {
+  if (SAVED.get(entity) === null)
+    throw new Error(`${entity.constructor.name} ${entity.id} was deleted.`);
+}
 
 interface Type {
   set(): State.Updated<this>;
@@ -128,26 +163,62 @@ abstract class Type extends State {
 
   protected async onDelete?(): Promise<void>;
 
+  async save(): Promise<this> {
+    exists(this);
+
+    const type = this.constructor as typeof Type;
+    const { connection, ref } = type;
+    const dirty = DIRTY.get(this) || {};
+
+    if (this.id == null) {
+      const row = await type.prepare({ ...dirty, ...type.subset } as Type.Update<Type>);
+      const inserted = await connection.insert(ref, row, true);
+
+      settle(this, await decode(type, inserted), inserted);
+      type.loaded.set(this.id, this);
+
+      return this;
+    }
+
+    const saved = SAVED.get(this) || {};
+    const data: Record<string, unknown> = {};
+
+    for (const key in dirty)
+      data[key] = dirty[key] ?? null;
+
+    const row = await type.prepare(data as Type.Update<Type>, true);
+
+    for (const column in row)
+      if ((row[column] ?? null) === (saved[column] ?? null))
+        delete row[column];
+
+    if (Object.keys(row).length) {
+      await connection.update(ref, this.id, row);
+      settle(this, await decode(type, row, true), row);
+    }
+
+    return this;
+  }
+
   async update(data: Type.Update<this>) {
-    if (Object.keys(data).length === 0)
-      return;
-
-    const type = this.constructor as typeof Type
-    const row = await type.prepare(data, true);
-    await type.connection.update(type.ref, this.id, row);
-
-    for (const field of type.fields.values())
-      if (field.column in row)
-        (this as any)[field.key] = await field.get(row[field.column], row);
+    exists(this);
+    this.set(data as Type.Compat<this>);
+    await this.save();
   }
 
   async delete() {
-    const { connection, ref } = this.constructor as typeof Type;
+    exists(this);
+
+    const type = this.constructor as typeof Type;
 
     if (typeof this.onDelete === "function")
       await this.onDelete();
 
-    await connection.remove(ref, this.id);
+    await type.connection.remove(type.ref, this.id);
+
+    type.loaded.delete(this.id);
+    SAVED.set(this, null);
+    this.set(null);
   }
 
   static schema?: string;
@@ -157,9 +228,7 @@ abstract class Type extends State {
 
   static get ref() {
     const { schema, table } = this;
-    const ref = schema ? `${schema}.${table}` : table;
-    Object.defineProperty(this, 'ref', { value: ref });
-    return ref;
+    return schema ? `${schema}.${table}` : table;
   }
 
   static get fields(): Map<string, Field> {
@@ -177,17 +246,13 @@ abstract class Type extends State {
     this: Type.Class<T>,
     raw: Record<string, any>
   ){
-    const values: Record<string, unknown> = {};
-
-    for (const field of this.fields.values())
-      values[field.key] = await field.get(raw[field.column], raw);
-
+    const values = await decode(this, raw);
     let entity = this.loaded.get(values.id as number) as T | undefined;
 
-    if (entity)
-      entity.set(values as Type.Compat<T>);
-    else
+    if (!entity)
       this.loaded.set(values.id as number, entity = (this as any).new(values) as T);
+
+    settle(entity, values, raw);
 
     return entity;
   }
@@ -209,11 +274,8 @@ abstract class Type extends State {
     await this.connection.update(this.ref, id, await this.prepare(data, true));
   }
 
-  static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>){
-    const row = await this.prepare({ ...data as any, ...this.subset });
-    const inserted = await this.connection.insert(this.ref, row, true);
-
-    return await this.parse(inserted) as T;
+  static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>): Promise<T> {
+    return (this as any).new(data).save();
   }
 
   static async one<T extends Type>(this: Type.Class<T>, id: number, expect: boolean): Promise<T | undefined>;
