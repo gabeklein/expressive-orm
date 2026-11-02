@@ -793,6 +793,7 @@ describe("new", () => {
     try {
       await expect(user).rejects.toThrow("Missing required field: name");
       await expect(pending).rejects.toThrow("Missing required field: name");
+      await settled();
     }
     finally {
       release();
@@ -800,6 +801,23 @@ describe("new", () => {
 
     expect(destroyed).toHaveBeenCalled();
     expect([...User.loaded.values()]).not.toContain(user);
+    expect(didCatch).not.toHaveBeenCalled();
+  })
+
+  it("will report failure not awaited", async () => {
+    const didCatch = vi.fn();
+    const release = Model.on({ catch: didCatch });
+    // @ts-expect-error
+    const user = User.new({});
+    const pending = (() => { try { return user.name } catch (e) { return e } })();
+
+    try {
+      await expect(pending).rejects.toThrow("Missing required field: name");
+    }
+    finally {
+      release();
+    }
+
     expect(didCatch).toHaveBeenCalledWith(expect.objectContaining({ message: "Missing required field: name" }), "setup", undefined);
   })
 
@@ -811,13 +829,14 @@ describe("new", () => {
 
     try {
       await expect(User.new({ name: "John" })).rejects.toBe(failure);
+      await settled();
     }
     finally {
       release();
       insert.mockRestore();
     }
 
-    expect(didCatch).toHaveBeenCalledWith(failure, "setup", undefined);
+    expect(didCatch).not.toHaveBeenCalled();
   })
 })
 

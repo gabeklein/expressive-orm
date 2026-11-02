@@ -99,7 +99,8 @@ class NotReady extends Connection {
 
 let DETACHED: Connection | undefined;
 
-const MISSING = new WeakSet<object>();
+const HANDLED = new WeakSet<object>();
+const AWAITED = new WeakSet<Type>();
 const PENDING = new WeakSet<Type>();
 
 async function decode(type: typeof Type, row: Record<string, any>, partial?: boolean) {
@@ -177,6 +178,8 @@ function exists(entity: Type) {
 
 function awaitable<T extends Type>(entity: T) {
   function then(this: T, resolve?: (value: T) => unknown, reject?: (reason: unknown) => unknown){
+    AWAITED.add(entity);
+
     return entity.get(() => {}).then(() => {
       delete (entity as any).then;
       return this;
@@ -316,11 +319,20 @@ abstract class Type extends Model {
 
     return awaitable(placeholder(() => (Model.new as Function).call(type, async (entity: Type) => {
       const { loaded } = type;
-      const row = await type.prepare({ ...values, ...type.subset } as Type.Update<Type>);
-      const inserted = await type.connection.insert(type.ref, row, true);
 
-      settle(entity, await decode(type, inserted));
-      loaded.set(entity.id, entity);
+      try {
+        const row = await type.prepare({ ...values, ...type.subset } as Type.Update<Type>);
+        const inserted = await type.connection.insert(type.ref, row, true);
+
+        settle(entity, await decode(type, inserted));
+        loaded.set(entity.id, entity);
+      }
+      catch (error) {
+        if (AWAITED.has(entity))
+          HANDLED.add(error as object);
+
+        throw error;
+      }
     }) as T & Type));
   }
 
@@ -467,7 +479,7 @@ function reference<T extends Type>(type: Type.Class<T>, id: T["id"]): T {
       if (!row) {
         const error = new Error(`No ${type.name} found with id ${id}`);
 
-        MISSING.add(error);
+        HANDLED.add(error);
         throw error;
       }
 
@@ -524,7 +536,7 @@ async function adopt<T extends Type>(type: Type.Class<T>, id: T["id"]): Promise<
 
 Type.on({
   catch(error) {
-    if (!MISSING.has(error as object))
+    if (!HANDLED.has(error as object))
       return error;
   }
 });
