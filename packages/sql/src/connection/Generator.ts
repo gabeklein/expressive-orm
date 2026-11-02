@@ -90,10 +90,7 @@ export class Generator {
     if(isValue(input))
       return this.reference(input);
 
-    if(typeof input === "string")
-      return `'${input.replace(/'/g, "\\'")}'`;
-
-    return String(input);
+    return String(escape(input));
   }
 
   protected jsonTable(_table: DataTable): string {

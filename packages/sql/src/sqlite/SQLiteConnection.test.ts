@@ -873,3 +873,67 @@ describe("prepare", () => {
     })).toThrow("Table bar has no joins.");
   })
 })
+
+describe("quoting", () => {
+  const values = ["it's", 'say "hi"', "back\\slash \\'", "x\\' OR 1=1 --"];
+
+  it("will round trip quotes and backslashes", async () => {
+    class User extends Type {
+      name = str();
+      note = str({ nullable: true });
+    }
+
+    await TestConnection.new([User]);
+
+    for (const name of values)
+      await Query(where => void where(User, { name }));
+
+    await Query(where => {
+      const user = where(User);
+
+      where(user.id).equal(1);
+      where(user).update({ note: values[2] });
+    });
+
+    for (const name of values) {
+      const found = await Query(where => {
+        const user = where(User);
+
+        where(user.name).equal(name);
+
+        return user.name;
+      });
+
+      expect(found).toEqual([name]);
+    }
+
+    const [note] = await Query(where => {
+      const user = where(User);
+
+      where(user.id).equal(1);
+
+      return user.note;
+    });
+
+    expect(note).toBe(values[2]);
+  })
+
+  it("will not inject through a string literal", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+    await User.insert({ name: "Gabe" });
+
+    const found = await Query(where => {
+      const user = where(User);
+
+      where(user.name).equal("x\\' OR 1=1 --");
+
+      return user.name;
+    });
+
+    expect(found).toEqual([]);
+  })
+})
