@@ -14,6 +14,7 @@ Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a smal
 - The driver floor's `get(table, constraints, limit, offset)` is `select` - `get` is Model's.
 - The constraint query behind `find`, `one` and `all` is the protected `fetch`.
 - A `Field`'s JS constructor moves from `type` to `kind`; `type` is the datatype string.
+- `values` is `columns`: the row keyed by property, decoded, a relation as its id - never suspending or loading a relation - in the shape `insert` takes. `get()` is the full snapshot. The `Values` type is `Columns` (`Type.Columns<T>`).
 
 **Writes**
 

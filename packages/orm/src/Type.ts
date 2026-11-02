@@ -1,19 +1,17 @@
 import { Model } from '@expressive/mvc';
 
 import { Connection } from './Connection';
-import { DIRTY, FIELDS, num } from './fields';
+import { DIRTY, FIELDS, num, PEEK } from './fields';
 import { Field, Omits, Optional, underscore } from './Field';
 import { Query } from './query/Query';
 import type { Rows } from './rows';
 import { desc, equal, Where } from './where';
 
-type Values<T extends Type> = {
+type Compat<T extends Type> = {
   [K in Exclude<keyof T, keyof Type> as (
     T[K] extends Type.Class | Rows<any, any> ? never : K
-  )]: T[K];
+  )]?: T[K];
 }
-
-type Compat<T extends Type> = Partial<Values<T>>;
 
 type Update<T extends Type> = {
   [K in Exclude<keyof T, keyof Type>]?: Inserts<T[K]>
@@ -24,6 +22,14 @@ type ClassKeys<T> = {
 }[keyof T];
 
 type Fields<T extends Type> = Exclude<keyof T, Exclude<keyof Type, "id"> | ClassKeys<T>>;
+
+type Column<T> = T extends { is: unknown; save(): unknown; id: infer I } ? I : T;
+
+type Columns<T extends Type> = Pick<T, "id"> & {
+  [K in Exclude<keyof T, keyof Type> as (
+    T[K] extends Type.Class | Rows<any, any> | ((...args: any[]) => any) ? never : K
+  )]: Column<T[K]>;
+}
 
 type Inserts<T> = T extends Type ? T | T["id"] | Type.Insert<T> : T;
 
@@ -60,6 +66,7 @@ declare namespace Type {
 
   export {
     Class,
+    Columns,
     Compat,
     Connection,
     Constraint,
@@ -68,8 +75,7 @@ declare namespace Type {
     KeyOf,
     Query,
     Result,
-    Update,
-    Values
+    Update
   }
 }
 
@@ -189,15 +195,26 @@ abstract class Type extends Model {
     return map;
   }
 
-  get values() {
-    const values: Record<string, any> = {};
-    const type = this.constructor as typeof Type;
+  get columns(): Type.Columns<this> {
+    const columns: Record<string, unknown> = {};
+    const { fields } = this.constructor as typeof Type;
 
-    for (const [key] of type.fields)
-      values[key] = (this as any)[key];
+    PEEK.add(this.is);
 
-    return Object.freeze(values) as Values<this>;
-  };
+    try {
+      for (const key of fields.keys())
+        columns[key] = (this as any)[key];
+    }
+    finally {
+      PEEK.delete(this.is);
+    }
+
+    return Object.freeze(columns) as Type.Columns<this>;
+  }
+
+  set columns(_: unknown) {
+    throw new Error(`${this}.columns is read-only.`);
+  }
 
   protected async onDelete?(): Promise<void>;
 
@@ -468,7 +485,7 @@ function buildConstraints(where: Type.Query<any>) {
 export {
   Type,
   Type as default,
-  Values,
+  Columns,
   Compat,
   Insert,
 };
