@@ -97,7 +97,7 @@ import { SQLiteConnection } from '@expressive/sql';
 const db = await SQLiteConnection.new([User, Account, Session], "app.db");
 ```
 
-`new(types, ...)` binds each class to the connection. Awaiting it runs `sync`: missing tables are created, existing ones checked against the classes. Omit the filename for an in-memory database. `await db.close()` releases it and destroys every entity loaded through it.
+`new(types, ...)` binds each class to the connection. Awaiting it runs `sync`: missing tables are created, missing columns added, existing ones checked against the classes. A column added to a class appears on reopen, reading `undefined` or its `fallback` on old rows; one that cannot fill existing rows - primary, or `NOT NULL` without a `fallback` - is reported and nothing changes. Type drift is reported, never altered; columns not on the class are left alone. `sync(false)` only verifies. Omit the filename for an in-memory database. `await db.close()` releases it and destroys every entity loaded through it.
 
 ```ts
 import { PGConnection, PGLiteConnection } from '@expressive/postgres';

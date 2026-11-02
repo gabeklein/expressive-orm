@@ -42,7 +42,7 @@ await gabe.set({ name: "Gabriel" });
 await db.close();
 ```
 
-`SQLiteConnection.new(types, filename?)` binds the classes; awaiting it creates missing tables and checks existing ones. Omit `filename` for an in-memory database.
+`SQLiteConnection.new(types, filename?)` binds the classes; awaiting it creates missing tables, adds missing columns and checks existing ones. SQLite cannot add a `unique` column or one defaulting to `"NOW"`; `sync` reports those. Omit `filename` for an in-memory database.
 
 ## Also here
 

@@ -7,7 +7,7 @@
 **Connections**
 
 - `PGConnection.new(types, config)` - a connection string, `pg` `PoolConfig` or `Pool`. `PGLiteConnection.new(types, dataDir | pglite, options)`.
-- Awaiting a connection runs `sync`: verify existing tables, create missing ones, install triggers. `PGConnection` creates them too.
+- Awaiting a connection runs `sync`: verify existing tables, create missing ones, add missing columns with their foreign keys, install triggers. `PGConnection` creates them too. A column it cannot add - primary, `NOT NULL` without a `fallback`, `unique` with a `fallback` - is reported with the reason and nothing changes; a missing `optional` one is left absent. Type drift is reported, never altered; columns not on the class are ignored. `sync(false)` throws for a missing column too.
 - Reopening verifies parameterized and aliased types - `varchar(n)`, `char(n)`, `numeric(p,s)`, `timestamp (p)`, `serial`, `float`, `double` - ignoring length and precision.
 - `close()` ends a `Pool` or `PGlite` only when the connection created it.
 - `Type.find`, `one`, `insert`, `new`, `update`, `delete`, an entity's `set` and `Type.query` execute against the database; `insert` reads the stored row back through `RETURNING`, generated `id` and defaults included.

@@ -14,7 +14,7 @@
 **SQLite**
 
 - The driver is picked at runtime: `bun:sqlite`, `node:sqlite` (Node 24), then `better-sqlite3`, `sqlite3` or `@libsql/client`, the last three optional peers.
-- `sync` validates existing tables and creates only missing ones, so a database file reopens; `sync(false)` throws for a missing table. Awaiting the connection runs it.
+- `sync` validates existing tables, creates missing ones and adds missing columns with `ALTER TABLE ... ADD COLUMN`, so a database file reopens after a field is added. A column it cannot add - primary, `unique`, `NOT NULL` without a `fallback`, or defaulting to `"NOW"` - is reported with the reason and nothing changes. Type drift is reported, never altered; columns not on the class are ignored. `sync(false)` throws for a missing table or column. Awaiting the connection runs it.
 - Schema renders `PRIMARY KEY` for any primary column, `DEFAULT` for every `fallback` with `"NOW"` as `CURRENT_TIMESTAMP`, and `one()`'s `onDelete` / `onUpdate`. Each type renders as its affinity - `TEXT`, `INTEGER`, `REAL` or `NUMERIC` (`numeric` and `decimal` were `REAL`) - while a field's `datatype` stays the declared type. `json` is `TEXT`.
 - `date` stores ISO strings by default; `"NOW"` is no longer a value to `set`.
 - `close()` destroys the connection and unbinds its classes.
