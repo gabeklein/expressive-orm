@@ -135,7 +135,6 @@ describe("fields", () => {
 
     const name = User.fields.get("name")!;
 
-    expect(name.property).toBe("name");
     expect(name.datatype).toBe("varchar(3)");
     expect(name.length).toBe(3);
     expect(name.unique).toBe(true);

@@ -44,10 +44,6 @@ export class Field<T = unknown> {
     configure(this, opts);
   }
 
-  get property() {
-    return this.key;
-  }
-
   get datatype() {
     return this.type;
   }

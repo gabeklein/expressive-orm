@@ -184,8 +184,6 @@ function Query(factory: Query.Function<unknown> | Query.Factory<unknown, any[]>)
   return template ? runner : runner();
 }
 
-// Builder and Query form an import cycle; defer the reference so it resolves
-// after both modules finish initializing, regardless of evaluation order.
 Object.defineProperty(Query, "Builder", { get: () => Builder });
 Query.fn = { ...MathOps, bit: BitWise } as Query.Functions;
 

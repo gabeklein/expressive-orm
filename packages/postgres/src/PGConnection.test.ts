@@ -19,8 +19,6 @@ describe('PGConnection', () => {
     
     const prepared = conn.prepare('SELECT * FROM test');
     
-    // Bun surfaces the connection failure as an AggregateError with an empty
-    // message but a populated `code`, unlike node-postgres under node.
     await expect(prepared.all()).rejects.toMatchObject({ code: 'ECONNREFUSED' });
   });
 
