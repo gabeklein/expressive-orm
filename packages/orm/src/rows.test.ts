@@ -93,7 +93,7 @@ describe("rows", () => {
   it("will throw if parent is unsaved", () => {
     const bob = User.new({ name: "Bob" });
 
-    expect(() => bob.profiles).toThrow("Parent entity undefined does not exist");
+    expect(() => bob.profiles).toThrow("Parent User is not saved.");
   });
 });
 
