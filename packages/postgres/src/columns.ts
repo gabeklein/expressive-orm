@@ -71,7 +71,7 @@ export class TimeColumn extends SQLTimeColumn {
     if (typeof out != "string" || this.type !== "timestamp" || this.timezone)
       return out;
 
-    return out.slice(0, 19).replace("T", " ");
+    return out.slice(0, 23).replace("T", " ");
   }
 }
 

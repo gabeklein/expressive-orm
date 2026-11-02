@@ -368,6 +368,25 @@ describe("types", () => {
     expect<Date>(value).toEqual(now);
   })
 
+  it("will keep milliseconds of a timestamp", async () => {
+    class Test extends Type {
+      date = date();
+    }
+
+    await TestConnection.new([ Test ]);
+
+    const at = new Date("2024-01-02T03:04:05.789Z");
+    const { id } = await Test.insert({ date: at });
+
+    const value = await Test.query((foo, where) => {
+      where(foo.id).equal(id);
+
+      return foo.date;
+    }).one(true);
+
+    expect<Date>(value).toEqual(at);
+  })
+
   it("will insert and retrieve a time with timezone", async () => {
     class Test extends Type {
       at = date({ type: "time", timezone: true });
