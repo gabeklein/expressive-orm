@@ -55,7 +55,7 @@ describe("floor", () => {
       id: desc()
     }, 10, 5);
 
-    expect(foo.columns).toEqual({ id: 1, name: "Gabe", rank: 3, active: true });
+    expect(foo).toEqual({ id: 1, name: "Gabe", rank: 3, active: true });
     expect(db.log).toEqual([[
       "SELECT `foo`.`id` AS \"id\", `foo`.`name` AS \"name\", `foo`.`rank` AS \"rank\", `foo`.`active` AS \"active\" " +
       "FROM `foo` " +
@@ -86,7 +86,7 @@ describe("floor", () => {
 
     const foo = await Foo.insert({ name: "Bob", active: false });
 
-    expect(foo.columns).toEqual({ id: 2, name: "Bob", rank: null, active: false });
+    expect(foo).toEqual({ id: 2, name: "Bob", rank: null, active: false });
     expect(db.log).toEqual([[
       "INSERT INTO `foo` (`name`,`active`) SELECT ?,? " +
       "RETURNING `foo`.`id` AS \"id\", `foo`.`name` AS \"name\", `foo`.`rank` AS \"rank\", `foo`.`active` AS \"active\"",
@@ -117,12 +117,8 @@ describe("floor", () => {
 
   it("will remove by id", async () => {
     db.log = [];
-    db.rows = [{ id: 3, name: "Al", rank: null, active: 1 }];
 
-    const foo = await Foo.one(3, true);
-
-    db.log = [];
-    await foo.delete();
+    await Foo.new({ id: 3, name: "Al", active: true }).delete();
 
     expect(db.log).toEqual([[
       "DELETE FROM `foo` WHERE `foo`.`id` = ?",

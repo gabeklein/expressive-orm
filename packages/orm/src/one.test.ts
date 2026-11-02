@@ -1,4 +1,4 @@
-import { Context } from '@expressive/mvc';
+import { Context, Model } from '@expressive/mvc';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Connection } from './Connection';
@@ -13,6 +13,17 @@ function caught(read: () => unknown){
   }
   catch (thrown) {
     return thrown;
+  }
+}
+
+async function rejects(pending: unknown){
+  const release = Model.on({ catch(){} });
+
+  try {
+    return await Promise.resolve(pending).then(() => undefined, error => error);
+  }
+  finally {
+    release();
   }
 }
 
@@ -45,7 +56,7 @@ describe("get", () => {
     await Table.connection.insert("user", { name: "John Doe" });
     await Table.connection.insert("post", { title: "Hello World", user_id: 1 });
 
-    const post = await Post.one({ title: "Hello World" }, true);
+    const post = await Post.get(1);
 
     expect(post.id).toBe(1);
     expect(post.user).toBeInstanceOf(User);
@@ -67,7 +78,7 @@ describe("get", () => {
 
     await Post.connection.insert("post", { title: "Hello World", user_id: null });
 
-    const post = await Post.one({ title: "Hello World" }, true);
+    const post = await Post.get(1);
 
     expect(post.id).toBe(1);
     expect(post.user).toBeUndefined();
@@ -85,7 +96,7 @@ describe("get", () => {
 
     await Post.connection.insert("post", { name: "Hello World" });
 
-    await expect(Post.one()).rejects.toThrow("Missing required relation: User");
+    await expect(rejects(Post.get(1))).resolves.toEqual(new Error("Missing required relation: User"));
   });
 
   it("will annotate failed relation", async () => {
@@ -105,7 +116,7 @@ describe("get", () => {
 
     await db.insert("post", { user_id: 9 });
 
-    await expect(Post.one()).rejects.toThrow("Failed to load relation User for user: offline");
+    await expect(rejects(Post.get(1))).resolves.toEqual(new Error("Failed to load relation User for user: offline"));
   });
 
   it("will pass through non-error rejection", async () => {
@@ -125,7 +136,7 @@ describe("get", () => {
 
     await db.insert("post", { user_id: 9 });
 
-    await expect(Post.one()).rejects.toBe("offline");
+    await expect(rejects(Post.get(1))).resolves.toBe("offline");
   });
 })
 
@@ -149,14 +160,21 @@ describe("insert", () => {
     const user = await ready;
     const post = await Post.insert({ title: "Hello World", user: user.id });
 
-    expect(post.user).toBe(user);
+    expect(post.user).toBe(user.id);
   })
 
-  it("will insert relation by instance", async () => {
+  it("will insert relation by row", async () => {
     const user = await ready;
     const post = await Post.insert({ title: "Hello World", user });
 
-    expect(post.user).toBe(user);
+    expect(post.user).toBe(user.id);
+  })
+
+  it("will insert relation by instance", async () => {
+    const user = await User.get((await ready).id);
+    const post = await Post.insert({ title: "Hello World", user });
+
+    expect(post.user).toBe(user.id);
   })
 
   it("will throw if required relation is missing", async () => {
@@ -175,14 +193,14 @@ describe("insert", () => {
   it("will create relation by insert object", async () => {
     const post = await Post.insert({ title: "Hello World", user: { name: "Jane Doe" } });
 
-    expect(post.user).toBeInstanceOf(User);
-    expect(post.user.id).toBe(2);
-    expect(post.user.name).toBe("Jane Doe");
+    expect(post.user).toBe(2);
+    await expect(User.one(2)).resolves.toEqual({ id: 2, name: "Jane Doe" });
   })
 
   it("will update relation by object", async () => {
     const user = await ready;
-    const post = await Post.insert({ title: "Hello World", user: user.id });
+    const { id } = await Post.insert({ title: "Hello World", user: user.id });
+    const post = await Post.get(id);
 
     await post.update({ user: { name: "Bob" } });
 
@@ -241,19 +259,23 @@ describe("query", () => {
     await ready;
     const post = await Post.one({ user: 1 });
 
-    expect(post.id).toBe(1);
-    expect(post.user).toBeInstanceOf(User);
-    expect(post.user.id).toBe(1);
-    expect(post.user.name).toBe("Gabe");
+    expect(post).toEqual({ id: 1, title: "Hello World", user: 1 });
   })
 
   it("will search for relation by instance", async () => {
     await ready;
-    const gabe = await User.one(1);
+    const gabe = await User.get(1);
     const post = await Post.one({ user: gabe });
 
     expect(post.id).toBe(1);
-    expect(post.user).toBe(gabe);
+  })
+
+  it("will search for relation by row", async () => {
+    await ready;
+    const alice = await User.one(2);
+    const post = await Post.one({ user: alice });
+
+    expect(post.id).toBe(3);
   })
 
   it("will search for relation by query", async () => {
@@ -288,7 +310,7 @@ describe("lazy", () => {
 
   it("will suspend until loaded", async () => {
     await ready;
-    const post = await Post.one({ title: "Hello World" }, true);
+    const post = await Post.get(1);
     const get = spy(Table.connection, "select");
 
     expect(get).not.toHaveBeenCalled();
@@ -316,7 +338,7 @@ describe("lazy", () => {
 
   it("will notify observers when loaded", async () => {
     await ready;
-    const post = await Post.one({ title: "Hello World" }, true);
+    const post = await Post.get(1);
     const effect = vi.fn((state: Post) => {
       return void state.user.name;
     });
@@ -333,7 +355,7 @@ describe("lazy", () => {
 
   it("will resolve async effect when loaded", async () => {
     await ready;
-    const post = await Post.one({ title: "Hello World" }, true);
+    const post = await Post.get(1);
 
     User.loaded.clear();
     post.user = 1 as any;
@@ -351,8 +373,11 @@ describe("lazy", () => {
 
   it("will resolve from identity map", async () => {
     await ready;
-    const user = await User.one(1);
-    const post = await Post.one({ title: "Hello World" }, true);
+    const user = await User.get(1);
+
+    Post.loaded.clear();
+
+    const post = await Post.get(1);
 
     expect(post.user).toBe(user);
   })
@@ -403,7 +428,7 @@ describe("lazy", () => {
 
     await db.insert("post", { user_id: 9 });
 
-    const post = await Post.one();
+    const post = await Post.get(1);
 
     await caught(() => post.user);
 
@@ -453,14 +478,15 @@ describe("references", () => {
 
   it("will share one instance between parents", async () => {
     await ready;
-    const [second, first] = await Post.find();
+    const [first, second] = await Promise.all([Post.get(1), Post.get(2)]);
 
+    expect(first.user).toBeInstanceOf(User);
     expect(first.user).toBe(second.user);
   })
 
   it("will not destroy related entity with parent", async () => {
     await ready;
-    const user = await User.one(1);
+    const user = await User.get(1);
     const first = Post.new({ title: "Third", user });
     const second = Post.new({ title: "Fourth", user });
     const destroyed = vi.fn();
@@ -478,7 +504,7 @@ describe("references", () => {
 
   it("will not join parent context", async () => {
     await ready;
-    const user = await User.one(1);
+    const user = await User.get(1);
     const post = Post.new({ title: "Fifth" });
     const context = new Context({ post });
 
@@ -493,7 +519,7 @@ describe("references", () => {
 
   it("will not dispatch for same relation", async () => {
     await ready;
-    const post = await Post.one(1);
+    const post = await Post.get(1);
     const user = post.user;
 
     await post.set();
@@ -504,8 +530,8 @@ describe("references", () => {
 
   it("will dispatch when relation changes", async () => {
     await ready;
-    const post = await Post.one(1);
-    const other = await User.insert({ name: "Other" });
+    const post = await Post.get(1);
+    const other = await User.new({ name: "Other" }).save();
 
     post.user = other;
 
@@ -514,7 +540,7 @@ describe("references", () => {
 
   it("will update relation in place", async () => {
     await ready;
-    const post = await Post.one(2);
+    const post = await Post.get(2);
 
     await post.update({ user: { name: "Carol" } });
 

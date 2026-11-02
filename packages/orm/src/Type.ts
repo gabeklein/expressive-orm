@@ -2,7 +2,7 @@ import { Context, Model } from '@expressive/mvc';
 
 import { Connection } from './Connection';
 import { DIRTY, FIELDS, num, PEEK, placeholder } from './fields';
-import { Field, Omits, Optional, underscore } from './Field';
+import { Field, Omits, Optional, row, underscore } from './Field';
 import { Query } from './query/Query';
 import type { Rows } from './rows';
 import { desc, equal, Where } from './where';
@@ -97,7 +97,6 @@ class NotReady extends Connection {
 
 let DETACHED: Connection | undefined;
 
-const INSERT = new WeakSet<Type>();
 const MISSING = new WeakSet<object>();
 const SAVED = new WeakMap<Type, Record<string, unknown> | null>();
 
@@ -143,9 +142,7 @@ async function receive(connection: Type.Connection, { table, op, id, row }: Conn
       continue;
 
     if (op == "delete") {
-      loaded.delete(key);
-      SAVED.set(entity, null);
-      entity.set(null);
+      evict(loaded, key, entity);
       continue;
     }
 
@@ -167,6 +164,27 @@ async function receive(connection: Type.Connection, { table, op, id, row }: Conn
   }
 }
 
+function register(type: typeof Type){
+  const { connection } = type;
+  const types = connection._loaded;
+  let map = types.get(type);
+
+  if (!map) {
+    if (!types.size && connection.subscribe && !connection.get(null))
+      connection.get(null, connection.subscribe(change => receive(connection, change)));
+
+    types.set(type, map = new Map());
+  }
+
+  return map;
+}
+
+function evict(loaded: Map<unknown, Type>, key: unknown, entity: Type) {
+  loaded.delete(key);
+  SAVED.set(entity, null);
+  entity.set(null);
+}
+
 function exists(entity: Type) {
   if (SAVED.get(entity) === null)
     throw new Error(`${entity.constructor.name} ${entity.id} was deleted.`);
@@ -176,18 +194,7 @@ abstract class Type extends Model {
   id: Optional<string | number> = num({ primary: true, increment: true });
 
   static get loaded(){
-    const { connection } = this;
-    const types = connection._loaded;
-    let map = types.get(this);
-
-    if (!map) {
-      if (!types.size && connection.subscribe && !connection.get(null))
-        connection.get(null, connection.subscribe(change => receive(connection, change)));
-
-      types.set(this, map = new Map());
-    }
-
-    return map;
+    return register(this);
   }
 
   get columns(): Type.Columns<this> {
@@ -220,7 +227,7 @@ abstract class Type extends Model {
     const { connection, loaded, ref } = type;
     const dirty = DIRTY.get(this) || {};
 
-    if (INSERT.delete(this) || this.id == null) {
+    if (this.id == null) {
       const row = await type.prepare({ ...dirty, ...type.subset } as Type.Update<Type>);
       const inserted = await connection.insert(ref, row, true);
 
@@ -269,10 +276,7 @@ abstract class Type extends Model {
       await this.onDelete();
 
     await connection.remove(ref, this.id);
-
-    loaded.delete(this.id);
-    SAVED.set(this, null);
-    this.set(null);
+    evict(loaded, this.id, this);
   }
 
   static schema?: string;
@@ -319,21 +323,6 @@ abstract class Type extends Model {
     return Context.get(this, () => reference(this as unknown as Type.Class<T>, id));
   }
 
-  protected static async parse<T extends Type>(
-    this: Type.Class<T>,
-    raw: Record<string, any>
-  ){
-    const values = await decode(this, raw);
-    let entity = this.loaded.get(values.id) as T | undefined;
-
-    if (!entity)
-      this.loaded.set(values.id, entity = (this as any).new(values) as T);
-
-    settle(entity, values, raw);
-
-    return entity;
-  }
-
   protected static async prepare<T extends Type>(
     this: Type.Class<T>,
     data: Update<T>,
@@ -347,7 +336,7 @@ abstract class Type extends Model {
     return row;
   }
 
-  static async update<T extends Type>(this: Type.Class<T>, id: T["id"], data: Type.Update<T>) {
+  static async update<T extends Type>(this: Type.Class<T>, id: T["id"], data: Type.Update<T>): Promise<void> {
     const { connection, loaded, ref } = this;
     const row = await this.prepare(data, true);
     const entity = loaded.get(id);
@@ -358,33 +347,24 @@ abstract class Type extends Model {
       settle(entity, await decode(this, row, true), row);
   }
 
-  static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>): Promise<T> {
-    const entity = (this as any).new(data) as T;
+  static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>): Promise<Type.Columns<T>> {
+    const { connection, ref, subset } = this;
+    const input = await this.prepare({ ...data, ...subset } as Type.Update<T>);
 
-    INSERT.add(entity);
+    register(this);
 
-    return entity.save();
+    return row(this.fields, await connection.insert(ref, input, true)) as Promise<Type.Columns<T>>;
   }
 
-  static async one<T extends Type>(this: Type.Class<T>, id: T["id"], expect: boolean): Promise<T | undefined>;
-  static async one<T extends Type>(this: Type.Class<T>, id: T["id"], reload?: true): Promise<T>;
-  static async one<T extends Type>(this: Type.Class<T>, where: Type.Query<T>, expect: boolean): Promise<T | undefined>;
-  static async one<T extends Type>(this: Type.Class<T>, where?: Type.Query<T>, expect?: true): Promise<T>;
-  static async one<T extends Type>(this: Type.Class<T>, where?: T["id"] | Type.Query<T>, arg?: boolean): Promise<T | undefined> {
-    if (where != null && typeof where != "object"){
-      if(!arg) {
-        const cached = this.loaded.get(where);
-
-        if(cached)
-          return cached as T;
-      }
-
+  static async one<T extends Type>(this: Type.Class<T>, where: T["id"] | Type.Query<T> | undefined, expect: boolean): Promise<Type.Columns<T> | undefined>;
+  static async one<T extends Type>(this: Type.Class<T>, where?: T["id"] | Type.Query<T>, expect?: true): Promise<Type.Columns<T>>;
+  static async one<T extends Type>(this: Type.Class<T>, where?: T["id"] | Type.Query<T>, expect?: boolean){
+    if (where != null && typeof where != "object")
       where = { id: equal(where) };
-    }
 
     const [row] = await this.fetch(where, 1);
 
-    if (!row && arg !== false)
+    if (!row && expect !== false)
       throw new Error(`No ${this.name} found with: \n${JSON.stringify(where, null, 2)}\n`);
 
     return row;
@@ -406,12 +386,13 @@ abstract class Type extends Model {
   }
 
   protected static async fetch<T extends Type>(
+    this: Type.Class<T>,
     from?: Type.Constraint[] | Type.Query<T>,
     limit?: number,
     offset?: number
-  ): Promise<T[]> {
+  ){
     const rows = await select(this, from, limit, offset);
-    return Promise.all(rows.map(row => this.parse(row) as Promise<T>));
+    return Promise.all(rows.map(raw => row(this.fields, raw) as Promise<Type.Columns<T>>));
   }
 
   static async find<T extends Type>(
@@ -427,7 +408,7 @@ abstract class Type extends Model {
     this: Type.Class<T>,
     pageSize: number,
     where?: Type.Query<T>
-  ): AsyncGenerator<T[]> {
+  ): AsyncGenerator<Type.Columns<T>[]> {
     let offset = 0;
     let done = false;
 
@@ -465,6 +446,8 @@ async function select(
       query.push([field.column, op, await computed]);
     }
   }
+
+  register(type);
 
   return connection.select(ref, query, limit, offset);
 }
@@ -512,6 +495,30 @@ function reference<T extends Type>(type: Type.Class<T>, id: T["id"]): T {
   return entity;
 }
 
+async function adopt<T extends Type>(type: Type.Class<T>, id: T["id"]): Promise<T | undefined> {
+  const { loaded } = type;
+  let entity = loaded.get(id) as T | undefined;
+
+  if (entity)
+    return entity;
+
+  const [raw] = await select(type, { id: equal(id) }, 1);
+
+  if (!raw)
+    return;
+
+  const values = await decode(type, raw);
+
+  entity = loaded.get(values.id) as T | undefined;
+
+  if (!entity)
+    loaded.set(values.id, entity = (type as any).new(values) as T);
+
+  settle(entity, values, raw);
+
+  return entity;
+}
+
 Type.on({
   catch(error) {
     if (!MISSING.has(error as object))
@@ -544,6 +551,7 @@ function buildConstraints(where: Type.Query<any>) {
 }
 
 export {
+  adopt,
   Type,
   Type as default,
   Columns,

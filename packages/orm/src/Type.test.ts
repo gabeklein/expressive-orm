@@ -14,6 +14,39 @@ function spy<K extends "select" | "insert" | "update" | "remove">(connection: Co
   return vi.spyOn(connection, key);
 }
 
+class Live extends Connection {
+  _db = memory();
+  _emit?: (change: Connection.Change) => void;
+  _subscribed = 0;
+
+  select(...args: Parameters<Connection["select"]>){
+    return this._db.select(...args);
+  }
+
+  insert(...args: Parameters<Connection["insert"]>){
+    return this._db.insert(...args);
+  }
+
+  update(...args: Parameters<Connection["update"]>){
+    return this._db.update(...args);
+  }
+
+  remove(...args: Parameters<Connection["remove"]>){
+    return this._db.remove(...args);
+  }
+
+  subscribe(listener: (change: Connection.Change) => void){
+    this._emit = listener;
+    this._subscribed++;
+
+    return () => {
+      this._emit = undefined;
+    };
+  }
+}
+
+const settled = () => new Promise(res => setTimeout(res));
+
 function connect(){
   return class Table extends Type {
     static connection = memory();
@@ -25,7 +58,7 @@ it("will be a Model", async () => {
     name = str();
   }
 
-  const user = await User.insert({ name: "John" });
+  const user = await User.new({ name: "John" }).save();
 
   expect(user).toBeInstanceOf(Model);
   expect(user.get()).toEqual({ id: 1, name: "John" });
@@ -61,7 +94,7 @@ it("will allow for methods", async () => {
     }
   }
 
-  const user = await User.insert({ name: "John" });
+  const user = await User.new({ name: "John" }).save();
 
   expect(user.id).toBe(1);
   expect(user.name).toBe("John");
@@ -168,7 +201,7 @@ describe("columns", () => {
   })();
 
   it("will output columns", async () => {
-    const user = await User.insert({ name: "John" });
+    const user = await User.new({ name: "John" }).save();
 
     expect(user.columns).toEqual({ id: user.id, name: "John", age: undefined });
     expect(Object.isFrozen(user.columns)).toBe(true);
@@ -183,7 +216,7 @@ describe("columns", () => {
 
   it("will read eager relation as id", async () => {
     await ready;
-    const post = await Post.one({ title: "Hello" });
+    const post = await Post.get(1);
 
     expect(post.user).toBeInstanceOf(User);
     expect(post.columns.user).toBe(1);
@@ -192,8 +225,9 @@ describe("columns", () => {
   it("will read lazy relation as id without loading", async () => {
     await ready;
     User.loaded.delete(2);
+    Post.loaded.delete(1);
 
-    const post = await Post.one({ title: "Hello" }, true);
+    const post = await Post.get(1);
     const select = spy(Table.connection, "select");
 
     expect(post.columns).toEqual({ id: post.id, title: "Hello", when: undefined, user: 1, editor: 2 });
@@ -214,7 +248,7 @@ describe("columns", () => {
 
   it("will read unsaved relation by instance", async () => {
     await ready;
-    const user = await User.one(1);
+    const user = await User.get(1);
     const post = Post.new({ title: "Draft", user });
 
     expect(post.columns).toEqual({ id: undefined, title: "Draft", when: undefined, user: 1, editor: undefined });
@@ -222,8 +256,8 @@ describe("columns", () => {
 
   it("will update effect on column and relation", async () => {
     await ready;
-    const gabe = await User.one(1);
-    const bob = await User.one(2);
+    const gabe = await User.get(1);
+    const bob = await User.get(2);
     const post = Post.new({ title: "Draft", user: gabe });
     const effect = vi.fn();
 
@@ -242,7 +276,7 @@ describe("columns", () => {
 
   it("will update effect on settled live update", async () => {
     await ready;
-    const post = await Post.one({ title: "Hello" });
+    const post = await Post.get(1);
     const effect = vi.fn();
 
     post.get($ => void effect($.columns.title));
@@ -257,18 +291,17 @@ describe("columns", () => {
 
   it("will insert from columns", async () => {
     await ready;
-    const post = await Post.one({ title: "Hello" });
+    const post = await Post.get(1);
     const { id, ...row } = post.columns;
     const copy = await Post.insert(row);
 
-    expect(copy).not.toBe(post);
-    expect(copy.columns).toEqual({ ...post.columns, id: copy.id });
+    expect(copy).toEqual({ ...post.columns, id: copy.id });
   })
 
   it("will serialize as JSON", async () => {
     await ready;
     const when = new Date("2024-01-01T00:00:00.000Z");
-    const user = await User.one(1);
+    const user = await User.get(1);
     const post = Post.new({ title: "Draft", when, user });
 
     expect(JSON.parse(JSON.stringify(post.columns))).toEqual({
@@ -319,7 +352,66 @@ describe("codecs", () => {
   })
 })
 
+describe("rows", () => {
+  class Table extends connect() {}
+
+  class User extends Table {
+    static table = "user";
+    name = str();
+  }
+
+  class Post extends Table {
+    static table = "post";
+    title = str();
+    when = date(orNull);
+    data = json<{ a: number }>(orNull);
+    user = one(User);
+    editor = one(User, orNull, { column: "editor_id" });
+  }
+
+  it("will read frozen plain rows", async () => {
+    const user = await User.insert({ name: "Gabe" });
+    const when = new Date(0);
+    const post = await Post.insert({ title: "Hello", when, data: { a: 1 }, user });
+    const reads = [post, await Post.one(post.id), ...await Post.find()];
+
+    expect(post).toEqual({ id: 1, title: "Hello", when, data: { a: 1 }, user: 1, editor: undefined });
+
+    for (const row of reads) {
+      expect(row).toEqual(post);
+      expect(row).not.toBeInstanceOf(Type);
+      expect(Object.isFrozen(row)).toBe(true);
+    }
+
+    expect(JSON.parse(JSON.stringify(post))).toEqual({
+      id: 1, title: "Hello", when: when.toISOString(), data: { a: 1 }, user: 1
+    });
+    expect(User.loaded.size).toBe(0);
+    expect(Post.loaded.size).toBe(0);
+  })
+})
+
 describe("insert", () => {
+  it("will return the stored row", async () => {
+    const db = memory();
+    const { insert } = db;
+
+    class Post extends Type {
+      static connection = Object.assign(db, {
+        insert: (table: string, row: Record<string, any>) => insert(table, { status: "draft", ...row }, true)
+      });
+
+      title = str();
+      status = str(optional);
+    }
+
+    const post = await Post.insert({ title: "Hello" });
+
+    expect(post).toEqual({ id: 1, title: "Hello", status: "draft" });
+    expect(Object.isFrozen(post)).toBe(true);
+    expect(Post.loaded.size).toBe(0);
+  })
+
   it("will throw on missing required field", async () => {
     class User extends connect() {
       name = str();
@@ -385,7 +477,7 @@ describe("update", () => {
   }
 
   it("will update record", async () => {
-    const user = await User.insert({ name: "John" });
+    const user = await User.new({ name: "John" }).save();
 
     await user.update({ age: 30 });
 
@@ -399,7 +491,7 @@ describe("update", () => {
 
   it("will not update if empty", async () => {
     const update = spy(User.connection, "update");
-    const user = await User.insert({ name: "John" });
+    const user = await User.new({ name: "John" }).save();
 
     await user.update({});
 
@@ -408,7 +500,7 @@ describe("update", () => {
 
   it("will write once", async () => {
     const update = spy(User.connection, "update");
-    const user = await User.insert({ name: "John" });
+    const user = await User.new({ name: "John" }).save();
 
     user.age = 20;
     await user.update({ name: "Bob" });
@@ -420,14 +512,23 @@ describe("update", () => {
   })
 
   it("will update by id", async () => {
-    const user = await User.insert({ name: "John" });
+    const { id } = await User.insert({ name: "John" });
 
-    await User.update(user.id, { name: "Bob" });
+    await expect(User.update(id, { name: "Bob" })).resolves.toBeUndefined();
+    await expect(User.one(id)).resolves.toEqual({ id, name: "Bob", age: undefined });
+  })
 
-    const fresh = await User.one(user.id, true);
+  it("will settle a loaded entity by id", async () => {
+    const user = await User.new({ name: "John" }).save();
+    const select = spy(User.connection, "select");
 
-    expect(fresh).toBe(user);
+    await User.update(user.id, { name: "Bob", age: 30 });
+
     expect(user.name).toBe("Bob");
+    expect(user.age).toBe(30);
+    expect(select).not.toHaveBeenCalled();
+
+    select.mockRestore();
   })
 })
 
@@ -444,7 +545,7 @@ describe("save", () => {
     expect(saved).toBe(user);
     expect(user.id).toBeDefined();
     expect(User.loaded.get(user.id)).toBe(user);
-    await expect(User.one(user.id)).resolves.toBe(user);
+    await expect(User.one(user.id)).resolves.toEqual(user.columns);
   })
 
   it("will assign defaults from inserted row", async () => {
@@ -478,7 +579,7 @@ describe("save", () => {
   })
 
   it("will write only dirty columns", async () => {
-    const user = await User.insert({ name: "John" });
+    const user = await User.new({ name: "John" }).save();
     const update = spy(User.connection, "update");
 
     user.age = 30;
@@ -491,7 +592,7 @@ describe("save", () => {
   })
 
   it("will not save if nothing is dirty", async () => {
-    const user = await User.insert({ name: "John" });
+    const user = await User.new({ name: "John" }).save();
     const update = spy(User.connection, "update");
 
     await expect(user.save()).resolves.toBe(user);
@@ -506,7 +607,7 @@ describe("save", () => {
   })
 
   it("will not save value restored to persisted", async () => {
-    const user = await User.insert({ name: "John" });
+    const user = await User.new({ name: "John" }).save();
     const update = spy(User.connection, "update");
 
     user.name = "Bob";
@@ -519,7 +620,7 @@ describe("save", () => {
   })
 
   it("will clear nullable column", async () => {
-    const user = await User.insert({ name: "John", age: 30 });
+    const user = await User.new({ name: "John", age: 30 }).save();
 
     user.age = undefined;
     await user.save();
@@ -530,16 +631,17 @@ describe("save", () => {
     expect(user.age).toBeNull();
   })
 
-  it("will be clean after hydration", async () => {
-    const user = await User.insert({ name: "John" });
+  it("will not settle from a static read", async () => {
+    const user = await User.new({ name: "John" }).save();
     const update = spy(User.connection, "update");
 
     user.name = "Bob";
-    await User.one(user.id, true);
+    await User.one(user.id);
+    await User.find();
     await user.save();
 
-    expect(user.name).toBe("John");
-    expect(update).not.toHaveBeenCalled();
+    expect(user.name).toBe("Bob");
+    expect(update).toHaveBeenCalledWith(User.ref, user.id, { name: "Bob" });
 
     update.mockRestore();
   })
@@ -560,7 +662,7 @@ describe("save", () => {
       when = date();
     }
 
-    const event = await Event.insert({ when: new Date(0) });
+    const event = await Event.new({ when: new Date(0) }).save();
     const assigned = new Date(1);
     const didUpdate = vi.fn();
 
@@ -587,9 +689,9 @@ describe("save", () => {
       author = one(Author);
     }
 
-    const gabe = await Author.insert({ name: "Gabe" });
-    const alice = await Author.insert({ name: "Alice" });
-    const book = await Book.insert({ name: "Book", author: gabe });
+    const gabe = await Author.new({ name: "Gabe" }).save();
+    const alice = await Author.new({ name: "Alice" }).save();
+    const book = await Book.new({ name: "Book", author: gabe }).save();
     const update = spy(Book.connection, "update");
 
     book.author = gabe;
@@ -613,7 +715,7 @@ describe("delete", () => {
       name = str();
     }
 
-    const user = await User.insert({ name: "John" });
+    const user = await User.new({ name: "John" }).save();
 
     await user.delete();
 
@@ -625,7 +727,7 @@ describe("delete", () => {
       name = str();
     }
 
-    const user = await User.insert({ name: "John" });
+    const user = await User.new({ name: "John" }).save();
     const destroyed = vi.fn();
 
     user.set(null, destroyed);
@@ -654,7 +756,7 @@ describe("delete", () => {
       name = str();
     }
 
-    const user = await User.insert({ name: "John" });
+    const user = await User.new({ name: "John" }).save();
 
     await user.delete();
 
@@ -675,7 +777,7 @@ describe("delete", () => {
       }
     }
 
-    const user = await User.insert({ name: "John" });
+    const user = await User.new({ name: "John" }).save();
 
     await user.delete();
 
@@ -828,7 +930,10 @@ describe("query", () => {
       select user"
     `);
     expect(users.map(x => x.name)).toEqual(["Gabe", "Alice", "Bob"]);
-    await expect(User.one(1)).resolves.toBe(users[0]);
+    expect(users[0]).toEqual({ id: 1, name: "Gabe", age: 30 });
+    expect(users[0]).not.toBeInstanceOf(User);
+    expect(Object.isFrozen(users[0])).toBe(true);
+    expect(User.loaded.size).toBe(0);
   })
 
   it("will filter entities", async () => {
@@ -917,7 +1022,7 @@ describe("extended types", () => {
 
   class UserExt extends User {
     static from(name: string) {
-      return this.insert({ name });
+      return this.new({ name }).save();
     }
 
     displayName() {
@@ -935,7 +1040,7 @@ describe("extended types", () => {
   it("will update using extended type", async () => {
     await User.insert({ name: "Alice" });
 
-    const user = await UserExt.one(2);
+    const user = await UserExt.get(2);
 
     expect(user).toBeInstanceOf(UserExt);
     expect(user.displayName()).toBe("User: Alice");
@@ -943,10 +1048,7 @@ describe("extended types", () => {
     await user.update({ name: "Alice Doe" });
 
     expect(user.displayName()).toBe("User: Alice Doe");
-
-    const fresh = await UserExt.one(2);
-
-    expect(fresh.displayName()).toBe("User: Alice Doe");
+    await expect(UserExt.one(2)).resolves.toEqual({ id: 2, name: "Alice Doe" });
   });
 })
 
@@ -1034,16 +1136,16 @@ describe("primary key", () => {
       title = str();
     }
 
-    const doc = await Doc.insert({ id: "x1", title: "Hello" });
-    const id: string = doc.id;
+    const row = await Doc.insert({ id: "x1", title: "Hello" });
+    const id: string = row.id;
+    const doc = await Doc.get(id);
 
     expect(id).toBe("x1");
     expect(Doc.fields.get("id")!.kind).toBe(String);
     expect(Doc.loaded.get("x1")).toBe(doc);
-    await expect(Doc.one("x1")).resolves.toBe(doc);
+    await expect(Doc.one("x1")).resolves.toEqual(row);
 
     await Doc.update("x1", { title: "Bye" });
-    await expect(Doc.one("x1", true)).resolves.toBe(doc);
     expect(doc.title).toBe("Bye");
 
     await doc.delete();
@@ -1092,11 +1194,13 @@ describe("primary key", () => {
       doc = one(Doc);
     }
 
-    const doc = await Doc.insert({ id: "a1" });
-    const note = await Note.insert({ doc: "a1" });
+    await Doc.insert({ id: "a1" });
+
+    const { id } = await Note.insert({ doc: "a1" });
+    const note = await Note.get(id);
     const query = Query(where => void where(Note, { doc: "a1" }));
 
-    expect(note.doc).toBe(doc);
+    expect(note.doc).toBe(Doc.get("a1"));
     expect(String(query)).toMatchInlineSnapshot(`
       "insert note
         doc: "a1""
@@ -1105,42 +1209,36 @@ describe("primary key", () => {
 })
 
 describe("identity map", () => {
-  it("will return the same instance for repeated one(id)", async () => {
+  it("will not populate from static reads", async () => {
     class User extends connect() {
       name = str();
     }
 
-    const user = await User.insert({ name: "A" });
-    const fetched1 = await User.one(user.id);
-    const fetched2 = await User.one(user.id);
+    const row = await User.insert({ name: "A" });
 
-    expect(fetched1).toBe(user);
-    expect(fetched2).toBe(user);
+    await User.one(row.id);
+    await User.find();
+
+    for await (const _ of User.all(1));
+
+    expect(User.loaded.size).toBe(0);
   });
 
-  it("will cache parsed entities", async () => {
+  it("will return a fresh row for each read", async () => {
     class User extends connect() {
       name = str();
     }
 
-    const parsed = await (User as any).parse({ id: 1, name: "B" });
-
-    expect(User.loaded.get(1)).toBe(parsed);
-  });
-
-  it("will reload entity when one(id, true)", async () => {
-    class User extends connect() {
-      name = str();
-    }
-
-    const user = await User.insert({ name: "C" });
+    const user = await User.new({ name: "C" }).save();
+    const first = await User.one(user.id);
 
     await User.connection.update(User.ref, user.id, { name: "C2" });
 
-    const reloaded = await User.one(user.id, true);
+    const second = await User.one(user.id);
 
-    expect(reloaded).toBe(user);
-    expect(user.name).toBe("C2");
+    expect(first).toEqual({ id: user.id, name: "C" });
+    expect(second).toEqual({ id: user.id, name: "C2" });
+    expect(second).not.toBe(user);
   });
 
   it("will keep entities per connection", async () => {
@@ -1148,7 +1246,7 @@ describe("identity map", () => {
       name = str();
     }
 
-    const user = await User.insert({ name: "D" });
+    const user = await User.new({ name: "D" }).save();
 
     User.connection = memory();
 
@@ -1223,7 +1321,7 @@ describe("references", () => {
 
   it("will return a loaded entity without then", async () => {
     const { User } = setup();
-    const user = await User.insert({ name: "A" });
+    const user = await User.new({ name: "A" }).save();
 
     expect(User.get(user.id)).toBe(user);
     expect("then" in user).toBe(false);
@@ -1289,13 +1387,13 @@ describe("references", () => {
 
     select.mockImplementationOnce(() => new Promise(resolve => respond = resolve));
 
-    const reference = User.get(3);
-    const user = await User.insert({ id: 3, name: "C" });
+    const reference = User.get(1);
+    const user = await User.new({ name: "C" }).save();
 
     respond([]);
 
-    await expect(reference).rejects.toThrow("No User found with id 3");
-    expect(User.loaded.get(3)).toBe(user);
+    await expect(reference).rejects.toThrow("No User found with id 1");
+    expect(User.loaded.get(1)).toBe(user);
   });
 
   it("will suspend relations until loaded", async () => {
@@ -1313,7 +1411,7 @@ describe("references", () => {
     const post = Post.get(1);
     const pending = suspends(() => post.user);
 
-    await expect(pending).resolves.toBe(await User.one(1));
+    await expect(pending).resolves.toBe(User.get(1));
     expect(post.user.name).toBe("A");
   });
 
@@ -1354,45 +1452,13 @@ describe("references", () => {
 });
 
 describe("live rows", () => {
-  class Live extends Connection {
-    _db = memory();
-    _emit?: (change: Connection.Change) => void;
-    _subscribed = 0;
-
-    select(...args: Parameters<Connection["select"]>){
-      return this._db.select(...args);
-    }
-
-    insert(...args: Parameters<Connection["insert"]>){
-      return this._db.insert(...args);
-    }
-
-    update(...args: Parameters<Connection["update"]>){
-      return this._db.update(...args);
-    }
-
-    remove(...args: Parameters<Connection["remove"]>){
-      return this._db.remove(...args);
-    }
-
-    subscribe(listener: (change: Connection.Change) => void){
-      this._emit = listener;
-      this._subscribed++;
-
-      return () => {
-        this._emit = undefined;
-      };
-    }
-  }
-
-  const settled = () => new Promise(res => setTimeout(res));
 
   it("will update a loaded entity", async () => {
     class User extends connect() {
       name = str();
     }
 
-    const user = await User.insert({ name: "Gabe" });
+    const user = await User.new({ name: "Gabe" }).save();
     const didUpdate = vi.fn();
 
     user.get(current => {
@@ -1412,7 +1478,7 @@ describe("live rows", () => {
       age = num(orNull);
     }
 
-    const user = await User.insert({ name: "Gabe" });
+    const user = await User.new({ name: "Gabe" }).save();
     const update = spy(User.connection, "update");
 
     user.name = "Local";
@@ -1433,7 +1499,7 @@ describe("live rows", () => {
       at = date();
     }
 
-    const event = await Event.insert({ at: new Date(1000) });
+    const event = await Event.new({ at: new Date(1000) }).save();
     const { at } = event;
 
     await Event.connection.update(Event.ref, event.id, { at: new Date(1000).toISOString() });
@@ -1452,7 +1518,7 @@ describe("live rows", () => {
       name = str();
     }
 
-    const user = await User.insert({ name: "Gabe" });
+    const user = await User.new({ name: "Gabe" }).save();
 
     await User.connection.remove(User.ref, user.id);
     await settled();
@@ -1467,7 +1533,7 @@ describe("live rows", () => {
       name = str();
     }
 
-    const user = await User.insert({ name: "Gabe" });
+    const user = await User.new({ name: "Gabe" }).save();
 
     await User.connection.insert(User.ref, { id: user.id, name: "Copy" });
     await settled();
@@ -1485,9 +1551,9 @@ describe("live rows", () => {
       title = str();
     }
 
-    const user = await User.insert({ name: "Gabe" });
+    const user = await User.new({ name: "Gabe" }).save();
 
-    await Post.insert({ title: "Hello" });
+    await Post.new({ title: "Hello" }).save();
     await User.connection.update(User.ref, 9, { name: "Nobody" });
     await User.connection.update(Post.ref, user.id, { title: "Bye" });
     await settled();
@@ -1502,7 +1568,7 @@ describe("live rows", () => {
     }
 
     const db = User.connection as Live;
-    const user = await User.insert({ name: "Gabe" });
+    const user = await User.new({ name: "Gabe" }).save();
 
     await db._db.update(User.ref, user.id, { name: "Bob" });
     db._emit!({ table: User.ref, op: "update", id: user.id });
@@ -1530,8 +1596,8 @@ describe("live rows", () => {
 
     const db = User.connection as Live;
 
-    await User.insert({ name: "Gabe" });
-    await Post.insert({ title: "Hello" });
+    await User.new({ name: "Gabe" }).save();
+    await Post.new({ title: "Hello" }).save();
 
     expect(db._subscribed).toBe(1);
     expect(db._emit).toBeDefined();
@@ -1539,7 +1605,7 @@ describe("live rows", () => {
     db.set(null);
 
     expect(db._emit).toBeUndefined();
-    await User.insert({ name: "Bob" });
+    await User.new({ name: "Bob" }).save();
     expect(db._subscribed).toBe(1);
   })
 
@@ -1549,7 +1615,7 @@ describe("live rows", () => {
       name = str();
     }
 
-    const user = await User.insert({ name: "Gabe" });
+    const user = await User.new({ name: "Gabe" }).save();
 
     await User.update(user.id, { name: "Bob" });
     await User.update(9, { name: "Nobody" });
@@ -1565,12 +1631,12 @@ describe("renamed key column", () => {
       name = str();
     }
 
-    const user = await User.insert({ name: "Gabe" });
+    const user = await User.new({ name: "Gabe" }).save();
     const [row] = await User.connection.select(User.ref, []);
 
     expect(user.id).toBe(1);
     expect(row).toEqual({ user_id: 1, name: "Gabe" });
-    await expect(User.one(1)).resolves.toBe(user);
+    await expect(User.one(1)).resolves.toEqual({ id: 1, name: "Gabe" });
 
     await user.update({ name: "Bob" });
     await expect(User.connection.select(User.ref, [])).resolves.toEqual([{ user_id: 1, name: "Bob" }]);
@@ -1588,9 +1654,11 @@ describe("renamed key column", () => {
       title = str();
     }
 
-    const doc = await Doc.insert({ id: "a1", title: "Hello" });
+    await expect(Doc.insert({ id: "a1", title: "Hello" })).resolves.toEqual({ id: "a1", title: "Hello" });
 
-    await expect(Doc.one("a1", true)).resolves.toBe(doc);
+    const doc = await Doc.get("a1");
+
+    await expect(Doc.one("a1")).resolves.toEqual({ id: "a1", title: "Hello" });
 
     await doc.update({ title: "Bye" });
     await expect(Doc.connection.select(Doc.ref, [])).resolves.toEqual([{ doc_id: "a1", title: "Bye" }]);

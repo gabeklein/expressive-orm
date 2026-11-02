@@ -34,7 +34,7 @@ describe("rows", () => {
 
   it("will find related rows", async () => {
     await ready;
-    const gabe = await User.one(1);
+    const gabe = await User.get(1);
     const profiles = await gabe.profiles.find();
 
     expect(profiles.map(p => p.bio)).toEqual(["Writer", "Dev"]);
@@ -42,7 +42,7 @@ describe("rows", () => {
 
   it("will apply foreign key over query", async () => {
     await ready;
-    const gabe = await User.one(1);
+    const gabe = await User.get(1);
     const found = await gabe.profiles.find({ bio: "Designer", user: 2 });
 
     expect(found).toEqual([]);
@@ -50,7 +50,7 @@ describe("rows", () => {
 
   it("will page related rows", async () => {
     await ready;
-    const gabe = await User.one(1);
+    const gabe = await User.get(1);
     const page = await gabe.profiles.find({}, 1, 1);
 
     expect(page.map(p => p.bio)).toEqual(["Writer"]);
@@ -58,7 +58,7 @@ describe("rows", () => {
 
   it("will get one related row", async () => {
     await ready;
-    const alice = await User.one(2);
+    const alice = await User.get(2);
 
     expect((await alice.profiles.one()).bio).toBe("Designer");
     expect((await alice.profiles.one({ bio: "Designer" })).bio).toBe("Designer");
@@ -68,22 +68,23 @@ describe("rows", () => {
 
   it("will insert with foreign key", async () => {
     await ready;
-    const alice = await User.one(2);
+    const alice = await User.get(2);
     const profile = await alice.profiles.insert({ bio: "Manager" });
 
-    expect(profile.user).toBe(alice);
+    expect(profile).toEqual({ id: 4, user: 2, bio: "Manager" });
+    expect(Object.isFrozen(profile)).toBe(true);
   });
 
   it("will reuse handle", async () => {
     await ready;
-    const gabe = await User.one(1);
+    const gabe = await User.get(1);
 
     expect(gabe.profiles).toBe(gabe.profiles);
   });
 
   it("will not be a Model", async () => {
     await ready;
-    const gabe = await User.one(1);
+    const gabe = await User.get(1);
 
     expect(gabe.profiles).not.toBeInstanceOf(Model);
     expect(Object.keys(gabe)).not.toContain("profiles");
@@ -116,17 +117,17 @@ describe("explicit field", () => {
   }
 
   it("will use given field", async () => {
-    const gabe = await User.insert({ name: "Gabe" });
-    const alice = await User.insert({ name: "Alice" });
+    const gabe = await User.new({ name: "Gabe" }).save();
+    const alice = await User.new({ name: "Alice" }).save();
 
     await gabe.authored.insert({ editor: alice });
 
     const [authored] = await gabe.authored.find();
     const [edited] = await alice.edited.find();
 
-    expect(authored).toBe(edited);
-    expect(authored.author).toBe(gabe);
-    expect(authored.editor).toBe(alice);
+    expect(authored).toEqual(edited);
+    expect(authored.author).toBe(gabe.id);
+    expect(authored.editor).toBe(alice.id);
     expect(await alice.authored.find()).toEqual([]);
   });
 });
@@ -146,7 +147,7 @@ describe("errors", () => {
       static table = "article"
     }
 
-    const gabe = await User.insert({});
+    const gabe = await User.new().save();
 
     expect(() => gabe.articles).toThrow("Did you forget to use one(Article) in this model?");
   });
@@ -163,7 +164,7 @@ describe("errors", () => {
       editor = one(User);
     }
 
-    const user = await User.insert({});
+    const user = await User.new().save();
 
     expect(() => user.posts).toThrow("There are multiple relationships, you will need to specify which one to use.");
   });
@@ -179,7 +180,7 @@ describe("errors", () => {
       static table = "article"
     }
 
-    const gabe = await User.insert({});
+    const gabe = await User.new().save();
 
     expect(() => gabe.articles).toThrow("Field foobar does not exist on Article");
   });

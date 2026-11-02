@@ -1,7 +1,7 @@
 import { DataTypes, Exact, field, Has, OptionsOf, PEEK } from "./fields";
 import { configure, Field, Nullable } from './Field';
 import type { Builder } from './query/Builder';
-import Type from "./Type";
+import Type, { adopt } from "./Type";
 
 const ONE = new WeakMap<Type.Class, Map<Type.Class, Field | null>>();
 
@@ -33,7 +33,7 @@ class OneToOneField<T extends Type = Type> extends Field {
   load(id: string | number){
     const Class = this.entity;
 
-    return Class.one(id, false).catch((err: unknown) => {
+    return adopt(Class, id).catch((err: unknown) => {
       if(err instanceof Error)
         err.message = `Failed to load relation ${Class.name} for ${this.key}: ${err.message}`;
 
@@ -66,6 +66,9 @@ class OneToOneField<T extends Type = Type> extends Field {
     }
 
     if(typeof value === "object"){
+      if ((value as any).id != null)
+        return (value as any).id;
+
       if (query)
         throw new Error(`Relation ${this} takes an entity, id or table in a query.`);
 

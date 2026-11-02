@@ -74,6 +74,21 @@ export class Field<T = unknown> {
   }
 }
 
+export async function row(fields: Map<string, Field>, raw: Record<string, any>) {
+  const values: Record<string, unknown> = {};
+
+  for (const field of fields.values()) {
+    const { key, reference } = field;
+    const value = raw[field.column];
+
+    values[key] = reference
+      ? value == null ? undefined : await reference.get(value)
+      : await field.get(value, raw);
+  }
+
+  return Object.freeze(values);
+}
+
 export function configure<F extends Field>(field: F, opts: Config<any>[]) {
   for (const opt of opts)
     if (opt === null)

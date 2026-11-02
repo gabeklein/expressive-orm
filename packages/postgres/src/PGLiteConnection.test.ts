@@ -46,7 +46,7 @@ describe("persistence", () => {
 
     const user = await Users.one();
 
-    expect(user.columns).toEqual({ id: 1, name: "Gabe" });
+    expect(user).toEqual({ id: 1, name: "Gabe" });
   });
 
   it('will throw if missing table', async () => {
@@ -332,7 +332,7 @@ describe("types", () => {
 
     const test = await Test.one();
 
-    expect(test.columns).toEqual({
+    expect(test).toEqual({
       id: 1, value1: true, value2: true
     });
   });
@@ -484,8 +484,9 @@ describe("select", () => {
 
     const [foo] = await query;
 
-    expect(foo).toBeInstanceOf(Foo);
-    expect(foo.columns).toEqual({ id: 1, bar: "hello", baz: "world" });
+    expect(foo).not.toBeInstanceOf(Foo);
+    expect(foo).toEqual({ id: 1, bar: "hello", baz: "world" });
+    expect(Object.isFrozen(foo)).toBe(true);
   })
 
   it("will select without tables", async () => {
@@ -695,7 +696,7 @@ describe("insert", () => {
   
     const results = await Users.query();
 
-    expect(results.map(user => user.columns)).toEqual([
+    expect(results).toEqual([
       { "id": 1, "name": "john",  "email": "john@email.org",  "age": 25 },
       { "id": 2, "name": "jane",  "email": "jane@email.org",  "age": 26 },
       { "id": 3, "name": "bob",   "email": "bob@email.org",   "age": 27 },
@@ -828,7 +829,7 @@ describe("query", () => {
 
     const users = await User.query();
 
-    expect(users.map(user => user.columns)).toEqual([
+    expect(users).toEqual([
       { id: 1, name: "John" },
       { id: 2, name: "Jane" },
       { id: 3, name: "Joe" },
@@ -886,7 +887,7 @@ it("will update from data", async () => {
   expect(await query).toBe(2);
   const users = await Users.find({ id: asc() });
 
-  expect(users.map(user => user.columns)).toEqual([
+  expect(users).toEqual([
     { id: 1, name: "John", age: 30 },
     { id: 2, name: "Jane", age: 25 },
     { id: 3, name: "Joe", age: 0 },
@@ -922,10 +923,9 @@ describe("floor", () => {
     const first = await Post.insert({ author: gabe, title: "First", draft: false, published: new Date("2024-01-01T00:00:00Z") });
     const second = await Post.insert({ author: gabe.id, title: "Second", draft: true });
 
-    expect(first.id).toBe(1);
-    expect(second.views).toBe(0);
-    expect(second.published).toBeUndefined();
-    expect(first.published).toEqual(new Date("2024-01-01T00:00:00Z"));
+    expect(first).toEqual({ id: 1, author: 1, title: "First", views: 0, draft: false, published: new Date("2024-01-01T00:00:00Z") });
+    expect(second).toEqual({ id: 2, author: 1, title: "Second", views: 0, draft: true, published: undefined });
+    expect(Object.isFrozen(second)).toBe(true);
 
     expect(await Post.find({ draft: true })).toEqual([second]);
 
@@ -938,9 +938,11 @@ describe("floor", () => {
     expect(found).toEqual([second]);
     expect(await Post.find({ published: isNull() })).toEqual([second]);
     expect(await Post.find({ id: desc() }, undefined, 1)).toEqual([first]);
-    expect(await Post.one(1, true)).toBe(first);
+    expect(await Post.one(1)).toEqual(first);
 
-    await second.update({ title: "Second!", draft: false, views: 10 });
+    const post = await Post.get(2);
+
+    await post.update({ title: "Second!", draft: false, views: 10 });
 
     const titles = await Post.query((post, where) => {
       where(post.views).over(5);
@@ -950,8 +952,8 @@ describe("floor", () => {
 
     expect(titles).toEqual([{ title: "Second!", author: "Gabe" }]);
 
-    second.published = new Date("2024-02-01T00:00:00Z");
-    await second.save();
+    post.published = new Date("2024-02-01T00:00:00Z");
+    await post.save();
 
     const [reloaded] = await Post.query((post, where) => {
       where(post.id).equal(2);
@@ -961,9 +963,9 @@ describe("floor", () => {
 
     expect(reloaded).toEqual({ published: new Date("2024-02-01T00:00:00Z"), draft: false });
 
-    await first.delete();
+    await (await Post.get(first.id)).delete();
 
-    expect(await Post.find()).toEqual([second]);
+    expect(await Post.find()).toEqual([post.columns]);
     expect(await Post.one(1, false)).toBeUndefined();
 
     await Author.update(gabe.id, { name: "Bob" });
@@ -982,7 +984,7 @@ describe("live rows", () => {
 
     await TestConnection.new([User]);
 
-    const user = await User.insert({ name: "Gabe" });
+    const user = await User.new({ name: "Gabe" }).save();
     const names: string[] = [];
 
     user.get(current => {
@@ -1002,7 +1004,7 @@ describe("live rows", () => {
 
     await TestConnection.new([User]);
 
-    const user = await User.insert({ name: "Gabe" });
+    const user = await User.new({ name: "Gabe" }).save();
 
     await shared.query(`DELETE FROM "user" WHERE id = $1`, [user.id]);
     await vi.waitFor(() => expect(user.get(null)).toBe(true));
@@ -1018,7 +1020,7 @@ describe("live rows", () => {
 
     await TestConnection.new([User]);
 
-    const user = await User.insert({ name: "Gabe", age: 1 });
+    const user = await User.new({ name: "Gabe", age: 1 }).save();
 
     user.name = "Local";
 
@@ -1035,7 +1037,7 @@ describe("live rows", () => {
 
     await TestConnection.new([Event]);
 
-    const event = await Event.insert({ at: new Date("2024-01-01T00:00:00Z") });
+    const event = await Event.new({ at: new Date("2024-01-01T00:00:00Z") }).save();
 
     await shared.query(`UPDATE "event" SET at = '2024-06-01 12:00:00' WHERE id = $1`, [event.id]);
     await vi.waitFor(() => expect(event.at).toEqual(new Date("2024-06-01T12:00:00Z")));
@@ -1048,7 +1050,7 @@ describe("live rows", () => {
 
     await TestConnection.new([Doc]);
 
-    const doc = await Doc.insert({ body: "short" });
+    const doc = await Doc.new({ body: "short" }).save();
     const body = "x".repeat(9000);
 
     await shared.query(`UPDATE "doc" SET body = $1 WHERE id = $2`, [body, doc.id]);
@@ -1063,10 +1065,35 @@ describe("live rows", () => {
 
     await TestConnection.new([User]);
 
-    const user = await User.insert({ id: 7, name: "Gabe" });
+    await User.insert({ id: 7, name: "Gabe" });
+
+    const user = await User.get(7);
 
     await shared.query(`UPDATE "user" SET name = 'Bob' WHERE user_id = 7`);
     await vi.waitFor(() => expect(user.name).toBe("Bob"));
+  })
+
+  it("will settle a loaded entity on update by id", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+
+    const user = await User.new({ name: "Gabe" }).save();
+    const names: string[] = [];
+
+    user.get(current => {
+      names.push(current.name);
+    });
+
+    await User.update(user.id, { name: "Bob" });
+
+    expect(user.name).toBe("Bob");
+
+    await new Promise(res => setTimeout(res, 50));
+
+    expect(names).toEqual(["Gabe", "Bob"]);
   })
 
   it("will ignore tables not used", async () => {
@@ -1096,10 +1123,11 @@ describe("renamed key column", () => {
     }
 
     const db = await TestConnection.new([User]);
-    const user = await User.insert({ id: 1, name: "Gabe" });
-
+    await expect(User.insert({ id: 1, name: "Gabe" })).resolves.toEqual({ id: 1, name: "Gabe" });
     await expect(db.select("user", [])).resolves.toEqual([{ user_id: 1, name: "Gabe" }]);
-    await expect(User.one(1, true)).resolves.toBe(user);
+    await expect(User.one(1)).resolves.toEqual({ id: 1, name: "Gabe" });
+
+    const user = await User.get(1);
 
     await user.update({ name: "Bob" });
     await User.update(1, { name: "Ann" });
@@ -1117,9 +1145,10 @@ describe("renamed key column", () => {
     }
 
     const db = await TestConnection.new([Doc]);
-    const doc = await Doc.insert({ id: "a1", title: "Hello" });
+    await Doc.insert({ id: "a1", title: "Hello" });
+    await expect(Doc.one("a1")).resolves.toEqual({ id: "a1", title: "Hello" });
 
-    await expect(Doc.one("a1", true)).resolves.toBe(doc);
+    const doc = await Doc.get("a1");
 
     await doc.update({ title: "Bye" });
     await expect(db.select("doc", [])).resolves.toEqual([{ doc_id: "a1", title: "Bye" }]);
@@ -1137,8 +1166,8 @@ describe("renamed key column", () => {
 
     const user = await User.insert({ id: 5, name: "Gabe" });
 
-    expect(user.id).toBe(5);
-    await expect(User.one(5, true)).resolves.toBe(user);
+    expect(user).toEqual({ id: 5, name: "Gabe" });
+    await expect(User.one(5)).resolves.toEqual(user);
   })
 })
 

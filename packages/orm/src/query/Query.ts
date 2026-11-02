@@ -40,7 +40,7 @@ declare namespace Query {
 
   type Assigns<V> =
     [NonNullable<V>] extends [Type]
-      ? NonNullable<V> | NonNullable<V>["id"] | From<NonNullable<V>> | Value<NonNullable<V>["id"]>
+      ? NonNullable<V> | Type.Columns<Extract<NonNullable<V>, Type>> | NonNullable<V>["id"] | From<NonNullable<V>> | Value<NonNullable<V>["id"]>
       : V | Value<NonNullable<V>>;
 
   type Writable<T> = Exclude<Keys<T>, "id">;
@@ -101,7 +101,9 @@ declare namespace Query {
     T extends {} ? { [K in keyof T]: Returns<T[K]> } :
     T;
 
-  type Row<T> = T extends { readonly [ENTITY]: infer U } ? U : Returns<T>;
+  type Row<T> =
+    T extends { readonly [ENTITY]: infer U } ? U extends Type ? Type.Columns<U> : U :
+    Returns<T>;
 
   interface Verbs<T> {
     delete(): void;

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { Field } from '../Field';
 import { bool, num, str } from '../fields';
@@ -15,7 +15,7 @@ function connect(){
 }
 
 async function seed<T extends Type>(type: Type.Class<T>, ...rows: Type.Insert<T>[]){
-  const out: T[] = [];
+  const out: Type.Columns<T>[] = [];
 
   for (const row of rows)
     out.push(await type.insert(row));
@@ -120,7 +120,7 @@ describe("select", () => {
     await ready;
     const query = Query(where => where(Foo));
 
-    expect<Query.Selects<Foo>>(query);
+    expect<Query.Selects<Query.From<Foo>>>(query);
     expect(String(query)).toMatchInlineSnapshot(`
       "from foo
       select foo"
@@ -128,10 +128,12 @@ describe("select", () => {
 
     const [first, second] = await query;
 
-    expect(first).toBeInstanceOf(Foo);
-    expect(first.columns).toEqual({ id: 1, bar: "hello", baz: "world" });
+    expectTypeOf(first).toEqualTypeOf<Type.Columns<Foo>>();
+    expect(first).toEqual({ id: 1, bar: "hello", baz: "world" });
+    expect(first).not.toBeInstanceOf(Foo);
+    expect(Object.isFrozen(first)).toBe(true);
     expect(second.bar).toBe("goodbye");
-    await expect(Foo.one(1)).resolves.toBe(first);
+    expect(Foo.loaded.size).toBe(0);
   })
 
   it("will not select absent fields", async () => {
@@ -150,7 +152,7 @@ describe("select", () => {
       "from bar
       select bar"
     `);
-    expect(bar.name).toBe("Bob");
+    expect(bar).toEqual({ id: 1, name: "Bob", extra: undefined });
   })
 
   it("will select without tables", async () => {
@@ -760,16 +762,23 @@ describe("relations", () => {
     }]);
   })
 
-  it("will hydrate relations of entities", async () => {
+  it("will select relations of entities as ids", async () => {
     await ready;
-    const [a] = await Query(where => {
+    const [a, d] = await Query(where => {
       const a = where(A);
       where(a.id).equal(1);
       return a;
     });
+    const [none] = await Query(where => {
+      const d = where(D);
+      where(d.id).equal(2);
+      return d;
+    });
 
-    expect(a.b).toBeInstanceOf(B);
-    expect(a.b.c.label).toBe("hundred");
+    expect(a).toEqual({ id: 1, b: 1, value: "a1" });
+    expect(d).toBeUndefined();
+    expect(none).toEqual({ id: 2, c: undefined });
+    expect(B.loaded.size).toBe(0);
   })
 })
 
@@ -846,15 +855,14 @@ describe("insert", () => {
 
     const infos = await Info.find({ color: "green" });
 
-    expect(infos.map(x => x.user)).toEqual([jane]);
+    expect(infos.map(x => x.user)).toEqual([jane.id]);
   })
 
   it("will return inserted entity", async () => {
     const [user] = await Query(where => where(User, { name: "Ann" }));
 
-    expect(user).toBeInstanceOf(User);
-    expect(user.name).toBe("Ann");
-    await expect(User.one(user.id)).resolves.toBe(user);
+    expect(user).toEqual({ id: 4, name: "Ann" });
+    await expect(User.one(user.id)).resolves.toEqual(user);
   })
 
   it("will insert iterable data", async () => {
@@ -1278,6 +1286,21 @@ describe("template", () => {
     await expect(query("blue")).resolves.toEqual(["Jane"]);
   })
 
+  it("will select rows from a template", async () => {
+    await ready;
+    const query = Query(where => (color: string) => {
+      const foo = where(Foo);
+      where(foo.color).equal(color);
+      return foo;
+    });
+
+    const [john] = await query("red");
+
+    expectTypeOf(john).toEqualTypeOf<Type.Columns<Foo>>();
+    expect(john).toEqual({ id: 1, first: "John", last: "Doe", color: "red" });
+    expect(Object.isFrozen(john)).toBe(true);
+  })
+
   it("will preserve params order", async () => {
     await ready;
     const query = Query(where => (color: string, first: string) => {
@@ -1524,9 +1547,10 @@ describe("types", () => {
   it("will select entities by class", () => {
     const query = Query(where => where(Post));
 
-    expect<Query.Selects<Post>>(query);
+    expect<Query.Selects<Query.From<Post>>>(query);
+    expectTypeOf(query.get()).resolves.toEqualTypeOf<Type.Columns<Post>[]>();
     // @ts-expect-error
-    expect<Query.Selects<User>>(query);
+    expect<Query.Selects<Query.From<User>>>(query);
   })
 
   it("will check comparisons and writes", () => {

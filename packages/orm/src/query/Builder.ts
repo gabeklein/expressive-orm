@@ -1,4 +1,4 @@
-import { Field, omits } from '../Field';
+import { Field, omits, row } from '../Field';
 import type { Type } from '../Type';
 import { Query } from './Query';
 import { Cond, DataField, DataTable, Expression, Group, Parameter, QueryTemplate, render, Value } from './Value';
@@ -341,16 +341,14 @@ class Builder {
     const { returns, entity } = this;
 
     if (returns instanceof Map){
-      const type = entity?.type as { parse?(row: {}): unknown } | undefined;
-
-      if (type?.parse){
-        const row: Record<string, unknown> = {};
+      if (entity){
+        const columns: Record<string, unknown> = {};
 
         returns.forEach((field, key) => {
-          row[(field as Field).column] = raw[key];
+          columns[(field as Field).column] = raw[key];
         });
 
-        return type.parse(row);
+        return row(entity.fields, columns);
       }
 
       const values = {} as any;
