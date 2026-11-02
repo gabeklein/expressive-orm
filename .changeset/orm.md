@@ -14,6 +14,7 @@ Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a smal
 - The driver floor's `get(table, constraints, limit, offset)` is `select` - `get` is Model's.
 - The constraint query behind `find`, `one` and `all` is the protected `fetch`.
 - A `Field`'s JS constructor moves from `type` to `kind`; `type` is the datatype string.
+- `Type.KeyOf` and `Type.Result` are removed.
 - `values` is `columns`: the row keyed by property, decoded, a relation as its id - never suspending or loading a relation - in the shape `insert` takes. `get()` is the full snapshot. The `Values` type is `Columns` (`Type.Columns<T>`).
 
 **Writes**
@@ -21,7 +22,7 @@ Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a smal
 - Assigning a field marks it dirty. `save()` writes what is dirty and returns the entity: one without an `id` is inserted, taking `id` and defaults from the row; one with an `id` updates only the columns that changed. Loading a row and a completed save leave the entity clean.
 - `update(data)` assigns, then saves - one write. Static `update(id, data)` settles the written values into a loaded entity.
 - `insert(data)` is `Type.new(data).save()` and always inserts, so a supplied key is written.
-- `delete()` evicts the entity and destroys it. `save()`, `update()` and `delete()` on a deleted entity throw.
+- `delete()` evicts the entity and destroys it. `save()`, `update()` and `delete()` on a deleted entity throw, as does `delete()` on one without an `id`.
 - `all(pageSize, where?)` pages through `find`; `subset` scopes a class's reads and writes.
 
 **Relations**
