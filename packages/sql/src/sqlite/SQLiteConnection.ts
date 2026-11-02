@@ -1,11 +1,5 @@
-import './columns/Bool';
-import './columns/Num';
-import './columns/One';
-import './columns/Str';
-import './columns/Time';
-
 import { Builder, Field, Query } from '@expressive/orm';
-import { Connection } from '@expressive/sql';
+import { Connection } from '../connection/Connection';
 import { format } from 'sql-formatter';
 
 import { createEngine, Engine } from './engine';
@@ -27,8 +21,6 @@ export class SQLiteConnection extends Connection {
     this.filename = filename || ':memory:';
   }
 
-  // Lazily resolve a driver on first use - keeps construction synchronous while
-  // engine selection (and any ESM driver import) stays async.
   protected db(){
     return this.engine ??= createEngine(this.filename);
   }
@@ -40,7 +32,11 @@ export class SQLiteConnection extends Connection {
   prepare(builder: Builder){
     const sql = String(new SQLiteGenerator(builder));
     const string = (x?: unknown[]) => x
-      ? x.map(x => typeof x === 'object' ? JSON.stringify(x) : x)
+      ? x.map(x => (
+        typeof x === 'object' ? JSON.stringify(x) :
+        typeof x === 'boolean' ? Number(x) :
+        x
+      ))
       : [];
 
     const run = async <R>(op: (engine: Engine) => Promise<R>) => {
@@ -69,15 +65,21 @@ export class SQLiteConnection extends Connection {
     await super.close();
   }
 
-  async sync(fix?: boolean){
+  async sync(fix = true){
     if (this.ready)
       throw new Error("Connection is already active.");
 
+    const missing: Query.Table[] = [];
+
     for (const type of this.using)
-      if (!this.valid(type) && fix !== true)
+      if (await this.valid(type))
+        continue;
+      else if (fix)
+        missing.push(type);
+      else
         throw new Error(`Table ${type.table} does not exist.`);
 
-    await this.createSchema(this.using);
+    await this.createSchema(missing);
     Object.defineProperty(this, 'ready', { value: true });
 
     return this;
@@ -88,14 +90,12 @@ export class SQLiteConnection extends Connection {
     const fields = Array.from(type.fields.values());
     const db = await this.db();
 
-    // Check if table exists
     const tableExists = await db.get(
       `SELECT name FROM sqlite_master WHERE type='table' AND name=?`, [table]);
 
     if (!tableExists)
       return false;
 
-    // Get column information
     const columns = await db.all(`PRAGMA table_info(${table})`) as TableInfo[];
 
     for (const field of fields) {
@@ -114,16 +114,16 @@ export class SQLiteConnection extends Connection {
   }
 
   protected async checkIntegrity(field: Field, info: TableInfo){
-    const { column, datatype, nullable, reference } = field;
+    const { column, nullable, reference } = field;
     const parent = field.parent!;
 
-    // Check datatype
-    if (info.type !== datatype.toLowerCase())
+    const expected = affinity(field);
+
+    if (info.type.toUpperCase() !== expected)
       throw new Error(
-        `Column ${column} in table ${parent.table} has type ${info.type}, expected ${datatype}`
+        `Column ${column} in table ${parent.table} has type ${info.type}, expected ${expected}`
       );
 
-    // Check nullable constraint
     if (info.notnull === (nullable ? 1 : 0))
       throw new Error(
         `Column ${column} in table ${parent.table} has incorrect nullable value`
@@ -135,7 +135,7 @@ export class SQLiteConnection extends Connection {
     const foreignKey = reference.column;
     const foreignTable = reference.parent!.table;
 
-    if (parent.connection !== this)
+    if (reference.parent!.connection !== this)
       throw new Error(
         `Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`
       );
@@ -174,7 +174,6 @@ export class SQLiteConnection extends Connection {
     const fields = Array.from(type.fields.values()).map(field => {
       const {
         column,
-        datatype,
         fallback,
         reference,
         increment,
@@ -184,7 +183,7 @@ export class SQLiteConnection extends Connection {
       } = field;
 
       const { onDelete, onUpdate } = field as Field & { onDelete?: string, onUpdate?: string };
-      let parts = `\`${column}\` ${datatype.toUpperCase()}`;
+      let parts = `\`${column}\` ${affinity(field)}`;
 
       if (!nullable) parts += ' NOT NULL';
       if (primary)   parts += ' PRIMARY KEY';
@@ -205,6 +204,29 @@ export class SQLiteConnection extends Connection {
 
     return `CREATE TABLE ${type.table} (${fields.join(', ')});`;
   }
+}
+
+const AFFINITY: Record<string, string> = {
+  integer: "INTEGER",
+  smallint: "INTEGER",
+  bigint: "INTEGER",
+  boolean: "INTEGER",
+  real: "REAL",
+  float: "REAL",
+  double: "REAL",
+  numeric: "NUMERIC",
+  decimal: "NUMERIC",
+  text: "TEXT",
+  varchar: "TEXT",
+  char: "TEXT",
+  uuid: "TEXT",
+  timestamp: "TEXT",
+  date: "TEXT",
+  time: "TEXT"
+};
+
+function affinity(field: Field){
+  return AFFINITY[field.type] || field.datatype.toUpperCase();
 }
 
 function literal(field: Field, value: unknown){

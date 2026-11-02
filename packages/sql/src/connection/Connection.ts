@@ -1,3 +1,9 @@
+import '../columns/Bool';
+import '../columns/Num';
+import '../columns/One';
+import '../columns/Str';
+import '../columns/Time';
+
 import { Builder, Field, Parameter, Query, Type } from '@expressive/orm';
 
 declare namespace Connection {

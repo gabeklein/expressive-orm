@@ -409,7 +409,7 @@ describe("where", () => {
               item.color = 'red'
               AND item.size = 'large'
             )
-            OR item.in_stock = 1
+            OR item.in_stock = TRUE
           )"
       `);
     });
@@ -440,7 +440,7 @@ describe("where", () => {
           OR item.color = 'red'
           OR (
             item.size = 'large'
-            AND item.in_stock = 1
+            AND item.in_stock = TRUE
           )"
       `);
     });

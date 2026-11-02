@@ -88,8 +88,122 @@ describe("persistence", () => {
     })()).rejects.toThrow('Column "rank" does not exist in table user');
   });
   
-  it.todo('will ignore type mismatch if synonomous', () => {});
-  it.todo('will ignore missing column if marked as optional', () => {});
+  it('will ignore type mismatch if synonomous', async () => {
+    class Item extends Type {
+      name = str({ type: "varchar" });
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec('CREATE TABLE "item" ("id" INTEGER NOT NULL PRIMARY KEY, "name" VARCHAR NOT NULL);');
+
+    await expect(new PGLiteConnection([ Item ], pg).sync(false)).resolves.toBeDefined();
+  });
+
+  it('will ignore missing column if marked as optional', async () => {
+    class Item extends Type {
+      name = str();
+      note = str({ optional: true });
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec('CREATE TABLE "item" ("id" INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "name" TEXT NOT NULL);');
+    await new PGLiteConnection([ Item ], pg).sync(false);
+
+    const field = Item.fields.get("note")!;
+
+    expect(field.absent).toBe(true);
+    expect(field.get("x")).toBeUndefined();
+  });
+
+  it('will throw for each mismatched column', async () => {
+    class Author extends Type {
+      name = str();
+    }
+
+    class Post extends Type {
+      title = str();
+      rank = num();
+      author = one(Author);
+      editor = one(Author, { column: "editor_id" });
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec(`
+      CREATE TABLE "author" ("other" INTEGER NOT NULL PRIMARY KEY, "name" TEXT NOT NULL);
+      CREATE TABLE "post" (
+        "id" INTEGER NOT NULL PRIMARY KEY,
+        "title" TEXT,
+        "rank" TEXT NOT NULL,
+        "author_id" INTEGER NOT NULL,
+        "editor_id" INTEGER NOT NULL
+      );
+    `);
+
+    await expect(new PGLiteConnection([ Post, Author ], pg).sync(false)).rejects.toThrow(
+      'Schema verification failed:\n' +
+      'Column "title" in table post has incorrect nullable value\n' +
+      'Column "rank" in table post has type "text", expected "integer"\n' +
+      'Referenced column id does not exist in table author\n' +
+      'Referenced column id does not exist in table author\n' +
+      'Column "id" does not exist in table author'
+    );
+  });
+
+  it('will throw for a reference to another connection', async () => {
+    class Author extends Type {
+      name = str();
+    }
+
+    class Post extends Type {
+      author = one(Author);
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec('CREATE TABLE "post" ("id" INTEGER NOT NULL PRIMARY KEY, "author_id" INTEGER NOT NULL);');
+
+    await expect(new PGLiteConnection([ Post ], pg).sync(false)).rejects.toThrow(
+      'Column "author_id" in table post references a foreign connection'
+    );
+  });
+
+  it('will throw for a missing referenced table', async () => {
+    class Author extends Type {
+      name = str();
+    }
+
+    class Post extends Type {
+      author = one(Author);
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec('CREATE TABLE "post" ("id" INTEGER NOT NULL PRIMARY KEY, "author_id" INTEGER NOT NULL);');
+
+    await expect(new PGLiteConnection([ Post, Author ], pg).sync(false)).rejects.toThrow(
+      'Referenced table author does not exist'
+    );
+  });
+
+  it('will throw for several missing tables', async () => {
+    class Foo extends Type {}
+    class Bar extends Type {}
+
+    await expect(new PGLiteConnection([ Foo, Bar ], new PGlite()).sync(false)).rejects.toThrow(
+      'Tables foo, bar are expected but do not exist.'
+    );
+  });
+
+  it('will throw if already active', async () => {
+    class Foo extends Type {}
+
+    const conn = await new PGLiteConnection([ Foo ], new PGlite());
+
+    await expect(conn.sync()).rejects.toThrow('Connection is already active.');
+  });
 });
 
 describe("schema", () => {

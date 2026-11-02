@@ -1,1 +1,1 @@
-export { SQLiteConnection } from "./SQLiteConnection";
+export * from '@expressive/sql';

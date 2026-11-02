@@ -6,6 +6,15 @@ declare module '@expressive/orm' {
       type: "boolean";
     }
 
+    interface Integer extends BooleanColumn {
+      type: "integer";
+    }
+
+    interface Text extends BooleanColumn {
+      type: "text";
+      either: readonly [true: string, false: string];
+    }
+
     interface VarChar extends BooleanColumn {
       type: "varchar";
       either: readonly [true: string, false: string];
@@ -14,27 +23,31 @@ declare module '@expressive/orm' {
     interface Types {
       default: Boolean;
       boolean: Boolean;
+      integer: Integer;
+      text: Text;
       varchar: VarChar;
     }
   }
 }
 
-class BooleanColumn extends bool.Type {
+export class BooleanColumn extends bool.Type {
   type: bool.DataType = "boolean";
 
   get datatype() {
-    if (this.type === "varchar" && this.either) {
-      const [TRUE, FALSE] = this.either.map(String);
-      return `VARCHAR(${Math.max(TRUE.length, FALSE.length)})`;
+    const { type, either } = this;
+
+    if (type === "varchar" && either) {
+      const [TRUE, FALSE] = either.map(String);
+      return `varchar(${Math.max(TRUE.length, FALSE.length)})`;
     }
 
-    return this.type;
+    return type;
   }
 
   set(value: unknown) {
     const out = super.set(value);
 
-    if (out == null || this.either)
+    if (out == null || this.either || this.type !== "boolean")
       return out;
 
     return value as boolean;

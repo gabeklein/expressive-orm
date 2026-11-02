@@ -3,7 +3,7 @@ import { date } from '@expressive/orm';
 declare module '@expressive/orm' {
   namespace date {
     interface Timestamp extends TimeColumn {
-      type: "timestamp" | "datetime";
+      type: "timestamp";
     }
 
     interface Day extends TimeColumn {
@@ -25,7 +25,6 @@ declare module '@expressive/orm' {
     interface Types {
       default: Timestamp;
       timestamp: Timestamp;
-      datetime: Timestamp;
       date: Day;
       time: Time;
       integer: Integer;
@@ -34,12 +33,8 @@ declare module '@expressive/orm' {
   }
 }
 
-class TimeColumn extends date.Type {
+export class TimeColumn extends date.Type {
   type: date.DataType = "timestamp";
-
-  get datatype() {
-    return this.type === "integer" ? "integer" : "text";
-  }
 
   get(value: unknown) {
     if (value == null)

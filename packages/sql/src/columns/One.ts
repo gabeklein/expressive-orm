@@ -6,14 +6,19 @@ declare module '@expressive/orm' {
       type: "integer";
     }
 
+    interface BigInt<T extends Type = Type> extends ForeignColumn<T> {
+      type: "bigint";
+    }
+
     interface Types {
       default: Integer;
       integer: Integer;
+      bigint: BigInt;
     }
   }
 }
 
-class ForeignColumn<T extends Type = Type> extends one.Type<T> {
+export class ForeignColumn<T extends Type = Type> extends one.Type<T> {
   type: one.DataType = "integer";
 }
 

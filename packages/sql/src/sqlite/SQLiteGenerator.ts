@@ -1,5 +1,5 @@
 import { DataTable } from '@expressive/orm';
-import { Generator } from '@expressive/sql';
+import { Generator } from '../connection/Generator';
 
 export class SQLiteGenerator extends Generator {
   protected jsonTable(table: DataTable): string {
@@ -26,7 +26,6 @@ export class SQLiteGenerator extends Generator {
     ]
 
     if (tables.size > 1) {
-      // TODO: maybe redundant with base class
       const using = Array.from(tables.values())
         .filter(table => table !== main)
         .map(table => {
@@ -40,11 +39,10 @@ export class SQLiteGenerator extends Generator {
           return { conditions, table };
         });
 
-      if (using.length > 0)
-        output.push(
-          'FROM', using.map(x => x.table.name).join(', '),
-          'WHERE', using.map(x => x.conditions).join(' AND ')
-        )
+      output.push(
+        'FROM', using.map(x => x.table.name).join(', '),
+        'WHERE', using.map(x => x.conditions).join(' AND ')
+      )
     }
 
     return output;
