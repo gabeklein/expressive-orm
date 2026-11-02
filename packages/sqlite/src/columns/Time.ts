@@ -1,33 +1,32 @@
-// packages/sqlite/src/columns/Time.ts
-import { Time } from '@expressive/sql';
+import { date } from '@expressive/orm';
 
-declare module "@expressive/sql" {
-  namespace Time {
+declare module '@expressive/orm' {
+  namespace date {
     interface Timestamp extends TimeColumn {
-      readonly type: "timestamp" | "datetime";
+      type: "timestamp" | "datetime";
     }
-    
-    interface Date extends TimeColumn {
-      readonly type: "date";
+
+    interface Day extends TimeColumn {
+      type: "date";
     }
-    
+
     interface Time extends TimeColumn {
-      readonly type: "time";
+      type: "time";
     }
-    
+
     interface Integer extends TimeColumn {
-      readonly type: "integer";
+      type: "integer";
     }
-    
+
     interface Text extends TimeColumn {
-      readonly type: "text";
+      type: "text";
     }
-    
+
     interface Types {
       default: Timestamp;
       timestamp: Timestamp;
       datetime: Timestamp;
-      date: Date;
+      date: Day;
       time: Time;
       integer: Integer;
       text: Text;
@@ -35,61 +34,50 @@ declare module "@expressive/sql" {
   }
 }
 
-class TimeColumn extends Time.Type {
-  readonly type: Time.DataType = "text";
-  
+class TimeColumn extends date.Type {
+  type: date.DataType = "timestamp";
+
   get datatype() {
-    const { type } = this;
-    
-    if (["date", "time", "timestamp", "datetime"].includes(type))
-      return "text";
-    
-    return type;
+    return this.type === "integer" ? "integer" : "text";
   }
-  
-  get(value: string | number | Date) {
-    if (value instanceof Date)
-      return value;
-    
+
+  get(value: unknown) {
+    if (value == null)
+      return undefined;
+
     if (typeof value === 'number')
-      // Interpret as Unix timestamp (seconds since epoch)
       return new Date(value * 1000);
-    
-    if (typeof value === 'string') {
-      if (this.type === "date") {
-        // Use consistent date parsing by explicitly splitting the parts
-        const [year, month, day] = value.split('-').map(Number);
-        return new Date(year, month - 1, day); // month is 0-indexed in JS Date
-      } else
-        // For standard date strings, let the Date constructor handle it
-        // ISO strings with 'Z' will be properly interpreted as UTC
-        return new Date(value);
+
+    if (typeof value === 'string' && this.type === "date") {
+      const [year, month, day] = value.split('-').map(Number);
+      return new Date(year, month - 1, day);
     }
-    
-    return new Date();
+
+    if (typeof value === 'string' && this.type === "time")
+      return new Date(`1970-01-01T${value}Z`);
+
+    return new Date(value as string | Date);
   }
-  
-  set(value: string | Date | "NOW") {
-    if (value === "NOW")
-      return "CURRENT_TIMESTAMP";
-    
-    if (value instanceof Date) {
-      if (this.type === "integer")
-        // Store as Unix timestamp (seconds since epoch)
-        return Math.floor(value.getTime() / 1000);
-      
-      if (this.type === "date")
-        return value.toISOString().slice(0, 10);
-      
-      if (this.type === "time")
-        return value.toISOString().slice(11, 19);
-      
-      // Storing full ISO string for timestamp/datetime preserves timezone information
-      return value.toISOString();
-    }
-    
-    return value;
+
+  set(value: unknown) {
+    const iso = super.set(value);
+
+    if (iso === undefined)
+      return iso;
+
+    const date = new Date(iso);
+
+    if (this.type === "integer")
+      return Math.floor(date.getTime() / 1000);
+
+    if (this.type === "date")
+      return date.toISOString().slice(0, 10);
+
+    if (this.type === "time")
+      return date.toISOString().slice(11, 19);
+
+    return iso;
   }
 }
 
-Time.Type = TimeColumn;
+date.Type = TimeColumn;

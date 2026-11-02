@@ -1,20 +1,4 @@
-export function capitalize(string: string){
-  return string[0].toUpperCase() + string.slice(1);
-}
-
-export function isIterable(obj: unknown): obj is Iterable<unknown> {
-  type MaybeIterable = {
-    [Symbol.iterator]?: () => IterableIterator<unknown>;
-  };
-
-  return obj != null && typeof (obj as MaybeIterable)[Symbol.iterator] === 'function';
-}
-
-export function underscore(str: string){
-  return str.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
-}
-
-function escape(value: any){
+export function escape(value: unknown){
   if(typeof value != "string")
     return value;
 
@@ -33,27 +17,4 @@ function escape(value: any){
     ))
 
   return `'${escaped}'`;
-}
-
-const {
-  assign,
-  create,
-  defineProperty,
-  entries,
-  freeze,
-  getOwnPropertyDescriptor,
-  getOwnPropertyNames,
-  values,
-} = Object;
-
-export {
-  assign,
-  create,
-  defineProperty,
-  entries,
-  freeze,
-  getOwnPropertyDescriptor,
-  getOwnPropertyNames,
-  values,
-  escape
 }

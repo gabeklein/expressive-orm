@@ -1,12 +1,11 @@
-import { One, Table } from "@expressive/sql";
+import { one, type Type } from '@expressive/orm';
 
-// Postgres package
-declare module "@expressive/sql" {
-  namespace One {
-    interface Integer<T extends Table = Table> extends ForeignColumn<T> {
-      readonly type: "integer";
+declare module '@expressive/orm' {
+  namespace one {
+    interface Integer<T extends Type = Type> extends ForeignColumn<T> {
+      type: "integer";
     }
-    
+
     interface Types {
       default: Integer;
       integer: Integer;
@@ -14,8 +13,8 @@ declare module "@expressive/sql" {
   }
 }
 
-class ForeignColumn<T extends Table = Table> extends One.Type<T> {
-  type: One.DataType = "integer";
+class ForeignColumn<T extends Type = Type> extends one.Type<T> {
+  type: one.DataType = "integer";
 }
 
-One.Type = ForeignColumn;
+one.Type = ForeignColumn;

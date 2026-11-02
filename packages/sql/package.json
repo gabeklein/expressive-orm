@@ -1,7 +1,7 @@
 {
   "name": "@expressive/sql",
   "version": "0.4.4",
-  "description": "Query builder and ORM",
+  "description": "SQL generator and connection base for Expressive ORM drivers.",
   "license": "ISC",
   "type": "module",
   "publishConfig": {
@@ -29,10 +29,14 @@
     "coverage": "vitest run --coverage",
     "test": "bun run typecheck && bun run coverage"
   },
-  "dependencies": {
-    "sql-formatter": "^10.7.2"
-  },
   "devDependencies": {
+    "@expressive/mvc": "^0.88.0",
+    "@expressive/orm": "^0.12.1",
+    "sql-formatter": "^10.7.2",
     "tsdown": "^0.20.1"
+  },
+  "peerDependencies": {
+    "@expressive/mvc": "^0.88.0",
+    "@expressive/orm": "^0.12.1"
   }
 }

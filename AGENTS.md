@@ -34,7 +34,7 @@ Runner: **vitest** with istanbul coverage, executed on node (`bun run test` invo
 import { vi, describe, it, expect } from 'vitest';
 ```
 
-Use `vi.fn()` for mocks and `vi.spyOn(...)` for spies. Tests live in `*.test.ts` files adjacent to the source they cover. `packages/sql/src/tests` and `packages/orm/tests` predate this rule and shrink as the rebuild touches them; do not add to them.
+Use `vi.fn()` for mocks and `vi.spyOn(...)` for spies. Tests live in `*.test.ts` files adjacent to the source they cover.
 
 The memory driver in `packages/orm` is the test floor for entity behaviour. SQL rendering is asserted by inline snapshots in `sql` and the drivers. `postgres` tests run on PGLite; the `pg` connection test expects nothing listening on 5432.
 

@@ -1,36 +1,33 @@
 import { describe, expect, it } from 'vitest';
 
-// packages/postgres/src/columns/Time.test.ts
-import { Nullable, Table, Time } from '..';
+import { Field, date, Type } from '@expressive/orm';
+
 import { SchemaConnection } from '../tests/SchemaConnection';
+
+function column(define: () => unknown){
+  class Test extends Type {
+    value = define();
+  }
+
+  return Test.fields.get("value") as Field<any>;
+}
 
 describe("schema", () => {
   it("will create basic time columns", async () => {
-    class TimeRecords extends Table {
-      created = Time();
-      updated = Time({ nullable: true });
-      birthDate = Time({ type: "date" });
-      startTime = Time({ type: "time" });
-      duration = Time({ type: "interval" });
+    class TimeRecords extends Type {
+      created = date();
+      updated = date({ nullable: true });
+      birthDate = date({ type: "date" });
+      startTime = date({ type: "time" });
+      duration = date({ type: "interval" });
     }
 
-    interface Signature {
-      created: Time.Timestamp;
-      updated: Time.Timestamp & Nullable;
-      birthDate: Time.Date;
-      startTime: Time.Time;
-      duration: Time.Interval;
-    }
-    
-    // type-error if expected types are not present
-    expect<Signature>(undefined as unknown as TimeRecords);
-  
     const { schema } = new SchemaConnection([ TimeRecords ]);
-  
+
     expect(String(schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "time_records" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
           "created" TIMESTAMP NOT NULL,
           "updated" TIMESTAMP,
           "birth_date" DATE NOT NULL,
@@ -39,45 +36,36 @@ describe("schema", () => {
         );"
     `);
   });
-  
+
   it("will create time columns with precision and timezone", async () => {
-    class EventLog extends Table {
-      timestamp = Time({ 
-        type: "timestamp", 
-        precision: 6, 
-        timezone: true 
+    class EventLog extends Type {
+      timestamp = date({
+        type: "timestamp",
+        precision: 6,
+        timezone: true
       });
-      duration = Time({ 
-        type: "interval", 
-        precision: 3, 
-        fields: "DAY TO SECOND" 
+      duration = date({
+        type: "interval",
+        precision: 3,
+        fields: "DAY TO SECOND"
       });
-      localTime = Time({ 
-        type: "time", 
+      localTime = date({
+        type: "time",
         precision: 3
       });
-      utcTime = Time({ 
-        type: "time", 
-        precision: 3, 
-        timezone: true 
+      utcTime = date({
+        type: "time",
+        precision: 3,
+        timezone: true
       });
     }
 
-    interface Signature {
-      timestamp: Time.Timestamp;
-      duration: Time.Interval;
-      localTime: Time.Time;
-      utcTime: Time.Time;
-    }
-
-    expect<Signature>(undefined as unknown as EventLog);
-  
     const { schema } = new SchemaConnection([ EventLog ]);
-  
+
     expect(String(schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "event_log" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
           "timestamp" TIMESTAMPTZ (6) NOT NULL,
           "duration" INTERVAL (3) DAY TO SECOND NOT NULL,
           "local_time" TIME(3) NOT NULL,
@@ -89,27 +77,25 @@ describe("schema", () => {
 
 describe("serialization", () => {
   it("will serialize and deserialize timestamp values", () => {
-    const timestampField = Time() as Time.Timestamp;
-    const date = new Date("2023-01-15T14:30:45.123Z");
-    
+    const timestampField = column(() => date());
+    const value = new Date("2023-01-15T14:30:45.123Z");
+
     // Set should return the ISO string without the timezone part
-    expect(timestampField.set(date)).toBe("2023-01-15 14:30:45");
-    
+    expect(timestampField.set(value)).toBe("2023-01-15 14:30:45");
+
     // Get should return a Date object
     const retrieved = timestampField.get("2023-01-15 14:30:45");
     expect(retrieved).toBeInstanceOf(Date);
-    
-    // Using NOW should return CURRENT_TIMESTAMP
-    expect(timestampField.set("NOW")).toBe("CURRENT_TIMESTAMP");
+
   });
-  
+
   it("will handle date type correctly", () => {
-    const dateField = Time({ type: "date" }) as Time.Date;
-    const date = new Date("2023-01-15T14:30:45.123Z");
-    
+    const dateField = column(() => date({ type: "date" }));
+    const value = new Date("2023-01-15T14:30:45.123Z");
+
     // Set should return just the date part
-    expect(dateField.set(date)).toBe("2023-01-15");
-    
+    expect(dateField.set(value)).toBe("2023-01-15");
+
     // Get should return a Date object with time set to midnight
     const retrieved = dateField.get("2023-01-15");
     expect(retrieved).toBeInstanceOf(Date);
@@ -120,35 +106,35 @@ describe("serialization", () => {
     expect(retrieved.getMinutes()).toBe(0);
     expect(retrieved.getSeconds()).toBe(0);
   });
-  
+
   it("will handle time type correctly", () => {
-    const timeField = Time({ type: "time" }) as Time.Time;
-    const date = new Date("2023-01-15T14:30:45.123Z");
-    
+    const timeField = column(() => date({ type: "time" }));
+    const value = new Date("2023-01-15T14:30:45.123Z");
+
     // Set should return just the time part
-    expect(timeField.set(date)).toBe("14:30:45");
-    
+    expect(timeField.set(value)).toBe("14:30:45");
+
     // Get should return a Date object
     const retrieved = timeField.get("14:30:45");
     expect(retrieved).toBeInstanceOf(Date);
   });
-  
+
   it("will validate timestamp with timezone", () => {
-    const tzField = Time({ 
-      type: "timestamp", 
-      timezone: true 
-    }) as Time.Timestamp;
-    
+    const tzField = column(() => date({
+      type: "timestamp",
+      timezone: true
+    }));
+
     expect(tzField.datatype).toBe("timestamptz");
   });
-  
+
   it("will validate interval fields", () => {
-    const intervalField = Time({ 
-      type: "interval", 
+    const intervalField = column(() => date({
+      type: "interval",
       fields: "HOUR TO MINUTE",
       precision: 2
-    }) as Time.Interval;
-    
+    }));
+
     expect(intervalField.datatype).toBe("interval (2) HOUR TO MINUTE");
   });
 });

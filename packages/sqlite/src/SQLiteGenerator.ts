@@ -1,4 +1,5 @@
-import { DataTable, Generator } from '@expressive/sql';
+import { DataTable } from '@expressive/orm';
+import { Generator } from '@expressive/sql';
 
 export class SQLiteGenerator extends Generator {
   protected jsonTable(table: DataTable): string {
@@ -47,5 +48,14 @@ export class SQLiteGenerator extends Generator {
     }
 
     return output;
+  }
+
+  protected limit(){
+    const { limit, offset } = this.query;
+
+    if (offset && !limit)
+      return ["LIMIT -1", `OFFSET ${offset}`];
+
+    return super.limit();
   }
 }

@@ -37,6 +37,12 @@
     "better-sqlite3": "^11.7.0"
   },
   "devDependencies": {
+    "@expressive/mvc": "^0.88.0",
+    "@expressive/orm": "^0.12.1",
     "tsdown": "^0.20.1"
+  },
+  "peerDependencies": {
+    "@expressive/mvc": "^0.88.0",
+    "@expressive/orm": "^0.12.1"
   }
 }

@@ -140,7 +140,7 @@ function memory(): Type.Connection {
   }
 
   function execute(query: Builder, params: unknown[]) {
-    const { tables, inserts, updates, deletes, filters, order, limit, returns } = query;
+    const { tables, inserts, updates, deletes, filters, order, limit, offset = 0, returns } = query;
 
     if (query.templates.size)
       throw new Error("Query templates are not supported by the memory driver.");
@@ -235,8 +235,7 @@ function memory(): Type.Connection {
       dir === 'asc' ? 1 : -1
     ]));
 
-    if (limit)
-      scopes = scopes.slice(0, limit);
+    scopes = scopes.slice(offset, limit ? offset + limit : undefined);
 
     let count = scopes.length;
 

@@ -4,7 +4,8 @@ import './columns/One';
 import './columns/Str';
 import './columns/Time';
 
-import { Builder, Connection, Table } from '@expressive/sql';
+import { Builder, Field, Query } from '@expressive/orm';
+import { Connection } from '@expressive/sql';
 import { format } from 'sql-formatter';
 
 import { PostgresGenerator } from './PostgresGenerator';
@@ -35,7 +36,7 @@ export abstract class PostgresConnection extends Connection {
     return format(this.generateSchema(this.using));
   }
 
-  prepare<T = any>(from: Builder | string) {
+  prepare(from: Builder | string) {
     const sql = typeof from == "string" ? from : String(new PostgresGenerator(from));
 
     const send = async (params?: any[]) => {
@@ -51,7 +52,7 @@ export abstract class PostgresConnection extends Connection {
     }
 
     return {
-      all: async (params?: any[]) => (await send(params)).rows as T[],
+      all: async (params?: any[]) => (await send(params)).rows,
       run: async (params?: any[]) => (await send(params)).affectedRows || 0,
       toString: () => format(sql, { language: 'postgresql', keywordCase: "upper" })
     };
@@ -91,7 +92,8 @@ export abstract class PostgresConnection extends Connection {
             continue;
           }
           
-          const { parent, reference } = field;
+          const { reference } = field;
+          const parent = field.parent!;
           const { nullable } = info;
 
           if ((nullable === 'YES') === !field.nullable){
@@ -114,13 +116,11 @@ export abstract class PostgresConnection extends Connection {
 
           if (!reference) continue;
 
+          const foreignKey = reference.column;
           const {
-            column: foreignKey,
-            parent: {
-              table: foreignTable,
-              connection: foreignConnection
-            }
-          } = reference;
+            table: foreignTable,
+            connection: foreignConnection
+          } = reference.parent!;
 
           if (foreignConnection !== this){
             messages.push(
@@ -185,12 +185,12 @@ export abstract class PostgresConnection extends Connection {
     return this.query(query, params).then(x => x.rows) as Promise<T[]>;
   }
 
-  protected async createSchema(types: Iterable<typeof Table>): Promise<void> {
+  protected async createSchema(types: Iterable<Query.Table>): Promise<void> {
     const schema = this.generateSchema(types);
     await this.exec(schema);
   }
 
-  protected generateSchema(types: Iterable<typeof Table>): string {
+  protected generateSchema(types: Iterable<Query.Table>): string {
     const schemas = Array.from(types).map(type => this.generateTableSchema(type));
     const statements = [
       ...schemas.map(s => s.table),
@@ -200,9 +200,8 @@ export abstract class PostgresConnection extends Connection {
     return statements.join('\n');
   }
 
-  protected generateTableSchema(type: Table.Type) {
+  protected generateTableSchema(type: Query.Table) {
     const { table, fields } = type;
-
     const constraints: string[] = [];
     const columns = Array.from(fields.values()).map(field => {
       const {
@@ -212,31 +211,54 @@ export abstract class PostgresConnection extends Connection {
         reference,
         increment,
         nullable,
+        primary,
         unique,
       } = field;
 
-      const type = datatype.toUpperCase();
-      let parts = `"${column}" ${type}`;
-   
+      const { onDelete, onUpdate } = field as Field & { onDelete?: string, onUpdate?: string };
+      let parts = `"${column}" ${datatype.toUpperCase()}`;
+
       if (!nullable) parts += ' NOT NULL';
-      if (increment) parts += ' GENERATED ALWAYS AS IDENTITY'; 
+      if (increment) parts += ' GENERATED ALWAYS AS IDENTITY';
+      if (primary)   parts += ' PRIMARY KEY';
       if (unique)    parts += ' UNIQUE';
-      if (fallback)  parts += ' DEFAULT ' + field.set(fallback);
-   
-      if (reference)
-        constraints.push(
+
+      if (fallback !== undefined)
+        parts += ' DEFAULT ' + literal(field, fallback);
+
+      if (reference) {
+        let constraint =
           `ALTER TABLE "${table}" ADD CONSTRAINT "${table}_${column}_fk" ` +
-          `FOREIGN KEY ("${column}") REFERENCES "${reference.parent.table}"("${reference.column}");`
-        );
-   
+          `FOREIGN KEY ("${column}") REFERENCES "${reference.parent!.table}"("${reference.column}")`;
+
+        if (onDelete) constraint += ` ON DELETE ${onDelete}`;
+        if (onUpdate) constraint += ` ON UPDATE ${onUpdate}`;
+
+        constraints.push(constraint + ";");
+      }
+
       return parts;
     });
-   
+
     return {
       table: `CREATE TABLE "${table}" (${columns.join(", ")});`,
       constraints: constraints.join('\n')
     };
   }
+}
+
+function literal(field: Field, value: unknown){
+  if (value === "NOW")
+    return "CURRENT_TIMESTAMP";
+
+  if (value === null)
+    return "NULL";
+
+  const encoded = field.set(value);
+
+  return typeof encoded == "string"
+    ? `'${encoded.replace(/'/g, "''")}'`
+    : String(encoded);
 }
 
 interface ColumnInfo {

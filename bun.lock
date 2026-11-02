@@ -34,12 +34,16 @@
       },
       "devDependencies": {
         "@electric-sql/pglite": "^0.2.16",
+        "@expressive/mvc": "^0.88.0",
+        "@expressive/orm": "^0.12.1",
         "@types/pg": "^8.11.11",
         "pg": "^8.14.0",
         "tsdown": "^0.20.1",
       },
       "peerDependencies": {
         "@electric-sql/pglite": "^0.2.16",
+        "@expressive/mvc": "^0.88.0",
+        "@expressive/orm": "^0.12.1",
         "pg": "*",
       },
       "optionalPeers": [
@@ -50,11 +54,15 @@
     "packages/sql": {
       "name": "@expressive/sql",
       "version": "0.4.4",
-      "dependencies": {
-        "sql-formatter": "^10.7.2",
-      },
       "devDependencies": {
+        "@expressive/mvc": "^0.88.0",
+        "@expressive/orm": "^0.12.1",
+        "sql-formatter": "^10.7.2",
         "tsdown": "^0.20.1",
+      },
+      "peerDependencies": {
+        "@expressive/mvc": "^0.88.0",
+        "@expressive/orm": "^0.12.1",
       },
     },
     "packages/sqlite": {
@@ -65,10 +73,16 @@
         "sql-formatter": "^10.7.2",
       },
       "devDependencies": {
+        "@expressive/mvc": "^0.88.0",
+        "@expressive/orm": "^0.12.1",
         "tsdown": "^0.20.1",
       },
       "optionalDependencies": {
         "better-sqlite3": "^11.7.0",
+      },
+      "peerDependencies": {
+        "@expressive/mvc": "^0.88.0",
+        "@expressive/orm": "^0.12.1",
       },
     },
   },

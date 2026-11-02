@@ -1,24 +1,25 @@
-import { One, Table } from "@expressive/sql";
+import { one, type Type } from '@expressive/orm';
 
-declare module "@expressive/sql" {
-  namespace One {
-    interface Integer<T extends Table = Table> extends ForeignColumn<T> {
-      readonly type: "integer";
+declare module '@expressive/orm' {
+  namespace one {
+    interface Integer<T extends Type = Type> extends ForeignColumn<T> {
+      type: "integer";
     }
-    
-    interface BigInt<T extends Table = Table> extends ForeignColumn<T> {
-      readonly type: "bigint";
+
+    interface BigInt<T extends Type = Type> extends ForeignColumn<T> {
+      type: "bigint";
     }
-    
+
     interface Types {
+      default: Integer;
       integer: Integer;
       bigint: BigInt;
     }
   }
 }
 
-class ForeignColumn<T extends Table = Table> extends One.Type<T> {
-  type: One.DataType = "integer";
+class ForeignColumn<T extends Type = Type> extends one.Type<T> {
+  type: one.DataType = "integer";
 }
 
-One.Type = ForeignColumn;
+one.Type = ForeignColumn;
