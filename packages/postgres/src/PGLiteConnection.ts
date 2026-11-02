@@ -7,8 +7,8 @@ export class PGLiteConnection extends PostgresConnection {
   protected declare engine: Promise<PGlite>;
   dataDir?: string;
 
-  constructor(using: Connection.Types, engine: PGlite)
-  constructor(using: Connection.Types, dataDir?: string, config?: PGliteOptions)
+  private owned = false;
+
   constructor(using: Connection.Types, arg2?: string | PGlite, config?: PGliteOptions) {
     super(using);
 
@@ -19,6 +19,7 @@ export class PGLiteConnection extends PostgresConnection {
           this.dataDir = arg2.dataDir || ":memory:";
         }
         else {
+          this.owned = true;
           this.dataDir = arg2 as string;
           resolve(new PGlite(this.dataDir, config));
         }
@@ -26,10 +27,6 @@ export class PGLiteConnection extends PostgresConnection {
         reject(new Error(`Failed to load PGlite: ${err.message}`));
       });
     });
-  }
-
-  async sync(fix = true){
-    return super.sync(fix);
   }
 
   async query(sql: string, params?: any[]) {
@@ -40,8 +37,16 @@ export class PGLiteConnection extends PostgresConnection {
     await (await this.engine).exec(sql);
   }
 
+  protected async listen(channel: string, callback: (payload: string) => void) {
+    return (await this.engine).listen(channel, callback);
+  }
+
   async close(): Promise<void> {
-    await (await this.engine).close();
     await super.close();
+
+    const engine = await this.engine;
+
+    if (this.owned)
+      await engine.close();
   }
 }

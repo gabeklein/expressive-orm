@@ -1,82 +1,68 @@
-import type { Type } from './Type';
+import type { Builder } from './query/Builder';
+import type { Query } from './query/Query';
 
 export type Async<T> = T | Promise<T>;
-export type MaybeLazy<T> = T | Promise<T> | (() => Async<T>);
 
 export type Nullable<T extends Field = Field> = null | Partial<T> & { nullable: true }
 
+export type Omissible =
+  | { optional: true }
+  | { increment: true }
+  | { primary: true }
+  | { fallback: {} | null };
+
+export type Optional<T> = T & { readonly "~optional"?: true };
+
+export type Omits<V> =
+  undefined extends V ? true :
+  "~optional" extends keyof NonNullable<V> ? true :
+  false;
+
 export type Config<T = Field> = Partial<T> | null | undefined | false;
 
-export class Field {
+export class Field<T = unknown> {
   key: string;
   column: string;
+  type = "";
+  kind?: unknown;
+  length?: number;
   nullable = false;
   optional = false;
-  type?: unknown;
+  unique = false;
+  increment = false;
+  primary = false;
+  absent = false;
+  fallback?: unknown;
+  reference?: Field;
+  parent?: Query.Table;
+  table?: Builder.ITable;
+  query?: Builder;
 
   constructor(key: string, ...opts: Config[]) {
     this.key = key;
     this.column = underscore(key);
-
-    for (const opt of opts) {
-      if (opt === null) {
-        this.nullable = true;
-      } else if (typeof opt === 'object') {
-        Object.assign(this, opt);
-      }
-    }
+    configure(this, opts);
   }
 
-  set(this: Field, value: any, compare?: boolean): Async<string | number | null | undefined> {
+  get datatype() {
+    return this.type;
+  }
+
+  use?(query: Builder): unknown;
+
+  set(this: Field, value: any, compare?: boolean): Async<string | number | boolean | null | undefined> {
     return value;
   }
 
-  get(this: Field, value: any, from: Record<string, any>): MaybeLazy<unknown> {
+  get(this: Field, value: any, from?: Record<string, any>): Async<T | undefined> {
     return value;
-  }
-
-  parse(this: Field, into: Type & Record<string, any>, raw: Record<string, any>): Async<void> {
-    const value = this.get(raw[this.column], raw);
-    const assign = (value: any) => {
-      Object.defineProperty(into, this.key, { value, configurable: true });
-      return value;
-    };
-
-    if (value instanceof Function) {
-      let promise: Promise<any> | undefined;
-
-      Object.defineProperty(into, this.key, {
-        configurable: true,
-        get() {
-          if (promise instanceof Promise)
-            throw promise;
-
-          const result = value();
-
-          if (result instanceof Promise)
-            throw promise = result.then(assign);
-
-          else
-            return assign(result);
-        }
-      });
-
-      return;
-    }
-
-    if (value instanceof Promise)
-      return value.then(assign);
-
-    else
-      assign(value);
   }
 
   async apply(update: Record<string, string>, from: Record<string, any>, partial?: boolean) {
-    const { key, column, nullable, optional } = this;
-    const allowMissing = optional || nullable || partial;
+    const { key, column, nullable } = this;
     let value = from[key];
 
-    if (value === undefined && allowMissing)
+    if (value === undefined && (nullable || partial || omits(this)))
       return;
 
     value = await this.set(value);
@@ -86,6 +72,20 @@ export class Field {
 
     update[column] = value;
   }
+}
+
+export function configure<F extends Field>(field: F, opts: Config<any>[]) {
+  for (const opt of opts)
+    if (opt === null)
+      field.nullable = true;
+    else if (typeof opt === 'object')
+      Object.assign(field, opt);
+
+  return field;
+}
+
+export function omits(field: Field) {
+  return field.optional || field.increment || field.primary || field.fallback !== undefined;
 }
 
 export function underscore(str: string) {

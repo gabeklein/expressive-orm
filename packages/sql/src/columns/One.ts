@@ -1,52 +1,25 @@
-import { Builder, Table, Query } from '..';
-import { Field } from '../type/Field';
-import { underscore } from '../utils';
+import { one, type Type } from '@expressive/orm';
 
-class ForeignColumn<T extends Table = Table> extends Field<Table.Values<T>> {
-  declare readonly type: One.DataType;
+declare module '@expressive/orm' {
+  namespace one {
+    interface Integer<T extends Type = Type> extends ForeignColumn<T> {
+      type: "integer";
+    }
 
-  readonly entity!: Table.Type<T>;
-  readonly nullable: boolean = false;
-  readonly onDelete?: string;
-  readonly onUpdate?: string;
+    interface BigInt<T extends Type = Type> extends ForeignColumn<T> {
+      type: "bigint";
+    }
 
-  set(value: Table.Values<T> | number) {
-    if (this.query?.tables.has(value))
-      return (value as any)[this.reference!.column];
-    
-    return value;
-  }
-
-  use(query: Builder): Query.From<T> {
-    // TODO: avoid any here?
-    const table = query.use(this.entity) as any;
-    query.where(table.id, "=", this);
-    return table;
+    interface Types {
+      default: Integer;
+      integer: Integer;
+      bigint: BigInt;
+    }
   }
 }
 
-declare namespace One {
-  interface Types {}
-
-  type DataType = keyof Types;
-  
-  type Options = (null | string | {
-    [K in Exclude<keyof ForeignColumn, 'entity'>]?: ForeignColumn[K];
-  })[]
+export class ForeignColumn<T extends Type = Type> extends one.Type<T> {
+  type: one.DataType = "integer";
 }
 
-interface One<T extends Table> extends ForeignColumn<T> {}
-
-function One<T extends Table, O extends One.Options>(
-  entity: Table.Type<T>, ...options: O){
-  
-  const field = "id";
-  const column = underscore(entity.name) + "_" + field;
-  const reference = entity.fields.get(field);
-
-  return One.Type.new({ column, reference }, ...options, { entity }) as Field.Mod<O, One<T>>;
-}
-
-One.Type = ForeignColumn;
-
-export { One };
+one.Type = ForeignColumn;

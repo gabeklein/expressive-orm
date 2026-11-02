@@ -1,8 +1,10 @@
-import { afterEach, describe, expect, it, test } from "bun:test";
+import { afterEach, describe, expect, it, test, vi } from 'vitest';
 
 import { PGlite } from '@electric-sql/pglite';
 
-import { Bool, Connection, Num, One, Query, Str, Table, Time } from '.';
+import { asc, bool, date, desc, greaterThan, isIn, isLike, isNull, json, notIn, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
+import type { Connection } from '@expressive/sql';
+
 import { PGLiteConnection } from './PGLiteConnection';
 
 const isWatchMode = process.env.VITEST_MODE === 'WATCH';
@@ -19,10 +21,9 @@ class TestConnection extends PGLiteConnection {
   }
 
   async close(): Promise<void> {
+    this.set(null);
+    await this._unlisten;
     await shared.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
-
-    for(const type of this.using)
-      delete type.connection;
   }
 }
 
@@ -31,75 +32,215 @@ describe("persistence", () => {
   const it = isWatchMode ? test.skip : test;
 
   it('will not try to recreate database tables', async () => {
-    class Users extends Table {
-      name = Str();
+    class Users extends Type {
+      name = str();
     }
     
     const pg = new PGlite();
 
-    await new PGLiteConnection([ Users ], pg);
+    await PGLiteConnection.new([ Users ], pg);
     await Users.insert({ name: "Gabe" });
 
-    // reinitialize with same db, simulating persistence
-    delete Users.connection;
-    await new PGLiteConnection([ Users ], pg);
+    Reflect.deleteProperty(Users, "connection");
+    await PGLiteConnection.new([ Users ], pg);
 
     const user = await Users.one();
 
-    expect(user).toEqual({ id: 1, name: "Gabe" });
+    expect(user.columns).toEqual({ id: 1, name: "Gabe" });
   });
 
   it('will throw if missing table', async () => {
-    class User extends Table {
-      name = Str();
+    class User extends Type {
+      name = str();
     }
     
-    class FooBar extends Table {
-      name = Str();
+    class FooBar extends Type {
+      name = str();
     }
     
     const pg = new PGlite();
 
-    await new PGLiteConnection([ User ], pg).sync(true);
+    await PGLiteConnection.new([ User ], pg).sync(true);
 
     await expect((async () => {
-      delete User.connection;
-      return new PGLiteConnection([ User, FooBar ], pg).sync(false);
+      Reflect.deleteProperty(User, "connection");
+      return PGLiteConnection.new([ User, FooBar ], pg).sync(false);
     })()).rejects.toThrow("Table foo_bar is expected but does not exist.");
   });
 
   it('will throw if table missing column', async () => {
-    const User1 = class User extends Table {
-      name = Str();
+    const User1 = class User extends Type {
+      name = str();
     }
     
-    const User2 = class User extends Table {
-      name = Str();
-      rank = Num();
+    const User2 = class User extends Type {
+      name = str();
+      rank = num();
     }
     
     const pg = new PGlite();
 
-    await new PGLiteConnection([ User1 ], pg);
+    await PGLiteConnection.new([ User1 ], pg);
 
     await expect((async () => {
-      return new PGLiteConnection([ User2 ], pg);
+      return PGLiteConnection.new([ User2 ], pg);
     })()).rejects.toThrow('Column "rank" does not exist in table user');
   });
   
-  it.todo('will ignore type mismatch if synonomous', () => {});
-  it.todo('will ignore missing column if marked as optional', () => {});
+  it('will ignore type mismatch if synonomous', async () => {
+    class Item extends Type {
+      name = str({ type: "varchar" });
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec('CREATE TABLE "item" ("id" INTEGER NOT NULL PRIMARY KEY, "name" VARCHAR NOT NULL);');
+
+    await expect(PGLiteConnection.new([ Item ], pg).sync(false)).resolves.toBeDefined();
+  });
+
+  it('will reopen parameterized types', async () => {
+    const define = () => class Item extends Type {
+      code = str({ type: "char", length: 3 });
+      name = str({ type: "varchar", length: 255 });
+      price = num({ type: "numeric", precision: 10, scale: 2 });
+      seq = num({ type: "serial", optional: true });
+      ratio = num({ type: "float" });
+      score = num({ type: "double" });
+      at = date({ precision: 3 });
+    }
+
+    const pg = new PGlite();
+
+    await PGLiteConnection.new([ define() ], pg);
+    await expect(PGLiteConnection.new([ define() ], pg).sync(false)).resolves.toBeDefined();
+  });
+
+  it('will ignore missing column if marked as optional', async () => {
+    class Item extends Type {
+      name = str();
+      note = str({ optional: true });
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec('CREATE TABLE "item" ("id" INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "name" TEXT NOT NULL);');
+    await PGLiteConnection.new([ Item ], pg).sync(false);
+
+    const field = Item.fields.get("note")!;
+
+    expect(field.absent).toBe(true);
+    expect(field.get("x")).toBeUndefined();
+  });
+
+  it('will throw for each mismatched column', async () => {
+    class Author extends Type {
+      name = str();
+    }
+
+    class Post extends Type {
+      title = str();
+      rank = num();
+      author = one(Author);
+      editor = one(Author, { column: "editor_id" });
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec(`
+      CREATE TABLE "author" ("other" INTEGER NOT NULL PRIMARY KEY, "name" TEXT NOT NULL);
+      CREATE TABLE "post" (
+        "id" INTEGER NOT NULL PRIMARY KEY,
+        "title" TEXT,
+        "rank" TEXT NOT NULL,
+        "author_id" INTEGER NOT NULL,
+        "editor_id" INTEGER NOT NULL
+      );
+    `);
+
+    await expect(PGLiteConnection.new([ Post, Author ], pg).sync(false)).rejects.toThrow(
+      'Schema verification failed:\n' +
+      'Column "title" in table post has incorrect nullable value\n' +
+      'Column "rank" in table post has type "text", expected "integer"\n' +
+      'Referenced column id does not exist in table author\n' +
+      'Referenced column id does not exist in table author\n' +
+      'Column "id" does not exist in table author'
+    );
+  });
+
+  it('will throw for a reference to another connection', async () => {
+    class Author extends Type {
+      name = str();
+    }
+
+    class Post extends Type {
+      author = one(Author);
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec('CREATE TABLE "post" ("id" INTEGER NOT NULL PRIMARY KEY, "author_id" INTEGER NOT NULL);');
+
+    await expect(PGLiteConnection.new([ Post ], pg).sync(false)).rejects.toThrow(
+      'Column "author_id" in table post references a foreign connection'
+    );
+  });
+
+  it('will throw for a missing referenced table', async () => {
+    class Author extends Type {
+      name = str();
+    }
+
+    class Post extends Type {
+      author = one(Author);
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec('CREATE TABLE "post" ("id" INTEGER NOT NULL PRIMARY KEY, "author_id" INTEGER NOT NULL);');
+
+    await expect(PGLiteConnection.new([ Post, Author ], pg).sync(false)).rejects.toThrow(
+      'Referenced table author does not exist'
+    );
+  });
+
+  it('will throw for several missing tables', async () => {
+    class Foo extends Type {}
+    class Bar extends Type {}
+
+    await expect(PGLiteConnection.new([ Foo, Bar ], new PGlite()).sync(false)).rejects.toThrow(
+      'Tables foo, bar are expected but do not exist.'
+    );
+  });
+
+  it('will throw for a class with a schema', async () => {
+    class Foo extends Type {
+      static schema = "app";
+    }
+
+    await expect(PGLiteConnection.new([ Foo ], new PGlite()).sync()).rejects.toThrow(
+      "static schema is not supported by PGLiteConnection."
+    );
+  });
+
+  it('will throw if already active', async () => {
+    class Foo extends Type {}
+
+    const conn = await PGLiteConnection.new([ Foo ], new PGlite());
+
+    await expect(conn.sync()).rejects.toThrow('Connection is already active.');
+  });
 });
 
 describe("schema", () => {
   it("will create a table", async () => {
-    class Users extends Table {
-      name = Str();
-      email = Str();
-      age = Num();
+    class Users extends Type {
+      name = str();
+      email = str();
+      age = num();
     }
   
-    await new TestConnection([ Users ]);
+    await TestConnection.new([ Users ]);
   
     await Users.insert({
       name: "Gabe",
@@ -109,42 +250,42 @@ describe("schema", () => {
   })
   
   it("will convert camelCase names to underscore", async () => {
-    class FooBar extends Table {
-      fooBar = Bool();
+    class FooBar extends Type {
+      fooBar = bool();
     }
   
-    const conn = new TestConnection({ FooBar });
+    const conn = TestConnection.new({ FooBar });
   
     expect(String(conn.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "foo_bar" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "id" INTEGER NOT NULL GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
           "foo_bar" BOOLEAN NOT NULL
         );"
     `);
   });
   
   it("will create FK constraints", async () => {
-    class Foo extends Table {
-      bar = One(Bar);
+    class Foo extends Type {
+      bar = one(Bar);
     }
   
-    class Bar extends Table {
-      value = Num();
+    class Bar extends Type {
+      value = num();
     }
   
-    const conn = await new TestConnection({ Foo, Bar });
+    const conn = await TestConnection.new({ Foo, Bar });
   
     expect(String(conn.schema)).toMatchInlineSnapshot(`
       "CREATE TABLE
         "foo" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "id" INTEGER NOT NULL GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
           "bar_id" INTEGER NOT NULL
         );
 
       CREATE TABLE
         "bar" (
-          "id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
+          "id" INTEGER NOT NULL GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
           "value" INTEGER NOT NULL
         );
 
@@ -154,80 +295,143 @@ describe("schema", () => {
   });
 });
 
-describe.skip("types", () => {
+describe("types", () => {
   it("will insert and retrieve a Bool", async () => {
-    class Test extends Table {
-      value1 = Bool();
-      value2 = Bool({
+    class Test extends Type {
+      value1 = bool();
+      value2 = bool({
         type: "varchar",
         either: ["YES", "NO"]
       });
     }
-  
-    const conn = await new TestConnection({ Test });
-  
-    expect(String(conn.schema)).toMatchInlineSnapshot(
-      `CREATE TABLE "test" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "value1" tinyint NOT NULL, "value2" TEXT NOT NULL);`
-    );
-  
-    const insert = Test.insert({
-      value1: true, value2: true
-    });
-  
-    expect(String(insert)).toMatchInlineSnapshot(`
-      INSERT INTO
-        test (value1, value2)
-      VALUES
-        (1, 'YES')
+
+    const conn = await TestConnection.new({ Test });
+
+    expect(String(conn.schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
+        "test" (
+          "id" INTEGER NOT NULL GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+          "value1" BOOLEAN NOT NULL,
+          "value2" VARCHAR(3) NOT NULL
+        );"
     `);
-    
+
+    const insert = Query(where => {
+      where(Test, { value1: true, value2: true });
+    });
+
+    expect(String(insert)).toMatchInlineSnapshot(`
+      "INSERT INTO
+        "test" ("value1", "value2")
+      SELECT
+        TRUE,
+        'YES'"
+    `);
+
     await insert;
-    expect(await Test.one()).toEqual({
+
+    const test = await Test.one();
+
+    expect(test.columns).toEqual({
       id: 1, value1: true, value2: true
     });
   });
 
   it("will insert and retrieve a Date", async () => {
-    class Test extends Table {
-      date = Time();
+    class Test extends Type {
+      date = date();
     }
 
-    const conn = await new TestConnection([ Test ]);
+    const conn = await TestConnection.new([ Test ]);
 
-    expect(String(conn.schema)).toMatchInlineSnapshot(
-      `CREATE TABLE "test" ("id" INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE, "date" TIMESTAMP NOT NULL);`
-    );
-  
+    expect(String(conn.schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
+        "test" (
+          "id" INTEGER NOT NULL GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+          "date" TIMESTAMP NOT NULL
+        );"
+    `);
+
     const now = new Date();
-  
-    // database has limited precision
+
     now.setMilliseconds(0);
-  
+
     await Test.insert({ date: now })
-  
-    const date = await Test.one((foo, where) => {
+
+    const value = await Test.query((foo, where) => {
       where(foo.id).equal(1);
-  
+
       return foo.date;
-    });
-  
-    // Date type should be preserved
-    expect<Date>(date).toBeInstanceOf(Date);
-    expect<Date>(date).toEqual(now);
+    }).one(true);
+
+    expect<Date>(value).toBeInstanceOf(Date);
+    expect<Date>(value).toEqual(now);
+  })
+
+  it("will keep milliseconds of a timestamp", async () => {
+    class Test extends Type {
+      date = date();
+    }
+
+    await TestConnection.new([ Test ]);
+
+    const at = new Date("2024-01-02T03:04:05.789Z");
+    const { id } = await Test.insert({ date: at });
+
+    const value = await Test.query((foo, where) => {
+      where(foo.id).equal(id);
+
+      return foo.date;
+    }).one(true);
+
+    expect<Date>(value).toEqual(at);
+  })
+
+  it("will insert and retrieve a time with timezone", async () => {
+    class Test extends Type {
+      at = date({ type: "time", timezone: true });
+    }
+
+    await TestConnection.new([Test]);
+    await Test.insert({ at: new Date("1970-01-01T12:34:56Z") });
+
+    const test = await Test.one(1, true);
+
+    expect(test.at).toEqual(new Date("1970-01-01T12:34:56Z"));
+  })
+
+  it("will insert and retrieve json", async () => {
+    class Test extends Type {
+      data = json<{ tags: string[] }>();
+    }
+
+    const conn = await TestConnection.new([Test]);
+
+    expect(String(conn.schema)).toMatchInlineSnapshot(`
+      "CREATE TABLE
+        "test" (
+          "id" INTEGER NOT NULL GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+          "data" TEXT NOT NULL
+        );"
+    `);
+
+    await Test.insert({ data: { tags: ["a"] } });
+
+    const test = await Test.one(1, true);
+
+    expect(test.data).toEqual({ tags: ["a"] });
   })
 })
 
 describe("select", () => {
-  class Foo extends Table {
-    bar = Str();
-    baz = Str();
+  class Foo extends Type {
+    bar = str();
+    baz = str();
   }
 
   async function prepare(){
-    await new TestConnection({ Foo });
-    await Foo.insert([
-      { bar: "hello", baz: "world" },
-    ]);
+    await TestConnection.new({ Foo });
+    await Foo.insert({ bar: "hello", baz: "world" });
   }
 
   it("will select via object", async () => {
@@ -278,13 +482,17 @@ describe("select", () => {
       return where(Foo);
     })
 
-    expect(await query).toEqual([
-      { id: 1, bar: "hello", baz: "world" }
-    ]);
+    const [foo] = await query;
+
+    expect(foo).toBeInstanceOf(Foo);
+    expect(foo.columns).toEqual({ id: 1, bar: "hello", baz: "world" });
   })
 
-  it.skip("will select without tables", async () => {
-    const query = Query(() => {
+  it("will select without tables", async () => {
+    const conn = await TestConnection.new([]);
+    const query = Query(where => {
+      where.connection = conn;
+
       return {
         foo: 5,
         bar: "hello",
@@ -297,18 +505,20 @@ describe("select", () => {
 })
 
 describe("template", () => {
-  class Foo extends Table {
-    first = Str();
-    last = Str();
-    color = Str();
+  class Foo extends Type {
+    first = str();
+    last = str();
+    color = str();
   }
 
   async function prepare(){
-    await new TestConnection([Foo]);
-    await Foo.insert([
-      { first: "John", last: "Doe",   color: "red" },
-      { first: "Jane", last: "Smith", color: "blue" }
-    ]);
+    await TestConnection.new([Foo]);
+    await Query(where => {
+      where(Foo,
+        { first: "John", last: "Doe",   color: "red" },
+        { first: "Jane", last: "Smith", color: "blue" }
+      );
+    });
   }
 
   it("will create a template", async () => {
@@ -369,87 +579,97 @@ describe("template", () => {
   })
   
   it("will select a parameter value", async () => {
-    const query = Query(() => (color: string) => color);
+    const conn = await TestConnection.new([]);
+    const query = Query(where => {
+      where.connection = conn;
+      return (color: string) => color;
+    });
   
     expect(String(query)).toMatchInlineSnapshot(`
       "SELECT
-        ?"
+        $1"
     `);
 
-    // TODO: test if comes back as expected
+    expect(await query("red")).toEqual(["red"]);
   });
-  
-  it("will select a parameter value", async () => {
-    const query = Query(() => (color: string) => ({ color }));
+
+  it("will select a parameter in property", async () => {
+    const conn = await TestConnection.new([]);
+    const query = Query(where => {
+      where.connection = conn;
+      return (color: string) => ({ color });
+    });
   
     expect(String(query)).toMatchInlineSnapshot(`
       "SELECT
-        ? AS "color""
+        $1 AS "color""
     `);
   });
 })
 
 describe("insert", () => {
-  class Foo extends Table {
-    name = Str();
-    color = Str();
+  class Foo extends Type {
+    name = str();
+    color = str();
   }
   
   it("will throw for bad value", async () => {
-    const insert = () => (
-      Foo.insert({
+    const insert = () => Query(where => {
+      // @ts-expect-error
+      where(Foo, {
         name: "foobar",
-        // @ts-expect-error
         color: 3
-      }) 
-    )
+      });
+    });
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(`
-      "Provided value for Foo.color but not acceptable for type text.
-      Value must be a string."
+      [Error: Provided value for foo.color is not acceptable.
+      Value must be a string.]
     `);
   })
   
   it("will throw for no value non-nullable", async () => {
-    const insert = () => {
+    const insert = () => Query(where => {
       // @ts-expect-error
-      Foo.insert({ name: "foobar" }) 
-    }
+      where(Foo, { name: "foobar" });
+    });
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(
-      `"Can't assign to \`Foo.color\`. A value is required but got undefined."`);
+      `[Error: Can't assign to \`foo.color\`. A value is required but got undefined.]`);
   })
   
   it("will add index to specify error", async () => {
-    const insert = () => {
-      Foo.insert([
+    const insert = () => Query(where => {
+      // @ts-expect-error
+      where(Foo,
         { name: "foo", color: "red" },
-        // @ts-expect-error
         { name: "bar" }
-      ]) 
-    }
+      );
+    });
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(`
-      "A provided value at \`color\` at index [1] is not acceptable.
-      Can't assign to \`Foo.color\`. A value is required but got undefined."
+      [Error: A provided value at \`color\` at index [1] is not acceptable.
+      Can't assign to \`foo.color\`. A value is required but got undefined.]
     `);
   })
 
   it("will insert procedurally generated rows", async () => {
-    class Users extends Table {
-      name = Str();
-      email = Str();
-      age = Num();
+    class Users extends Type {
+      name = str();
+      email = str();
+      age = num();
     }
     
-    await new TestConnection({ Users });
+    await TestConnection.new({ Users });
   
     const names = ["john", "jane", "bob", "alice"];
-    const insert = Users.insert(names, (name, i) => ({
-      name,
-      age: i + 25,
-      email: `${name.toLowerCase()}@email.org`
-    }));
+    const insert = Query(where => {
+      where(Users, ...names.map((name, i) => ({
+        name,
+        age: i + 25,
+        email: `${name.toLowerCase()}@email.org`
+      })));
+    });
   
     expect(String(insert)).toMatchInlineSnapshot(`
       "INSERT INTO
@@ -473,9 +693,9 @@ describe("insert", () => {
   
     await insert;
   
-    const results = Users.get();
-  
-    expect(await results).toMatchObject([
+    const results = await Users.query();
+
+    expect(results.map(user => user.columns)).toEqual([
       { "id": 1, "name": "john",  "email": "john@email.org",  "age": 25 },
       { "id": 2, "name": "jane",  "email": "jane@email.org",  "age": 26 },
       { "id": 3, "name": "bob",   "email": "bob@email.org",   "age": 27 },
@@ -485,12 +705,12 @@ describe("insert", () => {
 });
 
 describe("query", () => {
-  class User extends Table {
-    name = Str();
+  class User extends Type {
+    name = str();
   }
 
   it("will insert a single row", async () => {
-    await new TestConnection([User]);
+    await TestConnection.new([User]);
     
     const query = Query(where => {
       return where(User, { name: "John" }).id;
@@ -509,12 +729,12 @@ describe("query", () => {
   });
 
   it.skip("will chain inserts", async () => {
-    class Info extends Table {
-      user = One(User);
-      color = Str();
+    class Info extends Type {
+      user = one(User);
+      color = str();
     }
 
-    await new TestConnection([User, Info]);
+    await TestConnection.new([User, Info]);
     
     const query = Query(where => {
       const user = where(User, { name: "John" });
@@ -546,19 +766,17 @@ describe("query", () => {
   });
   
   it("will insert", async () => {
-    class Info extends Table {
-      user = One(User);
-      color = Str();
+    class Info extends Type {
+      user = one(User);
+      color = str();
     }
   
-    await new TestConnection([User, Info]);
+    await TestConnection.new([User, Info]);
   
-    await User.insert([
-      { name: "John" },
-      { name: "Jane" },
-      { name: "Joe" },
-    ]);
-  
+    await Query(where => {
+      where(User, { name: "John" }, { name: "Jane" }, { name: "Joe" });
+    });
+
     const query = Query(where => {
       const user = where(User);
       const info = where(Info, {
@@ -585,7 +803,7 @@ describe("query", () => {
   });
 
   it("will insert iterable data", async () => {
-    await new TestConnection([User]);
+    await TestConnection.new([User]);
   
     const data = [
       { name: "John" },
@@ -608,7 +826,9 @@ describe("query", () => {
 
     expect(await query).toBe(3);
 
-    expect<unknown>(await User.get()).toEqual([
+    const users = await User.query();
+
+    expect(users.map(user => user.columns)).toEqual([
       { id: 1, name: "John" },
       { id: 2, name: "Jane" },
       { id: 3, name: "Joe" },
@@ -617,18 +837,20 @@ describe("query", () => {
 })
 
 it("will update from data", async () => {
-  class Users extends Table {
-    name = Str();
-    age = Num();
+  class Users extends Type {
+    name = str();
+    age = num();
   }
 
-  await new TestConnection([Users]);
+  await TestConnection.new([Users]);
 
-  await Users.insert([
-    { name: "John", age: 0 },
-    { name: "Jane", age: 0 },
-    { name: "Joe", age: 0 },
-  ])
+  await Query(where => {
+    where(Users,
+      { name: "John", age: 0 },
+      { name: "Jane", age: 0 },
+      { name: "Joe", age: 0 },
+    );
+  });
 
   const data = [
     { name: "John", age: 30 },
@@ -662,12 +884,366 @@ it("will update from data", async () => {
   `);
 
   expect(await query).toBe(2);
-  expect<unknown>(await Users.get()).toEqual([
-    { id: 3, name: "Joe", age: 0 },
+  const users = await Users.find({ id: asc() });
+
+  expect(users.map(user => user.columns)).toEqual([
     { id: 1, name: "John", age: 30 },
     { id: 2, name: "Jane", age: 25 },
+    { id: 3, name: "Joe", age: 0 },
   ]);
+})
+
+describe("floor", () => {
+  class Author extends Type {
+    name = str();
+  }
+
+  class Post extends Type {
+    author = one(Author, { onDelete: "CASCADE" });
+    title = str();
+    views = num({ fallback: 0 });
+    draft = bool();
+    published = date({ nullable: true, timezone: true });
+  }
+
+  it("will match an empty list", async () => {
+    await TestConnection.new([Author]);
+
+    const gabe = await Author.insert({ name: "Gabe" });
+
+    expect(await Author.find({ id: isIn([]) })).toEqual([]);
+    expect(await Author.find({ id: notIn([]) })).toEqual([gabe]);
+  })
+
+  it("will round trip entities", async () => {
+    await TestConnection.new([Author, Post]);
+
+    const gabe = await Author.insert({ name: "Gabe" });
+    const first = await Post.insert({ author: gabe, title: "First", draft: false, published: new Date("2024-01-01T00:00:00Z") });
+    const second = await Post.insert({ author: gabe.id, title: "Second", draft: true });
+
+    expect(first.id).toBe(1);
+    expect(second.views).toBe(0);
+    expect(second.published).toBeUndefined();
+    expect(first.published).toEqual(new Date("2024-01-01T00:00:00Z"));
+
+    expect(await Post.find({ draft: true })).toEqual([second]);
+
+    const found = await Post.find({
+      title: [isLike("%S%"), notNull()],
+      views: greaterThan(-1),
+      id: [isIn([1, 2]), asc()]
+    }, 1);
+
+    expect(found).toEqual([second]);
+    expect(await Post.find({ published: isNull() })).toEqual([second]);
+    expect(await Post.find({ id: desc() }, undefined, 1)).toEqual([first]);
+    expect(await Post.one(1, true)).toBe(first);
+
+    await second.update({ title: "Second!", draft: false, views: 10 });
+
+    const titles = await Post.query((post, where) => {
+      where(post.views).over(5);
+
+      return { title: post.title, author: post.author.name };
+    });
+
+    expect(titles).toEqual([{ title: "Second!", author: "Gabe" }]);
+
+    second.published = new Date("2024-02-01T00:00:00Z");
+    await second.save();
+
+    const [reloaded] = await Post.query((post, where) => {
+      where(post.id).equal(2);
+
+      return { published: post.published, draft: post.draft };
+    });
+
+    expect(reloaded).toEqual({ published: new Date("2024-02-01T00:00:00Z"), draft: false });
+
+    await first.delete();
+
+    expect(await Post.find()).toEqual([second]);
+    expect(await Post.one(1, false)).toBeUndefined();
+
+    await Author.update(gabe.id, { name: "Bob" });
+
+    const [renamed] = await Query(where => where(Author).name);
+
+    expect(renamed).toBe("Bob");
+  })
+})
+
+describe("live rows", () => {
+  it("will update a loaded entity", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+
+    const user = await User.insert({ name: "Gabe" });
+    const names: string[] = [];
+
+    user.get(current => {
+      names.push(current.name);
+    });
+
+    await shared.query(`UPDATE "user" SET name = 'Bob' WHERE id = $1`, [user.id]);
+    await vi.waitFor(() => expect(user.name).toBe("Bob"));
+
+    expect(names).toEqual(["Gabe", "Bob"]);
+  })
+
+  it("will destroy a deleted entity", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+
+    const user = await User.insert({ name: "Gabe" });
+
+    await shared.query(`DELETE FROM "user" WHERE id = $1`, [user.id]);
+    await vi.waitFor(() => expect(user.get(null)).toBe(true));
+
+    expect(User.loaded.has(user.id)).toBe(false);
+  })
+
+  it("will keep unsaved fields", async () => {
+    class User extends Type {
+      name = str();
+      age = num();
+    }
+
+    await TestConnection.new([User]);
+
+    const user = await User.insert({ name: "Gabe", age: 1 });
+
+    user.name = "Local";
+
+    await shared.query(`UPDATE "user" SET name = 'Remote', age = 30 WHERE id = $1`, [user.id]);
+    await vi.waitFor(() => expect(user.age).toBe(30));
+
+    expect(user.name).toBe("Local");
+  })
+
+  it("will decode a timestamp", async () => {
+    class Event extends Type {
+      at = date();
+    }
+
+    await TestConnection.new([Event]);
+
+    const event = await Event.insert({ at: new Date("2024-01-01T00:00:00Z") });
+
+    await shared.query(`UPDATE "event" SET at = '2024-06-01 12:00:00' WHERE id = $1`, [event.id]);
+    await vi.waitFor(() => expect(event.at).toEqual(new Date("2024-06-01T12:00:00Z")));
+  })
+
+  it("will reload a row too large to notify", async () => {
+    class Doc extends Type {
+      body = str();
+    }
+
+    await TestConnection.new([Doc]);
+
+    const doc = await Doc.insert({ body: "short" });
+    const body = "x".repeat(9000);
+
+    await shared.query(`UPDATE "doc" SET body = $1 WHERE id = $2`, [body, doc.id]);
+    await vi.waitFor(() => expect(doc.body).toBe(body));
+  })
+
+  it("will follow a renamed key column", async () => {
+    class User extends Type {
+      id = num({ column: "user_id", primary: true });
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+
+    const user = await User.insert({ id: 7, name: "Gabe" });
+
+    await shared.query(`UPDATE "user" SET name = 'Bob' WHERE user_id = 7`);
+    await vi.waitFor(() => expect(user.name).toBe("Bob"));
+  })
+
+  it("will ignore tables not used", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = await TestConnection.new([User]);
+    const listener = vi.fn();
+    const stop = db.subscribe(listener);
+
+    await shared.query(`SELECT pg_notify('expressive_orm', '{"table":"other","op":"delete","id":1}')`);
+    await shared.query(`SELECT pg_notify('expressive_orm', '{"table":"user","op":"delete","id":1}')`);
+    await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(1));
+
+    stop();
+
+    expect(listener).toHaveBeenCalledWith({ table: "user", op: "delete", id: 1 });
+  })
+})
+
+describe("renamed key column", () => {
+  it("will round trip a numeric key", async () => {
+    class User extends Type {
+      id = num({ column: "user_id", primary: true });
+      name = str();
+    }
+
+    const db = await TestConnection.new([User]);
+    const user = await User.insert({ id: 1, name: "Gabe" });
+
+    await expect(db.select("user", [])).resolves.toEqual([{ user_id: 1, name: "Gabe" }]);
+    await expect(User.one(1, true)).resolves.toBe(user);
+
+    await user.update({ name: "Bob" });
+    await User.update(1, { name: "Ann" });
+    await expect(db.select("user", [])).resolves.toEqual([{ user_id: 1, name: "Ann" }]);
+    expect(user.name).toBe("Ann");
+
+    await user.delete();
+    await expect(db.select("user", [])).resolves.toEqual([]);
+  })
+
+  it("will round trip a string key", async () => {
+    class Doc extends Type {
+      id = uuid({ column: "doc_id", primary: true });
+      title = str();
+    }
+
+    const db = await TestConnection.new([Doc]);
+    const doc = await Doc.insert({ id: "a1", title: "Hello" });
+
+    await expect(Doc.one("a1", true)).resolves.toBe(doc);
+
+    await doc.update({ title: "Bye" });
+    await expect(db.select("doc", [])).resolves.toEqual([{ doc_id: "a1", title: "Bye" }]);
+
+    await doc.delete();
+    await expect(Doc.one("a1", false)).resolves.toBeUndefined();
+  })
+
+  it("will accept an explicit generated id", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+
+    const user = await User.insert({ id: 5, name: "Gabe" });
+
+    expect(user.id).toBe(5);
+    await expect(User.one(5, true)).resolves.toBe(user);
+  })
 })
 
 it.todo("will prevent reserved words as table names", () => {});
 it.todo("will handle type synonyms", () => {});
+
+describe("quoting", () => {
+  const values = ["it's", 'say "hi"', "back\\slash \\'", "x\\' OR 1=1 --"];
+
+  it("will round trip quotes and backslashes", async () => {
+    class User extends Type {
+      name = str();
+      note = str({ nullable: true });
+    }
+
+    await TestConnection.new([User]);
+
+    for (const name of values)
+      await Query(where => void where(User, { name }));
+
+    await Query(where => {
+      const user = where(User);
+
+      where(user.id).equal(1);
+      where(user).update({ note: values[2] });
+    });
+
+    for (const name of values) {
+      const found = await Query(where => {
+        const user = where(User);
+
+        where(user.name).equal(name);
+
+        return user.name;
+      });
+
+      expect(found).toEqual([name]);
+    }
+
+    const [note] = await Query(where => {
+      const user = where(User);
+
+      where(user.id).equal(1);
+
+      return user.note;
+    });
+
+    expect(note).toBe(values[2]);
+  })
+
+  it("will not inject through a string literal", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+    await User.insert({ name: "Gabe" });
+
+    const found = await Query(where => {
+      const user = where(User);
+
+      where(user.name).equal("x\\' OR 1=1 --");
+
+      return user.name;
+    });
+
+    expect(found).toEqual([]);
+  })
+})
+
+describe("prepare", () => {
+  it("will report a syntax error with the query", async () => {
+    const conn = await TestConnection.new([]);
+
+    await expect(conn.prepare("SELEC 1").all()).rejects.toThrow("Syntax error in query: SELEC 1");
+  })
+
+  it("will rethrow other errors", async () => {
+    const conn = await TestConnection.new([]);
+
+    await expect(conn.prepare("SELECT * FROM missing").run()).rejects.toThrow('relation "missing" does not exist');
+  })
+})
+
+describe("close", () => {
+  it("will not close a borrowed PGlite", async () => {
+    class Foo extends Type {}
+
+    const pg = new PGlite();
+    const conn = await PGLiteConnection.new([Foo], pg);
+
+    await conn.close();
+
+    expect(pg.closed).toBe(false);
+    await pg.close();
+  })
+
+  it("will close a PGlite it created", async () => {
+    class Foo extends Type {}
+
+    const conn = await PGLiteConnection.new([Foo]);
+    const pg = await (conn as any).engine as PGlite;
+
+    await conn.close();
+
+    expect(pg.closed).toBe(true);
+  })
+})

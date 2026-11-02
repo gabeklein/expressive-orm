@@ -1,6 +1,13 @@
+export { Connection } from './Connection';
 export { default, Type } from './Type';
-export type { Compat, Insert, Values } from './Type';
-export * from './fields';
+export type { Columns, Compat, Insert } from './Type';
+export type { Infer } from './fields';
+export { Field, json, str, num, bool, date, uuid, orNull, optional } from './fields';
 export * from './where';
 export { one, lazy } from './one';
-export { get } from './get';
+export { rows } from './rows';
+export { memory } from './memory';
+export { Query } from './query/Query';
+export { Builder } from './query/Builder';
+export { Computed } from './query/Computed';
+export { DataField, DataTable, Parameter, QueryTemplate } from './query/Value';

@@ -1,8 +1,26 @@
 {
   "name": "@expressive/orm",
   "version": "0.12.1",
-  "description": "Query builder and ORM",
+  "description": "Entities on @expressive/mvc Model: driver contract, Query builder and an in-memory driver.",
+  "keywords": [
+    "orm",
+    "entity",
+    "state",
+    "reactive",
+    "query-builder",
+    "expressive",
+    "mvc"
+  ],
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabeklein/expressive-orm.git",
+    "directory": "packages/orm"
+  },
+  "homepage": "https://github.com/gabeklein/expressive-orm/tree/main/packages/orm#readme",
+  "bugs": {
+    "url": "https://github.com/gabeklein/expressive-orm/issues"
+  },
   "type": "module",
   "publishConfig": {
     "access": "public"
@@ -25,11 +43,15 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "lint": "tsc --noEmit",
-    "test": "tsc --noEmit && bun test"
+    "typecheck": "tsc --noEmit --incremental",
+    "coverage": "vitest run --coverage",
+    "test": "bun run typecheck && bun run coverage"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.2.16",
+    "@expressive/mvc": "^0.94.0",
     "tsdown": "^0.20.1"
+  },
+  "peerDependencies": {
+    "@expressive/mvc": "^0.94.0"
   }
 }

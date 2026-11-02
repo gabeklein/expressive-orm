@@ -1,24 +1,23 @@
 import type { Connection } from '@expressive/sql';
-import type { Pool, PoolConfig } from 'pg';
+import type { Notification, Pool, PoolConfig } from 'pg';
 
 import { PostgresConnection } from './PostgresConnection';
 
 export class PGConnection extends PostgresConnection {
   protected declare engine: Promise<Pool>;
 
-  constructor(using: Connection.Types, connectionString: string)
-  constructor(using: Connection.Types, config: PoolConfig)
-  constructor(using: Connection.Types, pool: Pool)
+  private owned = false;
+
   constructor(using: Connection.Types, arg2: string | PoolConfig | Pool) {
     super(using);
 
     this.engine = new Promise((resolve, reject) => {
       import("pg").then(({ default: { Pool } }) => {
-        resolve(
-          arg2 instanceof Pool ? arg2 : new Pool(
-            typeof arg2 == "string" ? { connectionString: arg2 } : arg2
-          )
-        );
+        if (arg2 instanceof Pool)
+          return resolve(arg2);
+
+        this.owned = true;
+        resolve(new Pool(typeof arg2 == "string" ? { connectionString: arg2 } : arg2));
       }).catch((err) => {
         reject(new Error(`Attempted to load pg but failed: ${err.message}`));
       });
@@ -38,8 +37,26 @@ export class PGConnection extends PostgresConnection {
     await (await this.engine).query(sql);
   }
 
+  protected async listen(channel: string, callback: (payload: string) => void) {
+    const client = await (await this.engine).connect();
+    const notify = (message: Notification) => callback(message.payload!);
+
+    client.on('notification', notify);
+    await client.query(`LISTEN ${channel}`);
+
+    return async () => {
+      client.off('notification', notify);
+      await client.query(`UNLISTEN ${channel}`);
+      client.release();
+    };
+  }
+
   async close(): Promise<void> {
-    await (await this.engine).end();
     await super.close();
+
+    const engine = await this.engine;
+
+    if (this.owned)
+      await engine.end();
   }
 }

@@ -1,105 +1,141 @@
-import { format } from 'sql-formatter';
+import '../columns/Bool';
+import '../columns/Num';
+import '../columns/One';
+import '../columns/Str';
+import '../columns/Time';
 
-import { Builder, Table } from '..';
-import { values } from '../utils';
-import { Generator } from './Generator';
+import { Builder, Connection as Base, Field, Parameter, Query, Type } from '@expressive/orm';
 
 declare namespace Connection {
-  type Types =
-    | typeof Table[]
-    | { [key: string | number]: typeof Table }
+  type Types = Base.Types;
 
-  type Using = { [key: string | number]: typeof Table };
+  type Ready<T extends Connection = Connection> = Base.Ready<T>;
 
-  type Ready<T extends Connection = Connection> = Omit<T, "then">;
-
-  let None: Connection;
+  type Change = Base.Change;
 }
 
-abstract class Connection {
-  readonly using: Readonly<Set<typeof Table>>;
-  readonly ready: boolean = false;
+function ref({ schema, table }: Query.Table){
+  return schema ? `${schema}.${table}` : table;
+}
 
-  constructor(using: Connection.Types){
-    this.using = new Set(values(using).map(type => {
-      if(type.hasOwnProperty('connection'))
-        throw new Error(`Type ${type.name} already has assigned connection.`);
-
-      type.connection = this;
-      return type;
-    }))
-  }
-
-  async then(
-    onfulfilled?: (value: Connection.Ready<this>) => any,
-    onrejected?: (reason: any) => any) {
-
-    return (this.ready ? Promise.resolve() : this.sync())
-      .then(() => {
-        Object.defineProperty(this, 'then', { value: undefined });
-
-        if (onfulfilled)
-          onfulfilled(this);
-      })
-      .catch(onrejected);
-  }
-
+abstract class Connection extends Base {
   abstract get schema(): string;
 
-  async close(){
-    for(const type of this.using)
-      delete type.connection;
-  }
-  
   abstract sync(fix?: boolean): Promise<this>;
 
-  abstract prepare<T = any>(builder: Builder): {
-    all: (args?: any[]) => Promise<T[]>;
-    run: (args?: any[]) => Promise<number>;
-  }
-}
+  abstract prepare(builder: Builder): Builder.Statement;
 
-class NoConnection extends Connection {
-  constructor(){
-    super([]);
-  }
+  async select(table: string, constraints: Type.Constraint[], limit?: number, offset?: number){
+    const { builder, target, bind, run } = statement(this, table);
 
-  get schema(): never {
-    throw new Error("No connection to generate schema.");
-  }
+    for (const [column, op, value] of constraints) {
+      const field = lookup(target, column);
 
-  prepare(builder: Builder){
-    const template = String(new Generator(builder));
-
-    async function run(): Promise<never> {
-      throw new Error("No connection to run query.");
+      if (op === 'asc' || op === 'desc')
+        builder.order.set(field, op);
+      else if (op === 'IS NULL')
+        builder.filters.add(field, '=', null);
+      else if (op === 'IS NOT NULL')
+        builder.filters.add(field, '<>', null);
+      else if (value === null)
+        builder.filters.add(field, op, null);
+      else
+        builder.filters.add(field, op, Array.isArray(value) ? value.map(bind) : bind(value));
     }
 
-    return {
-      all: run,
-      run,
-      toString(){
-        return pretty(template);
-      }
-    }
+    builder.limit = limit;
+    builder.offset = offset;
+    builder.commit(target.proxy);
+
+    const rows = await this.prepare(builder).all(run());
+
+    return rows.map(raw => decode(builder, raw));
   }
 
-  async sync(){
-    return this;
+  async insert(table: string, data: Record<string, any>, returns?: boolean){
+    const { builder, target, bind, run } = statement(this, table);
+    const values: Builder.Insert = new Map();
+
+    for (const field of target.fields.values())
+      if (field.column in data)
+        values.set(field, bind(data[field.column]));
+
+    builder.inserts.set(target, values);
+
+    if (!returns)
+      return this.prepare(builder).run(run());
+
+    builder.commit(target.proxy);
+
+    const [row] = await this.prepare(builder).all(run());
+
+    return decode(builder, row);
   }
 
-  async close(){
-    return;
+  async update(table: string, id: string | number, data: Record<string, any>){
+    const { builder, target, bind, run } = statement(this, table);
+    const values: Builder.Insert = new Map();
+
+    for (const column in data)
+      values.set(lookup(target, column), bind(data[column]));
+
+    builder.updates.set(target, values);
+    builder.filters.add(target.fields.get("id")!, '=', bind(id));
+
+    await this.prepare(builder).run(run());
+  }
+
+  async remove(table: string, id: string | number){
+    const { builder, target, bind, run } = statement(this, table);
+
+    builder.deletes.add(target);
+    builder.filters.add(target.fields.get("id")!, '=', bind(id));
+
+    await this.prepare(builder).run(run());
   }
 }
 
-function pretty(sql: string){
-  return format(sql, { keywordCase: "upper" })
-    // TODO: this shouldn't apply - drop CTE from this module
-    .replace(/ - > > /g, " ->> ")
-    .replace(/`([a-zA-Z][a-zA-Z0-9_]*)`/g, "$1");
+function statement(connection: Connection, table: string){
+  const type = [...connection.using, ...connection._loaded.keys()].find(type => ref(type) === table);
+
+  if (!type)
+    throw new Error(`Table ${table} is not used by this connection.`);
+
+  const builder = new Builder();
+  const target = builder.tables.get(builder.use(type))!;
+  const params: unknown[] = [];
+
+  return {
+    builder,
+    target,
+    bind(value: unknown){
+      const param = new Parameter(params.length);
+
+      params.push(value);
+      builder.params.push(param);
+
+      return param;
+    },
+    run: () => builder.accept(params)
+  };
 }
 
-Connection.None = new NoConnection();
+function lookup(table: Builder.ITable, column: string){
+  for (const field of table.fields.values())
+    if (field.column === column)
+      return field;
+
+  throw new Error(`Column ${column} does not exist in ${table.name}.`);
+}
+
+function decode(builder: Builder, raw: Record<string, any>){
+  const row: Record<string, any> = {};
+
+  (builder.returns as Map<string, Field>).forEach((field, key) => {
+    row[field.column] = raw[key];
+  });
+
+  return row;
+}
 
 export { Connection };

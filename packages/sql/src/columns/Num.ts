@@ -1,63 +1,97 @@
-import { Field } from '../type/Field';
+import { num } from '@expressive/orm';
 
-class NumericColumn extends Field<number> {
-  declare readonly type: Num.DataType;
-  readonly precision?: number;
-  readonly scale?: number;
+declare module '@expressive/orm' {
+  namespace num {
+    interface Integer extends NumericColumn {
+      type: "integer";
+    }
 
-  set(value: number) {
-    if (typeof value !== 'number' || isNaN(value))
-      throw `Got '${value}' but value must be a number.`;
+    interface SmallInt extends NumericColumn {
+      type: "smallint";
+    }
 
-    return value;
+    interface BigInt extends NumericColumn {
+      type: "bigint";
+    }
+
+    interface Real extends NumericColumn {
+      type: "real";
+    }
+
+    interface Float extends NumericColumn {
+      type: "float";
+    }
+
+    interface Double extends NumericColumn {
+      type: "double";
+    }
+
+    interface Numeric extends NumericColumn {
+      type: "numeric";
+      precision: number;
+      scale: number;
+    }
+
+    interface Decimal extends NumericColumn {
+      type: "decimal";
+      precision: number;
+      scale: number;
+    }
+
+    interface Types {
+      default: Integer;
+      integer: Integer;
+      smallint: SmallInt;
+      bigint: BigInt;
+      real: Real;
+      float: Float;
+      double: Double;
+      numeric: Numeric;
+      decimal: Decimal;
+    }
   }
 }
 
-declare namespace Num {
-  /**
-   * Defines all available types of numeric columns.
-   * Each type represents a different kind of numeric data storage.
-   * SQL adapters will implement these types and add to interface using type as key.
-   * "default" is what should be returned when no type is specified by `Num({ ... })`.
-   * 
-   * @example
-   * declare module "@expressive/sql" {
-   *   namespace Num {
-   *     interface Integer extends Num {
-   *       readonly type: "integer";
-   *     }
-   * 
-   *     interface Decimal extends Num {
-   *       readonly type: "decimal";
-   *       readonly precision: number;
-   *       readonly scale: number;
-   *     }
-   * 
-   *     interface Types {
-   *       default: Integer;
-   *       integer: Integer;
-   *       decimal: Decimal;
-   *     }
-   *   }
-   * }
-   */
-  interface Types {}
+const RANGE: Record<string, [number, number]> = {
+  smallint: [-32768, 32767],
+  integer: [-2147483648, 2147483647],
+  bigint: [-Infinity, Infinity]
+};
 
-  /** All available type identifiers for Num */
-  type DataType = keyof Types;
+export class NumericColumn extends num.Type {
+  type: num.DataType = "integer";
 
-  /** All available database types for Num */
-  type Any = Types[keyof Types] | NumericColumn;
+  get datatype() {
+    return this.type === "double" ? "double precision" : super.datatype;
+  }
 
-  type Opts = Field.Args<Any>;
+  set(value: unknown) {
+    const out = super.set(value);
+
+    if (typeof value != "number")
+      return out;
+
+    const { type, precision, scale } = this;
+    const range = RANGE[type];
+
+    if (range) {
+      const [min, max] = range;
+
+      if (value !== Math.floor(value) || value < min || value > max)
+        throw new Error(`Value ${value} out of range for ${type}.`);
+    }
+    else if (precision !== undefined) {
+      const [whole, fraction = ""] = Math.abs(value).toString().split('.');
+
+      if (whole.length + fraction.length > precision)
+        throw new Error(`Value ${value} exceeds precision of ${precision}.`);
+
+      if (scale !== undefined && fraction.length > scale)
+        throw new Error(`Value ${value} exceeds scale of ${scale}.`);
+    }
+
+    return out;
+  }
 }
 
-type Num = Num.Any;
-
-function Num<T extends Num.Opts>(...opts: T) {
-  return Num.Type.new(...opts) as Field.Infer<T, Num.Types, Num>;
-}
-
-Num.Type = NumericColumn;
-
-export { Num }
+num.Type = NumericColumn;

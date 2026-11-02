@@ -1,46 +1,80 @@
-import './columns/Bool';
-import './columns/Num';
-import './columns/One';
-import './columns/Str';
-import './columns/Time';
+import './columns';
 
-import { Builder, Connection, Table } from '@expressive/sql';
+import { Builder, Field, Query, Type } from '@expressive/orm';
+import { Connection } from '@expressive/sql';
 import { format } from 'sql-formatter';
 
 import { PostgresGenerator } from './PostgresGenerator';
 
 const TYPE_SYNONYMS: Record<string, string> = {
+  "int": "integer",
   "int2": "smallint",
   "int4": "integer",
   "int8": "bigint",
-  "real": "float",
-  "double precision": "double",
-  "character varying": "varchar",
-  "character": "char",
-  "numeric": "decimal",
-  "timestamp without time zone": "timestamp",
-  "timestamp with time zone": "timestamptz",
-  "time without time zone": "time",
-  "time with time zone": "timetz",
-  "interval without time zone": "interval",
-  "interval with time zone": "interval",
-  "boolean": "bool",
-  "bytea": "binary"
+  "smallserial": "smallint",
+  "serial": "integer",
+  "bigserial": "bigint",
+  "float4": "real",
+  "float": "double precision",
+  "float8": "double precision",
+  "double": "double precision",
+  "decimal": "numeric",
+  "varchar": "character varying",
+  "char": "character",
+  "bpchar": "character",
+  "timestamp": "timestamp without time zone",
+  "timestamptz": "timestamp with time zone",
+  "time": "time without time zone",
+  "timetz": "time with time zone",
+  "bool": "boolean"
 }
+
+function base(type: string){
+  const name = type.toLowerCase().replace(/\(.*?\)| collate .*/g, "").replace(/\s+/g, " ").trim();
+
+  return name.startsWith("interval") ? "interval" : TYPE_SYNONYMS[name] || name;
+}
+
+const CHANNEL = "expressive_orm";
+
+const NOTIFY = `
+CREATE OR REPLACE FUNCTION expressive_notify() RETURNS trigger AS $$
+DECLARE
+  rec jsonb;
+  payload jsonb;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    rec := to_jsonb(OLD);
+  ELSE
+    rec := to_jsonb(NEW);
+  END IF;
+
+  payload := jsonb_build_object('table', TG_TABLE_NAME, 'op', lower(TG_OP), 'id', rec -> TG_ARGV[0]);
+
+  IF TG_OP <> 'DELETE' AND octet_length((payload || jsonb_build_object('row', rec))::text) < 8000 THEN
+    payload := payload || jsonb_build_object('row', rec);
+  END IF;
+
+  PERFORM pg_notify('${CHANNEL}', payload::text);
+  RETURN NULL;
+END
+$$ LANGUAGE plpgsql;`;
 
 export abstract class PostgresConnection extends Connection {
   protected engine: unknown;
+
+  _unlisten?: Promise<void>;
 
   get schema() {
     return format(this.generateSchema(this.using));
   }
 
-  prepare<T = any>(from: Builder | string) {
+  prepare(from: Builder | string) {
     const sql = typeof from == "string" ? from : String(new PostgresGenerator(from));
 
     const send = async (params?: any[]) => {
       try {
-        return this.query(sql, params);
+        return await this.query(sql, params);
       }
       catch (error) {
         if(error instanceof Error && error.message.includes('syntax error'))
@@ -51,7 +85,7 @@ export abstract class PostgresConnection extends Connection {
     }
 
     return {
-      all: async (params?: any[]) => (await send(params)).rows as T[],
+      all: async (params?: any[]) => (await send(params)).rows,
       run: async (params?: any[]) => (await send(params)).affectedRows || 0,
       toString: () => format(sql, { language: 'postgresql', keywordCase: "upper" })
     };
@@ -60,6 +94,27 @@ export abstract class PostgresConnection extends Connection {
   abstract query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }>;
 
   abstract exec(sql: string): Promise<void>;
+
+  protected abstract listen(channel: string, callback: (payload: string) => void): Promise<() => Promise<void>>;
+
+  subscribe(listener: (change: Connection.Change) => void){
+    const listening = this.listen(CHANNEL, payload => {
+      const change = parse(payload);
+      const type = change && Array.from(this.using).find(type => type.table === change.table) as typeof Type | undefined;
+
+      if (type && OPS.includes(change.op) && change.id != null)
+        listener({ ...change, table: type.ref });
+    });
+
+    return () => {
+      this._unlisten = listening.then(stop => stop());
+    };
+  }
+
+  async close(){
+    await super.close();
+    await this._unlisten;
+  }
 
   async verify(){
     const required = new Set(this.using);
@@ -91,7 +146,8 @@ export abstract class PostgresConnection extends Connection {
             continue;
           }
           
-          const { parent, reference } = field;
+          const { reference } = field;
+          const parent = field.parent!;
           const { nullable } = info;
 
           if ((nullable === 'YES') === !field.nullable){
@@ -102,25 +158,20 @@ export abstract class PostgresConnection extends Connection {
           }
             
       
-          const A = info.type.toLowerCase();
-          const B = field.datatype.toLowerCase();
-      
-          if (A !== B && A !== TYPE_SYNONYMS[B] && B !== TYPE_SYNONYMS[A]){
+          if (base(info.type) !== base(field.datatype)){
             messages.push(
-              `Column "${field.column}" in table ${parent.table} has type "${A}", expected "${B}"`
+              `Column "${field.column}" in table ${parent.table} has type "${info.type.toLowerCase()}", expected "${field.datatype.toLowerCase()}"`
             );
             continue;
           }
 
           if (!reference) continue;
 
+          const foreignKey = reference.column;
           const {
-            column: foreignKey,
-            parent: {
-              table: foreignTable,
-              connection: foreignConnection
-            }
-          } = reference;
+            table: foreignTable,
+            connection: foreignConnection
+          } = reference.parent!;
 
           if (foreignConnection !== this){
             messages.push(
@@ -155,17 +206,21 @@ export abstract class PostgresConnection extends Connection {
     return required;
   }
 
-  async sync(fix?: boolean) {
+  async sync(fix = true) {
     if(!this.engine)
       throw new Error("Connection engine is not initialized.");
 
     if (this.ready)
       throw new Error("Connection is already active.");
 
+    for (const type of this.using)
+      if (type.schema)
+        throw new Error(`static schema is not supported by ${this.constructor.name}.`);
+
     const required = await this.verify();
 
     if(required.size)
-      if(fix === true)
+      if(fix)
         await this.createSchema(required);
       else {
         const missing = Array.from(required).map(t => t.table);
@@ -176,7 +231,9 @@ export abstract class PostgresConnection extends Connection {
         throw new Error(message);
       }
 
-    Object.defineProperty(this, 'ready', { value: true });
+    await this.exec(this.generateTriggers(this.using));
+
+    (this as Connection).set({ ready: true });
 
     return this;
   }
@@ -185,12 +242,12 @@ export abstract class PostgresConnection extends Connection {
     return this.query(query, params).then(x => x.rows) as Promise<T[]>;
   }
 
-  protected async createSchema(types: Iterable<typeof Table>): Promise<void> {
+  protected async createSchema(types: Iterable<Query.Table>): Promise<void> {
     const schema = this.generateSchema(types);
     await this.exec(schema);
   }
 
-  protected generateSchema(types: Iterable<typeof Table>): string {
+  protected generateSchema(types: Iterable<Query.Table>): string {
     const schemas = Array.from(types).map(type => this.generateTableSchema(type));
     const statements = [
       ...schemas.map(s => s.table),
@@ -200,9 +257,17 @@ export abstract class PostgresConnection extends Connection {
     return statements.join('\n');
   }
 
-  protected generateTableSchema(type: Table.Type) {
-    const { table, fields } = type;
+  protected generateTriggers(types: Iterable<Query.Table>): string {
+    const triggers = Array.from(types, ({ table, fields }) => (
+      `CREATE OR REPLACE TRIGGER "${table}_notify" AFTER INSERT OR UPDATE OR DELETE ON "${table}" ` +
+      `FOR EACH ROW EXECUTE FUNCTION expressive_notify('${fields.get("id")!.column}');`
+    ));
 
+    return [NOTIFY, ...triggers].join('\n');
+  }
+
+  protected generateTableSchema(type: Query.Table) {
+    const { table, fields } = type;
     const constraints: string[] = [];
     const columns = Array.from(fields.values()).map(field => {
       const {
@@ -212,31 +277,65 @@ export abstract class PostgresConnection extends Connection {
         reference,
         increment,
         nullable,
+        primary,
         unique,
       } = field;
 
-      const type = datatype.toUpperCase();
-      let parts = `"${column}" ${type}`;
-   
+      const { onDelete, onUpdate } = field as Field & { onDelete?: string, onUpdate?: string };
+      let parts = `"${column}" ${datatype.toUpperCase()}`;
+
       if (!nullable) parts += ' NOT NULL';
-      if (increment) parts += ' GENERATED ALWAYS AS IDENTITY'; 
+      if (increment) parts += ' GENERATED BY DEFAULT AS IDENTITY';
+      if (primary)   parts += ' PRIMARY KEY';
       if (unique)    parts += ' UNIQUE';
-      if (fallback)  parts += ' DEFAULT ' + field.set(fallback);
-   
-      if (reference)
-        constraints.push(
+
+      if (fallback !== undefined)
+        parts += ' DEFAULT ' + literal(field, fallback);
+
+      if (reference) {
+        let constraint =
           `ALTER TABLE "${table}" ADD CONSTRAINT "${table}_${column}_fk" ` +
-          `FOREIGN KEY ("${column}") REFERENCES "${reference.parent.table}"("${reference.column}");`
-        );
-   
+          `FOREIGN KEY ("${column}") REFERENCES "${reference.parent!.table}"("${reference.column}")`;
+
+        if (onDelete) constraint += ` ON DELETE ${onDelete}`;
+        if (onUpdate) constraint += ` ON UPDATE ${onUpdate}`;
+
+        constraints.push(constraint + ";");
+      }
+
       return parts;
     });
-   
+
     return {
       table: `CREATE TABLE "${table}" (${columns.join(", ")});`,
       constraints: constraints.join('\n')
     };
   }
+}
+
+const OPS = ["insert", "update", "delete"];
+
+function parse(payload: string): Connection.Change | undefined {
+  try {
+    return JSON.parse(payload);
+  }
+  catch {
+    return;
+  }
+}
+
+function literal(field: Field, value: unknown){
+  if (value === "NOW")
+    return "CURRENT_TIMESTAMP";
+
+  if (value === null)
+    return "NULL";
+
+  const encoded = field.set(value);
+
+  return typeof encoded == "string"
+    ? `'${encoded.replace(/'/g, "''")}'`
+    : String(encoded);
 }
 
 interface ColumnInfo {

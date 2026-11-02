@@ -1,64 +1,57 @@
-// packages/sql/src/columns/Bool.ts
+import { bool } from '@expressive/orm';
 
-import { Field } from '../type/Field';
+declare module '@expressive/orm' {
+  namespace bool {
+    interface Boolean extends BooleanColumn {
+      type: "boolean";
+    }
 
-class BooleanColumn extends Field<boolean> {
-  declare readonly type: Bool.DataType;
-  readonly either?: readonly [true: string, false: string];
+    interface Integer extends BooleanColumn {
+      type: "integer";
+    }
 
-  get(value: unknown) {
-    const [TRUE] = this.either || [1];
-    return value === true || value === TRUE;
+    interface Text extends BooleanColumn {
+      type: "text";
+      either: readonly [true: string, false: string];
+    }
+
+    interface VarChar extends BooleanColumn {
+      type: "varchar";
+      either: readonly [true: string, false: string];
+    }
+
+    interface Types {
+      default: Boolean;
+      boolean: Boolean;
+      integer: Integer;
+      text: Text;
+      varchar: VarChar;
+    }
+  }
+}
+
+export class BooleanColumn extends bool.Type {
+  type: bool.DataType = "boolean";
+
+  get datatype() {
+    const { type, either } = this;
+
+    if (type === "varchar" && either) {
+      const [TRUE, FALSE] = either.map(String);
+      return `varchar(${Math.max(TRUE.length, FALSE.length)})`;
+    }
+
+    return type;
   }
 
-  set(value: boolean) {
-    const [TRUE, FALSE] = this.either || [1, 0];
+  set(value: unknown) {
+    const out = super.set(value);
 
-    if (typeof value !== "boolean")
-      throw "Value must be a boolean.";
+    if (out == null || this.either || this.type !== "boolean")
+      return out;
 
-    return value ? TRUE : FALSE;
+    return value as boolean;
   }
 }
 
-declare namespace Bool {
-  /**
-   * Defines all available types of boolean columns.
-   * Each type represents a different way to store boolean values.
-   * SQL adapters will implement these types and add to interface using type as key.
-   * "default" is what should be returned when no type is specified by `Bool({ ... })`.
-   * 
-   * @example
-   * declare module "@expressive/sql" {
-   *   namespace Bool {
-   *     interface Boolean extends Bool {
-   *       readonly type: "boolean";
-   *     }
-   * 
-   *     interface Types {
-   *       default: Boolean;
-   *       boolean: Boolean;
-   *     }
-   *   }
-   * }
-   */
-  interface Types {}
-
-  /** All available type identifiers for Bool */
-  type DataType = keyof Types;
-
-  /** All available database types for Bool */
-  type Any = Types[keyof Types] | BooleanColumn;
-
-  type Options = Field.Args<Any>;
-}
-
-type Bool = Bool.Any;
-
-function Bool<T extends Bool.Options>(...opts: T){
-  return Bool.Type.new(...opts) as Field.Infer<T, Bool.Types, Bool>;
-}
-
-Bool.Type = BooleanColumn;
-
-export { Bool }
+bool.Type = BooleanColumn;

@@ -1,8 +1,27 @@
 {
   "name": "@expressive/sql",
   "version": "0.4.4",
-  "description": "Query builder and ORM",
+  "description": "Expressive ORM on SQL: entities, Query and an embedded SQLite store from one import.",
+  "keywords": [
+    "orm",
+    "sql",
+    "sqlite",
+    "entity",
+    "reactive",
+    "query-builder",
+    "expressive",
+    "mvc"
+  ],
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabeklein/expressive-orm.git",
+    "directory": "packages/sql"
+  },
+  "homepage": "https://github.com/gabeklein/expressive-orm/tree/main/packages/sql#readme",
+  "bugs": {
+    "url": "https://github.com/gabeklein/expressive-orm/issues"
+  },
   "type": "module",
   "publishConfig": {
     "access": "public"
@@ -25,13 +44,33 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "lint": "tsc --noEmit",
-    "test": "tsc --noEmit && bun test"
+    "typecheck": "tsc --noEmit --incremental",
+    "coverage": "vitest run --coverage",
+    "test": "bun run typecheck && bun run coverage"
   },
   "dependencies": {
+    "@expressive/orm": "^0.12.1",
     "sql-formatter": "^10.7.2"
   },
   "devDependencies": {
+    "@expressive/mvc": "^0.94.0",
     "tsdown": "^0.20.1"
+  },
+  "peerDependencies": {
+    "@expressive/mvc": "^0.94.0",
+    "@libsql/client": ">=0.5.0",
+    "better-sqlite3": ">=11.0.0",
+    "sqlite3": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@libsql/client": {
+      "optional": true
+    },
+    "better-sqlite3": {
+      "optional": true
+    },
+    "sqlite3": {
+      "optional": true
+    }
   }
 }

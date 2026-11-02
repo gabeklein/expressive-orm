@@ -1,63 +1,49 @@
-import { Field } from '../type/Field';
+import { str } from '@expressive/orm';
 
-class StringColumn extends Field<string> {
-  declare readonly type: Str.DataType;
-  readonly length?: number;
+declare module '@expressive/orm' {
+  namespace str {
+    interface Text extends StringColumn {
+      type: "text";
+    }
 
-  set(value: string) {
-    if (typeof value !== 'string')
-      throw 'Value must be a string.';
+    interface VarChar extends StringColumn {
+      type: "varchar";
+      length: number;
+    }
 
-    if (this.length && value.length > this.length)
-      throw `Value length ${value.length} exceeds maximum of ${this.length}.`;
+    interface Char extends StringColumn {
+      type: "char";
+      length: number;
+    }
 
-    return value;
+    interface UUID extends StringColumn {
+      type: "uuid";
+    }
+
+    interface Types {
+      default: Text;
+      text: Text;
+      varchar: VarChar;
+      char: Char;
+      uuid: UUID;
+    }
   }
 }
 
-declare namespace Str {
-  /**
-   * Defines all available types of Str.
-   * Each type is a different kind of string column.
-   * SQL adapters will implement these types and add to interface using type as key.
-   * "default" is what should be returned when no type is specified by `Str({ ... })`.
-   * 
-   * @example
-   * declare module "@expressive/sql" {
-   *   namespace Str {
-   *     interface Types {
-   *       default: Str.Text;
-   *       varchar: Str.VarChar;
-   *     }
-   * 
-   *     interface Text extends Str {
-   *       readonly type: "text";
-   *     }
-   * 
-   *     interface VarChar extends Str {
-   *       readonly type: "varchar";
-   *       readonly length: number;
-   *     }
-   *   }
-   * }
-   */
-  interface Types {}
+export class StringColumn extends str.Type {
+  type: str.DataType = "text";
 
-  /** All available types of Str */
-  type DataType = keyof Types;
+  get datatype() {
+    let { type, length, collate } = this;
 
-  /** All available database types for Str */
-  type Any = Types[keyof Types] | StringColumn;
+    if (type.endsWith("char") && length)
+      type += `(${length})`;
 
-  type Options = Field.Args<Any>;
+    if (collate)
+      type += ` COLLATE "${collate}"`;
+
+    return type;
+  }
 }
 
-type Str = Str.Any;
-
-function Str<T extends Str.Options>(...opts: T){
-  return Str.Type.new(...opts) as Field.Infer<T, Str.Types, Str>;
-}
-
-Str.Type = StringColumn;
-
-export { Str }
+str.Type = StringColumn;

@@ -1,68 +1,78 @@
-import { Field } from '../type/Field';
+import { date } from '@expressive/orm';
 
-class TimeColumn extends Field<Date> {
-  declare readonly type: Time.DataType;
-  declare readonly fallback?: "NOW" | Date;
+declare module '@expressive/orm' {
+  namespace date {
+    interface Timestamp extends TimeColumn {
+      type: "timestamp";
+    }
 
-  readonly precision?: number;
+    interface Day extends TimeColumn {
+      type: "date";
+    }
 
-  get(value: string | Date) {
-    if (value instanceof Date)
-      return value;
-    return new Date(value.replace(/[-]/g, '/'));
+    interface Time extends TimeColumn {
+      type: "time";
+    }
+
+    interface Integer extends TimeColumn {
+      type: "integer";
+    }
+
+    interface Text extends TimeColumn {
+      type: "text";
+    }
+
+    interface Types {
+      default: Timestamp;
+      timestamp: Timestamp;
+      date: Day;
+      time: Time;
+      integer: Integer;
+      text: Text;
+    }
+  }
+}
+
+export class TimeColumn extends date.Type {
+  type: date.DataType = "timestamp";
+
+  get(value: unknown) {
+    if (value == null)
+      return undefined;
+
+    if (typeof value === 'number')
+      return new Date(value * 1000);
+
+    if (typeof value === 'string' && this.type === "date") {
+      const [year, month, day] = value.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    if (typeof value === 'string' && this.type === "time")
+      return new Date(`1970-01-01T${value}Z`);
+
+    return new Date(value as string | Date);
   }
 
-  set(value: string | Date): string | number {
-    if (value === "NOW")
-      return "CURRENT_TIMESTAMP";
-    else if (value instanceof Date)
-      return value.toISOString().slice(0, 19).replace("T", " ");
-    else if (typeof value === "string")
-      return value;
-    else
-      throw "Value must be a Date, string, or 'NOW'.";
+  set(value: unknown) {
+    const iso = super.set(value);
+
+    if (iso === undefined)
+      return iso;
+
+    const date = new Date(iso);
+
+    if (this.type === "integer")
+      return Math.floor(date.getTime() / 1000);
+
+    if (this.type === "date")
+      return date.toISOString().slice(0, 10);
+
+    if (this.type === "time")
+      return date.toISOString().slice(11, 19);
+
+    return iso;
   }
 }
 
-declare namespace Time {
-  /**
-   * Defines all available types of Time columns.
-   * Each type represents a different way to store date/time values.
-   * SQL adapters will implement these types and add to interface using type as key.
-   * "default" is what should be returned when no type is specified by `Time({ ... })`.
-   * 
-   * @example
-   * declare module "@expressive/sql" {
-   *   namespace Time {
-   *     interface Timestamp extends Time {
-   *       readonly type: "timestamp";
-   *       readonly precision?: number;
-   *     }
-   * 
-   *     interface Types {
-   *       default: Timestamp;
-   *       timestamp: Timestamp;
-   *     }
-   *   }
-   * }
-   */
-  interface Types {}
-
-  /** All available type identifiers for Time */
-  type DataType = keyof Types;
-
-  /** All available database types for Time */
-  type Any = Types[keyof Types] | TimeColumn;
-
-  type Options = Field.Args<Any>;
-}
-
-type Time = Time.Any;
-
-function Time<T extends Time.Options>(...opts: T){
-  return Time.Type.new(...opts) as Field.Infer<T, Time.Types, Time>;
-}
-
-Time.Type = TimeColumn;
-
-export { Time };
+date.Type = TimeColumn;
