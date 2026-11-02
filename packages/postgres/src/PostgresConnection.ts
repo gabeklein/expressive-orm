@@ -206,7 +206,7 @@ export abstract class PostgresConnection extends Connection {
     return required;
   }
 
-  async sync(fix?: boolean) {
+  async sync(fix = true) {
     if(!this.engine)
       throw new Error("Connection engine is not initialized.");
 
@@ -216,7 +216,7 @@ export abstract class PostgresConnection extends Connection {
     const required = await this.verify();
 
     if(required.size)
-      if(fix === true)
+      if(fix)
         await this.createSchema(required);
       else {
         const missing = Array.from(required).map(t => t.table);

@@ -24,6 +24,19 @@ describe('PGConnection', () => {
     await expect(prepared.all()).rejects.toMatchObject({ code: 'ECONNREFUSED' });
   });
 
+  it('will create missing tables when awaited', async () => {
+    const pool = new pg.Pool();
+    const query = vi.spyOn(pool, 'query').mockResolvedValue({ rows: [], rowCount: 0 } as never);
+
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = await PGConnection.new([TestType], pool);
+
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('CREATE TABLE "test_type"'));
+
+    await conn.close();
+  });
+
   it('will listen on a dedicated client', async () => {
     const pool = new pg.Pool();
     const client = Object.assign(new EventEmitter(), {
