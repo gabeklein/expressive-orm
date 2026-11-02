@@ -144,21 +144,16 @@ Reads and `insert` return plain rows: decoded values by property, a relation as 
 Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, and `asc` / `desc` for order. A plain value is `equal`; an array applies each.
 
 ```ts
-const ann = User.new({ name: "Ann", email: "ann@example.com" });
+const ann = await User.new({ name: "Ann", email: "ann@example.com" });
 
-await ann.save();
-
-ann.age = 28;
-await ann.save();
-
-await ann.update({ admin: true });
+await ann.set({ age: 28, admin: true });
 await ann.delete();
 
 await User.update(gabe.id, { age: 36 });
 await User.delete(gabe.id);
 ```
 
-`Type.new(values)` builds an unsaved entity. Assigning a field marks it dirty, and `save()` writes only dirty columns - an insert when there is no `id`, an update otherwise. `update(data)` assigns, then saves. `delete()` removes the row and destroys the instance; without an `id` it throws. `User.update(id, data)` and `User.delete(id)` write by id, settling into or destroying a loaded instance. `entity.columns` is its row - decoded values by property, a relation as its id, never loading - in the shape `insert` takes; `entity.get()` is the full snapshot.
+An instance is read-only: assigning a field throws. `Type.new(values)` inserts a row and returns its instance at once, like a [reference](#references) - columns suspend until the row lands, and awaiting resolves to the instance with its `id` and defaults, in the identity map. A failed insert destroys it and rejects awaits and pending reads; mvc reports it to `catch` as `setup`. `await entity.set(patch)` writes the patch, then settles the stored values into the instance, notifying observers once, and resolves to the keys that changed; other `set` forms are Model's. `delete()` removes the row and destroys the instance. `User.update(id, data)` and `User.delete(id)` write by id, settling into or destroying a loaded instance. `entity.columns` is its row - decoded values by property, a relation as its id, never loading - in the shape `insert` takes; `entity.get()` is the full snapshot.
 
 ## References
 
@@ -189,12 +184,12 @@ class Post extends Type {
 }
 ```
 
-`one(Other)` stores `other_id` - a second relation to the same class needs its own `column` - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. Assign an entity or an id; an insert or a filter also takes a row.
+`one(Other)` stores `other_id` - a second relation to the same class needs its own `column` - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. `set`, an insert or a filter takes an entity, an id or a row.
 
 `rows(Other, key?)` is a handle on the rows pointing back - `find`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class.
 
 ```ts
-const author = await Author.new({ name: "Gabe" }).save();
+const author = await Author.new({ name: "Gabe" });
 const post = await author.posts.insert({ title: "Hello", editor: author });
 
 await author.posts.find();                  // rows, equal to [post]
@@ -217,7 +212,7 @@ user.set(key => {
   console.log("changed", key);
 });
 
-await user.update({ age: 36 });
+await user.set({ age: 36 });
 ```
 
 `get(effect)` runs now and again when a property it read changes. `set(callback)` is called for every change. Both return a function to stop.
@@ -326,14 +321,14 @@ class Task extends Type {
 
 const client = new PGlite();
 const tasks = await PGLiteConnection.new([Task], client);
-const task = await Task.new({ title: "Draft" }).save();
+const task = await Task.new({ title: "Draft" });
 
 task.get(({ title }) => console.log(title));
 
 await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 ```
 
-- An update settles into the fields not changed locally: unsaved edits win, and a later `save()` writes them.
+- An update settles into the entity.
 - A delete destroys the entity.
 - An insert changes nothing loaded.
 
