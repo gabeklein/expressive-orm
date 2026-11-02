@@ -90,10 +90,7 @@ export class Generator {
     if(isValue(input))
       return this.reference(input);
 
-    if(typeof input === "string")
-      return `'${input.replace(/'/g, "\\'")}'`;
-
-    return String(input);
+    return String(escape(input));
   }
 
   protected jsonTable(_table: DataTable): string {
@@ -250,8 +247,12 @@ export class Generator {
 
       right = 'NULL';
     }
-    else if(right instanceof Array)
+    else if(right instanceof Array){
+      if(!right.length)
+        return op == 'NOT IN' ? '1 = 1' : '1 = 0';
+
       right = `(${right.map(raw)})`;
+    }
     else
       right = raw(right);
 

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, test, vi } from 'vitest';
 
 import { PGlite } from '@electric-sql/pglite';
 
-import { asc, bool, date, desc, greaterThan, isIn, isLike, isNull, json, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
+import { asc, bool, date, desc, greaterThan, isIn, isLike, isNull, json, notIn, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
 import type { Connection } from '@expressive/sql';
 
 import { PGLiteConnection } from './PGLiteConnection';
@@ -99,6 +99,23 @@ describe("persistence", () => {
     await expect(PGLiteConnection.new([ Item ], pg).sync(false)).resolves.toBeDefined();
   });
 
+  it('will reopen parameterized types', async () => {
+    const define = () => class Item extends Type {
+      code = str({ type: "char", length: 3 });
+      name = str({ type: "varchar", length: 255 });
+      price = num({ type: "numeric", precision: 10, scale: 2 });
+      seq = num({ type: "serial", optional: true });
+      ratio = num({ type: "float" });
+      score = num({ type: "double" });
+      at = date({ precision: 3 });
+    }
+
+    const pg = new PGlite();
+
+    await PGLiteConnection.new([ define() ], pg);
+    await expect(PGLiteConnection.new([ define() ], pg).sync(false)).resolves.toBeDefined();
+  });
+
   it('will ignore missing column if marked as optional', async () => {
     class Item extends Type {
       name = str();
@@ -193,6 +210,16 @@ describe("persistence", () => {
 
     await expect(PGLiteConnection.new([ Foo, Bar ], new PGlite()).sync(false)).rejects.toThrow(
       'Tables foo, bar are expected but do not exist.'
+    );
+  });
+
+  it('will throw for a class with a schema', async () => {
+    class Foo extends Type {
+      static schema = "app";
+    }
+
+    await expect(PGLiteConnection.new([ Foo ], new PGlite()).sync()).rejects.toThrow(
+      "static schema is not supported by PGLiteConnection."
     );
   });
 
@@ -339,6 +366,25 @@ describe("types", () => {
 
     expect<Date>(value).toBeInstanceOf(Date);
     expect<Date>(value).toEqual(now);
+  })
+
+  it("will keep milliseconds of a timestamp", async () => {
+    class Test extends Type {
+      date = date();
+    }
+
+    await TestConnection.new([ Test ]);
+
+    const at = new Date("2024-01-02T03:04:05.789Z");
+    const { id } = await Test.insert({ date: at });
+
+    const value = await Test.query((foo, where) => {
+      where(foo.id).equal(id);
+
+      return foo.date;
+    }).one(true);
+
+    expect<Date>(value).toEqual(at);
   })
 
   it("will insert and retrieve a time with timezone", async () => {
@@ -860,6 +906,15 @@ describe("floor", () => {
     published = date({ nullable: true, timezone: true });
   }
 
+  it("will match an empty list", async () => {
+    await TestConnection.new([Author]);
+
+    const gabe = await Author.insert({ name: "Gabe" });
+
+    expect(await Author.find({ id: isIn([]) })).toEqual([]);
+    expect(await Author.find({ id: notIn([]) })).toEqual([gabe]);
+  })
+
   it("will round trip entities", async () => {
     await TestConnection.new([Author, Post]);
 
@@ -1089,3 +1144,106 @@ describe("renamed key column", () => {
 
 it.todo("will prevent reserved words as table names", () => {});
 it.todo("will handle type synonyms", () => {});
+
+describe("quoting", () => {
+  const values = ["it's", 'say "hi"', "back\\slash \\'", "x\\' OR 1=1 --"];
+
+  it("will round trip quotes and backslashes", async () => {
+    class User extends Type {
+      name = str();
+      note = str({ nullable: true });
+    }
+
+    await TestConnection.new([User]);
+
+    for (const name of values)
+      await Query(where => void where(User, { name }));
+
+    await Query(where => {
+      const user = where(User);
+
+      where(user.id).equal(1);
+      where(user).update({ note: values[2] });
+    });
+
+    for (const name of values) {
+      const found = await Query(where => {
+        const user = where(User);
+
+        where(user.name).equal(name);
+
+        return user.name;
+      });
+
+      expect(found).toEqual([name]);
+    }
+
+    const [note] = await Query(where => {
+      const user = where(User);
+
+      where(user.id).equal(1);
+
+      return user.note;
+    });
+
+    expect(note).toBe(values[2]);
+  })
+
+  it("will not inject through a string literal", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+    await User.insert({ name: "Gabe" });
+
+    const found = await Query(where => {
+      const user = where(User);
+
+      where(user.name).equal("x\\' OR 1=1 --");
+
+      return user.name;
+    });
+
+    expect(found).toEqual([]);
+  })
+})
+
+describe("prepare", () => {
+  it("will report a syntax error with the query", async () => {
+    const conn = await TestConnection.new([]);
+
+    await expect(conn.prepare("SELEC 1").all()).rejects.toThrow("Syntax error in query: SELEC 1");
+  })
+
+  it("will rethrow other errors", async () => {
+    const conn = await TestConnection.new([]);
+
+    await expect(conn.prepare("SELECT * FROM missing").run()).rejects.toThrow('relation "missing" does not exist');
+  })
+})
+
+describe("close", () => {
+  it("will not close a borrowed PGlite", async () => {
+    class Foo extends Type {}
+
+    const pg = new PGlite();
+    const conn = await PGLiteConnection.new([Foo], pg);
+
+    await conn.close();
+
+    expect(pg.closed).toBe(false);
+    await pg.close();
+  })
+
+  it("will close a PGlite it created", async () => {
+    class Foo extends Type {}
+
+    const conn = await PGLiteConnection.new([Foo]);
+    const pg = await (conn as any).engine as PGlite;
+
+    await conn.close();
+
+    expect(pg.closed).toBe(true);
+  })
+})

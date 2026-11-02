@@ -61,7 +61,7 @@
     "tsdown": "^0.20.1"
   },
   "peerDependencies": {
-    "@electric-sql/pglite": "^0.2.16",
+    "@electric-sql/pglite": ">=0.2.16",
     "@expressive/mvc": "^0.94.0",
     "pg": "^8.0.0"
   },

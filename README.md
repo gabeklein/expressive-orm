@@ -70,7 +70,7 @@ Options, in any order:
 - `{ fallback }` - column default, also optional on insert. `"NOW"` is `CURRENT_TIMESTAMP`.
 - `{ unique, type, length, precision, scale }` - see [Datatypes](#datatypes).
 
-The table is the class name in snake case; `static table` overrides it, `static schema` qualifies it.
+The table is the class name in snake case; `static table` overrides it.
 
 Every entity has `id = num({ primary: true, increment: true })`. Redeclare it to rename the column or change its type:
 
@@ -106,7 +106,7 @@ const pg = await PGConnection.new([User], "postgres://localhost/app");
 const lite = await PGLiteConnection.new([Account], "./data");
 ```
 
-`PGConnection` takes a connection string, a `pg` `PoolConfig` or a `Pool`. `PGLiteConnection` takes a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`.
+`PGConnection` takes a connection string, a `pg` `PoolConfig` or a `Pool`. `PGLiteConnection` takes a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`. `close()` leaves a passed `Pool` or `PGlite` open.
 
 Without SQL, `memory()` keeps rows in arrays - for tests and prototypes:
 
@@ -154,7 +154,7 @@ await User.update(ann.id, { age: 29 });
 await ann.delete();
 ```
 
-`Type.new(values)` builds an unsaved entity; `insert(data)` is `new(data).save()`. Assigning a field marks it dirty, and `save()` writes only dirty columns - an insert when there is no `id`, an update otherwise. `update(data)` assigns, then saves. `delete()` removes the row and destroys the instance. `entity.columns` is its row - decoded values by property, a relation as its id, never loading - in the shape `insert` takes; `entity.get()` is the full snapshot.
+`Type.new(values)` builds an unsaved entity; `insert(data)` is `new(data).save()`. Assigning a field marks it dirty, and `save()` writes only dirty columns - an insert when there is no `id`, an update otherwise. `update(data)` assigns, then saves. `delete()` removes the row and destroys the instance; without an `id` it throws. `entity.columns` is its row - decoded values by property, a relation as its id, never loading - in the shape `insert` takes; `entity.get()` is the full snapshot.
 
 ## References
 

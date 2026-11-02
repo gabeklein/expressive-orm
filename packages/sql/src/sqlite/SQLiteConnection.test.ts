@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { asc, bool, Builder, date, desc, greaterThan, isIn, isLike, isNull, json, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
+import { asc, bool, Builder, date, desc, greaterThan, isIn, isLike, isNull, json, notIn, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
 
 import { spy } from '../../test.setup';
 
@@ -614,6 +614,32 @@ describe("floor", () => {
     expect(await Post.one(1, false)).toBeUndefined();
   })
 
+  it("will match an empty list", async () => {
+    await TestConnection.new([Author]);
+
+    const gabe = await Author.insert({ name: "Gabe" });
+
+    expect(await Author.find({ id: isIn([]) })).toEqual([]);
+    expect(await Author.find({ id: notIn([]) })).toEqual([gabe]);
+  })
+
+  it("will resolve a class bound by assignment", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = await TestConnection.new([]);
+
+    await (await (db as any).db()).exec("CREATE TABLE user (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)");
+
+    User.connection = db;
+
+    const user = await User.insert({ name: "Gabe" });
+
+    await expect(User.find()).resolves.toEqual([user]);
+    await user.delete();
+  })
+
   it("will update by id", async () => {
     await TestConnection.new([Author]);
 
@@ -730,6 +756,17 @@ describe("sync", () => {
     await conn.close();
   })
 
+  it("will throw for a class with a schema", async () => {
+    class Foo extends Type {
+      static schema = "app";
+    }
+
+    const conn = SQLiteConnection.new([Foo]);
+
+    await expect(conn.sync()).rejects.toThrow("static schema is not supported by SQLiteConnection.");
+    await conn.close();
+  })
+
   it("will throw if already active", async () => {
     class Foo extends Type {}
 
@@ -828,6 +865,23 @@ describe("prepare", () => {
     await conn.close();
   })
 
+  it("will report raw SQL it cannot format", async () => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([Foo]);
+
+    const query = Query((where, sql) => {
+      where(Foo);
+
+      return sql("'oops");
+    });
+
+    await expect(query).rejects.toThrow(/^Error running SQL: unrecognized token: "'oops.*\nSELECT 'oops FROM `foo`$/);
+    expect(String(query)).toBe("SELECT 'oops FROM `foo`");
+  })
+
   it("will run without parameters", async () => {
     class Foo extends Type {
       name = str();
@@ -871,5 +925,69 @@ describe("prepare", () => {
       where(Bar);
       where(foo).update({ name: "x" });
     })).toThrow("Table bar has no joins.");
+  })
+})
+
+describe("quoting", () => {
+  const values = ["it's", 'say "hi"', "back\\slash \\'", "x\\' OR 1=1 --"];
+
+  it("will round trip quotes and backslashes", async () => {
+    class User extends Type {
+      name = str();
+      note = str({ nullable: true });
+    }
+
+    await TestConnection.new([User]);
+
+    for (const name of values)
+      await Query(where => void where(User, { name }));
+
+    await Query(where => {
+      const user = where(User);
+
+      where(user.id).equal(1);
+      where(user).update({ note: values[2] });
+    });
+
+    for (const name of values) {
+      const found = await Query(where => {
+        const user = where(User);
+
+        where(user.name).equal(name);
+
+        return user.name;
+      });
+
+      expect(found).toEqual([name]);
+    }
+
+    const [note] = await Query(where => {
+      const user = where(User);
+
+      where(user.id).equal(1);
+
+      return user.note;
+    });
+
+    expect(note).toBe(values[2]);
+  })
+
+  it("will not inject through a string literal", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+    await User.insert({ name: "Gabe" });
+
+    const found = await Query(where => {
+      const user = where(User);
+
+      where(user.name).equal("x\\' OR 1=1 --");
+
+      return user.name;
+    });
+
+    expect(found).toEqual([]);
   })
 })

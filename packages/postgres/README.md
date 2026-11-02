@@ -24,6 +24,7 @@ const db = await PGConnection.new([User], "postgres://localhost/app");
 
 - `PGConnection.new(types, config)` - `config` is a connection string, a `pg` `PoolConfig` or a `Pool`.
 - `PGLiteConnection.new(types, dataDir?, options?)` - a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`.
+- `close()` ends a pool or `PGlite` the connection created; one passed in stays open.
 
 Awaiting a connection runs `sync`: it verifies existing tables against the classes, creates missing ones, and installs the live-row triggers. `sync(false)` throws for a missing table instead. A column declared `optional` and absent from the table is tolerated and reads `undefined`.
 
@@ -75,3 +76,4 @@ Requirements:
 - `sync` installs an `expressive_notify()` function and a trigger per table, each time it runs; tables created outside `sync` get theirs on the next one. Triggers `pg_notify` the `expressive_orm` channel with `{ table, op, id, row }`; `row` is dropped past 8000 bytes and the entity reloads it.
 - `PGConnection` holds one pool client for `LISTEN`, from the first entity loaded until `close()`.
 - A pooler in transaction mode (PgBouncer, some serverless proxies) drops notifications silently. Connect directly or in session mode.
+- Notifications carry the full row on `expressive_orm`: any role that can `LISTEN` on the database receives it, whatever its table grants.

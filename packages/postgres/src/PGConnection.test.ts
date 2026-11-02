@@ -19,9 +19,20 @@ describe('PGConnection', () => {
     
     const prepared = conn.prepare('SELECT * FROM test');
     
-    // Bun surfaces the connection failure as an AggregateError with an empty
-    // message but a populated `code`, unlike node-postgres under node.
     await expect(prepared.all()).rejects.toMatchObject({ code: 'ECONNREFUSED' });
+  });
+
+  it('will create missing tables when awaited', async () => {
+    const pool = new pg.Pool();
+    const query = vi.spyOn(pool, 'query').mockResolvedValue({ rows: [], rowCount: 0 } as never);
+
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = await PGConnection.new([TestType], pool);
+
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('CREATE TABLE "test_type"'));
+
+    await conn.close();
   });
 
   it('will listen on a dedicated client', async () => {
@@ -40,6 +51,11 @@ describe('PGConnection', () => {
 
     await vi.waitFor(() => expect(client.query).toHaveBeenCalledWith('LISTEN expressive_orm'));
 
+    for (const payload of ['not json', 'null', '{"foo":1}', '{"table":"test_type","op":"truncate","id":1}', '{"table":"test_type","op":"update"}'])
+      client.emit('notification', { channel: 'expressive_orm', payload });
+
+    expect(listener).not.toHaveBeenCalled();
+
     client.emit('notification', {
       channel: 'expressive_orm',
       payload: '{"table":"test_type","op":"update","id":1,"row":{"id":1}}'
@@ -53,6 +69,16 @@ describe('PGConnection', () => {
     expect(client.query).toHaveBeenLastCalledWith('UNLISTEN expressive_orm');
     expect(client.release).toHaveBeenCalled();
     expect(client.listenerCount('notification')).toBe(0);
-    expect(pool.end).toHaveBeenCalled();
+    expect(pool.end).not.toHaveBeenCalled();
+  });
+
+  it('will end a pool it created', async () => {
+    const end = vi.spyOn(pg.Pool.prototype, 'end').mockResolvedValue();
+    const conn = PGConnection.new([TestType], 'postgresql://localhost');
+
+    await conn.close();
+
+    expect(end).toHaveBeenCalled();
+    end.mockRestore();
   });
 });

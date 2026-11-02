@@ -30,7 +30,7 @@ function rows<T extends Type, K extends keyof T = Related<T>>(Class: Type.Class<
         const { id } = subject;
 
         if (!id)
-          throw new Error(`Parent entity ${id} does not exist`);
+          throw new Error(`Parent ${subject.constructor.name} is not saved.`);
 
         const fk = String(field || getRelated(Class, subject.constructor as Type.Class));
 

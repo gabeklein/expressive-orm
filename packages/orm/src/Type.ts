@@ -46,10 +46,6 @@ declare namespace Type {
 
   type Instance<T> = T extends Class<infer U> ? U : T;
 
-  type KeyOf<T> = T extends Class<infer U> ? keyof U : keyof T;
-
-  type Result<T extends Type> = PromiseLike<T[]>;
-
   type Conds<T> = Where | T | Conds<T>[]
 
   type Query<T extends {}> = {
@@ -72,9 +68,7 @@ declare namespace Type {
     Constraint,
     Insert,
     Instance,
-    KeyOf,
     Query,
-    Result,
     Update
   }
 }
@@ -264,6 +258,9 @@ abstract class Type extends Model {
 
   async delete() {
     exists(this);
+
+    if (this.id == null)
+      throw new Error(`${this.constructor.name} was never saved.`);
 
     const type = this.constructor as typeof Type;
     const { connection, loaded, ref } = type;

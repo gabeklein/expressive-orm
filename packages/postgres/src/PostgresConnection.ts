@@ -7,22 +7,32 @@ import { format } from 'sql-formatter';
 import { PostgresGenerator } from './PostgresGenerator';
 
 const TYPE_SYNONYMS: Record<string, string> = {
+  "int": "integer",
   "int2": "smallint",
   "int4": "integer",
   "int8": "bigint",
-  "real": "float",
-  "double precision": "double",
-  "character varying": "varchar",
-  "character": "char",
-  "numeric": "decimal",
-  "timestamp without time zone": "timestamp",
-  "timestamp with time zone": "timestamptz",
-  "time without time zone": "time",
-  "time with time zone": "timetz",
-  "interval without time zone": "interval",
-  "interval with time zone": "interval",
-  "boolean": "bool",
-  "bytea": "binary"
+  "smallserial": "smallint",
+  "serial": "integer",
+  "bigserial": "bigint",
+  "float4": "real",
+  "float": "double precision",
+  "float8": "double precision",
+  "double": "double precision",
+  "decimal": "numeric",
+  "varchar": "character varying",
+  "char": "character",
+  "bpchar": "character",
+  "timestamp": "timestamp without time zone",
+  "timestamptz": "timestamp with time zone",
+  "time": "time without time zone",
+  "timetz": "time with time zone",
+  "bool": "boolean"
+}
+
+function base(type: string){
+  const name = type.toLowerCase().replace(/\(.*?\)| collate .*/g, "").replace(/\s+/g, " ").trim();
+
+  return name.startsWith("interval") ? "interval" : TYPE_SYNONYMS[name] || name;
 }
 
 const CHANNEL = "expressive_orm";
@@ -64,7 +74,7 @@ export abstract class PostgresConnection extends Connection {
 
     const send = async (params?: any[]) => {
       try {
-        return this.query(sql, params);
+        return await this.query(sql, params);
       }
       catch (error) {
         if(error instanceof Error && error.message.includes('syntax error'))
@@ -89,10 +99,10 @@ export abstract class PostgresConnection extends Connection {
 
   subscribe(listener: (change: Connection.Change) => void){
     const listening = this.listen(CHANNEL, payload => {
-      const change = JSON.parse(payload) as Connection.Change;
-      const type = Array.from(this.using).find(type => type.table === change.table) as typeof Type | undefined;
+      const change = parse(payload);
+      const type = change && Array.from(this.using).find(type => type.table === change.table) as typeof Type | undefined;
 
-      if (type)
+      if (type && OPS.includes(change.op) && change.id != null)
         listener({ ...change, table: type.ref });
     });
 
@@ -148,12 +158,9 @@ export abstract class PostgresConnection extends Connection {
           }
             
       
-          const A = info.type.toLowerCase();
-          const B = field.datatype.toLowerCase();
-      
-          if (A !== B && A !== TYPE_SYNONYMS[B] && B !== TYPE_SYNONYMS[A]){
+          if (base(info.type) !== base(field.datatype)){
             messages.push(
-              `Column "${field.column}" in table ${parent.table} has type "${A}", expected "${B}"`
+              `Column "${field.column}" in table ${parent.table} has type "${info.type.toLowerCase()}", expected "${field.datatype.toLowerCase()}"`
             );
             continue;
           }
@@ -199,17 +206,21 @@ export abstract class PostgresConnection extends Connection {
     return required;
   }
 
-  async sync(fix?: boolean) {
+  async sync(fix = true) {
     if(!this.engine)
       throw new Error("Connection engine is not initialized.");
 
     if (this.ready)
       throw new Error("Connection is already active.");
 
+    for (const type of this.using)
+      if (type.schema)
+        throw new Error(`static schema is not supported by ${this.constructor.name}.`);
+
     const required = await this.verify();
 
     if(required.size)
-      if(fix === true)
+      if(fix)
         await this.createSchema(required);
       else {
         const missing = Array.from(required).map(t => t.table);
@@ -299,6 +310,17 @@ export abstract class PostgresConnection extends Connection {
       table: `CREATE TABLE "${table}" (${columns.join(", ")});`,
       constraints: constraints.join('\n')
     };
+  }
+}
+
+const OPS = ["insert", "update", "delete"];
+
+function parse(payload: string): Connection.Change | undefined {
+  try {
+    return JSON.parse(payload);
+  }
+  catch {
+    return;
   }
 }
 

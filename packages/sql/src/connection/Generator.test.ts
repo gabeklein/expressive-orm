@@ -1261,19 +1261,34 @@ describe("generator", () => {
     `);
   })
 
-  it("will escape updated strings", () => {
-    const query = Query(where => {
-      const foo = where(Foo);
+  it("will quote strings without backslash escapes", () => {
+    const update = new Builder();
+    const foo = update.use(Foo) as Foo;
 
-      where(foo).update({ name: "it's\n\r\b\t\\\"\x1a\0\x01" });
-    });
+    update.table(foo).update({ name: "it's \\' \"" });
 
-    expect(String(query)).toMatchInlineSnapshot(`
-      "UPDATE
-        foo
-      SET
-        name = 'it\\'s\\n\\r\\b\\t\\\\\\"\\Z\\0\\x01'"
-    `);
+    const insert = new Builder();
+
+    insert.use(Bar, { foo: 1, color: "it's \\'" });
+
+    const select = new Builder();
+    const { name } = select.use(Foo) as any;
+
+    select.field(name).equal("x\\' OR 1=1 --");
+
+    expect(String(new Generator(update))).toMatchInlineSnapshot(`"UPDATE \`foo\` SET \`name\` = 'it''s \\'' "'"`);
+    expect(String(new Generator(insert))).toMatchInlineSnapshot(`"INSERT INTO \`bar\` (\`foo_id\`,\`color\`) SELECT 1,'it''s \\'''"`);
+    expect(String(new Generator(select))).toMatchInlineSnapshot(`"SELECT COUNT(*) FROM \`foo\` WHERE \`foo\`.\`name\` = 'x\\'' OR 1=1 --'"`);
+  })
+
+  it("will match nothing in an empty list", () => {
+    const builder = new Builder();
+    const { name } = builder.use(Foo) as any;
+
+    builder.field(name).in([]);
+    builder.filters.add(name, 'NOT IN', []);
+
+    expect(String(new Generator(builder))).toMatchInlineSnapshot(`"SELECT COUNT(*) FROM \`foo\` WHERE 1 = 0 AND 1 = 1"`);
   })
 
   it("will compare to null", () => {

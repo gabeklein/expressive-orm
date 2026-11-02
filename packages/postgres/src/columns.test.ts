@@ -291,7 +291,7 @@ describe("date", () => {
       const timestampField = column(() => date());
       const value = new Date("2023-01-15T14:30:45.123Z");
 
-      expect(timestampField.set(value)).toBe("2023-01-15 14:30:45");
+      expect(timestampField.set(value)).toBe("2023-01-15 14:30:45.123");
 
       expect(timestampField.get("2023-01-15 14:30:45")).toEqual(new Date("2023-01-15T14:30:45Z"));
       expect(timestampField.get("2023-01-15T14:30:45.5")).toEqual(new Date("2023-01-15T14:30:45.500Z"));

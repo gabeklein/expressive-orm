@@ -69,6 +69,10 @@ export class SQLiteConnection extends Connection {
     if (this.ready)
       throw new Error("Connection is already active.");
 
+    for (const type of this.using)
+      if (type.schema)
+        throw new Error(`static schema is not supported by ${this.constructor.name}.`);
+
     const missing: Query.Table[] = [];
 
     for (const type of this.using)
@@ -241,7 +245,12 @@ function literal(field: Field, value: unknown){
 }
 
 function pretty(sql: string){
-  return format(sql, { language: 'sqlite', keywordCase: "upper",  })
-    .replace(/ - > > /g, " ->> ")
-    .replace(/`([a-zA-Z][a-zA-Z0-9_]*)`/g, "$1");
+  try {
+    return format(sql, { language: 'sqlite', keywordCase: "upper" })
+      .replace(/ - > > /g, " ->> ")
+      .replace(/`([a-zA-Z][a-zA-Z0-9_]*)`/g, "$1");
+  }
+  catch {
+    return sql;
+  }
 }

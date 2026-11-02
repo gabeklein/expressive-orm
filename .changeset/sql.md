@@ -30,7 +30,13 @@
 
 `num` and `date` no longer take `serial` or `datetime`. The column classes export as `StringColumn`, `NumericColumn`, `BooleanColumn`, `TimeColumn` and `ForeignColumn`; importing only a connection narrows `type` options.
 
-**Connection base.** `Connection` extends orm's: it implements the floor - `select`, `insert`, `update`, `remove` - as builder statements against the class registered for the table, values bound as parameters and the class's primary column matched, so a renamed key round-trips. A dialect supplies `prepare` through a `Generator` subclass, and `sync`. `Generator` renders orm's `Builder`: `null` comparisons as `IS NULL` / `IS NOT NULL`, an insert with a selection with `RETURNING`, `offset` as `OFFSET`.
+**Connection base.** `Connection` extends orm's: it implements the floor - `select`, `insert`, `update`, `remove` - as builder statements against the class registered for the table (passed to `new` or bound by `Type.connection = db`), values bound as parameters and the class's primary column matched, so a renamed key round-trips. A dialect supplies `prepare` through a `Generator` subclass, and `sync`. `Generator` renders orm's `Builder`: `null` comparisons as `IS NULL` / `IS NOT NULL`, an insert with a selection with `RETURNING`, `offset` as `OFFSET`, an empty `isIn` as false and `notIn` as true.
+
+**Fixes**
+
+- Inline string literals quote by doubling `'`, with no backslash escapes. A value containing `\'` broke out of its string on SQLite and Postgres - an injection - and `'` was a syntax error.
+- `static schema` throws on SQLite and Postgres `sync`; only `memory()` honours it.
+- A failed SQLite statement reports the engine error when its SQL cannot be formatted.
 
 **Packaging.** ESM only, built with tsdown.
 
