@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { State } from '@expressive/mvc';
+import { Model } from '@expressive/mvc';
 
 import { Connection } from './Connection';
 import { Field } from './Field';
@@ -20,14 +20,14 @@ function connect(){
   }
 }
 
-it("will be a State", async () => {
+it("will be a Model", async () => {
   class User extends connect() {
     name = str();
   }
 
   const user = await User.insert({ name: "John" });
 
-  expect(user).toBeInstanceOf(State);
+  expect(user).toBeInstanceOf(Model);
   expect(user.get()).toEqual({ id: 1, name: "John" });
 
   const didUpdate = vi.fn();

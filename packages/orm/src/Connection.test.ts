@@ -26,7 +26,7 @@ class Store extends Connection {
 }
 
 describe("using", () => {
-  it("will be a State", () => {
+  it("will be a Model", () => {
     const db = Store.new();
     const didUpdate = vi.fn();
 

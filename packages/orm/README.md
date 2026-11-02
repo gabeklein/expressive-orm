@@ -1,6 +1,6 @@
 # @expressive/orm
 
-The core of Expressive ORM: entities on [`@expressive/mvc`](https://github.com/gabeklein/expressive-mvc) State, the driver contract, `Query` and an in-memory driver. No SQL.
+The core of Expressive ORM: entities on [`@expressive/mvc`](https://github.com/gabeklein/expressive-mvc) Model, the driver contract, `Query` and an in-memory driver. No SQL.
 
 Install [`@expressive/sql`](https://github.com/gabeklein/expressive-orm/tree/main/packages/sql) instead - it depends on and re-exports this package and adds SQLite. Install this one directly when writing a driver or running without SQL. Full guide: [README](https://github.com/gabeklein/expressive-orm#readme).
 
@@ -46,7 +46,7 @@ The `Query` update reaches `gabe` through `subscribe`, so the effect logs `Gabri
 
 ## The contract
 
-`Connection` is an abstract `State`. `Connection.new(types, ...)` binds each class's `Type.connection`; `close()` destroys the connection, its identity map and every entity loaded through it, and unbinds the classes. Awaiting a connection runs `sync` once, when it has one.
+`Connection` is an abstract `Model`. `Connection.new(types, ...)` binds each class's `Type.connection`; `close()` destroys the connection, its identity map and every entity loaded through it, and unbinds the classes. Awaiting a connection runs `sync` once, when it has one.
 
 The floor, keyed by table name and the class's primary column:
 

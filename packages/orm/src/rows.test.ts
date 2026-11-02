@@ -1,4 +1,4 @@
-import { State } from '@expressive/mvc';
+import { Model } from '@expressive/mvc';
 import { describe, expect, it } from 'vitest';
 
 import { str } from './fields';
@@ -81,11 +81,11 @@ describe("rows", () => {
     expect(gabe.profiles).toBe(gabe.profiles);
   });
 
-  it("will not be a State", async () => {
+  it("will not be a Model", async () => {
     await ready;
     const gabe = await User.one(1);
 
-    expect(gabe.profiles).not.toBeInstanceOf(State);
+    expect(gabe.profiles).not.toBeInstanceOf(Model);
     expect(Object.keys(gabe)).not.toContain("profiles");
     expect(() => { (gabe as any).profiles = null }).toThrow("read-only");
   });

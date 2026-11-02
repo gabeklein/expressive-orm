@@ -1,4 +1,4 @@
-import { State } from '@expressive/mvc';
+import { Model } from '@expressive/mvc';
 
 import { Connection } from './Connection';
 import { DIRTY, FIELDS, num } from './fields';
@@ -115,7 +115,7 @@ function settle(entity: Type, values: Record<string, unknown>, row: Record<strin
   const dirty = DIRTY.get(entity);
   const saved = SAVED.get(entity) || {};
 
-  entity.set(values as Type.Compat<Type>);
+  entity.set(values as Model.Assign<Type>);
 
   for (const key in values) {
     const { column } = fields.get(key)!;
@@ -171,17 +171,7 @@ function exists(entity: Type) {
     throw new Error(`${entity.constructor.name} ${entity.id} was deleted.`);
 }
 
-interface Type {
-  set(): State.Updated<this>;
-  set(assign?: Type.Compat<this>, silent?: boolean): State.Updated<this>;
-  set(callback: State.OnEvent<this>): () => boolean;
-  set(key: State.Event<this>): State.Updated<this>;
-  set(status: null): void;
-  set<K extends State.Event<this>>(event: K | null, callback: State.OnEvent<this>): () => boolean;
-  set<K extends State.Event<this>>(key: K, config: State.Define<this, K>): State.Updated<this>;
-}
-
-abstract class Type extends State {
+abstract class Type extends Model {
   id: Optional<string | number> = num({ primary: true, increment: true });
 
   static get loaded(){
@@ -250,7 +240,7 @@ abstract class Type extends State {
 
   async update(data: Type.Update<this>) {
     exists(this);
-    this.set(data as Type.Compat<this>);
+    this.set(data as Model.Assign<this>);
     await this.save();
   }
 

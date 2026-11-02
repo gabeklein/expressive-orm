@@ -331,6 +331,24 @@ describe("lazy", () => {
     expect(post.user.name).toBe("Gabe");
   })
 
+  it("will resolve async effect when loaded", async () => {
+    await ready;
+    const post = await Post.one({ title: "Hello World" }, true);
+
+    User.loaded.clear();
+    post.user = 1 as any;
+
+    const get = spy(Table.connection, "select");
+    const user = await post.get(async ($) => $.user);
+
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(user).toBeInstanceOf(User);
+    expect(user.is).toBe(post.user);
+    expect(user.name).toBe("Gabe");
+
+    get.mockRestore();
+  })
+
   it("will resolve from identity map", async () => {
     await ready;
     const user = await User.one(1);
