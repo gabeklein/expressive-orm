@@ -18,7 +18,8 @@
 - Schema renders `PRIMARY KEY` for any primary column, `DEFAULT` for every `fallback` with `"NOW"` as `CURRENT_TIMESTAMP`, and `one()`'s `onDelete` / `onUpdate`. Each type renders as its affinity - `TEXT`, `INTEGER`, `REAL` or `NUMERIC` (`numeric` and `decimal` were `REAL`) - while a field's `datatype` stays the declared type. `json` is `TEXT`.
 - `date` stores ISO strings by default; `"NOW"` is no longer a value to `set`.
 - `close()` destroys the connection and unbinds its classes.
-- No live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
+- No live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook. `Type.update(id, data)` still settles a loaded entity.
+- `insert` reads the stored row back through `RETURNING`, defaults included.
 
 **Datatypes.** One vocabulary augments orm's helpers and validates on every dialect - `varchar`/`char` length, integer ranges, numeric precision and scale:
 

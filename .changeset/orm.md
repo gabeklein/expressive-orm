@@ -10,18 +10,24 @@ Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a smal
 
 - Static `Type.get(where, limit, offset)` is `Type.find`.
 - Field `get(Child)` is `rows(Child, key?)`: a handle with `find`, `one` and `insert` applying the foreign key. It no longer mints a subclass of `Child`.
-- `Type.new(values)` is Model's: it builds an unsaved entity synchronously. Persist with `insert(data)`, which now returns the saved entity.
+- `Type.new(values)` is Model's: it builds an unsaved entity synchronously; `save()` persists it.
 - The driver floor's `get(table, constraints, limit, offset)` is `select` - `get` is Model's.
 - The constraint query behind `find`, `one` and `all` is the protected `fetch`.
 - A `Field`'s JS constructor moves from `type` to `kind`; `type` is the datatype string.
 - `Type.KeyOf` and `Type.Result` are removed.
 - `values` is `columns`: the row keyed by property, decoded, a relation as its id - never suspending or loading a relation - in the shape `insert` takes. `get()` is the full snapshot. The `Values` type is `Columns` (`Type.Columns<T>`).
 
+**Rows.** Static reads return plain data; an instance is a reference for working with one live row.
+
+- `find`, `one` (`one(id)` included), `all` and the `rows()` handle's `find` and `one` resolve rows in the `columns` shape: decoded, a relation as its id, frozen, JSON-safe. They neither read nor fill the identity map; `one(id, reload)` is gone. Take an instance with `Type.get(id)`.
+- A row passed as a relation value - to `insert`, a filter or a query insert - stands for its id.
+
 **Writes**
 
 - Assigning a field marks it dirty. `save()` writes what is dirty and returns the entity: one without an `id` is inserted, taking `id` and defaults from the row; one with an `id` updates only the columns that changed. Loading a row and a completed save leave the entity clean.
-- `update(data)` assigns, then saves - one write. Static `update(id, data)` settles the written values into a loaded entity.
-- `insert(data)` is `Type.new(data).save()` and always inserts, so a supplied key is written.
+- `update(data)` assigns, then saves - one write. Static `update(id, data)` writes by id, resolves `void` and settles the written values into a loaded entity, so it stays current without live rows.
+- `insert(data)` always inserts, so a supplied key is written, and resolves the stored row - `id` and database defaults included - not an entity. `rows()`'s `insert` likewise.
+- Static `delete(id)` removes a row by id, evicting and destroying a loaded entity.
 - `delete()` evicts the entity and destroys it. `save()`, `update()` and `delete()` on a deleted entity throw, as does `delete()` on one without an `id`.
 - `all(pageSize, where?)` pages through `find`; `subset` scopes a class's reads and writes.
 
@@ -48,7 +54,7 @@ Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a smal
 - Live rows. A driver's `subscribe(listener)` reports `{ table, op, id, row? }`. A loaded entity takes an `update` into the fields it has not changed locally - unsaved edits win - reloading the row when `row` is absent; a `delete` destroys and evicts it; an `insert` changes nothing.
 - References. `Type.get(id)` returns the loaded entity or a placeholder registered in the identity map at once, loading the row. Its columns suspend until the row lands; awaiting it resolves to the entity. A missing row rejects awaits and pending reads with `No {Type} found with id {id}` and evicts the placeholder. `get()` and `get(false)` stay Model's context lookup.
 - `memory()`, an in-memory connection: auto-increment ids, every constraint operator, `Query` executed over arrays (joins, nested and/or filters, order, limit, offset, projections, math and bitwise ops, parameters, data tables, inserts, updates and deletes across joins; raw templates throw), and every write reported through `subscribe`.
-- `Query` moves in from `@expressive/sql`. `Query(where => ...)` records tables, joins, filters, order, limit, selections, inserts, updates and deletes over entity classes; a connection's `prepare` renders or runs it. `where(Post).user.name` joins through `one()` - inner when required, left when nullable. A whole-entity selection hydrates through the identity map. Without `prepare`, awaiting throws and `String(query)` lists the intent. `Type.query(fn?)` starts from the class.
+- `Query` moves in from `@expressive/sql`. `Query(where => ...)` records tables, joins, filters, order, limit, selections, inserts, updates and deletes over entity classes; a connection's `prepare` renders or runs it. `where(Post).user.name` joins through `one()` - inner when required, left when nullable. A whole-entity selection resolves rows, as `find` does; `Query.Selects<Query.From<T>>` resolves `Type.Columns<T>[]`. Without `prepare`, awaiting throws and `String(query)` lists the intent. `Type.query(fn?)` starts from the class.
 - Exports for drivers and generators: `Connection`, `Builder`, `Computed`, `DataField`, `DataTable`, `Parameter`, `QueryTemplate`. `Builder` carries `offset`.
 
 **Packaging.** ESM only, built with tsdown; modules no longer trip over circular imports when evaluated one by one. Most applications install `@expressive/sql`, which depends on and re-exports this package. The PGLite test harness is removed.
