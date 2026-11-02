@@ -99,6 +99,23 @@ describe("persistence", () => {
     await expect(PGLiteConnection.new([ Item ], pg).sync(false)).resolves.toBeDefined();
   });
 
+  it('will reopen parameterized types', async () => {
+    const define = () => class Item extends Type {
+      code = str({ type: "char", length: 3 });
+      name = str({ type: "varchar", length: 255 });
+      price = num({ type: "numeric", precision: 10, scale: 2 });
+      seq = num({ type: "serial", optional: true });
+      ratio = num({ type: "float" });
+      score = num({ type: "double" });
+      at = date({ precision: 3 });
+    }
+
+    const pg = new PGlite();
+
+    await PGLiteConnection.new([ define() ], pg);
+    await expect(PGLiteConnection.new([ define() ], pg).sync(false)).resolves.toBeDefined();
+  });
+
   it('will ignore missing column if marked as optional', async () => {
     class Item extends Type {
       name = str();

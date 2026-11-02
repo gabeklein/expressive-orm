@@ -7,22 +7,32 @@ import { format } from 'sql-formatter';
 import { PostgresGenerator } from './PostgresGenerator';
 
 const TYPE_SYNONYMS: Record<string, string> = {
+  "int": "integer",
   "int2": "smallint",
   "int4": "integer",
   "int8": "bigint",
-  "real": "float",
-  "double precision": "double",
-  "character varying": "varchar",
-  "character": "char",
-  "numeric": "decimal",
-  "timestamp without time zone": "timestamp",
-  "timestamp with time zone": "timestamptz",
-  "time without time zone": "time",
-  "time with time zone": "timetz",
-  "interval without time zone": "interval",
-  "interval with time zone": "interval",
-  "boolean": "bool",
-  "bytea": "binary"
+  "smallserial": "smallint",
+  "serial": "integer",
+  "bigserial": "bigint",
+  "float4": "real",
+  "float": "double precision",
+  "float8": "double precision",
+  "double": "double precision",
+  "decimal": "numeric",
+  "varchar": "character varying",
+  "char": "character",
+  "bpchar": "character",
+  "timestamp": "timestamp without time zone",
+  "timestamptz": "timestamp with time zone",
+  "time": "time without time zone",
+  "timetz": "time with time zone",
+  "bool": "boolean"
+}
+
+function base(type: string){
+  const name = type.toLowerCase().replace(/\(.*?\)| collate .*/g, "").replace(/\s+/g, " ").trim();
+
+  return name.startsWith("interval") ? "interval" : TYPE_SYNONYMS[name] || name;
 }
 
 const CHANNEL = "expressive_orm";
@@ -148,12 +158,9 @@ export abstract class PostgresConnection extends Connection {
           }
             
       
-          const A = info.type.toLowerCase();
-          const B = field.datatype.toLowerCase();
-      
-          if (A !== B && A !== TYPE_SYNONYMS[B] && B !== TYPE_SYNONYMS[A]){
+          if (base(info.type) !== base(field.datatype)){
             messages.push(
-              `Column "${field.column}" in table ${parent.table} has type "${A}", expected "${B}"`
+              `Column "${field.column}" in table ${parent.table} has type "${info.type.toLowerCase()}", expected "${field.datatype.toLowerCase()}"`
             );
             continue;
           }

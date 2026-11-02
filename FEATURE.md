@@ -86,7 +86,6 @@ The trunk is release-ready: four minors - `@expressive/orm` 0.13.0, `@expressive
 - A query with no selection (`select count`) runs through the statement's `run`; SQL adapters return affected rows, so a bare select counts 0 there while memory counts rows.
 - `one()` with `optional` or `fallback` is not optional in `Insert` - the brand would add a key to the entity type the relation maps over.
 - One program holding both SQLite and Postgres connections shares one registered column class per helper - postgres's `TimeColumn` then formats SQLite timestamps too. Column serialisation is per helper, not per connection.
-- postgres's `TYPE_SYNONYMS` maps `real` to `float`, but Postgres `float` is `double precision`; verification would pass a mismatch.
 - orm's built `query/Query.d.ts` declares `const Builder: typeof Builder` inside `namespace Query`; a consumer with `skipLibCheck: false` gets TS2502.
 
 - `date({ type: "interval" })` renders the column but its values do not round-trip: a read is an invalid `Date`, a written `Date` is not an interval. Needs a value shape other than `Date`.
