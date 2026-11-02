@@ -1281,6 +1281,16 @@ describe("generator", () => {
     expect(String(new Generator(select))).toMatchInlineSnapshot(`"SELECT COUNT(*) FROM \`foo\` WHERE \`foo\`.\`name\` = 'x\\'' OR 1=1 --'"`);
   })
 
+  it("will match nothing in an empty list", () => {
+    const builder = new Builder();
+    const { name } = builder.use(Foo) as any;
+
+    builder.field(name).in([]);
+    builder.filters.add(name, 'NOT IN', []);
+
+    expect(String(new Generator(builder))).toMatchInlineSnapshot(`"SELECT COUNT(*) FROM \`foo\` WHERE 1 = 0 AND 1 = 1"`);
+  })
+
   it("will compare to null", () => {
     const query = Query(where => {
       const { rank } = where(Foo);

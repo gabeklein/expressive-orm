@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { asc, bool, Builder, date, desc, greaterThan, isIn, isLike, isNull, json, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
+import { asc, bool, Builder, date, desc, greaterThan, isIn, isLike, isNull, json, notIn, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
 
 import { spy } from '../../test.setup';
 
@@ -612,6 +612,15 @@ describe("floor", () => {
 
     expect(await Post.find()).toEqual([second]);
     expect(await Post.one(1, false)).toBeUndefined();
+  })
+
+  it("will match an empty list", async () => {
+    await TestConnection.new([Author]);
+
+    const gabe = await Author.insert({ name: "Gabe" });
+
+    expect(await Author.find({ id: isIn([]) })).toEqual([]);
+    expect(await Author.find({ id: notIn([]) })).toEqual([gabe]);
   })
 
   it("will update by id", async () => {

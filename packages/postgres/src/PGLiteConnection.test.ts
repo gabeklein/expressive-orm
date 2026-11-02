@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, test, vi } from 'vitest';
 
 import { PGlite } from '@electric-sql/pglite';
 
-import { asc, bool, date, desc, greaterThan, isIn, isLike, isNull, json, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
+import { asc, bool, date, desc, greaterThan, isIn, isLike, isNull, json, notIn, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
 import type { Connection } from '@expressive/sql';
 
 import { PGLiteConnection } from './PGLiteConnection';
@@ -905,6 +905,15 @@ describe("floor", () => {
     draft = bool();
     published = date({ nullable: true, timezone: true });
   }
+
+  it("will match an empty list", async () => {
+    await TestConnection.new([Author]);
+
+    const gabe = await Author.insert({ name: "Gabe" });
+
+    expect(await Author.find({ id: isIn([]) })).toEqual([]);
+    expect(await Author.find({ id: notIn([]) })).toEqual([gabe]);
+  })
 
   it("will round trip entities", async () => {
     await TestConnection.new([Author, Post]);
