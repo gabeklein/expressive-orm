@@ -6,16 +6,18 @@ import { PostgresConnection } from './PostgresConnection';
 export class PGConnection extends PostgresConnection {
   protected declare engine: Promise<Pool>;
 
+  private owned = false;
+
   constructor(using: Connection.Types, arg2: string | PoolConfig | Pool) {
     super(using);
 
     this.engine = new Promise((resolve, reject) => {
       import("pg").then(({ default: { Pool } }) => {
-        resolve(
-          arg2 instanceof Pool ? arg2 : new Pool(
-            typeof arg2 == "string" ? { connectionString: arg2 } : arg2
-          )
-        );
+        if (arg2 instanceof Pool)
+          return resolve(arg2);
+
+        this.owned = true;
+        resolve(new Pool(typeof arg2 == "string" ? { connectionString: arg2 } : arg2));
       }).catch((err) => {
         reject(new Error(`Attempted to load pg but failed: ${err.message}`));
       });
@@ -51,6 +53,10 @@ export class PGConnection extends PostgresConnection {
 
   async close(): Promise<void> {
     await super.close();
-    await (await this.engine).end();
+
+    const engine = await this.engine;
+
+    if (this.owned)
+      await engine.end();
   }
 }

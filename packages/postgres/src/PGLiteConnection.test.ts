@@ -1213,3 +1213,28 @@ describe("prepare", () => {
     await expect(conn.prepare("SELECT * FROM missing").run()).rejects.toThrow('relation "missing" does not exist');
   })
 })
+
+describe("close", () => {
+  it("will not close a borrowed PGlite", async () => {
+    class Foo extends Type {}
+
+    const pg = new PGlite();
+    const conn = await PGLiteConnection.new([Foo], pg);
+
+    await conn.close();
+
+    expect(pg.closed).toBe(false);
+    await pg.close();
+  })
+
+  it("will close a PGlite it created", async () => {
+    class Foo extends Type {}
+
+    const conn = await PGLiteConnection.new([Foo]);
+    const pg = await (conn as any).engine as PGlite;
+
+    await conn.close();
+
+    expect(pg.closed).toBe(true);
+  })
+})

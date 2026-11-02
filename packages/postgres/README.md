@@ -24,6 +24,7 @@ const db = await PGConnection.new([User], "postgres://localhost/app");
 
 - `PGConnection.new(types, config)` - `config` is a connection string, a `pg` `PoolConfig` or a `Pool`.
 - `PGLiteConnection.new(types, dataDir?, options?)` - a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`.
+- `close()` ends a pool or `PGlite` the connection created; one passed in stays open.
 
 Awaiting a connection runs `sync`: it verifies existing tables against the classes, creates missing ones, and installs the live-row triggers. `sync(false)` throws for a missing table instead. A column declared `optional` and absent from the table is tolerated and reads `undefined`.
 

@@ -66,6 +66,16 @@ describe('PGConnection', () => {
     expect(client.query).toHaveBeenLastCalledWith('UNLISTEN expressive_orm');
     expect(client.release).toHaveBeenCalled();
     expect(client.listenerCount('notification')).toBe(0);
-    expect(pool.end).toHaveBeenCalled();
+    expect(pool.end).not.toHaveBeenCalled();
+  });
+
+  it('will end a pool it created', async () => {
+    const end = vi.spyOn(pg.Pool.prototype, 'end').mockResolvedValue();
+    const conn = PGConnection.new([TestType], 'postgresql://localhost');
+
+    await conn.close();
+
+    expect(end).toHaveBeenCalled();
+    end.mockRestore();
   });
 });

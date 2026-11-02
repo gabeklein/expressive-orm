@@ -106,7 +106,7 @@ const pg = await PGConnection.new([User], "postgres://localhost/app");
 const lite = await PGLiteConnection.new([Account], "./data");
 ```
 
-`PGConnection` takes a connection string, a `pg` `PoolConfig` or a `Pool`. `PGLiteConnection` takes a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`.
+`PGConnection` takes a connection string, a `pg` `PoolConfig` or a `Pool`. `PGLiteConnection` takes a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`. `close()` leaves a passed `Pool` or `PGlite` open.
 
 Without SQL, `memory()` keeps rows in arrays - for tests and prototypes:
 
