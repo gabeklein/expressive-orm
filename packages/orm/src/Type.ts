@@ -356,6 +356,17 @@ abstract class Type extends Model {
     return row(this.fields, await connection.insert(ref, input, true)) as Promise<Type.Columns<T>>;
   }
 
+  static async delete<T extends Type>(this: Type.Class<T>, id: T["id"]): Promise<void> {
+    const { connection, loaded, ref } = this;
+
+    await connection.remove(ref, id);
+
+    const entity = loaded.get(id);
+
+    if (entity)
+      evict(loaded, id, entity);
+  }
+
   static async one<T extends Type>(this: Type.Class<T>, where: T["id"] | Type.Query<T> | undefined, expect: boolean): Promise<Type.Columns<T> | undefined>;
   static async one<T extends Type>(this: Type.Class<T>, where?: T["id"] | Type.Query<T>, expect?: true): Promise<Type.Columns<T>>;
   static async one<T extends Type>(this: Type.Class<T>, where?: T["id"] | Type.Query<T>, expect?: boolean){

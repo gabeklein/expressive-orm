@@ -785,6 +785,39 @@ describe("delete", () => {
   })
 })
 
+describe("static delete", () => {
+  it("will delete by id", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    const { id } = await User.insert({ name: "John" });
+
+    await expect(User.delete(id)).resolves.toBeUndefined();
+    await expect(User.find()).resolves.toEqual([]);
+  })
+
+  it("will evict and destroy a loaded entity", async () => {
+    for (const connection of [memory(), Live.new()]) {
+      class User extends Type {
+        static connection = connection;
+        name = str();
+      }
+
+      const user = await User.new({ name: "John" }).save();
+      const destroyed = vi.fn();
+
+      user.set(null, destroyed);
+      await User.delete(user.id);
+      await settled();
+
+      expect(destroyed).toHaveBeenCalledTimes(1);
+      expect(User.loaded.has(user.id)).toBe(false);
+      await expect(user.save()).rejects.toThrow(`User ${user.id} was deleted.`);
+    }
+  })
+})
+
 describe("one method", () => {
   class User extends connect() {
     name = str();

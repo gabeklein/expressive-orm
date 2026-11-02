@@ -963,7 +963,7 @@ describe("floor", () => {
 
     expect(reloaded).toEqual({ published: new Date("2024-02-01T00:00:00Z"), draft: false });
 
-    await (await Post.get(first.id)).delete();
+    await Post.delete(first.id);
 
     expect(await Post.find()).toEqual([post.columns]);
     expect(await Post.one(1, false)).toBeUndefined();
@@ -1094,6 +1094,25 @@ describe("live rows", () => {
     await new Promise(res => setTimeout(res, 50));
 
     expect(names).toEqual(["Gabe", "Bob"]);
+  })
+
+  it("will evict and destroy a loaded entity on delete by id", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([User]);
+
+    const user = await User.new({ name: "Gabe" }).save();
+    const destroyed = vi.fn();
+
+    user.set(null, destroyed);
+    await User.delete(user.id);
+    await new Promise(res => setTimeout(res, 50));
+
+    expect(destroyed).toHaveBeenCalledTimes(1);
+    expect(User.loaded.has(user.id)).toBe(false);
+    await expect(User.find()).resolves.toEqual([]);
   })
 
   it("will ignore tables not used", async () => {

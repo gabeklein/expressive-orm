@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { asc, bool, Builder, date, desc, greaterThan, isIn, isLike, isNull, json, notIn, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
 
@@ -611,7 +611,7 @@ describe("floor", () => {
 
     expect(reloaded).toEqual({ published: new Date("2024-02-01T00:00:00Z"), draft: false });
 
-    await (await Post.get(first.id)).delete();
+    await Post.delete(first.id);
 
     expect(await Post.find()).toEqual([post.columns]);
     expect(await Post.one(1, false)).toBeUndefined();
@@ -642,7 +642,7 @@ describe("floor", () => {
     const user = await User.insert({ name: "Gabe" });
 
     await expect(User.find()).resolves.toEqual([user]);
-    await (await User.get(user.id)).delete();
+    await User.delete(user.id);
     await expect(User.find()).resolves.toEqual([]);
   })
 
@@ -667,6 +667,21 @@ describe("floor", () => {
     await expect(Author.update(id, { name: "Bob" })).resolves.toBeUndefined();
 
     expect(author.name).toBe("Bob");
+  })
+
+  it("will evict and destroy a loaded entity on delete by id", async () => {
+    await TestConnection.new([Author]);
+
+    const { id } = await Author.insert({ name: "Gabe" });
+    const author = await Author.get(id);
+    const destroyed = vi.fn();
+
+    author.set(null, destroyed);
+    await Author.delete(id);
+
+    expect(destroyed).toHaveBeenCalledTimes(1);
+    expect(Author.loaded.has(id)).toBe(false);
+    await expect(Author.find()).resolves.toEqual([]);
   })
 
   it("will close the engine", async () => {

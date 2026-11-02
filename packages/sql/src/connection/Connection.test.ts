@@ -118,7 +118,7 @@ describe("floor", () => {
   it("will remove by id", async () => {
     db.log = [];
 
-    await Foo.new({ id: 3, name: "Al", active: true }).delete();
+    await Foo.delete(3);
 
     expect(db.log).toEqual([[
       "DELETE FROM `foo` WHERE `foo`.`id` = ?",
