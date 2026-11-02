@@ -265,6 +265,9 @@ abstract class Type extends Model {
   async delete() {
     exists(this);
 
+    if (this.id == null)
+      throw new Error(`${this.constructor.name} was never saved.`);
+
     const type = this.constructor as typeof Type;
     const { connection, loaded, ref } = type;
 

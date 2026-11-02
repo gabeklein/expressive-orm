@@ -636,6 +636,20 @@ describe("delete", () => {
     expect(User.loaded.has(user.id)).toBe(false);
   })
 
+  it("will throw if never saved", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    const user = User.new({ name: "John" });
+    const destroyed = vi.fn();
+
+    user.set(null, destroyed);
+
+    await expect(user.delete()).rejects.toThrow("User was never saved.");
+    expect(destroyed).not.toHaveBeenCalled();
+  })
+
   it("will throw on write after delete", async () => {
     class User extends connect() {
       name = str();
