@@ -24,8 +24,12 @@ function field<T, F extends Field = Field>(
     if (!fields)
       FIELDS.set(type, fields = new Map());
 
-    if (!fields.has(key))
-      fields.set(key, create(key, type));
+    if (!fields.has(key)) {
+      const field = create(key, type);
+
+      field.parent = type;
+      fields.set(key, field);
+    }
 
     const output = config
       ? config(fields.get(key) as F, subject, store)
@@ -53,12 +57,12 @@ function column<T extends Config[], Base>(base: Config, ...config: T): Infer<T, 
 }
 
 function str<T extends Config[]>(...config: T): Infer<T, string> {
-  return column({ type: String }, ...config);
+  return column({ kind: String }, ...config);
 }
 
 function num<T extends Config[]>(...config: T): Infer<T, number> {
   return column({
-    type: Number,
+    kind: Number,
     set: (value: number) => value,
     get: (value: string) => {
       return value != null ? parseFloat(value) : value;
@@ -68,7 +72,7 @@ function num<T extends Config[]>(...config: T): Infer<T, number> {
 
 function bool<T extends Config[]>(...config: T): Infer<T, boolean> {
   return column({
-    type: Boolean,
+    kind: Boolean,
     set: (value: boolean) => value ? 1 : 0,
     get: (value: number) => value === undefined ? value : Boolean(value),
   }, ...config);
@@ -76,21 +80,21 @@ function bool<T extends Config[]>(...config: T): Infer<T, boolean> {
 
 function date<T extends Config[]>(...config: T): Infer<T, Date> {
   return column({
-    type: Date,
+    kind: Date,
     set: (value: Date) => value ? new Date(value).toISOString() : undefined,
     get: (value: string) => value ? new Date(value) : undefined,
   }, ...config);
 }
 
 function uuid<T extends Config[]>(...config: T): Infer<T, string> {
-  return column({ type: String }, ...config);
+  return column({ kind: String }, ...config);
 }
 
 function json<T>(nullable: Nullable): T | undefined;
 function json<T>(config?: Config): T;
 function json<T>(config?: Config){
   return column({
-    type: Object,
+    kind: Object,
     set: (value: T) => JSON.stringify(value),
     get: (value: string) => value ? JSON.parse(value) : undefined,
   }, config) as T;

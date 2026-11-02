@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import { str } from './fields';
 import { memory } from './memory';
+import { Builder } from './query/Builder';
+import { Query } from './query/Query';
+import { Type } from './Type';
 
 describe("insert", () => {
   it("will assign incrementing ids", async () => {
@@ -139,5 +143,40 @@ describe("remove", () => {
     await db.remove("user", 1);
 
     await expect(db.get("user", [])).resolves.toEqual([{ id: 2, name: "B" }]);
+  })
+})
+
+describe("prepare", () => {
+  class User extends Type {
+    static table = "user";
+    static connection = memory();
+    name = str();
+  }
+
+  it("will render intent as its string", () => {
+    let builder!: Builder;
+
+    const query = Query(function(where){
+      builder = this;
+      where(where(User).name).equal("Gabe");
+    });
+
+    expect(String(User.connection.prepare!(builder))).toBe(String(builder));
+    expect(String(query)).toMatchInlineSnapshot(`
+      "from user
+      where user.name = "Gabe"
+      select count"
+    `);
+  })
+
+  it("will refuse templates", async () => {
+    await User.insert({ name: "Gabe" });
+
+    const query = Query((where, fn) => {
+      const user = where(User);
+      where(user.name).equal(fn(`upper('gabe')`) as any);
+    });
+
+    await expect(query).rejects.toThrow("Query templates are not supported by the memory driver.");
   })
 })

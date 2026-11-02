@@ -1,15 +1,29 @@
+import type { Builder } from './query/Builder';
+import type { Query } from './query/Query';
+
 export type Async<T> = T | Promise<T>;
 
 export type Nullable<T extends Field = Field> = null | Partial<T> & { nullable: true }
 
 export type Config<T = Field> = Partial<T> | null | undefined | false;
 
-export class Field {
+export class Field<T = unknown> {
   key: string;
   column: string;
+  type = "";
+  kind?: unknown;
+  length?: number;
   nullable = false;
   optional = false;
-  type?: unknown;
+  unique = false;
+  increment = false;
+  primary = false;
+  absent = false;
+  fallback?: unknown;
+  reference?: Field;
+  parent?: Query.Table;
+  table?: Builder.ITable;
+  query?: Builder;
 
   constructor(key: string, ...opts: Config[]) {
     this.key = key;
@@ -24,11 +38,21 @@ export class Field {
     }
   }
 
+  get property() {
+    return this.key;
+  }
+
+  get datatype() {
+    return this.type;
+  }
+
+  use?(query: Builder): unknown;
+
   set(this: Field, value: any, compare?: boolean): Async<string | number | null | undefined> {
     return value;
   }
 
-  get(this: Field, value: any, from: Record<string, any>): Async<unknown> {
+  get(this: Field, value: any, from?: Record<string, any>): Async<T> {
     return value;
   }
 

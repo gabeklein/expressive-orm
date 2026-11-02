@@ -1,18 +1,23 @@
 import { field, Infer } from "./fields";
 import { Config, Field } from './Field';
+import type { Builder } from './query/Builder';
 import Type from "./Type";
 
 const ONE = new WeakMap<Type.Class, Map<Type.Class, Field | null>>();
 
 class OneToOneField<T extends Type = Type> extends Field {
-  type: Type.Class<T>;
+  entity: Type.Class<T>;
   column: string;
   lazy = false;
-  
+
   constructor(key: string, parent: Type.Class, from: Type.Class<T>, ...config: Config[]) {
     super(key, ...config);
-    this.type = from;
+    this.entity = from;
     this.column = `${from.table}_id`;
+
+    Object.defineProperty(this, "reference", {
+      get: () => from.fields.get("id")
+    });
 
     Object.assign(this, ...config);
 
@@ -24,8 +29,14 @@ class OneToOneField<T extends Type = Type> extends Field {
     rel.set(from, rel.has(from) ? null : this);
   }
 
+  use(query: Builder){
+    const table = query.use(this.entity, this.nullable) as Record<string, Field>;
+    query.where(table.id, "=", this);
+    return table;
+  }
+
   get(id: number){
-    const Class = this.type;
+    const Class = this.entity;
     
     if (id == null)
       if(this.nullable)
@@ -37,7 +48,7 @@ class OneToOneField<T extends Type = Type> extends Field {
   }
 
   load(id: number){
-    const Class = this.type;
+    const Class = this.entity;
 
     return Class.one(id, false).catch((err: unknown) => {
       if(err instanceof Error)
@@ -47,17 +58,20 @@ class OneToOneField<T extends Type = Type> extends Field {
     });
   }
 
-  async set(
+  set(
     value: Type.Instance<T> | Type.Insert<T> | number | null | undefined,
-    compare?: boolean){
+    compare?: boolean): any {
 
-    const { type: Class, column } = this;
+    const { entity: Class, column, query } = this;
 
     if (value == null)
       if(this.nullable)
         return null;
       else
         throw new Error(`Missing required relation: ${Class.name}`);
+
+    if (query?.tables.has(value))
+      return (value as any).id;
 
     if(value instanceof Class){
       const id = (value as any).id;
@@ -69,11 +83,14 @@ class OneToOneField<T extends Type = Type> extends Field {
     }
 
     if(typeof value === "object"){
+      if (query)
+        throw new Error(`Relation ${this} takes an entity, id or table in a query.`);
+
       const got = compare
         ? Class.one(value as any, false)
-        : Class.insert(value)
-      
-      return (await got)?.id;
+        : Class.insert(value);
+
+      return got.then(found => found?.id);
     }
 
     return value;
@@ -96,7 +113,7 @@ function one<T extends Type, C extends Config<OneToOneField>[]>(from: Type.Class
   return field<Infer<C, T>, OneToOneField<T>>(
     (key, type) => new OneToOneField(key, type, from, ...config),
     (field, subject, store) => {
-      const { key, type: Class } = field;
+      const { key, entity: Class } = field;
       let pending: number | undefined;
       let loading: Promise<unknown> | undefined;
       let failed: unknown;
