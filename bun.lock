@@ -19,11 +19,11 @@
       "name": "@expressive/orm",
       "version": "0.12.1",
       "devDependencies": {
-        "@expressive/mvc": "^0.93.0",
+        "@expressive/mvc": "^0.94.0",
         "tsdown": "^0.20.1",
       },
       "peerDependencies": {
-        "@expressive/mvc": "^0.93.0",
+        "@expressive/mvc": "^0.94.0",
       },
     },
     "packages/postgres": {
@@ -36,14 +36,14 @@
       },
       "devDependencies": {
         "@electric-sql/pglite": "^0.2.16",
-        "@expressive/mvc": "^0.93.0",
+        "@expressive/mvc": "^0.94.0",
         "@types/pg": "^8.11.11",
         "pg": "^8.14.0",
         "tsdown": "^0.20.1",
       },
       "peerDependencies": {
         "@electric-sql/pglite": "^0.2.16",
-        "@expressive/mvc": "^0.93.0",
+        "@expressive/mvc": "^0.94.0",
         "pg": "^8.0.0",
       },
       "optionalPeers": [
@@ -59,11 +59,11 @@
         "sql-formatter": "^10.7.2",
       },
       "devDependencies": {
-        "@expressive/mvc": "^0.93.0",
+        "@expressive/mvc": "^0.94.0",
         "tsdown": "^0.20.1",
       },
       "peerDependencies": {
-        "@expressive/mvc": "^0.93.0",
+        "@expressive/mvc": "^0.94.0",
         "@libsql/client": ">=0.5.0",
         "better-sqlite3": ">=11.0.0",
         "sqlite3": ">=5.0.0",
@@ -81,11 +81,11 @@
         "@expressive/sql": "^0.4.4",
       },
       "devDependencies": {
-        "@expressive/mvc": "^0.93.0",
+        "@expressive/mvc": "^0.94.0",
         "tsdown": "^0.20.1",
       },
       "peerDependencies": {
-        "@expressive/mvc": "^0.93.0",
+        "@expressive/mvc": "^0.94.0",
       },
     },
   },
@@ -168,7 +168,7 @@
 
     "@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w=="],
 
-    "@expressive/mvc": ["@expressive/mvc@0.93.0", "", {}, "sha512-h9sbnnYQzYxEYRj353+QzyL245v7geclKaQ7GXDPDf8/56087EAWpN5hOb5XqpllMnnVJL0/5daBl5qTQ9zSsA=="],
+    "@expressive/mvc": ["@expressive/mvc@0.94.0", "", {}, "sha512-7w9akm+yqHFr0ZagBzIkH3OP0dCV2QhZxQjMNjKcMdTzHG0IckHQl4NrZ5/xgkrANwa3ctVBSDsibOzFt2Em4w=="],
 
     "@expressive/orm": ["@expressive/orm@workspace:packages/orm"],
 
