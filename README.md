@@ -260,7 +260,7 @@ const titles = await Query(where => {
 });
 ```
 
-- Return a column for its values, an object for rows of that shape, a table for its rows - plain and frozen, as from `find`.
+- Return a column for its values, an object for rows of that shape, a table for its rows - frozen, a table as from `find` at any depth (`undefined` for a missing left join).
 - `where(...conditions)` groups them with `or`; a group inside a group alternates to `and`.
 - Comparisons: `equal`, `not`, `over`, `under` (`true` for or-equal), `in`.
 - A `one()` relation joins on access: inner when required, left when nullable. `where(Other)` joins another table, `where(Other, true)` left joins it.

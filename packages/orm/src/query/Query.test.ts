@@ -98,10 +98,15 @@ describe("select", () => {
         bar.value: foo.bar
         baz.value: foo.baz"
     `);
-    await expect(query.one()).resolves.toEqual({
+    const row = await query.one();
+
+    expect(row).toEqual({
       bar: { value: "hello" },
       baz: { value: "world" }
     });
+    expect(Object.isFrozen(row)).toBe(true);
+    expect(Object.isFrozen(row!.bar)).toBe(true);
+    expect(Object.isFrozen(row!.baz)).toBe(true);
   })
 
   it("will select a field directly", async () => {
@@ -749,17 +754,47 @@ describe("relations", () => {
     await expect(query).resolves.toEqual([{ id: 1, label: "hundred" }, { id: 2 }]);
   })
 
-  it("will select a relation as nested object", async () => {
+  it("will select a table in a projection as a row", async () => {
     await ready;
     const query = Query(where => {
-      const b = where(B);
-      where(b.id).equal(1);
-      return { b };
+      const a = where(A);
+      where(a.id).equal(1);
+      return { a, b: a.b, label: a.b.c.label };
     });
 
-    await expect(query).resolves.toEqual([{
-      b: { id: 1, value: "b1", c: { id: 1, value: 100, label: "hundred" } }
-    }]);
+    expectTypeOf(query.get()).resolves.toEqualTypeOf<{
+      a: Type.Columns<A>;
+      b: Type.Columns<B>;
+      label: string;
+    }[]>();
+
+    const [row] = await query;
+
+    expect(row).toEqual({
+      a: { id: 1, b: 1, value: "a1" },
+      b: { id: 1, c: 1, value: "b1" },
+      label: "hundred"
+    });
+    expect(Object.isFrozen(row)).toBe(true);
+    expect(Object.isFrozen(row.a)).toBe(true);
+    expect(Object.isFrozen(row.b)).toBe(true);
+    expect(B.loaded.size).toBe(0);
+  })
+
+  it("will select a missing joined table as undefined", async () => {
+    await ready;
+    const query = Query(where => {
+      const d = where(D);
+      return { nested: { id: d.id, c: d.c } };
+    });
+
+    expect<Query.Selects<{ nested: { id: string | number, c: Type.Columns<C> | undefined } }>>(query);
+    // @ts-expect-error
+    expect<Query.Selects<{ nested: { id: string | number, c: Type.Columns<C> } }>>(query);
+    await expect(query).resolves.toEqual([
+      { nested: { id: 1, c: { id: 1, value: 100, label: "hundred" } } },
+      { nested: { id: 2, c: undefined } }
+    ]);
   })
 
   it("will select relations of entities as ids", async () => {
@@ -1299,6 +1334,21 @@ describe("template", () => {
     expectTypeOf(john).toEqualTypeOf<Type.Columns<Foo>>();
     expect(john).toEqual({ id: 1, first: "John", last: "Doe", color: "red" });
     expect(Object.isFrozen(john)).toBe(true);
+  })
+
+  it("will freeze template projections", async () => {
+    await ready;
+    const query = Query(where => (color: string) => {
+      const foo = where(Foo);
+      where(foo.color).equal(color);
+      return { name: { first: foo.first } };
+    });
+
+    const [john] = await query("red");
+
+    expect(john).toEqual({ name: { first: "John" } });
+    expect(Object.isFrozen(john)).toBe(true);
+    expect(Object.isFrozen(john.name)).toBe(true);
   })
 
   it("will preserve params order", async () => {

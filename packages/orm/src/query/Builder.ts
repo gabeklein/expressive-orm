@@ -26,6 +26,8 @@ declare namespace Builder {
 
 const { assign, create, defineProperty, freeze, getOwnPropertyNames, values } = Object;
 
+const NESTED = new WeakMap<Builder, Map<string, Builder.ITable>>();
+
 class Builder {
   connection?: Type.Connection;
 
@@ -97,10 +99,7 @@ class Builder {
     if (entity?.type) {
       const columns = new Map<string, Field>();
 
-      entity.fields.forEach((field, key) => {
-        if (!field.absent)
-          columns.set(key, field);
-      });
+      select(columns, entity);
 
       this.entity = entity;
       this.returns = columns;
@@ -109,6 +108,8 @@ class Builder {
       this.returns = returns;
     else if (returns) {
       const columns = new Map<string, unknown>();
+      const nested = new Map<string, Builder.ITable>();
+      const { tables } = this;
 
       function scan(obj: any, path?: string) {
         getOwnPropertyNames(obj).forEach(key => {
@@ -118,7 +119,13 @@ class Builder {
           if (typeof selects == 'function')
             selects = selects();
 
-          if (selects instanceof Field || selects instanceof Value || typeof selects != 'object')
+          const table = tables.get(selects);
+
+          if (table?.type) {
+            nested.set(use, table);
+            select(columns, table, use + ".");
+          }
+          else if (selects instanceof Field || selects instanceof Value || typeof selects != 'object')
             columns.set(use, selects);
           else
             scan(selects, use);
@@ -126,6 +133,7 @@ class Builder {
       }
 
       scan(returns);
+      NESTED.set(this, nested);
 
       this.returns = columns;
     }
@@ -337,37 +345,56 @@ class Builder {
     return this.params.map(p => p.toParam(args));
   }
 
-  parse(raw: Record<string, any>): unknown {
+  async parse(raw: Record<string, any>): Promise<unknown> {
     const { returns, entity } = this;
 
     if (returns instanceof Map){
-      if (entity){
-        const columns: Record<string, unknown> = {};
+      if (entity)
+        return entry(entity, raw);
 
-        returns.forEach((field, key) => {
-          columns[(field as Field).column] = raw[key];
-        });
-
-        return row(entity.fields, columns);
-      }
-
+      const nested = NESTED.get(this)!;
+      const objects: {}[] = [];
       const values = {} as any;
 
-      returns.forEach((select, column) => {
-        const path = column.split('.');
-        const property = path.pop()!;
+      function into(path: string[]){
         let target = values;
 
-        for (const step of path)
-          target = target[step] || (target[step] = {});
+        for (const step of path) {
+          if (!target[step])
+            objects.push(target[step] = {});
 
+          target = target[step];
+        }
+
+        return target;
+      }
+
+      for (const [column, select] of returns) {
+        const prefix = column.slice(0, column.lastIndexOf("."));
+
+        if (nested.has(prefix))
+          continue;
+
+        const path = column.split('.');
+        const property = path.pop()!;
+        const target = into(path);
         const value = raw[column];
 
         if (value !== undefined)
           target[property] = value === null ? null : decode(select, value, raw);
-      });
+      }
 
-      return values;
+      for (const [use, table] of nested) {
+        const path = use.split('.');
+        const property = path.pop()!;
+        const target = into(path);
+
+        target[property] = raw[use + ".id"] == null ? undefined : await entry(table, raw, use + ".");
+      }
+
+      objects.forEach(freeze);
+
+      return freeze(values);
     }
 
     return decode(returns, values(raw)[0], raw);
@@ -433,6 +460,23 @@ class Builder {
 
     return lines.join("\n");
   }
+}
+
+function select(columns: Map<string, unknown>, table: Builder.ITable, prefix = ""){
+  table.fields.forEach((field, key) => {
+    if (!field.absent)
+      columns.set(prefix + key, field);
+  });
+}
+
+function entry(table: Builder.ITable, raw: Record<string, any>, prefix = ""){
+  const columns: Record<string, unknown> = {};
+
+  table.fields.forEach((field, key) => {
+    columns[field.column] = raw[prefix + key];
+  });
+
+  return row(table.fields, columns);
 }
 
 function decode(select: unknown, value: unknown, raw: Record<string, any>){

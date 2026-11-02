@@ -97,9 +97,13 @@ declare namespace Query {
   type Returns<T> =
     T extends Field<infer V> ? V :
     T extends Computed<infer V> ? V :
-    T extends { readonly [ENTITY]: any } ? { [K in Exclude<keyof T, typeof ENTITY>]: Returns<T[K]> } :
+    T extends { readonly [ENTITY]: infer U } ? Nested<T, U> :
     T extends {} ? { [K in keyof T]: Returns<T[K]> } :
     T;
+
+  type Nested<T, U> =
+    U extends Type ? T extends From<U> ? Type.Columns<U> : Type.Columns<U> | undefined :
+    { [K in Exclude<keyof T, typeof ENTITY>]: Returns<T[K]> };
 
   type Row<T> =
     T extends { readonly [ENTITY]: infer U } ? U extends Type ? Type.Columns<U> : U :
