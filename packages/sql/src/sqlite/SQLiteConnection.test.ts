@@ -623,6 +623,23 @@ describe("floor", () => {
     expect(await Author.find({ id: notIn([]) })).toEqual([gabe]);
   })
 
+  it("will resolve a class bound by assignment", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = await TestConnection.new([]);
+
+    await (await (db as any).db()).exec("CREATE TABLE user (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)");
+
+    User.connection = db;
+
+    const user = await User.insert({ name: "Gabe" });
+
+    await expect(User.find()).resolves.toEqual([user]);
+    await user.delete();
+  })
+
   it("will update by id", async () => {
     await TestConnection.new([Author]);
 

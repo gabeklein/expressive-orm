@@ -96,7 +96,7 @@ abstract class Connection extends Base {
 }
 
 function statement(connection: Connection, table: string){
-  const type = Array.from(connection.using).find(type => ref(type) === table);
+  const type = [...connection.using, ...connection._loaded.keys()].find(type => ref(type) === table);
 
   if (!type)
     throw new Error(`Table ${table} is not used by this connection.`);
