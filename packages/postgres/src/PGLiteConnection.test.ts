@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, test } from "bun:test";
+import { afterEach, describe, expect, it, test } from 'vitest';
 
 import { PGlite } from '@electric-sql/pglite';
 
@@ -405,8 +405,8 @@ describe("insert", () => {
     )
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(`
-      "Provided value for Foo.color but not acceptable for type text.
-      Value must be a string."
+      [Error: Provided value for Foo.color but not acceptable for type text.
+      Value must be a string.]
     `);
   })
   
@@ -417,7 +417,7 @@ describe("insert", () => {
     }
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(
-      `"Can't assign to \`Foo.color\`. A value is required but got undefined."`);
+      `[Error: Can't assign to \`Foo.color\`. A value is required but got undefined.]`);
   })
   
   it("will add index to specify error", async () => {
@@ -430,8 +430,8 @@ describe("insert", () => {
     }
   
     expect(insert).toThrowErrorMatchingInlineSnapshot(`
-      "A provided value at \`color\` at index [1] is not acceptable.
-      Can't assign to \`Foo.color\`. A value is required but got undefined."
+      [Error: A provided value at \`color\` at index [1] is not acceptable.
+      Can't assign to \`Foo.color\`. A value is required but got undefined.]
     `);
   })
 

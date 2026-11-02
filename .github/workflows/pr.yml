@@ -18,7 +18,13 @@ jobs:
 
       - uses: ./.github/actions/setup
 
-      - run: bun run test
+      - name: Typecheck
+        id: typecheck
+        run: bun run typecheck
+
+      - name: Tests
+        if: success() || steps.typecheck.outcome == 'failure'
+        run: bun run coverage
 
       - run: bun run build
 

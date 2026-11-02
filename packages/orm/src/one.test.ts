@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { Table, str, one } from "../tests/Table";
 

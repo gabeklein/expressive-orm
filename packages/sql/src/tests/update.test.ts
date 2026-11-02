@@ -1,4 +1,4 @@
-import { expect, it } from "bun:test";
+import { expect, it } from 'vitest';
 
 import { Query, Str, Table } from '..';
 
@@ -80,7 +80,7 @@ it("will complain about nullable mismatch", () => {
   })
 
   expect(badQuery).toThrowErrorMatchingInlineSnapshot(
-    `"Column baz.non_nullable is not nullable."`);
+    `[Error: Column baz.non_nullable is not nullable.]`);
 })
 
 it.todo('will update multiple tables', () => {})
