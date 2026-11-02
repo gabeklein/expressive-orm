@@ -126,7 +126,7 @@ import { asc, greaterThan, isLike, lessThan } from '@expressive/sql';
 
 const gabe = await User.insert({ name: "Gabe", email: "gabe@example.com", age: 35 });
 
-await User.one(gabe.id);                       // same instance, from the identity map
+await User.one(gabe.id);                       // the row
 await User.one({ email: "gabe@example.com" }); // throws if not found
 await User.one({ name: "Nobody" }, false);     // undefined if not found
 
@@ -139,6 +139,8 @@ for await (const page of User.all(100))
   console.log(page.length);
 ```
 
+Reads and `insert` return plain rows: decoded values by property, a relation as its id, frozen. `insert` returns the stored row, with its `id` and database defaults. For an instance to observe or edit, take a [reference](#references).
+
 Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, and `asc` / `desc` for order. A plain value is `equal`; an array applies each.
 
 ```ts
@@ -150,11 +152,13 @@ ann.age = 28;
 await ann.save();
 
 await ann.update({ admin: true });
-await User.update(ann.id, { age: 29 });
 await ann.delete();
+
+await User.update(gabe.id, { age: 36 });
+await User.delete(gabe.id);
 ```
 
-`Type.new(values)` builds an unsaved entity; `insert(data)` is `new(data).save()`. Assigning a field marks it dirty, and `save()` writes only dirty columns - an insert when there is no `id`, an update otherwise. `update(data)` assigns, then saves. `delete()` removes the row and destroys the instance; without an `id` it throws. `entity.columns` is its row - decoded values by property, a relation as its id, never loading - in the shape `insert` takes; `entity.get()` is the full snapshot.
+`Type.new(values)` builds an unsaved entity. Assigning a field marks it dirty, and `save()` writes only dirty columns - an insert when there is no `id`, an update otherwise. `update(data)` assigns, then saves. `delete()` removes the row and destroys the instance; without an `id` it throws. `User.update(id, data)` and `User.delete(id)` write by id, settling into or destroying a loaded instance. `entity.columns` is its row - decoded values by property, a relation as its id, never loading - in the shape `insert` takes; `entity.get()` is the full snapshot.
 
 ## References
 
@@ -185,17 +189,17 @@ class Post extends Type {
 }
 ```
 
-`one(Other)` stores `other_id` - a second relation to the same class needs its own `column` - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. Assign an entity or an id.
+`one(Other)` stores `other_id` - a second relation to the same class needs its own `column` - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. Assign an entity or an id; an insert or a filter also takes a row.
 
 `rows(Other, key?)` is a handle on the rows pointing back - `find`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class.
 
 ```ts
-const author = await Author.insert({ name: "Gabe" });
+const author = await Author.new({ name: "Gabe" }).save();
 const post = await author.posts.insert({ title: "Hello", editor: author });
 
-await author.posts.find();                  // [post]
-await author.posts.one({ title: "Hello" }); // post
-console.log(post.author === author);        // true
+await author.posts.find();                  // rows, equal to [post]
+await author.posts.one({ title: "Hello" }); // a row equal to post
+console.log(post.author === author.id);     // true
 ```
 
 ## Entities are Models
@@ -203,7 +207,7 @@ console.log(post.author === author);        // true
 Observe entities, render them, nest them - see [expressive-mvc](https://github.com/gabeklein/expressive-mvc).
 
 ```ts
-const user = await User.one({ email: "gabe@example.com" });
+const user = await User.get(1);
 
 user.get(({ name, age }) => {
   console.log(name, age);
@@ -221,7 +225,7 @@ await user.update({ age: 36 });
 A lazy relation suspends: its first read throws a promise, which an effect or a React component waits for. Await an async effect to read one once it loads.
 
 ```ts
-const [first] = await Post.find({ title: "Hello" });
+const first = await Post.get(1);
 
 first.get(({ editor }) => {
   console.log(editor?.name);
@@ -256,7 +260,7 @@ const titles = await Query(where => {
 });
 ```
 
-- Return a column for its values, an object for rows of that shape, a table for entities.
+- Return a column for its values, an object for rows of that shape, a table for its rows - plain and frozen, as from `find`.
 - `where(...conditions)` groups them with `or`; a group inside a group alternates to `and`.
 - Comparisons: `equal`, `not`, `over`, `under` (`true` for or-equal), `in`.
 - A `one()` relation joins on access: inner when required, left when nullable. `where(Other)` joins another table, `where(Other, true)` left joins it.
@@ -322,7 +326,7 @@ class Task extends Type {
 
 const client = new PGlite();
 const tasks = await PGLiteConnection.new([Task], client);
-const task = await Task.insert({ title: "Draft" });
+const task = await Task.new({ title: "Draft" }).save();
 
 task.get(({ title }) => console.log(title));
 

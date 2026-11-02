@@ -26,7 +26,7 @@ class Post extends Type {
   title = str();
 }
 
-const gabe = await User.insert({ name: "Gabe" });
+const gabe = await User.new({ name: "Gabe" }).save();
 await Post.insert({ author: gabe, title: "Hello" });
 
 gabe.get(({ name }) => console.log(name));

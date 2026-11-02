@@ -63,7 +63,7 @@ class Task extends Type {
 const client = new PGlite();
 await PGLiteConnection.new([Task], client);
 
-const task = await Task.insert({ title: "Draft" });
+const task = await Task.new({ title: "Draft" }).save();
 
 task.get(({ title }) => console.log(title));
 

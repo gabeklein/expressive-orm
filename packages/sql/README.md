@@ -23,7 +23,7 @@ class Post extends Type {
 
 const db = await SQLiteConnection.new([User, Post], "app.db");
 
-const gabe = await User.insert({ name: "Gabe", age: 35 });
+const gabe = await User.new({ name: "Gabe", age: 35 }).save();
 await Post.insert({ author: gabe, title: "Hello" });
 
 const adults = await User.find({ age: greaterThan(17) });
