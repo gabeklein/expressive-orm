@@ -16,7 +16,7 @@
 
 A Model is reactive, owned, placed, observable and - through dev - remote. It is not durable. The entity is a Model whose identity is a row: the same class is the domain model, the schema, the server instance and the client twin. Drivers are pluggable behind a small contract; SQL is the top rung, not the floor.
 
-Baseline: `@expressive/mvc` 0.89.0.
+Baseline: `@expressive/mvc` 0.93.0.
 
 ## Agreed shape
 
@@ -31,7 +31,7 @@ Baseline: `@expressive/mvc` 0.89.0.
 - **Class metadata per class.** `fields: Map<string, Field>`, `table`, `schema`, `connection` - exactly what the builder reads. Collected once per class via `Model.on({ type })`.
 - **Connection per class, resolvable.** `static connection` stays (multi-provider), read through a getter so a host can default it from context.
 - **`Connection extends Model`.** orm's abstract `Connection` holds `using` (binding each class's `Type.connection`, throwing for a class already bound), `ready`, the thenable that runs `sync` once when present, and `close()` as destruction. Construct with `.new(...)` - typed over the subclass constructor - or bare `new` as a field of a host Model that owns it. sql's `Connection` extends it with the SQL floor over `Query`, `prepare` through the generator and schema; `memory()` returns an unexported `Memory` subclass. `Type.Connection` names the contract: the class without `then`, which a `Query` or class static holds.
-- **Identity map on the connection.** A plain `Map` per class in the connection's unmanaged `_loaded` - lookups need no reactivity. Destroying the connection destroys every entity loaded through it and unbinds its `using` classes. A class reaching the floor through a connection registers its map there, which is how memory resolves a table's key column. No module-scope registries; placement (context, `static global`) is a host's concern.
+- **Identity map on the connection.** A plain `Map` per class in the connection's unmanaged `_loaded` - lookups need no reactivity. Destroying the connection destroys every entity loaded through it and unbinds its `using` classes. A class reaching the floor through a connection registers its map there, which is how memory resolves a table's key column. No module-scope registries; placement - a host's context, or `Connection.new(Context.root)` - is the application's concern.
 - **Driver contract.** Floor: `select(table, constraints, limit, offset)` - not `get`, which is Model's - `insert`, `update(id)`, `remove(id)`, keyed by the class's primary column. Capabilities, each optional: `prepare(builder)` for `Query`, `subscribe` for live rows, `sync` for schema. `Type.query(where => ...)` throws unless the resolved connection has `prepare`.
 - **Live rows.** `subscribe(listener)` returns a stop function; a driver reports changes it did not necessarily make through this instance as `{ table, op: "insert" | "update" | "delete", id, row? }` - `table` the class's `ref`, `id` and `row` as stored. orm subscribes when the first class registers its identity map and stops when the connection is destroyed. An `update` for a loaded entity decodes `row` - or reloads it through `select` when absent - and settles the fields not dirty locally: unsaved edits win, and a later `save()` writes them. A `Date` equal in time is not reassigned. A `delete` evicts and destroys the entity. An `insert` changes nothing - the seam for table-level listeners. Applications observe entities; there is no `connection.subscribe(Type, cb)`. Memory reports every write through it, floor or `Query`. Postgres installs one `expressive_notify()` function and a per-table trigger on `sync`, `pg_notify`ing channel `expressive_orm` with the row unless the payload passes 8000 bytes; `PGConnection` listens on a client checked out of its pool, `PGLiteConnection` through PGLite's `listen`. SQLite has none - neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
 - **`Query` ships here.** Builder, values, computed ops record intent; a driver's `prepare` renders or executes it. The string generator stays in sql. `String(query)` with no connection dumps intent.
@@ -68,9 +68,9 @@ The trunk is release-ready: four minors - `@expressive/orm` 0.13.0, `@expressive
 ## Open
 
 - `values` on an entity whose lazy `one()` has not loaded now suspends (mvc 0.89 getters suspend on a pending read) where it used to warn and return `undefined`. Untested; decide whether `values` should skip unloaded relations.
-- mvc: the value an async effect resolves to is the effect's tracking proxy, not the entity (`user.is === post.user`, `user !== post.user`). Raise upstream.
+- mvc: the value an async effect resolves to is the effect's tracking proxy, not the entity (`user.is === post.user`, `user !== post.user`). Still so on 0.93; the deep-unwrap work in mvc is unstarted.
 - `rows()` handle `count` - deferred from PR 2; lands with a driver aggregate or the builder.
-- `Type.fields` forces one `new()` + `set(null)` when no instance has activated - a `new()` hook with side effects runs once for metadata. Revisit if it bites.
+- `Type.fields` forces one `new()` + `set(null)` when no instance has activated - a `new()` hook with side effects runs once for metadata; an async `new()` holds that throwaway's `ready` and its effects never run. Revisit if it bites.
 - Which base statics cross to a client twin, and how orm declares it.
 - Templates as inputs to a written column (`where(User, { name })` with `name` a template argument) - unsupported, as in sql.
 - Async codec hook naming and where it runs relative to the builder's sync digest.
