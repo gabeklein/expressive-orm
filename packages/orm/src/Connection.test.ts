@@ -121,6 +121,30 @@ describe("then", () => {
     expect(db.ready).toBe(true);
   })
 
+  it("will sync once for concurrent awaits", async () => {
+    const db = Store.new();
+    const sync = db.sync = vi.fn(async () => {
+      await Promise.resolve();
+      db.set({ ready: true });
+    });
+
+    await Promise.all([db.then(), db.then()]);
+
+    expect(sync).toHaveBeenCalledTimes(1);
+  })
+
+  it("will resolve when sync returns the connection", async () => {
+    const db = Store.new();
+
+    db.sync = async () => {
+      await Promise.resolve();
+      db.set({ ready: true });
+      return db;
+    };
+
+    await expect(db.then()).resolves.toBeUndefined();
+  })
+
   it("will not sync when ready", async () => {
     const db = Store.new();
     const sync = db.sync = vi.fn(async () => {});

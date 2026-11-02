@@ -19,6 +19,8 @@ declare namespace Connection {
   };
 }
 
+const synced = new WeakMap<Connection, Promise<unknown>>();
+
 abstract class Connection extends Model {
   readonly using: ReadonlySet<Query.Table>;
   readonly ready: boolean = false;
@@ -57,7 +59,14 @@ abstract class Connection extends Model {
     onfulfilled?: (value: Connection.Ready<this>) => any,
     onrejected?: (reason: any) => any) {
 
-    return (this.ready || !this.sync ? Promise.resolve() : this.sync())
+    let sync = synced.get(this);
+
+    if (this.ready || !this.sync)
+      sync = Promise.resolve();
+    else if (!sync)
+      synced.set(this, sync = this.sync());
+
+    return sync
       .then(() => {
         Object.defineProperty(this, 'then', { value: undefined });
 
