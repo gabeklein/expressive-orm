@@ -1,7 +1,7 @@
-import { Model } from '@expressive/mvc';
+import { Context, Model } from '@expressive/mvc';
 
 import { Connection } from './Connection';
-import { DIRTY, FIELDS, num, PEEK } from './fields';
+import { DIRTY, FIELDS, num, PEEK, placeholder } from './fields';
 import { Field, Omits, Optional, underscore } from './Field';
 import { Query } from './query/Query';
 import type { Rows } from './rows';
@@ -104,6 +104,7 @@ class NotReady extends Connection {
 let DETACHED: Connection | undefined;
 
 const INSERT = new WeakSet<Type>();
+const MISSING = new WeakSet<object>();
 const SAVED = new WeakMap<Type, Record<string, unknown> | null>();
 
 async function decode(type: typeof Type, row: Record<string, any>, partial?: boolean) {
@@ -311,6 +312,16 @@ abstract class Type extends Model {
     return fields;
   }
 
+  static get<T extends Type>(this: Model.Extends<T>): T;
+  static get<T extends Type>(this: Model.Extends<T>, required: false): T | undefined;
+  static get<T extends Type>(this: Model.Extends<T>, id: T["id"]): T | (T & PromiseLike<T>);
+  static get<T extends Type>(this: Model.Extends<T>, id?: T["id"] | false): T | undefined {
+    if (typeof id != "number" && typeof id != "string")
+      return super.get(id as false) as T | undefined;
+
+    return Context.get(this, () => reference(this as unknown as Type.Class<T>, id));
+  }
+
   protected static async parse<T extends Type>(
     this: Type.Class<T>,
     raw: Record<string, any>
@@ -400,31 +411,9 @@ abstract class Type extends Model {
   protected static async fetch<T extends Type>(
     from?: Type.Constraint[] | Type.Query<T>,
     limit?: number,
-    offset: number = 0
+    offset?: number
   ): Promise<T[]> {
-    const { connection, subset, ref } = this;
-
-    if (!from)
-      from = { id: desc() };
-
-    if (!Array.isArray(from))
-      from = buildConstraints({ ...from, ...subset });
-
-    const query = [] as Type.Constraint[];
-
-    for (let [key, op, value] of from) {
-      const field = this.fields.get(key);
-
-      if(field){
-        const computed = Array.isArray(value)
-          ? Promise.all(value.map(v => field.set(v, true)))
-          : field.set(value, true);
-
-        query.push([field.column, op, await computed]);
-      }
-    }
-
-    const rows = await connection.select(ref, query, limit, offset);
+    const rows = await select(this, from, limit, offset);
     return Promise.all(rows.map(row => this.parse(row) as Promise<T>));
   }
 
@@ -457,6 +446,81 @@ abstract class Type extends Model {
     }
   }
 }
+
+async function select(
+  type: typeof Type,
+  from: Type.Constraint[] | Type.Query<any> = { id: desc() },
+  limit?: number,
+  offset: number = 0
+){
+  const { connection, subset, ref } = type;
+  const constraints = Array.isArray(from) ? from : buildConstraints({ ...from, ...subset });
+  const query = [] as Type.Constraint[];
+
+  for (let [key, op, value] of constraints) {
+    const field = type.fields.get(key);
+
+    if(field){
+      const computed = Array.isArray(value)
+        ? Promise.all(value.map(v => field.set(v, true)))
+        : field.set(value, true);
+
+      query.push([field.column, op, await computed]);
+    }
+  }
+
+  return connection.select(ref, query, limit, offset);
+}
+
+function reference<T extends Type>(type: Type.Class<T>, id: T["id"]): T {
+  const { loaded } = type;
+  const cached = loaded.get(id);
+
+  if (cached)
+    return cached as T;
+
+  const entity = placeholder(() => (type as any).new({ id }, load) as T);
+
+  async function load(){
+    try {
+      const [row] = await select(type, { id: equal(id) }, 1);
+
+      if (!row) {
+        const error = new Error(`No ${type.name} found with id ${id}`);
+
+        MISSING.add(error);
+        throw error;
+      }
+
+      settle(entity, await decode(type, row), row);
+    }
+    catch (error) {
+      if (loaded.get(id) === entity)
+        loaded.delete(id);
+
+      throw error;
+    }
+  }
+
+  function then(this: T, resolve?: (value: T) => unknown, reject?: (reason: unknown) => unknown){
+    return entity.get(() => {}).then(() => {
+      delete (entity as any).then;
+      return this;
+    }).then(resolve, reject);
+  }
+
+  Object.defineProperty(entity, "then", { configurable: true, value: then });
+  loaded.set(id, entity);
+
+  return entity;
+}
+
+Type.on({
+  catch(error) {
+    if (!MISSING.has(error as object))
+      return error;
+  }
+});
 
 function buildConstraints(where: Type.Query<any>) {
   const constraints: Type.Constraint[] = [];

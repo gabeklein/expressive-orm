@@ -4,7 +4,7 @@
 
 Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a small floor with optional capabilities, and `Query` lives here.
 
-**Entities are Models.** `Type` extends `Model` from `@expressive/mvc`, now a peer dependency (`^0.93.0`). Observe an entity with `get(effect)` or `set(callback)`; destroy it with `set(null)`. Field helpers (`str`, `num`, `bool`, `date`, `uuid`, `json`, `one`) are `def` instructions; the private `use`/`init` registry is gone.
+**Entities are Models.** `Type` extends `Model` from `@expressive/mvc`, now a peer dependency (`^0.94.0`). Observe an entity with `get(effect)` or `set(callback)`; destroy it with `set(null)`. Field helpers (`str`, `num`, `bool`, `date`, `uuid`, `json`, `one`) are `def` instructions; the private `use`/`init` registry is gone.
 
 **Renamed**
 
@@ -45,10 +45,11 @@ Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a smal
 **New**
 
 - Live rows. A driver's `subscribe(listener)` reports `{ table, op, id, row? }`. A loaded entity takes an `update` into the fields it has not changed locally - unsaved edits win - reloading the row when `row` is absent; a `delete` destroys and evicts it; an `insert` changes nothing.
+- References. `Type.get(id)` returns the loaded entity or a placeholder registered in the identity map at once, loading the row. Its columns suspend until the row lands; awaiting it resolves to the entity. A missing row rejects awaits and pending reads with `No {Type} found with id {id}` and evicts the placeholder. `get()` and `get(false)` stay Model's context lookup.
 - `memory()`, an in-memory connection: auto-increment ids, every constraint operator, `Query` executed over arrays (joins, nested and/or filters, order, limit, offset, projections, math and bitwise ops, parameters, data tables, inserts, updates and deletes across joins; raw templates throw), and every write reported through `subscribe`.
 - `Query` moves in from `@expressive/sql`. `Query(where => ...)` records tables, joins, filters, order, limit, selections, inserts, updates and deletes over entity classes; a connection's `prepare` renders or runs it. `where(Post).user.name` joins through `one()` - inner when required, left when nullable. A whole-entity selection hydrates through the identity map. Without `prepare`, awaiting throws and `String(query)` lists the intent. `Type.query(fn?)` starts from the class.
 - Exports for drivers and generators: `Connection`, `Builder`, `Computed`, `DataField`, `DataTable`, `Parameter`, `QueryTemplate`. `Builder` carries `offset`.
 
 **Packaging.** ESM only, built with tsdown; modules no longer trip over circular imports when evaluated one by one. Most applications install `@expressive/sql`, which depends on and re-exports this package. The PGLite test harness is removed.
 
-Requires `@expressive/mvc` `^0.93.0`.
+Requires `@expressive/mvc` `^0.94.0`.

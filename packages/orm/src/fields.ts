@@ -30,6 +30,19 @@ const FIELDS = new WeakMap<Function, Map<string, Field>>();
 const DIRTY = new WeakMap<Type, Record<string, unknown>>();
 const PEEK = new WeakSet<Type>();
 
+let PLACEHOLDER: Type | boolean = false;
+
+function placeholder<T extends Type>(create: () => T) {
+  PLACEHOLDER = true;
+
+  try {
+    return create();
+  }
+  finally {
+    PLACEHOLDER = false;
+  }
+}
+
 function field<T, F extends Field = Field>(
   create: (key: string, type: Type.Class) => F,
   config?: (field: F, subject: Type, store: Record<string, unknown>) => def.Config
@@ -48,9 +61,15 @@ function field<T, F extends Field = Field>(
       fields.set(key, field);
     }
 
+    if (PLACEHOLDER === true)
+      PLACEHOLDER = subject;
+
     const output = config
       ? config(fields.get(key) as F, subject, store)
       : { value: undefined };
+
+    if (PLACEHOLDER === subject)
+      delete output.value;
 
     return {
       ...output,
@@ -271,6 +290,7 @@ export {
   FIELDS,
   PEEK,
   Field,
+  placeholder,
   field,
   json,
   str,

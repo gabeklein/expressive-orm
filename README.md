@@ -156,6 +156,18 @@ await ann.delete();
 
 `Type.new(values)` builds an unsaved entity; `insert(data)` is `new(data).save()`. Assigning a field marks it dirty, and `save()` writes only dirty columns - an insert when there is no `id`, an update otherwise. `update(data)` assigns, then saves. `delete()` removes the row and destroys the instance. `entity.columns` is its row - decoded values by property, a relation as its id, never loading - in the shape `insert` takes; `entity.get()` is the full snapshot.
 
+## References
+
+```ts
+const user = User.get(1); // the loaded entity, or a placeholder loading it
+
+user.get(({ name }) => console.log(name)); // runs once the row lands
+
+await user; // the entity
+```
+
+`Type.get(id)` is synchronous: the entity from the identity map, or a placeholder registered there at once, so concurrent gets share it. A placeholder's columns suspend until the row lands - a read throws a promise, which an effect or a React component waits for. Awaiting a reference resolves to the entity. A missing row rejects awaits and pending reads with `No User found with id 1` and leaves the identity map. `get(User, id)` in a Model, or `this.get(User, id)`, resolves through the same path; `User.get()` with no id stays Model's context lookup.
+
 ## Relations
 
 ```ts

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { Model } from '@expressive/mvc';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
+import { get, Model } from '@expressive/mvc';
 
 import { Connection } from './Connection';
 import { Field } from './Field';
@@ -1140,6 +1140,203 @@ describe("identity map", () => {
     User.connection = memory();
 
     expect(User.loaded.get(user.id)).toBeUndefined();
+  });
+});
+
+describe("references", () => {
+  function setup(){
+    class User extends connect() {
+      name = str();
+    }
+
+    const { connection, ref } = User;
+
+    return {
+      User,
+      row: (name: string) => connection.insert(ref, { name }, true)
+    };
+  }
+
+  function suspends(read: () => unknown){
+    try {
+      read();
+    }
+    catch (thrown) {
+      expect(thrown).toBeInstanceOf(Promise);
+      return thrown as Promise<unknown>;
+    }
+
+    throw new Error("Expected read to suspend.");
+  }
+
+  it("will share a placeholder between gets", async () => {
+    const { User, row } = setup();
+
+    await row("A");
+
+    const user = User.get(1);
+
+    expect(User.get(1)).toBe(user);
+    expect(User.loaded.get(1)).toBe(user);
+    expect(user.id).toBe(1);
+  });
+
+  it("will resolve await to the entity", async () => {
+    const { User, row } = setup();
+
+    await row("A");
+
+    const reference = User.get(1);
+    const user = await reference;
+
+    expectTypeOf(user).toEqualTypeOf<InstanceType<typeof User>>();
+
+    expect(user).toBe(reference);
+    expect(user.name).toBe("A");
+    expect("then" in user).toBe(false);
+  });
+
+  it("will suspend columns until loaded", async () => {
+    const { User, row } = setup();
+
+    await row("A");
+
+    const user = User.get(1);
+    const pending = suspends(() => user.name);
+
+    await expect(pending).resolves.toBe("A");
+    expect(user.name).toBe("A");
+  });
+
+  it("will return a loaded entity without then", async () => {
+    const { User } = setup();
+    const user = await User.insert({ name: "A" });
+
+    expect(User.get(user.id)).toBe(user);
+    expect("then" in user).toBe(false);
+  });
+
+  it("will be clean once loaded", async () => {
+    const { User, row } = setup();
+
+    await row("A");
+
+    const user = await User.get(1);
+    const update = spy(User.connection, "update");
+
+    await user.save();
+
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("will reject if row is missing", async () => {
+    const { User } = setup();
+    const user = User.get(3);
+    const pending = suspends(() => user.name);
+
+    await expect(user).rejects.toThrow("No User found with id 3");
+    await expect(pending).rejects.toThrow("No User found with id 3");
+    expect(User.loaded.has(3)).toBe(false);
+  });
+
+  it("will report a missing row to catch", async () => {
+    const { User } = setup();
+    const didCatch = vi.fn((error: unknown) => error);
+
+    User.on({ catch: didCatch });
+
+    await expect(User.get(3)).rejects.toThrow();
+
+    expect(didCatch).toHaveBeenCalledWith(expect.any(Error), "setup", undefined);
+  });
+
+  it("will reject and report a failed load", async () => {
+    const { User } = setup();
+    const failure = new Error("Connection lost");
+    const didCatch = vi.fn();
+    const release = Model.on({ catch: didCatch });
+
+    spy(User.connection, "select").mockRejectedValueOnce(failure);
+
+    try {
+      await expect(User.get(1)).rejects.toBe(failure);
+    }
+    finally {
+      release();
+    }
+
+    expect(didCatch).toHaveBeenCalledWith(failure, "setup", undefined);
+    expect(User.loaded.has(1)).toBe(false);
+  });
+
+  it("will not evict a replacement", async () => {
+    const { User } = setup();
+    const select = spy(User.connection, "select");
+    let respond!: (rows: any[]) => void;
+
+    select.mockImplementationOnce(() => new Promise(resolve => respond = resolve));
+
+    const reference = User.get(3);
+    const user = await User.insert({ id: 3, name: "C" });
+
+    respond([]);
+
+    await expect(reference).rejects.toThrow("No User found with id 3");
+    expect(User.loaded.get(3)).toBe(user);
+  });
+
+  it("will suspend relations until loaded", async () => {
+    const { User, row } = setup();
+
+    class Post extends Type {
+      static connection = User.connection;
+
+      user = one(User);
+    }
+
+    await row("A");
+    await Post.connection.insert(Post.ref, { user_id: 1 }, true);
+
+    const post = Post.get(1);
+    const pending = suspends(() => post.user);
+
+    await expect(pending).resolves.toBe(await User.one(1));
+    expect(post.user.name).toBe("A");
+  });
+
+  it("will keep context lookup", () => {
+    const { User } = setup();
+
+    expect(() => User.get()).toThrow("Could not find User in context.");
+    expect(User.get(false)).toBeUndefined();
+  });
+
+  it("will resolve through a caller", async () => {
+    const { User, row } = setup();
+    const names: string[] = [];
+
+    class Page extends Model {
+      user = get(User, 1);
+    }
+
+    await row("A");
+
+    const page = Page.new();
+
+    page.get(({ user }) => {
+      names.push(user.name);
+    });
+
+    const user = page.get(User, 1);
+
+    expectTypeOf(user).toEqualTypeOf<InstanceType<typeof User>>();
+
+    expect(user).toBe(User.loaded.get(1));
+    expect(page.user).toBe(user);
+
+    await user;
+
+    expect(names).toEqual(["A"]);
   });
 });
 
