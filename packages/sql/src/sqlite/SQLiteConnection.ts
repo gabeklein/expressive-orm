@@ -74,16 +74,38 @@ export class SQLiteConnection extends Connection {
         throw new Error(`static schema is not supported by ${this.constructor.name}.`);
 
     const missing: Query.Table[] = [];
+    const added: string[] = [];
+    const issues: string[] = [];
 
-    for (const type of this.using)
-      if (await this.valid(type))
-        continue;
-      else if (fix)
-        missing.push(type);
+    for (const type of this.using) {
+      const absent = await this.valid(type);
+
+      if (!absent)
+        if (fix)
+          missing.push(type);
+        else
+          throw new Error(`Table ${type.table} does not exist.`);
       else
-        throw new Error(`Table ${type.table} does not exist.`);
+        for (const field of absent) {
+          const reason = unfit(field);
+
+          if (!fix)
+            issues.push(`Column ${field.column} does not exist in table ${type.table}`);
+          else if (reason)
+            issues.push(`Column ${field.column} in table ${type.table} ${reason}`);
+          else
+            added.push(`ALTER TABLE ${type.table} ADD COLUMN ${definition(field)};`);
+        }
+    }
+
+    if (issues.length)
+      throw new Error(issues.join("\n"));
 
     await this.createSchema(missing);
+
+    if (added.length)
+      await (await this.db()).exec(added.join("\n"));
+
     (this as Connection).set({ ready: true });
 
     return this;
@@ -91,7 +113,6 @@ export class SQLiteConnection extends Connection {
 
   async valid(type: Query.Table){
     const { table } = type;
-    const fields = Array.from(type.fields.values());
     const db = await this.db();
 
     const tableExists = await db.get(
@@ -101,17 +122,18 @@ export class SQLiteConnection extends Connection {
       return false;
 
     const columns = await db.all(`PRAGMA table_info(${table})`) as TableInfo[];
+    const absent: Field[] = [];
 
-    for (const field of fields) {
+    for (const field of type.fields.values()) {
       const columnInfo = columns.find(col => col.name === field.column);
 
-      if (!columnInfo)
-        throw new Error(`Column ${field.column} does not exist in table ${table}`);
-
-      await this.checkIntegrity(field, columnInfo);
+      if (columnInfo)
+        await this.checkIntegrity(field, columnInfo);
+      else
+        absent.push(field);
     }
 
-    return true;
+    return absent;
   }
 
   protected async checkIntegrity(field: Field, info: TableInfo){
@@ -172,39 +194,55 @@ export class SQLiteConnection extends Connection {
   }
 
   protected generateTableSchema(type: Query.Table): string {
-    const fields = Array.from(type.fields.values()).map(field => {
-      const {
-        column,
-        fallback,
-        reference,
-        increment,
-        nullable,
-        primary,
-        unique,
-      } = field;
-
-      const { onDelete, onUpdate } = field as Field & { onDelete?: string, onUpdate?: string };
-      let parts = `\`${column}\` ${affinity(field)}`;
-
-      if (!nullable) parts += ' NOT NULL';
-      if (primary)   parts += ' PRIMARY KEY';
-      if (increment) parts += ' AUTOINCREMENT';
-      if (unique)    parts += ' UNIQUE';
-
-      if (fallback !== undefined)
-        parts += ' DEFAULT ' + literal(field, fallback);
-
-      if (reference)
-        parts += ` REFERENCES ${reference.parent!.table}(${reference.column})`;
-
-      if (onDelete) parts += ` ON DELETE ${onDelete}`;
-      if (onUpdate) parts += ` ON UPDATE ${onUpdate}`;
-
-      return parts;
-    });
+    const fields = Array.from(type.fields.values(), definition);
 
     return `CREATE TABLE ${type.table} (${fields.join(', ')});`;
   }
+}
+
+function definition(field: Field){
+  const {
+    column,
+    fallback,
+    reference,
+    increment,
+    nullable,
+    primary,
+    unique,
+  } = field;
+
+  const { onDelete, onUpdate } = field as Field & { onDelete?: string, onUpdate?: string };
+  let parts = `\`${column}\` ${affinity(field)}`;
+
+  if (!nullable) parts += ' NOT NULL';
+  if (primary)   parts += ' PRIMARY KEY';
+  if (increment) parts += ' AUTOINCREMENT';
+  if (unique)    parts += ' UNIQUE';
+
+  if (fallback !== undefined)
+    parts += ' DEFAULT ' + literal(field, fallback);
+
+  if (reference)
+    parts += ` REFERENCES ${reference.parent!.table}(${reference.column})`;
+
+  if (onDelete) parts += ` ON DELETE ${onDelete}`;
+  if (onUpdate) parts += ` ON UPDATE ${onUpdate}`;
+
+  return parts;
+}
+
+function unfit({ primary, unique, nullable, fallback }: Field){
+  if (primary)
+    return "is a primary key and cannot be added to an existing table.";
+
+  if (unique)
+    return "is UNIQUE and cannot be added by SQLite.";
+
+  if (!nullable && fallback === undefined)
+    return "is NOT NULL without a default and cannot be added to existing rows.";
+
+  if (fallback === "NOW")
+    return "defaults to the current time and cannot be added by SQLite.";
 }
 
 const AFFINITY: Record<string, string> = {

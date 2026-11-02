@@ -820,6 +820,117 @@ describe("sync", () => {
     }
   })
 
+  it("will add missing columns to a reopened file", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "expressive-sql-"));
+    const file = join(dir, "test.db");
+
+    class Author extends Type {
+      name = str();
+    }
+
+    const Before = class Post extends Type {
+      title = str();
+    }
+
+    const After = class Post extends Type {
+      title = str();
+      note = str({ nullable: true });
+      rank = num({ fallback: 3 });
+      author = one(Author, { nullable: true });
+    }
+
+    try {
+      const first = await SQLiteConnection.new([Author, Before], file);
+
+      await Before.insert({ title: "Old" });
+      await first.close();
+
+      const second = await SQLiteConnection.new([Author, After], file);
+      const author = await Author.insert({ name: "Gabe" });
+
+      await After.insert({ title: "New", note: "hi", rank: 1, author: author.id });
+
+      expect(await After.one(1)).toEqual({ id: 1, title: "Old", note: undefined, rank: 3, author: undefined });
+      expect(await After.one(2)).toEqual({ id: 2, title: "New", note: "hi", rank: 1, author: 1 });
+
+      await second.close();
+    }
+    finally {
+      rmSync(dir, { recursive: true });
+    }
+  })
+
+  it("will report columns it cannot add and change nothing", async () => {
+    class Post extends Type {
+      title = str();
+      note = str({ nullable: true });
+      email = str();
+      code = str({ nullable: true, unique: true });
+      at = date({ fallback: "NOW" });
+    }
+
+    const conn = SQLiteConnection.new([Post]);
+    const db = await conn["db"]();
+
+    await db.exec("CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT NOT NULL)");
+
+    await expect(conn.sync()).rejects.toThrow(
+      "Column email in table post is NOT NULL without a default and cannot be added to existing rows.\n" +
+      "Column code in table post is UNIQUE and cannot be added by SQLite.\n" +
+      "Column at in table post defaults to the current time and cannot be added by SQLite."
+    );
+
+    expect((await db.all("PRAGMA table_info(post)")).map(col => col.name)).toEqual(["id", "title"]);
+    await conn.close();
+  })
+
+  it("will report a missing primary key", async () => {
+    class Post extends Type {
+      title = str();
+    }
+
+    const conn = SQLiteConnection.new([Post]);
+
+    await (await conn["db"]()).exec("CREATE TABLE post (title TEXT NOT NULL)");
+    await expect(conn.sync()).rejects.toThrow(
+      "Column id in table post is a primary key and cannot be added to an existing table."
+    );
+    await conn.close();
+  })
+
+  it("will report missing columns without fix", async () => {
+    class Post extends Type {
+      title = str();
+      note = str({ nullable: true });
+    }
+
+    const conn = SQLiteConnection.new([Post]);
+    const db = await conn["db"]();
+
+    await db.exec("CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT NOT NULL)");
+    await expect(conn.sync(false)).rejects.toThrow("Column note does not exist in table post");
+
+    expect((await db.all("PRAGMA table_info(post)")).map(col => col.name)).toEqual(["id", "title"]);
+    await conn.close();
+  })
+
+  it("will ignore columns not on the class", async () => {
+    class Post extends Type {
+      title = str();
+    }
+
+    const conn = SQLiteConnection.new([Post]);
+
+    await (await conn["db"]()).exec(
+      "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT NOT NULL, legacy TEXT NOT NULL DEFAULT 'x')"
+    );
+    await conn.sync();
+    await Post.insert({ title: "Hi" });
+
+    expect(await Post.one()).toEqual({ id: 1, title: "Hi" });
+    await conn.close();
+  })
+
   it("will throw for a missing table without fix", async () => {
     class Foo extends Type {}
 
@@ -870,9 +981,10 @@ describe("valid", () => {
     await conn.close();
   })
 
-  it("will throw for a missing column", async () => {
-    await expect(check(Author, "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name TEXT NOT NULL)"))
-      .rejects.toThrow("Column rank does not exist in table author");
+  it("will list a missing column", async () => {
+    const absent = await check(Author, "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name TEXT NOT NULL)");
+
+    expect(absent).toEqual([Author.fields.get("rank")]);
   })
 
   it("will throw for a mismatched type", async () => {
