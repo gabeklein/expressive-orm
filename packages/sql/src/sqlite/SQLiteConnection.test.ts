@@ -839,6 +839,23 @@ describe("prepare", () => {
     await conn.close();
   })
 
+  it("will report raw SQL it cannot format", async () => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    await TestConnection.new([Foo]);
+
+    const query = Query((where, sql) => {
+      where(Foo);
+
+      return sql("'oops");
+    });
+
+    await expect(query).rejects.toThrow(/^Error running SQL: unrecognized token: "'oops.*\nSELECT 'oops FROM `foo`$/);
+    expect(String(query)).toBe("SELECT 'oops FROM `foo`");
+  })
+
   it("will run without parameters", async () => {
     class Foo extends Type {
       name = str();

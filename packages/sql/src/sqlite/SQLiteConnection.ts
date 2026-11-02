@@ -245,7 +245,12 @@ function literal(field: Field, value: unknown){
 }
 
 function pretty(sql: string){
-  return format(sql, { language: 'sqlite', keywordCase: "upper",  })
-    .replace(/ - > > /g, " ->> ")
-    .replace(/`([a-zA-Z][a-zA-Z0-9_]*)`/g, "$1");
+  try {
+    return format(sql, { language: 'sqlite', keywordCase: "upper" })
+      .replace(/ - > > /g, " ->> ")
+      .replace(/`([a-zA-Z][a-zA-Z0-9_]*)`/g, "$1");
+  }
+  catch {
+    return sql;
+  }
 }
