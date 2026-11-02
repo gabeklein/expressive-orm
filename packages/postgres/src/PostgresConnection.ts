@@ -99,10 +99,10 @@ export abstract class PostgresConnection extends Connection {
 
   subscribe(listener: (change: Connection.Change) => void){
     const listening = this.listen(CHANNEL, payload => {
-      const change = JSON.parse(payload) as Connection.Change;
-      const type = Array.from(this.using).find(type => type.table === change.table) as typeof Type | undefined;
+      const change = parse(payload);
+      const type = change && Array.from(this.using).find(type => type.table === change.table) as typeof Type | undefined;
 
-      if (type)
+      if (type && OPS.includes(change.op) && change.id != null)
         listener({ ...change, table: type.ref });
     });
 
@@ -310,6 +310,17 @@ export abstract class PostgresConnection extends Connection {
       table: `CREATE TABLE "${table}" (${columns.join(", ")});`,
       constraints: constraints.join('\n')
     };
+  }
+}
+
+const OPS = ["insert", "update", "delete"];
+
+function parse(payload: string): Connection.Change | undefined {
+  try {
+    return JSON.parse(payload);
+  }
+  catch {
+    return;
   }
 }
 

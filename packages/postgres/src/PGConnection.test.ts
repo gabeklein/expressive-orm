@@ -53,6 +53,11 @@ describe('PGConnection', () => {
 
     await vi.waitFor(() => expect(client.query).toHaveBeenCalledWith('LISTEN expressive_orm'));
 
+    for (const payload of ['not json', 'null', '{"foo":1}', '{"table":"test_type","op":"truncate","id":1}', '{"table":"test_type","op":"update"}'])
+      client.emit('notification', { channel: 'expressive_orm', payload });
+
+    expect(listener).not.toHaveBeenCalled();
+
     client.emit('notification', {
       channel: 'expressive_orm',
       payload: '{"table":"test_type","op":"update","id":1,"row":{"id":1}}'
