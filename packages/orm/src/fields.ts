@@ -284,7 +284,7 @@ function json<T>(config?: Config){
   return column<T>(Field, {
     kind: Object,
     type: "text",
-    set: (value: T) => JSON.stringify(value),
+    set: (value: T) => value == null ? null : JSON.stringify(value),
     get: (value: string) => value ? JSON.parse(value) : undefined,
   }, config);
 }

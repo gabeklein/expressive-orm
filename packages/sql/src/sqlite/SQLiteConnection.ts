@@ -33,7 +33,7 @@ export class SQLiteConnection extends Connection {
     const sql = String(new SQLiteGenerator(builder));
     const string = (x?: unknown[]) => x
       ? x.map(x => (
-        typeof x === 'object' ? JSON.stringify(x) :
+        x !== null && typeof x === 'object' ? JSON.stringify(x) :
         typeof x === 'boolean' ? Number(x) :
         x
       ))

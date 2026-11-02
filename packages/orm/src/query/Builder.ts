@@ -381,7 +381,7 @@ class Builder {
         const value = raw[column];
 
         if (value !== undefined)
-          target[property] = value === null ? null : decode(select, value, raw);
+          target[property] = value === null ? undefined : decode(select, value, raw);
       }
 
       for (const [use, table] of nested) {
@@ -480,7 +480,7 @@ function entry(table: Builder.ITable, raw: Record<string, any>, prefix = ""){
 }
 
 function decode(select: unknown, value: unknown, raw: Record<string, any>){
-  return select instanceof Field ? select.get(value, raw) :
+  return select instanceof Field ? select.get(value ?? undefined, raw) :
     select instanceof Parameter ? select.digest(value) :
     value;
 }

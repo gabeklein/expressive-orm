@@ -986,7 +986,7 @@ describe("insert", () => {
         note: null
       select seq"
     `);
-    expect(seq.note).toBeNull();
+    expect(seq.note).toBeUndefined();
     expect(() => Query(where => void where(User, { name: null as any }))).toThrow("Column user.name is not nullable.");
   })
 })
@@ -1207,7 +1207,7 @@ describe("computed", () => {
     `);
     await expect(query).resolves.toEqual([
       { add: 8, sub: 3, mul: 12, div: 3, mod: 2 },
-      { add: 12, sub: null, mul: 20, div: 5, mod: 2 }
+      { add: 12, sub: undefined, mul: 20, div: 5, mod: 2 }
     ]);
   })
 
@@ -1240,7 +1240,7 @@ describe("computed", () => {
     `);
     await expect(query).resolves.toEqual([
       { a: 66, b: 36, c: -106, d: -6, e: -3 },
-      { a: 150, b: 60, c: -110, d: -10, e: null }
+      { a: 150, b: 60, c: -110, d: -10, e: undefined }
     ]);
   })
 

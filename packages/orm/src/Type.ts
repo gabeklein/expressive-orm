@@ -107,7 +107,7 @@ async function decode(type: typeof Type, row: Record<string, any>, partial?: boo
 
   for (const field of type.fields.values())
     if (!partial || field.column in row)
-      values[field.key] = await field.get(row[field.column], row);
+      values[field.key] = await field.get(row[field.column] ?? undefined, row);
 
   return values;
 }

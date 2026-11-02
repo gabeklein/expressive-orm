@@ -70,7 +70,7 @@ export class Field<T = unknown> {
     if (value == null && !nullable)
       throw new Error(`Missing required field: ${key}`);
 
-    update[column] = value;
+    update[column] = value ?? null;
   }
 }
 
@@ -83,7 +83,7 @@ export async function row(fields: Map<string, Field>, raw: Record<string, any>) 
 
     values[key] = reference
       ? value == null ? undefined : await reference.get(value)
-      : await field.get(value, raw);
+      : await field.get(value ?? undefined, raw);
   }
 
   return Object.freeze(values);

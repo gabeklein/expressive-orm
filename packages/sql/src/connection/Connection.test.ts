@@ -86,7 +86,7 @@ describe("floor", () => {
 
     const foo = await Foo.insert({ name: "Bob", active: false });
 
-    expect(foo).toEqual({ id: 2, name: "Bob", rank: null, active: false });
+    expect(foo).toEqual({ id: 2, name: "Bob", rank: undefined, active: false });
     expect(db.log).toEqual([[
       "INSERT INTO `foo` (`name`,`active`) SELECT ?,? " +
       "RETURNING `foo`.`id` AS \"id\", `foo`.`name` AS \"name\", `foo`.`rank` AS \"rank\", `foo`.`active` AS \"active\"",

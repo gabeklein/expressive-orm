@@ -597,7 +597,7 @@ describe("set", () => {
     const [row] = await User.connection.select(User.ref, [["id", "=", user.id]]);
 
     expect(row.age).toBeNull();
-    expect(user.age).toBeNull();
+    expect(user.age).toBeUndefined();
   })
 
   it("will throw on invalid value", async () => {
@@ -1805,5 +1805,85 @@ describe("renamed key column", () => {
 
     await doc.delete();
     await expect(Doc.one("a1", false)).resolves.toBeUndefined();
+  })
+})
+
+describe("null", () => {
+  function define() {
+    class NullRef extends Type {
+      name = str();
+    }
+
+    class NullRow extends Type {
+      s = str(orNull);
+      n = num(orNull);
+      b = bool(orNull);
+      d = date(orNull);
+      u = uuid(orNull);
+      j = json<{ a: number }>(orNull);
+      o = one(NullRef, orNull);
+    }
+
+    return { NullRef, NullRow };
+  }
+
+  const empty = { s: undefined, n: undefined, b: undefined, d: undefined, u: undefined, j: undefined, o: undefined };
+
+  it("will read null as undefined", async () => {
+    const { NullRef, NullRow } = define();
+    const connection = memory();
+
+    NullRef.connection = connection;
+    NullRow.connection = connection;
+
+    const omitted = await NullRow.insert({ s: null });
+    const nulls = await NullRow.insert({ s: null, n: null, b: null, d: null, u: null, j: null, o: null });
+
+    expect(omitted).toEqual({ id: omitted.id, ...empty });
+    expect(nulls).toEqual({ id: nulls.id, ...empty });
+    expect(Object.values(nulls).filter(x => x === null)).toEqual([]);
+    expect(Object.values(await NullRow.one(nulls.id)).filter(x => x === null)).toEqual([]);
+    expect(await NullRow.find()).toEqual([{ id: nulls.id, ...empty }, { id: omitted.id, ...empty }]);
+
+    const entity = await NullRow.get(nulls.id);
+
+    expect(entity.columns).toEqual({ id: nulls.id, ...empty });
+    expect(Object.values(entity.get()).filter(x => x === null)).toEqual([]);
+
+    const [projected] = await Query(where => {
+      const row = where(NullRow);
+
+      where(row.id).equal(nulls.id);
+
+      return { n: row.n, s: row.s, row };
+    });
+
+    expect(projected).toEqual({ n: undefined, s: undefined, row: { id: nulls.id, ...empty } });
+    await expect(Query(where => where(NullRow).n)).resolves.toEqual([undefined, undefined]);
+  })
+
+  it("will write null to clear each column", async () => {
+    const { NullRef, NullRow } = define();
+    const connection = memory();
+
+    NullRef.connection = connection;
+    NullRow.connection = connection;
+
+    const ref = await NullRef.new({ name: "Ref" });
+    const entity = await NullRow.new({ s: "a", n: 2, b: true, d: new Date(0), u: "x1", j: { a: 1 }, o: ref });
+
+    expect(entity.columns).toEqual({ id: entity.id, s: "a", n: 2, b: true, d: new Date(0), u: "x1", j: { a: 1 }, o: ref.id });
+
+    await entity.set({ s: null, n: null, b: null, d: null, u: null, j: null, o: null });
+
+    expect(entity.columns).toEqual({ id: entity.id, ...empty });
+    expect(Object.values(entity.get()).filter(x => x === null)).toEqual([]);
+    await expect(NullRow.one(entity.id)).resolves.toEqual({ id: entity.id, ...empty });
+
+    await NullRow.update(entity.id, { n: 3 });
+    await NullRow.update(entity.id, { n: null });
+
+    expect(entity.n).toBeUndefined();
+    await expect(NullRow.one(entity.id)).resolves.toEqual({ id: entity.id, ...empty });
   })
 })
