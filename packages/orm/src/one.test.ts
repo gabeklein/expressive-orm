@@ -498,3 +498,30 @@ describe("references", () => {
     expect(post.user.name).toBe("Carol");
   })
 })
+
+describe("config", () => {
+  it("will record referential actions", () => {
+    class User extends connect() {}
+
+    class Post extends connect() {
+      user = one(User, { onDelete: "cascade", onUpdate: "restrict", column: "author" });
+    }
+
+    expect(Post.fields.get("user")).toMatchObject({
+      column: "author",
+      onDelete: "cascade",
+      onUpdate: "restrict",
+      nullable: false
+    });
+  })
+
+  it("will apply lazy after defaults", () => {
+    class User extends connect() {}
+
+    class Post extends connect() {
+      user = one(User, lazy);
+    }
+
+    expect(Post.fields.get("user")).toMatchObject({ lazy: true });
+  })
+})

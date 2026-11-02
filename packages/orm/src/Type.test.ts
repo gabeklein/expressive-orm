@@ -6,7 +6,7 @@ import { memory } from './memory';
 import { Query } from './query/Query';
 import { Type } from './Type';
 import { asc, desc, equal, greaterThan, isIn, Where } from './where';
-import { bool, date, json, num, one, optional, orNull, str } from '.';
+import { bool, date, json, num, one, optional, orNull, str, uuid } from '.';
 
 function connect(){
   return class Table extends Type {
@@ -130,7 +130,7 @@ describe("fields", () => {
     const name = User.fields.get("name")!;
 
     expect(name.property).toBe("name");
-    expect(name.datatype).toBe("varchar");
+    expect(name.datatype).toBe("varchar(3)");
     expect(name.length).toBe(3);
     expect(name.unique).toBe(true);
     expect(name.kind).toBe(String);
@@ -850,6 +850,117 @@ describe("types", () => {
     foobar.a = undefined;
     // @ts-expect-error
     foobar.e = undefined;
+  })
+})
+
+describe("primary key", () => {
+  it("will mark id primary and increment", () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    const { primary, increment, column } = User.fields.get("id")!;
+
+    expect({ primary, increment, column }).toEqual({ primary: true, increment: true, column: "id" });
+  })
+
+  it("will redeclare id with a column", async () => {
+    class User extends connect() {
+      id = num({ column: "user_id", primary: true });
+      name = str();
+    }
+
+    class Post extends connect() {
+      static connection = User.connection;
+      user = one(User);
+    }
+
+    const id: number = User.new({ name: "A" }).id;
+    const query = Query(where => where(Post).user.id);
+
+    expect(id).toBeUndefined();
+    expect(User.fields.get("id")!.column).toBe("user_id");
+    expect(String(query)).toMatchInlineSnapshot(`
+      "from post
+      join user on user.user_id = post.user_id
+      select user.user_id"
+    `);
+  })
+
+  it("will redeclare id as a string", async () => {
+    class Doc extends Type {
+      static connection = memory();
+      id = uuid({ primary: true });
+      title = str();
+    }
+
+    const doc = await Doc.insert({ id: "x1", title: "Hello" });
+    const id: string = doc.id;
+
+    expect(id).toBe("x1");
+    expect(Doc.fields.get("id")!.kind).toBe(String);
+    expect(Doc.loaded.get("x1")).toBe(doc);
+    await expect(Doc.one("x1")).resolves.toBe(doc);
+
+    await Doc.update("x1", { title: "Bye" });
+    await expect(Doc.one("x1", true)).resolves.toBe(doc);
+    expect(doc.title).toBe("Bye");
+
+    await doc.delete();
+    await expect(Doc.one("x1", false)).resolves.toBeUndefined();
+  })
+
+  it("will type id by declaration", () => {
+    class Doc extends Type {
+      id = uuid({ primary: true });
+    }
+
+    class User extends Type {}
+
+    const doc = Doc.new();
+    const user = User.new();
+    const key: string | number = user.id;
+    const narrow: Doc["id"] = "x1";
+    const read: string = narrow;
+
+    // @ts-expect-error
+    const a: number = doc.id;
+    // @ts-expect-error
+    const b: string = user.id;
+    // @ts-expect-error
+    const c: number = user.id;
+
+    expect([key, read, a, b, c]).toEqual([undefined, "x1", undefined, undefined, undefined]);
+
+    const lookups = [
+      // @ts-expect-error
+      () => Doc.one(1),
+      () => User.one("a1", false)
+    ];
+
+    expect(lookups).toHaveLength(2);
+  })
+
+  it("will relate to a string id", async () => {
+    class Doc extends Type {
+      static connection = memory();
+      id = uuid({ primary: true });
+    }
+
+    class Note extends Type {
+      static connection = Doc.connection;
+      doc = one(Doc);
+    }
+
+    const doc = await Doc.insert({ id: "a1" });
+    const note = await Note.insert({ doc: "a1" });
+    const query = Query(where => void where(Note, { doc: "a1" }));
+
+    expect(note.doc).toBe(doc);
+    expect(String(query)).toMatchInlineSnapshot(`
+      "insert note
+        doc: "a1""
+    `);
   })
 })
 

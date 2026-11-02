@@ -1,4 +1,4 @@
-import { Field } from '../Field';
+import { Field, omits } from '../Field';
 import type { Type } from '../Type';
 import { Query } from './Query';
 import { Cond, DataField, DataTable, Expression, Group, Parameter, QueryTemplate, render, Value } from './Value';
@@ -288,7 +288,7 @@ class Builder {
     }
 
     if (value === undefined){
-      if (!field.nullable && !field.optional && !field.increment)
+      if (!field.nullable && !omits(field))
         throw new Error(`Can't assign to \`${field}\`. A value is required but got undefined.`);
 
       return;

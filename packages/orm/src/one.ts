@@ -1,33 +1,16 @@
-import { field, Infer } from "./fields";
-import { Config, Field } from './Field';
+import { DataTypes, Exact, field, Has, OptionsOf } from "./fields";
+import { configure, Field, Nullable } from './Field';
 import type { Builder } from './query/Builder';
 import Type from "./Type";
 
 const ONE = new WeakMap<Type.Class, Map<Type.Class, Field | null>>();
 
 class OneToOneField<T extends Type = Type> extends Field {
-  entity: Type.Class<T>;
-  column: string;
+  declare type: one.DataType;
+  declare entity: Type.Class<T>;
+  declare onDelete?: string;
+  declare onUpdate?: string;
   lazy = false;
-
-  constructor(key: string, parent: Type.Class, from: Type.Class<T>, ...config: Config[]) {
-    super(key, ...config);
-    this.entity = from;
-    this.column = `${from.table}_id`;
-
-    Object.defineProperty(this, "reference", {
-      get: () => from.fields.get("id")
-    });
-
-    Object.assign(this, ...config);
-
-    let rel = ONE.get(parent);
-
-    if (!rel)
-      ONE.set(parent, rel = new Map());
-
-    rel.set(from, rel.has(from) ? null : this);
-  }
 
   use(query: Builder){
     const table = query.use(this.entity, this.nullable) as Record<string, Field>;
@@ -35,7 +18,7 @@ class OneToOneField<T extends Type = Type> extends Field {
     return table;
   }
 
-  get(id: number){
+  get(id: string | number){
     const Class = this.entity;
     
     if (id == null)
@@ -47,7 +30,7 @@ class OneToOneField<T extends Type = Type> extends Field {
     return this.lazy ? id : this.load(id);
   }
 
-  load(id: number){
+  load(id: string | number){
     const Class = this.entity;
 
     return Class.one(id, false).catch((err: unknown) => {
@@ -59,7 +42,7 @@ class OneToOneField<T extends Type = Type> extends Field {
   }
 
   set(
-    value: Type.Instance<T> | Type.Insert<T> | number | null | undefined,
+    value: Type.Instance<T> | Type.Insert<T> | string | number | null | undefined,
     compare?: boolean): any {
 
     const { entity: Class, column, query } = this;
@@ -109,12 +92,34 @@ export function getRelated<T extends Type.Class>(Class: T, type: Type.Class) {
   throw new Error(`No relationship inferred for ${Class.name} in ${type.name}. ${message}`);
 }
 
-function one<T extends Type, C extends Config<OneToOneField>[]>(from: Type.Class<T>, ...config: C){
-  return field<Infer<C, T>, OneToOneField<T>>(
-    (key, type) => new OneToOneField(key, type, from, ...config),
+declare namespace one {
+  interface Types {}
+
+  type DataType = DataTypes<Types>;
+
+  type Options = OptionsOf<Types, OneToOneField>;
+}
+
+function one<T extends Type, C extends one.Options[]>(from: Type.Class<T>, ...config: C & Exact<C, one.Types>){
+  return field<Has<C, Nullable> extends true ? T | undefined : T, OneToOneField<T>>(
+    (key, parent) => {
+      const field = configure(new one.Type<T>(key), [{ entity: from, column: `${from.table}_id` }, ...config]);
+      let rel = ONE.get(parent);
+
+      Object.defineProperty(field, "reference", {
+        get: () => from.fields.get("id")
+      });
+
+      if (!rel)
+        ONE.set(parent, rel = new Map());
+
+      rel.set(from, rel.has(from) ? null : field);
+
+      return field;
+    },
     (field, subject, store) => {
       const { key, entity: Class } = field;
-      let pending: number | undefined;
+      let pending: string | number | undefined;
       let loading: Promise<unknown> | undefined;
       let failed: unknown;
 
@@ -158,10 +163,10 @@ function one<T extends Type, C extends Config<OneToOneField>[]>(from: Type.Class
           failed = undefined;
 
           if (typeof next == "number" || typeof next == "string") {
-            const loaded = Class.loaded.get(next as number);
+            const loaded = Class.loaded.get(next);
 
             if (!loaded) {
-              pending = next as number;
+              pending = next;
               delete store[key];
               subject.set(key as any);
               throw false;
@@ -177,6 +182,8 @@ function one<T extends Type, C extends Config<OneToOneField>[]>(from: Type.Class
     }
   );
 }
+
+one.Type = OneToOneField;
 
 const lazy = { lazy: true };
 

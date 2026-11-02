@@ -1,7 +1,7 @@
 import { State } from '@expressive/mvc';
 
 import { DIRTY, FIELDS, num } from './fields';
-import { Field, underscore } from './Field';
+import { Field, Omits, Optional, underscore } from './Field';
 import type { Builder } from './query/Builder';
 import { Query } from './query/Query';
 import type { Rows } from './rows';
@@ -23,14 +23,14 @@ type ClassKeys<T> = {
   [K in keyof T]: T[K] extends Type.Class | Rows<any, any> | ((...args: any[]) => any) ? K : never
 }[keyof T];
 
-type Fields<T extends Type> = Exclude<keyof T, keyof Type | ClassKeys<T>>;
+type Fields<T extends Type> = Exclude<keyof T, Exclude<keyof Type, "id"> | ClassKeys<T>>;
 
 type Inserts<T> = T extends Type ? T | T["id"] | Type.Insert<T> : T;
 
 type Insert<T extends Type> = {
-  [K in Fields<T> as (undefined extends T[K] ? never : K)]: Inserts<T[K]>;
+  [K in Fields<T> as (Omits<T[K]> extends true ? never : K)]: Inserts<T[K]>;
 } & {
-  [K in Fields<T> as (undefined extends T[K] ? K : never)]?: Inserts<T[K]>;
+  [K in Fields<T> as (Omits<T[K]> extends true ? K : never)]?: Inserts<T[K]>;
 };
 
 type Matches<T> = T extends Type ? T | T["id"] | Type.Compat<T> : T;
@@ -90,7 +90,8 @@ class NotReady {
   remove = reject;
 }
 
-const LOADED = new WeakMap<Type.Connection, Map<typeof Type, Map<number, Type>>>();
+const LOADED = new WeakMap<Type.Connection, Map<typeof Type, Map<unknown, Type>>>();
+const INSERT = new WeakSet<Type>();
 const SAVED = new WeakMap<Type, Record<string, unknown> | null>();
 
 async function decode(type: typeof Type, row: Record<string, any>, partial?: boolean) {
@@ -138,7 +139,7 @@ interface Type {
 }
 
 abstract class Type extends State {
-  id = num({ optional: true });
+  id: Optional<string | number> = num({ primary: true, increment: true });
 
   static get loaded(){
     let types = LOADED.get(this.connection);
@@ -173,7 +174,7 @@ abstract class Type extends State {
     const { connection, ref } = type;
     const dirty = DIRTY.get(this) || {};
 
-    if (this.id == null) {
+    if (INSERT.delete(this) || this.id == null) {
       const row = await type.prepare({ ...dirty, ...type.subset } as Type.Update<Type>);
       const inserted = await connection.insert(ref, row, true);
 
@@ -256,10 +257,10 @@ abstract class Type extends State {
     raw: Record<string, any>
   ){
     const values = await decode(this, raw);
-    let entity = this.loaded.get(values.id as number) as T | undefined;
+    let entity = this.loaded.get(values.id) as T | undefined;
 
     if (!entity)
-      this.loaded.set(values.id as number, entity = (this as any).new(values) as T);
+      this.loaded.set(values.id, entity = (this as any).new(values) as T);
 
     settle(entity, values, raw);
 
@@ -284,15 +285,19 @@ abstract class Type extends State {
   }
 
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>): Promise<T> {
-    return (this as any).new(data).save();
+    const entity = (this as any).new(data) as T;
+
+    INSERT.add(entity);
+
+    return entity.save();
   }
 
-  static async one<T extends Type>(this: Type.Class<T>, id: number, expect: boolean): Promise<T | undefined>;
-  static async one<T extends Type>(this: Type.Class<T>, id: number, reload?: true): Promise<T>;
+  static async one<T extends Type>(this: Type.Class<T>, id: T["id"], expect: boolean): Promise<T | undefined>;
+  static async one<T extends Type>(this: Type.Class<T>, id: T["id"], reload?: true): Promise<T>;
   static async one<T extends Type>(this: Type.Class<T>, where: Type.Query<T>, expect: boolean): Promise<T | undefined>;
   static async one<T extends Type>(this: Type.Class<T>, where?: Type.Query<T>, expect?: true): Promise<T>;
-  static async one<T extends Type>(this: Type.Class<T>, where?: number | Type.Query<T>, arg?: boolean): Promise<T | undefined> {
-    if (typeof where === "number"){
+  static async one<T extends Type>(this: Type.Class<T>, where?: T["id"] | Type.Query<T>, arg?: boolean): Promise<T | undefined> {
+    if (where != null && typeof where != "object"){
       if(!arg) {
         const cached = this.loaded.get(where);
 

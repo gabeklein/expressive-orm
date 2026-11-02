@@ -92,7 +92,8 @@ function memory(): Type.Connection {
     const into = table(name);
     const row = { id: into.next, ...data };
 
-    into.next = Math.max(into.next, row.id + 1);
+    if (typeof row.id == "number")
+      into.next = Math.max(into.next, row.id + 1);
     into.rows.push(row);
 
     return row;
