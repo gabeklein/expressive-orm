@@ -49,6 +49,9 @@ One PR each, in order.
 
 ## Open
 
+- mvc: `State.Assign<T>` types methods as `(this: T, ...)`, so a State with a method and a `this`-typed member is invariant and its subclasses stop being assignable to it. `Type` re-declares State's `set` overloads with `Compat<this>` until this is fixed upstream; the "will be assignable to Type" test pins it.
+- Static `Type.query(constraints)` is still public; PR 4 reserves `query` for the builder, so rename or protect it there.
+- `Type.fields` forces one `new()` + `set(null)` when no instance has activated - a `new()` hook with side effects runs once for metadata. Revisit if it bites.
 - Which base statics cross to a client twin, and how orm declares it.
 - `Type.query` sugar shape vs importing `Query` directly.
 - Whether `sql.Table` survives as a builder-only base.

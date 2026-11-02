@@ -1,4 +1,6 @@
-import { init, num } from './fields';
+import { State } from '@expressive/mvc';
+
+import { FIELDS, num } from './fields';
 import { Field, underscore } from './Field';
 import { desc, equal, Where } from './where';
 
@@ -84,16 +86,31 @@ class NotReady {
   remove = reject;
 }
 
-const LOADED = new Map<typeof Type, Map<number, Type>>();
+const LOADED = new WeakMap<Type.Connection, Map<typeof Type, Map<number, Type>>>();
 
-abstract class Type {
+interface Type {
+  set(): State.Updated<this>;
+  set(assign?: Type.Compat<this>, silent?: boolean): State.Updated<this>;
+  set(callback: State.OnEvent<this>): () => boolean;
+  set(key: State.Event<this>): State.Updated<this>;
+  set(status: null): void;
+  set<K extends State.Event<this>>(event: K | null, callback: State.OnEvent<this>): () => boolean;
+  set<K extends State.Event<this>>(key: K, config: State.Define<this, K>): State.Updated<this>;
+}
+
+abstract class Type extends State {
   id = num({ optional: true });
 
   static get loaded(){
-    let map = LOADED.get(this);
+    let types = LOADED.get(this.connection);
+
+    if(!types)
+      LOADED.set(this.connection, types = new Map());
+
+    let map = types.get(this);
 
     if(!map)
-      LOADED.set(this, map = new Map());
+      types.set(this, map = new Map());
 
     return map;
   }
@@ -120,12 +137,7 @@ abstract class Type {
 
     for (const [key] of type.fields)
       if (key in data)
-        Object.defineProperty(this, key, {
-          value: (data as any)[key],
-          configurable: true,
-          enumerable: true,
-          writable: false,
-        });
+        (this as any)[key] = (data as any)[key];
   }
 
   async delete() {
@@ -150,8 +162,13 @@ abstract class Type {
   }
 
   static get fields(): Map<string, Field> {
-    const fields = init(this);
-    Object.defineProperty(this, 'fields', { value: fields });
+    let fields = FIELDS.get(this);
+
+    if (!fields) {
+      (this as any).new().set(null);
+      fields = FIELDS.get(this)!;
+    }
+
     return fields;
   }
 
@@ -159,12 +176,17 @@ abstract class Type {
     this: Type.Class<T>,
     raw: Record<string, any>
   ){
-    const entity = this.loaded.get(raw.id) as T ||  Object.create(this.prototype) as T;
+    const values: Record<string, unknown> = {};
 
     for (const field of this.fields.values())
-      await field.parse(entity, raw);
-    
-    this.loaded.set(entity.id, entity);
+      values[field.key] = await field.get(raw[field.column], raw);
+
+    let entity = this.loaded.get(values.id as number) as T | undefined;
+
+    if (entity)
+      entity.set(values as Type.Compat<T>);
+    else
+      this.loaded.set(values.id as number, entity = (this as any).new(values) as T);
 
     return entity;
   }
@@ -187,11 +209,6 @@ abstract class Type {
   }
 
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>){
-    const row = await this.prepare({ ...data as any, ...this.subset });
-    await this.connection.insert(this.ref, row);
-  }
-
-  static async new<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>){
     const row = await this.prepare({ ...data as any, ...this.subset });
     const inserted = await this.connection.insert(this.ref, row, true);
 
@@ -253,7 +270,7 @@ abstract class Type {
     return Promise.all(rows.map(row => this.parse(row) as Promise<T>));
   }
 
-  static async get<T extends Type>(
+  static async find<T extends Type>(
     this: Type.Class<T>,
     where?: Type.Query<T>,
     limit?: number,
