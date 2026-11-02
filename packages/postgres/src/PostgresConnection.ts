@@ -74,7 +74,7 @@ export abstract class PostgresConnection extends Connection {
 
     const send = async (params?: any[]) => {
       try {
-        return this.query(sql, params);
+        return await this.query(sql, params);
       }
       catch (error) {
         if(error instanceof Error && error.message.includes('syntax error'))

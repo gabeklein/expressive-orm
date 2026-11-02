@@ -1199,3 +1199,17 @@ describe("quoting", () => {
     expect(found).toEqual([]);
   })
 })
+
+describe("prepare", () => {
+  it("will report a syntax error with the query", async () => {
+    const conn = await TestConnection.new([]);
+
+    await expect(conn.prepare("SELEC 1").all()).rejects.toThrow("Syntax error in query: SELEC 1");
+  })
+
+  it("will rethrow other errors", async () => {
+    const conn = await TestConnection.new([]);
+
+    await expect(conn.prepare("SELECT * FROM missing").run()).rejects.toThrow('relation "missing" does not exist');
+  })
+})
