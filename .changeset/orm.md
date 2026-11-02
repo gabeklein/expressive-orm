@@ -4,7 +4,7 @@
 
 Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a small floor with optional capabilities, and `Query` lives here.
 
-**Entities are Models.** `Type` extends `Model` from `@expressive/mvc`, now a peer dependency (`^0.89.0`). Observe an entity with `get(effect)` or `set(callback)`; destroy it with `set(null)`. Field helpers (`str`, `num`, `bool`, `date`, `uuid`, `json`, `one`) are `def` instructions; the private `use`/`init` registry is gone.
+**Entities are Models.** `Type` extends `Model` from `@expressive/mvc`, now a peer dependency (`^0.93.0`). Observe an entity with `get(effect)` or `set(callback)`; destroy it with `set(null)`. Field helpers (`str`, `num`, `bool`, `date`, `uuid`, `json`, `one`) are `def` instructions; the private `use`/`init` registry is gone.
 
 **Renamed**
 
@@ -51,4 +51,4 @@ Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a smal
 
 **Packaging.** ESM only, built with tsdown; modules no longer trip over circular imports when evaluated one by one. Most applications install `@expressive/sql`, which depends on and re-exports this package. The PGLite test harness is removed.
 
-Requires `@expressive/mvc` `^0.89.0`.
+Requires `@expressive/mvc` `^0.93.0`.
