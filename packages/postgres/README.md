@@ -76,3 +76,4 @@ Requirements:
 - `sync` installs an `expressive_notify()` function and a trigger per table, each time it runs; tables created outside `sync` get theirs on the next one. Triggers `pg_notify` the `expressive_orm` channel with `{ table, op, id, row }`; `row` is dropped past 8000 bytes and the entity reloads it.
 - `PGConnection` holds one pool client for `LISTEN`, from the first entity loaded until `close()`.
 - A pooler in transaction mode (PgBouncer, some serverless proxies) drops notifications silently. Connect directly or in session mode.
+- Notifications carry the full row on `expressive_orm`: any role that can `LISTEN` on the database receives it, whatever its table grants.
