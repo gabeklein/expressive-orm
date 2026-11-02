@@ -995,7 +995,7 @@ describe("floor", () => {
 
     const didCatch = vi.fn();
     const release = Tag.on({ catch: didCatch });
-    const tag: Tag = Tag.new({ name: "a" });
+    const tag = Tag.new({ name: "a" });
 
     try {
       await expect(tag).rejects.toThrow(/unique/);

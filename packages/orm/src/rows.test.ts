@@ -93,7 +93,7 @@ describe("rows", () => {
 
   it("will suspend until parent is inserted", async () => {
     await ready;
-    const bob: User = User.new({ name: "Bob" });
+    const bob = User.new({ name: "Bob" });
     const pending = (() => { try { return bob.profiles } catch (e) { return e } })();
 
     expect(pending).toBeInstanceOf(Promise);

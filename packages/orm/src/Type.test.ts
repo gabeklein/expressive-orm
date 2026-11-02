@@ -592,7 +592,7 @@ describe("set", () => {
   it("will clear nullable column", async () => {
     const user = await User.new({ name: "John", age: 30 });
 
-    await user.set({ age: null as any });
+    await user.set({ age: null });
 
     const [row] = await User.connection.select(User.ref, [["id", "=", user.id]]);
 
@@ -784,7 +784,7 @@ describe("new", () => {
     const didCatch = vi.fn();
     const release = Model.on({ catch: didCatch });
     // @ts-expect-error
-    const user: User = User.new({});
+    const user = User.new({});
     const destroyed = vi.fn();
     const pending = (() => { try { return user.name } catch (e) { return e } })();
 
@@ -1183,6 +1183,35 @@ describe("extended types", () => {
 })
 
 describe("types", () => {
+  it("will type references and new as the entity", () => {
+    class User extends Type {
+      name = str();
+      age = num(orNull);
+    }
+
+    const check = async () => {
+      const ref = User.get(1);
+      const created = User.new({ name: "A" });
+
+      expectTypeOf(ref).toEqualTypeOf<User>();
+      expectTypeOf(created).toEqualTypeOf<User>();
+      expectTypeOf(await User.get(1)).toEqualTypeOf<User>();
+      expectTypeOf(await User.new({ name: "A" })).toEqualTypeOf<User>();
+
+      ref.get(({ name }) => void name);
+      created.get(({ name }) => void name);
+      ref.set(key => void key);
+      created.set(key => void key);
+      ref.set({ name: "B" });
+      created.set({ age: null });
+
+      // @ts-expect-error
+      ref.set({ name: null });
+    };
+
+    expect(check).toBeTypeOf("function");
+  })
+
   class Bar extends Type {}
   class FooBar extends Type {
     a = str();

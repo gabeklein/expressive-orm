@@ -14,7 +14,7 @@ type Compat<T extends Type> = {
 }
 
 type Update<T extends Type> = {
-  [K in Exclude<keyof T, keyof Type>]?: Inserts<T[K]>
+  [K in Exclude<keyof T, keyof Type>]?: Inserts<T[K]> | (undefined extends T[K] ? null : never)
 }
 
 type ClassKeys<T> = {
@@ -187,7 +187,7 @@ function awaitable<T extends Type>(entity: T) {
   PENDING.add(entity);
   entity.get(() => {}).then(loaded, loaded);
 
-  return entity as T | (T & PromiseLike<T>);
+  return entity;
 }
 
 abstract class Type extends Model {
@@ -288,7 +288,7 @@ abstract class Type extends Model {
 
   static get<T extends Type>(this: Model.Extends<T>): T;
   static get<T extends Type>(this: Model.Extends<T>, required: false): T | undefined;
-  static get<T extends Type>(this: Model.Extends<T>, id: T["id"]): T | (T & PromiseLike<T>);
+  static get<T extends Type>(this: Model.Extends<T>, id: T["id"]): T;
   static get<T extends Type>(this: Model.Extends<T>, id?: T["id"] | false): T | undefined {
     if (typeof id != "number" && typeof id != "string")
       return super.get(id as false) as T | undefined;
@@ -309,7 +309,7 @@ abstract class Type extends Model {
     return row;
   }
 
-  static new<T extends Model>(this: Model.Type<T>, values: T extends Type ? Type.Insert<T> : never): T | (T & PromiseLike<T>) {
+  static new<T extends Model>(this: Model.Type<T>, values: T extends Type ? Type.Insert<T> : never): T {
     const type = this as unknown as typeof Type;
 
     return awaitable(placeholder(() => (Model.new as Function).call(type, async (entity: Type) => {
@@ -319,7 +319,7 @@ abstract class Type extends Model {
 
       settle(entity, await decode(type, inserted));
       loaded.set(entity.id, entity);
-    }) as T & Type)) as T | (T & PromiseLike<T>);
+    }) as T & Type));
   }
 
   static async update<T extends Type>(this: Type.Class<T>, id: T["id"], data: Type.Update<T>): Promise<void> {
@@ -481,7 +481,7 @@ function reference<T extends Type>(type: Type.Class<T>, id: T["id"]): T {
 
   loaded.set(id, entity);
 
-  return awaitable(entity) as T;
+  return awaitable(entity);
 }
 
 async function persist(entity: Type, patch: Type.Update<Type>) {
