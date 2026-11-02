@@ -70,7 +70,7 @@ Options, in any order:
 - `{ fallback }` - column default, also optional on insert. `"NOW"` is `CURRENT_TIMESTAMP`.
 - `{ unique, type, length, precision, scale }` - see [Datatypes](#datatypes).
 
-The table is the class name in snake case; `static table` overrides it, `static schema` qualifies it.
+The table is the class name in snake case; `static table` overrides it.
 
 Every entity has `id = num({ primary: true, increment: true })`. Redeclare it to rename the column or change its type:
 

@@ -213,6 +213,16 @@ describe("persistence", () => {
     );
   });
 
+  it('will throw for a class with a schema', async () => {
+    class Foo extends Type {
+      static schema = "app";
+    }
+
+    await expect(PGLiteConnection.new([ Foo ], new PGlite()).sync()).rejects.toThrow(
+      "static schema is not supported by PGLiteConnection."
+    );
+  });
+
   it('will throw if already active', async () => {
     class Foo extends Type {}
 

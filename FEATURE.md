@@ -93,6 +93,7 @@ The trunk is release-ready: four minors - `@expressive/orm` 0.13.0, `@expressive
 - `one(Other)` defaults its column to `${Other.table}_id`, so a second relation to the same class collides unless given a `column`. The README says so; a key-based default would rename existing columns.
 - Hydrating a row through `find` or `Query` overwrites fields with unsaved edits and clears them (as agreed: loading leaves an entity clean), and reassigns an equal `Date`, so observers see a `joined` change on every reload. Live updates skip both.
 - `num({ type: "serial" })` needs `optional` to insert without a value; the column default is the sequence, but nothing marks it omissible.
+- `static schema` is honoured by memory only; SQLite and Postgres `sync` throw for a class with one. Qualified DDL, verification and triggers are a later step.
 - Augmenting a helper's `Types` declares `module '@expressive/orm'`, so orm must resolve from the consumer - true under npm and bun hoisting, not under a strict pnpm layout without a direct dependency.
 
 ## Rejected

@@ -213,6 +213,10 @@ export abstract class PostgresConnection extends Connection {
     if (this.ready)
       throw new Error("Connection is already active.");
 
+    for (const type of this.using)
+      if (type.schema)
+        throw new Error(`static schema is not supported by ${this.constructor.name}.`);
+
     const required = await this.verify();
 
     if(required.size)

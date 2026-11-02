@@ -69,6 +69,10 @@ export class SQLiteConnection extends Connection {
     if (this.ready)
       throw new Error("Connection is already active.");
 
+    for (const type of this.using)
+      if (type.schema)
+        throw new Error(`static schema is not supported by ${this.constructor.name}.`);
+
     const missing: Query.Table[] = [];
 
     for (const type of this.using)

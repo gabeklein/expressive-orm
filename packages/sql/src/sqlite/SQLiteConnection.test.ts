@@ -730,6 +730,17 @@ describe("sync", () => {
     await conn.close();
   })
 
+  it("will throw for a class with a schema", async () => {
+    class Foo extends Type {
+      static schema = "app";
+    }
+
+    const conn = SQLiteConnection.new([Foo]);
+
+    await expect(conn.sync()).rejects.toThrow("static schema is not supported by SQLiteConnection.");
+    await conn.close();
+  })
+
   it("will throw if already active", async () => {
     class Foo extends Type {}
 
