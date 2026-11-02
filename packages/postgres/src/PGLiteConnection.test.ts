@@ -942,7 +942,7 @@ describe("floor", () => {
 
     const post = await Post.get(2);
 
-    await post.update({ title: "Second!", draft: false, views: 10 });
+    await post.set({ title: "Second!", draft: false, views: 10 });
 
     const titles = await Post.query((post, where) => {
       where(post.views).over(5);
@@ -952,8 +952,7 @@ describe("floor", () => {
 
     expect(titles).toEqual([{ title: "Second!", author: "Gabe" }]);
 
-    post.published = new Date("2024-02-01T00:00:00Z");
-    await post.save();
+    await post.set({ published: new Date("2024-02-01T00:00:00Z") });
 
     const [reloaded] = await Post.query((post, where) => {
       where(post.id).equal(2);
@@ -974,6 +973,41 @@ describe("floor", () => {
 
     expect(renamed).toBe("Bob");
   })
+
+  it("will create an entity with new", async () => {
+    await TestConnection.new([Author, Post]);
+
+    const gabe = await Author.new({ name: "Gabe" });
+    const post = await Post.new({ author: gabe, title: "Hello", draft: false });
+
+    expect(post.columns).toEqual({ id: 1, author: gabe.id, title: "Hello", views: 0, draft: false, published: undefined });
+    expect(post.author).toBe(gabe);
+    expect(Post.get(post.id)).toBe(post);
+  })
+
+  it("will reject new on a constraint violation", async () => {
+    class Tag extends Type {
+      name = str({ unique: true });
+    }
+
+    await TestConnection.new([Tag]);
+    await Tag.insert({ name: "a" });
+
+    const didCatch = vi.fn();
+    const release = Tag.on({ catch: didCatch });
+    const tag: Tag = Tag.new({ name: "a" });
+
+    try {
+      await expect(tag).rejects.toThrow(/unique/);
+    }
+    finally {
+      release();
+    }
+
+    expect(tag.get(null)).toBe(true);
+    expect(didCatch).toHaveBeenCalledWith(expect.any(Error), "setup", undefined);
+    await expect(Tag.find()).resolves.toHaveLength(1);
+  })
 })
 
 describe("live rows", () => {
@@ -984,7 +1018,7 @@ describe("live rows", () => {
 
     await TestConnection.new([User]);
 
-    const user = await User.new({ name: "Gabe" }).save();
+    const user = await User.new({ name: "Gabe" });
     const names: string[] = [];
 
     user.get(current => {
@@ -1004,7 +1038,7 @@ describe("live rows", () => {
 
     await TestConnection.new([User]);
 
-    const user = await User.new({ name: "Gabe" }).save();
+    const user = await User.new({ name: "Gabe" });
 
     await shared.query(`DELETE FROM "user" WHERE id = $1`, [user.id]);
     await vi.waitFor(() => expect(user.get(null)).toBe(true));
@@ -1012,7 +1046,7 @@ describe("live rows", () => {
     expect(User.loaded.has(user.id)).toBe(false);
   })
 
-  it("will keep unsaved fields", async () => {
+  it("will settle every changed field", async () => {
     class User extends Type {
       name = str();
       age = num();
@@ -1020,14 +1054,32 @@ describe("live rows", () => {
 
     await TestConnection.new([User]);
 
-    const user = await User.new({ name: "Gabe", age: 1 }).save();
-
-    user.name = "Local";
+    const user = await User.new({ name: "Gabe", age: 1 });
 
     await shared.query(`UPDATE "user" SET name = 'Remote', age = 30 WHERE id = $1`, [user.id]);
     await vi.waitFor(() => expect(user.age).toBe(30));
 
-    expect(user.name).toBe("Local");
+    expect(user.name).toBe("Remote");
+  })
+
+  it("will notify set once beside its live update", async () => {
+    class Event extends Type {
+      name = str();
+      at = date();
+    }
+
+    await TestConnection.new([Event]);
+
+    const event = await Event.new({ name: "Launch", at: new Date("2024-01-01T00:00:00Z") });
+    const effect = vi.fn();
+
+    event.get($ => void effect($.name, $.at));
+
+    await event.set({ name: "Landing", at: new Date("2024-06-01T00:00:00Z") });
+    await new Promise(res => setTimeout(res, 50));
+
+    expect(effect).toHaveBeenCalledTimes(2);
+    expect(effect).toHaveBeenLastCalledWith("Landing", new Date("2024-06-01T00:00:00Z"));
   })
 
   it("will decode a timestamp", async () => {
@@ -1037,7 +1089,7 @@ describe("live rows", () => {
 
     await TestConnection.new([Event]);
 
-    const event = await Event.new({ at: new Date("2024-01-01T00:00:00Z") }).save();
+    const event = await Event.new({ at: new Date("2024-01-01T00:00:00Z") });
 
     await shared.query(`UPDATE "event" SET at = '2024-06-01 12:00:00' WHERE id = $1`, [event.id]);
     await vi.waitFor(() => expect(event.at).toEqual(new Date("2024-06-01T12:00:00Z")));
@@ -1050,7 +1102,7 @@ describe("live rows", () => {
 
     await TestConnection.new([Doc]);
 
-    const doc = await Doc.new({ body: "short" }).save();
+    const doc = await Doc.new({ body: "short" });
     const body = "x".repeat(9000);
 
     await shared.query(`UPDATE "doc" SET body = $1 WHERE id = $2`, [body, doc.id]);
@@ -1080,7 +1132,7 @@ describe("live rows", () => {
 
     await TestConnection.new([User]);
 
-    const user = await User.new({ name: "Gabe" }).save();
+    const user = await User.new({ name: "Gabe" });
     const names: string[] = [];
 
     user.get(current => {
@@ -1103,7 +1155,7 @@ describe("live rows", () => {
 
     await TestConnection.new([User]);
 
-    const user = await User.new({ name: "Gabe" }).save();
+    const user = await User.new({ name: "Gabe" });
     const destroyed = vi.fn();
 
     user.set(null, destroyed);
@@ -1148,7 +1200,7 @@ describe("renamed key column", () => {
 
     const user = await User.get(1);
 
-    await user.update({ name: "Bob" });
+    await user.set({ name: "Bob" });
     await User.update(1, { name: "Ann" });
     await expect(db.select("user", [])).resolves.toEqual([{ user_id: 1, name: "Ann" }]);
     expect(user.name).toBe("Ann");
@@ -1169,7 +1221,7 @@ describe("renamed key column", () => {
 
     const doc = await Doc.get("a1");
 
-    await doc.update({ title: "Bye" });
+    await doc.set({ title: "Bye" });
     await expect(db.select("doc", [])).resolves.toEqual([{ doc_id: "a1", title: "Bye" }]);
 
     await doc.delete();

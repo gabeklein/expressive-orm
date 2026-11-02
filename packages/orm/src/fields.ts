@@ -27,19 +27,32 @@ type Exact<T extends any[], Types> = {
 };
 
 const FIELDS = new WeakMap<Function, Map<string, Field>>();
-const DIRTY = new WeakMap<Type, Record<string, unknown>>();
 const PEEK = new WeakSet<Type>();
 
 let PLACEHOLDER: Type | boolean = false;
+let WRITING = false;
 
 function placeholder<T extends Type>(create: () => T) {
   PLACEHOLDER = true;
 
   try {
-    return create();
+    return write(create);
   }
   finally {
     PLACEHOLDER = false;
+  }
+}
+
+function write<T>(apply: () => T) {
+  const previous = WRITING;
+
+  WRITING = true;
+
+  try {
+    return apply();
+  }
+  finally {
+    WRITING = previous;
   }
 }
 
@@ -74,12 +87,8 @@ function field<T, F extends Field = Field>(
     return {
       ...output,
       set(next: unknown, prev: unknown) {
-        let dirty = DIRTY.get(subject);
-
-        if (!dirty)
-          DIRTY.set(subject, dirty = {});
-
-        dirty[key] = next;
+        if (!WRITING)
+          throw new Error(`${type.name}.${key} is read-only; use set().`);
 
         if (typeof output.set == "function")
           return output.set(next, prev);
@@ -286,11 +295,11 @@ const optional = { optional: true } as const;
 export type { DataTypes, Exact, Has, OptionsOf };
 
 export {
-  DIRTY,
   FIELDS,
   PEEK,
   Field,
   placeholder,
+  write,
   field,
   json,
   str,

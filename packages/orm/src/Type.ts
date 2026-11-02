@@ -1,7 +1,7 @@
 import { Context, Model } from '@expressive/mvc';
 
 import { Connection } from './Connection';
-import { DIRTY, FIELDS, num, PEEK, placeholder } from './fields';
+import { FIELDS, num, PEEK, placeholder, write } from './fields';
 import { Field, Omits, Optional, row, underscore } from './Field';
 import { Query } from './query/Query';
 import type { Rows } from './rows';
@@ -23,7 +23,7 @@ type ClassKeys<T> = {
 
 type Fields<T extends Type> = Exclude<keyof T, Exclude<keyof Type, "id"> | ClassKeys<T>>;
 
-type Column<T> = T extends { is: unknown; save(): unknown; id: infer I } ? I : T;
+type Column<T> = T extends Type ? T["id"] : T;
 
 type Columns<T extends Type> = Pick<T, "id"> & {
   [K in Exclude<keyof T, keyof Type> as (
@@ -98,7 +98,7 @@ class NotReady extends Connection {
 let DETACHED: Connection | undefined;
 
 const MISSING = new WeakSet<object>();
-const SAVED = new WeakMap<Type, Record<string, unknown> | null>();
+const PENDING = new WeakSet<Type>();
 
 async function decode(type: typeof Type, row: Record<string, any>, partial?: boolean) {
   const values: Record<string, unknown> = {};
@@ -110,23 +110,15 @@ async function decode(type: typeof Type, row: Record<string, any>, partial?: boo
   return values;
 }
 
-function settle(entity: Type, values: Record<string, unknown>, row: Record<string, any>) {
-  const { fields } = entity.constructor as typeof Type;
-  const dirty = DIRTY.get(entity);
-  const saved = SAVED.get(entity) || {};
-
-  entity.set(values as Model.Assign<Type>);
-
+function settle(entity: Type, values: Record<string, unknown>) {
   for (const key in values) {
-    const { column } = fields.get(key)!;
+    const next = values[key];
 
-    saved[column] = row[column];
-
-    if (dirty)
-      delete dirty[key];
+    if (next instanceof Date && +next === +entity.get(key as any, false))
+      delete values[key];
   }
 
-  SAVED.set(entity, saved);
+  return write(() => (Model.prototype.set as Function).call(entity, values) as Model.Updated<Type>);
 }
 
 async function receive(connection: Type.Connection, { table, op, id, row }: Connection.Change) {
@@ -147,20 +139,7 @@ async function receive(connection: Type.Connection, { table, op, id, row }: Conn
     }
 
     const [current = {}] = row ? [row] : await connection.select(table, [[primary.column, "=", id]], 1);
-    const values = await decode(type, current, true);
-    const dirty = DIRTY.get(entity)!;
-    const apply: Record<string, unknown> = {};
-
-    for (const key in values) {
-      const next = values[key];
-
-      if (key in dirty || next instanceof Date && +next === +(entity as any)[key])
-        continue;
-
-      apply[key] = next;
-    }
-
-    settle(entity, apply, current);
+    settle(entity, await decode(type, current, true));
   }
 }
 
@@ -181,13 +160,34 @@ function register(type: typeof Type){
 
 function evict(loaded: Map<unknown, Type>, key: unknown, entity: Type) {
   loaded.delete(key);
-  SAVED.set(entity, null);
   entity.set(null);
 }
 
 function exists(entity: Type) {
-  if (SAVED.get(entity) === null)
-    throw new Error(`${entity.constructor.name} ${entity.id} was deleted.`);
+  const { name } = entity.constructor;
+
+  if (entity.get(null))
+    throw new Error(`${name} ${entity.id} was deleted.`);
+
+  if (PENDING.has(entity))
+    throw new Error(`${name} is not loaded yet.`);
+}
+
+function awaitable<T extends Type>(entity: T) {
+  function then(this: T, resolve?: (value: T) => unknown, reject?: (reason: unknown) => unknown){
+    return entity.get(() => {}).then(() => {
+      delete (entity as any).then;
+      return this;
+    }).then(resolve, reject);
+  }
+
+  Object.defineProperty(entity, "then", { configurable: true, value: then });
+  const loaded = () => PENDING.delete(entity);
+
+  PENDING.add(entity);
+  entity.get(() => {}).then(loaded, loaded);
+
+  return entity as T | (T & PromiseLike<T>);
 }
 
 abstract class Type extends Model {
@@ -220,54 +220,27 @@ abstract class Type extends Model {
 
   protected async onDelete?(): Promise<void>;
 
-  async save(): Promise<this> {
-    exists(this);
+  set(): Model.Updated<this>;
+  set(patch: Type.Update<this>): Model.Updated<this>;
+  set(callback: Model.OnEvent<this>): () => boolean;
+  set(key: Model.Event<this>): Model.Updated<this>;
+  set(status: null): void;
+  set<K extends Model.Event<this>>(event: K | null, callback: Model.OnEvent<this>): () => boolean;
+  set<K extends Model.Event<this>>(key: K, config: Model.Define<this, K>): Model.Updated<this>;
+  set(arg1?: unknown, arg2?: unknown): unknown {
+    if (!arg1 || typeof arg1 != "object")
+      return (super.set as Function)(arg1, arg2);
 
-    const type = this.constructor as typeof Type;
-    const { connection, loaded, ref } = type;
-    const dirty = DIRTY.get(this) || {};
+    const updated: Model.Event<this>[] = [];
+    const done = persist(this.is, arg1 as Type.Update<Type>);
 
-    if (this.id == null) {
-      const row = await type.prepare({ ...dirty, ...type.subset } as Type.Update<Type>);
-      const inserted = await connection.insert(ref, row, true);
-
-      settle(this, await decode(type, inserted), inserted);
-      loaded.set(this.id, this);
-
-      return this;
-    }
-
-    const saved = SAVED.get(this) || {};
-    const data: Record<string, unknown> = {};
-
-    for (const key in dirty)
-      data[key] = dirty[key] ?? null;
-
-    const row = await type.prepare(data as Type.Update<Type>, true);
-
-    for (const column in row)
-      if ((row[column] ?? null) === (saved[column] ?? null))
-        delete row[column];
-
-    if (Object.keys(row).length) {
-      await connection.update(ref, this.id, row);
-      settle(this, await decode(type, row, true), row);
-    }
-
-    return this;
-  }
-
-  async update(data: Type.Update<this>) {
-    exists(this);
-    this.set(data as Model.Assign<this>);
-    await this.save();
+    return Object.assign(updated, {
+      then: done.then.bind(done)
+    }) as unknown as Model.Updated<this>;
   }
 
   async delete() {
     exists(this);
-
-    if (this.id == null)
-      throw new Error(`${this.constructor.name} was never saved.`);
 
     const type = this.constructor as typeof Type;
     const { connection, loaded, ref } = type;
@@ -306,7 +279,7 @@ abstract class Type extends Model {
     let fields = FIELDS.get(this);
 
     if (!fields) {
-      (this as any).new().set(null);
+      (Model.new as Function).call(this).set(null);
       fields = FIELDS.get(this)!;
     }
 
@@ -336,6 +309,19 @@ abstract class Type extends Model {
     return row;
   }
 
+  static new<T extends Model>(this: Model.Type<T>, values: T extends Type ? Type.Insert<T> : never): T | (T & PromiseLike<T>) {
+    const type = this as unknown as typeof Type;
+
+    return awaitable(placeholder(() => (Model.new as Function).call(type, async (entity: Type) => {
+      const { loaded } = type;
+      const row = await type.prepare({ ...values, ...type.subset } as Type.Update<Type>);
+      const inserted = await type.connection.insert(type.ref, row, true);
+
+      settle(entity, await decode(type, inserted));
+      loaded.set(entity.id, entity);
+    }) as T & Type)) as T | (T & PromiseLike<T>);
+  }
+
   static async update<T extends Type>(this: Type.Class<T>, id: T["id"], data: Type.Update<T>): Promise<void> {
     const { connection, loaded, ref } = this;
     const row = await this.prepare(data, true);
@@ -344,7 +330,7 @@ abstract class Type extends Model {
     await connection.update(ref, id, row);
 
     if (entity)
-      settle(entity, await decode(this, row, true), row);
+      settle(entity, await decode(this, row, true));
   }
 
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>): Promise<Type.Columns<T>> {
@@ -470,7 +456,7 @@ function reference<T extends Type>(type: Type.Class<T>, id: T["id"]): T {
   if (cached)
     return cached as T;
 
-  const entity = placeholder(() => (type as any).new({ id }, load) as T);
+  const entity = placeholder(() => (Model.new as Function).call(type, { id }, load) as T);
 
   async function load(){
     try {
@@ -483,7 +469,7 @@ function reference<T extends Type>(type: Type.Class<T>, id: T["id"]): T {
         throw error;
       }
 
-      settle(entity, await decode(type, row), row);
+      settle(entity, await decode(type, row));
     }
     catch (error) {
       if (loaded.get(id) === entity)
@@ -493,17 +479,21 @@ function reference<T extends Type>(type: Type.Class<T>, id: T["id"]): T {
     }
   }
 
-  function then(this: T, resolve?: (value: T) => unknown, reject?: (reason: unknown) => unknown){
-    return entity.get(() => {}).then(() => {
-      delete (entity as any).then;
-      return this;
-    }).then(resolve, reject);
-  }
-
-  Object.defineProperty(entity, "then", { configurable: true, value: then });
   loaded.set(id, entity);
 
-  return entity;
+  return awaitable(entity) as T;
+}
+
+async function persist(entity: Type, patch: Type.Update<Type>) {
+  exists(entity);
+
+  const type = entity.constructor as typeof Type;
+  const row = await type["prepare"](patch, true);
+
+  if (Object.keys(row).length)
+    await type.connection.update(type.ref, entity.id, row);
+
+  return settle(entity, await decode(type, row, true));
 }
 
 async function adopt<T extends Type>(type: Type.Class<T>, id: T["id"]): Promise<T | undefined> {
@@ -523,9 +513,9 @@ async function adopt<T extends Type>(type: Type.Class<T>, id: T["id"]): Promise<
   entity = loaded.get(values.id) as T | undefined;
 
   if (!entity)
-    loaded.set(values.id, entity = (type as any).new(values) as T);
+    loaded.set(values.id, entity = write(() => (Model.new as Function).call(type, values) as T));
 
-  settle(entity, values, raw);
+  settle(entity, values);
 
   return entity;
 }

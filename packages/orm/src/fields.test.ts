@@ -334,8 +334,7 @@ describe("insert types", () => {
   })
 
   it("will keep nullable reads optional", () => {
-    const post = Post.new({ title: "Hello" });
-
+    const post = {} as Post;
     const body: string | undefined = post.body;
 
     // @ts-expect-error

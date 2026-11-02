@@ -91,10 +91,16 @@ describe("rows", () => {
     expect(() => { (gabe as any).profiles = null }).toThrow("read-only");
   });
 
-  it("will throw if parent is unsaved", () => {
-    const bob = User.new({ name: "Bob" });
+  it("will suspend until parent is inserted", async () => {
+    await ready;
+    const bob: User = User.new({ name: "Bob" });
+    const pending = (() => { try { return bob.profiles } catch (e) { return e } })();
 
-    expect(() => bob.profiles).toThrow("Parent User is not saved.");
+    expect(pending).toBeInstanceOf(Promise);
+
+    await pending;
+
+    await expect(bob.profiles.find()).resolves.toEqual([]);
   });
 });
 
@@ -117,8 +123,8 @@ describe("explicit field", () => {
   }
 
   it("will use given field", async () => {
-    const gabe = await User.new({ name: "Gabe" }).save();
-    const alice = await User.new({ name: "Alice" }).save();
+    const gabe = await User.new({ name: "Gabe" });
+    const alice = await User.new({ name: "Alice" });
 
     await gabe.authored.insert({ editor: alice });
 
@@ -147,7 +153,7 @@ describe("errors", () => {
       static table = "article"
     }
 
-    const gabe = await User.new().save();
+    const gabe = await User.new({});
 
     expect(() => gabe.articles).toThrow("Did you forget to use one(Article) in this model?");
   });
@@ -164,7 +170,7 @@ describe("errors", () => {
       editor = one(User);
     }
 
-    const user = await User.new().save();
+    const user = await User.new({});
 
     expect(() => user.posts).toThrow("There are multiple relationships, you will need to specify which one to use.");
   });
@@ -180,7 +186,7 @@ describe("errors", () => {
       static table = "article"
     }
 
-    const gabe = await User.new().save();
+    const gabe = await User.new({});
 
     expect(() => gabe.articles).toThrow("Field foobar does not exist on Article");
   });

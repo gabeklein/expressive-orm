@@ -57,7 +57,7 @@ class OneToOneField<T extends Type = Type> extends Field {
       return (value as any).id;
 
     if(value instanceof Class){
-      const id = (value as any).id;
+      const id = value.get("id", false);
 
       if (id == null)
         throw new Error(`Cannot assign unsaved ${Class.name} to ${column}`);

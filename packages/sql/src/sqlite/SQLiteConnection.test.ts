@@ -590,7 +590,7 @@ describe("floor", () => {
 
     const post = await Post.get(2);
 
-    await post.update({ title: "Second!", draft: false, views: 10 });
+    await post.set({ title: "Second!", draft: false, views: 10 });
 
     const titles = await Post.query((post, where) => {
       where(post.views).over(5);
@@ -600,8 +600,7 @@ describe("floor", () => {
 
     expect(titles).toEqual([{ title: "Second!", author: "Gabe" }]);
 
-    post.published = new Date("2024-02-01T00:00:00Z");
-    await post.save();
+    await post.set({ published: new Date("2024-02-01T00:00:00Z") });
 
     const [reloaded] = await Post.query((post, where) => {
       where(post.id).equal(2);
@@ -684,6 +683,46 @@ describe("floor", () => {
     await expect(Author.find()).resolves.toEqual([]);
   })
 
+  it("will create an entity with new", async () => {
+    await TestConnection.new([Author, Post]);
+
+    const gabe = await Author.new({ name: "Gabe" });
+    const post = await Post.new({ author: gabe, title: "Hello", draft: false });
+
+    expect(post.columns).toEqual({ id: 1, author: gabe.id, title: "Hello", views: 0, draft: false, published: undefined });
+    expect(post.author).toBe(gabe);
+    expect(Post.get(post.id)).toBe(post);
+
+    await post.set({ title: "Bye", views: 2 });
+
+    expect(post.title).toBe("Bye");
+    await expect(Post.one(post.id)).resolves.toMatchObject({ title: "Bye", views: 2 });
+  })
+
+  it("will reject new on a constraint violation", async () => {
+    class Tag extends Type {
+      name = str({ unique: true });
+    }
+
+    await TestConnection.new([Tag]);
+    await Tag.insert({ name: "a" });
+
+    const didCatch = vi.fn();
+    const release = Tag.on({ catch: didCatch });
+    const tag: Tag = Tag.new({ name: "a" });
+
+    try {
+      await expect(tag).rejects.toThrow(/UNIQUE/);
+    }
+    finally {
+      release();
+    }
+
+    expect(tag.get(null)).toBe(true);
+    expect(didCatch).toHaveBeenCalledWith(expect.any(Error), "setup", undefined);
+    await expect(Tag.find()).resolves.toHaveLength(1);
+  })
+
   it("will close the engine", async () => {
     class Foo extends Type {}
 
@@ -716,7 +755,7 @@ describe("renamed key column", () => {
 
     const user = await User.get(1);
 
-    await user.update({ name: "Bob" });
+    await user.set({ name: "Bob" });
     await User.update(1, { name: "Ann" });
     await expect(db.select("user", [])).resolves.toEqual([{ user_id: 1, name: "Ann" }]);
     expect(user.name).toBe("Ann");
@@ -737,7 +776,7 @@ describe("renamed key column", () => {
 
     const doc = await Doc.get("a1");
 
-    await doc.update({ title: "Bye" });
+    await doc.set({ title: "Bye" });
     await expect(db.select("doc", [])).resolves.toEqual([{ doc_id: "a1", title: "Bye" }]);
 
     await doc.delete();

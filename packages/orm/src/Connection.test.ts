@@ -173,7 +173,7 @@ describe("identity map", () => {
 
   it("will be owned by the connection", async () => {
     const db = Store.new([User]);
-    const user = await User.new({ name: "Gabe" }).save();
+    const user = await User.new({ name: "Gabe" });
 
     expect(db._loaded.get(User)!.get(user.id)).toBe(user);
 
@@ -182,7 +182,7 @@ describe("identity map", () => {
 
   it("will destroy entities with the connection", async () => {
     const db = Store.new([User]);
-    const user = await User.new({ name: "Gabe" }).save();
+    const user = await User.new({ name: "Gabe" });
     const destroyed = vi.fn();
 
     user.get(null, destroyed);
