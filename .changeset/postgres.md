@@ -10,7 +10,7 @@
 - Awaiting a connection runs `sync`: verify existing tables, create missing ones, install triggers. `PGConnection` creates them too.
 - Reopening verifies parameterized and aliased types - `varchar(n)`, `char(n)`, `numeric(p,s)`, `timestamp (p)`, `serial`, `float`, `double` - ignoring length and precision.
 - `close()` ends a `Pool` or `PGlite` only when the connection created it.
-- `Type.find`, `one`, `insert`, `update`, `delete`, `save` and `Type.query` execute against the database; `insert` reads the stored row back through `RETURNING`, generated `id` and defaults included.
+- `Type.find`, `one`, `insert`, `new`, `update`, `delete`, an entity's `set` and `Type.query` execute against the database; `insert` reads the stored row back through `RETURNING`, generated `id` and defaults included.
 - `@expressive/orm` and `@expressive/sql` are dependencies; `@expressive/mvc` is a peer; `pg` and `@electric-sql/pglite` (`>=0.2.16`) are optional peers.
 
 **Live rows** over LISTEN/NOTIFY. `sync` installs an `expressive_notify()` trigger function and a trigger per table, which `pg_notify` the `expressive_orm` channel with `{ table, op, id, row }` - `row` omitted past 8000 bytes, and reloaded. Other payloads on the channel are ignored. `PGConnection` listens on a client of its pool, `PGLiteConnection` through PGLite's `listen`, from the first entity loaded until the connection is closed. Entities loaded through either follow changes made by any client. Requires Postgres 14+ (`CREATE OR REPLACE TRIGGER`); a pooler in transaction mode drops notifications.

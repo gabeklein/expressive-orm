@@ -10,7 +10,6 @@ Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a smal
 
 - Static `Type.get(where, limit, offset)` is `Type.find`.
 - Field `get(Child)` is `rows(Child, key?)`: a handle with `find`, `one` and `insert` applying the foreign key. It no longer mints a subclass of `Child`.
-- `Type.new(values)` is Model's: it builds an unsaved entity synchronously; `save()` persists it.
 - The driver floor's `get(table, constraints, limit, offset)` is `select` - `get` is Model's.
 - The constraint query behind `find`, `one` and `all` is the protected `fetch`.
 - A `Field`'s JS constructor moves from `type` to `kind`; `type` is the datatype string.
@@ -24,17 +23,19 @@ Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a smal
 
 **Writes**
 
-- Assigning a field marks it dirty. `save()` writes what is dirty and returns the entity: one without an `id` is inserted, taking `id` and defaults from the row; one with an `id` updates only the columns that changed. Loading a row and a completed save leave the entity clean.
-- `update(data)` assigns, then saves - one write. Static `update(id, data)` writes by id, resolves `void` and settles the written values into a loaded entity, so it stays current without live rows.
+- Entities are read-only: assigning a field throws `User.name is read-only; use set().` `save()`, instance `update(data)` and dirty tracking are gone.
+- `await entity.set(patch)` is the write: it prepares the patch, updates the row, then settles the stored values into the entity - observers notified once - and resolves to the keys that changed. A relation takes an entity, an id or a row. It rejects on a deleted entity, or one still loading. `set`'s other forms are Model's.
+- `Type.new(values)` inserts a row. It returns the entity at once, its columns suspending until the row lands; awaiting resolves to it with its `id` and defaults, registered in the identity map. A failed insert destroys it and rejects awaits and pending reads; mvc reports it to `catch` as `setup`.
+- Static `update(id, data)` writes by id, resolves `void` and settles the written values into a loaded entity, so it stays current without live rows.
 - `insert(data)` always inserts, so a supplied key is written, and resolves the stored row - `id` and database defaults included - not an entity. `rows()`'s `insert` likewise.
 - Static `delete(id)` removes a row by id, evicting and destroying a loaded entity.
-- `delete()` evicts the entity and destroys it. `save()`, `update()` and `delete()` on a deleted entity throw, as does `delete()` on one without an `id`.
+- `delete()` evicts the entity and destroys it. `set(patch)` and `delete()` on a deleted entity reject.
 - `all(pageSize, where?)` pages through `find`; `subset` scopes a class's reads and writes.
 
 **Relations**
 
 - `one(Other)` holds a reference: not adopted, not destroyed with its parent, and parents sharing a row read the same instance. It records `onDelete` and `onUpdate`.
-- `one(Other, lazy)` reads like an unset mvc property: the first read starts the load and throws mvc's suspense, resolving when the entity lands. Assigning an id loads it the same way unless already loaded.
+- `one(Other, lazy)` reads like an unset mvc property: the first read starts the load and throws mvc's suspense, resolving when the entity lands. Setting an id loads it the same way unless already loaded.
 
 **Columns**
 
@@ -51,7 +52,7 @@ Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a smal
 
 **New**
 
-- Live rows. A driver's `subscribe(listener)` reports `{ table, op, id, row? }`. A loaded entity takes an `update` into the fields it has not changed locally - unsaved edits win - reloading the row when `row` is absent; a `delete` destroys and evicts it; an `insert` changes nothing.
+- Live rows. A driver's `subscribe(listener)` reports `{ table, op, id, row? }`. A loaded entity settles an `update`, reloading the row when `row` is absent; a `delete` destroys and evicts it; an `insert` changes nothing.
 - References. `Type.get(id)` returns the loaded entity or a placeholder registered in the identity map at once, loading the row. Its columns suspend until the row lands; awaiting it resolves to the entity. A missing row rejects awaits and pending reads with `No {Type} found with id {id}` and evicts the placeholder. `get()` and `get(false)` stay Model's context lookup.
 - `memory()`, an in-memory connection: auto-increment ids, every constraint operator, `Query` executed over arrays (joins, nested and/or filters, order, limit, offset, projections, math and bitwise ops, parameters, data tables, inserts, updates and deletes across joins; raw templates throw), and every write reported through `subscribe`.
 - `Query` moves in from `@expressive/sql`. `Query(where => ...)` records tables, joins, filters, order, limit, selections, inserts, updates and deletes over entity classes; a connection's `prepare` renders or runs it. `where(Post).user.name` joins through `one()` - inner when required, left when nullable. A whole-entity selection resolves rows, as `find` does; `Query.Selects<Query.From<T>>` resolves `Type.Columns<T>[]`. A table inside a projection is the same row (`undefined` for a missing left join), and every result object is frozen. Without `prepare`, awaiting throws and `String(query)` lists the intent. `Type.query(fn?)` starts from the class.
