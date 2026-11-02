@@ -228,7 +228,7 @@ describe("nullable", () => {
   }
 
   it("will insert null relation", async () => {
-    const post = await Post.insert({ title: "Hello World", user: null as any });
+    const post = await Post.insert({ title: "Hello World", user: null });
 
     expect(post.user).toBeUndefined();
   })

@@ -352,7 +352,7 @@ describe("codecs", () => {
   })
 
   it("will store null for falsy date", async () => {
-    const thing = await Thing.insert({ flag: true, when: null as any });
+    const thing = await Thing.insert({ flag: true, when: null });
 
     expect(thing.when).toBeUndefined();
   })

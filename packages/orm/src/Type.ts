@@ -14,7 +14,7 @@ type Compat<T extends Type> = {
 }
 
 type Update<T extends Type> = {
-  [K in Exclude<keyof T, keyof Type>]?: Inserts<T[K]> | (undefined extends T[K] ? null : never)
+  [K in Exclude<keyof T, keyof Type>]?: Inserts<T[K]> | Clears<T[K]>
 }
 
 type ClassKeys<T> = {
@@ -31,12 +31,14 @@ type Columns<T extends Type> = Pick<T, "id"> & {
   )]: Column<T[K]>;
 }
 
+type Clears<T> = undefined extends T ? null : never;
+
 type Inserts<T> = T extends Type ? T | T["id"] | Type.Insert<T> : T;
 
 type Insert<T extends Type> = {
-  [K in Fields<T> as (Omits<T[K]> extends true ? never : K)]: Inserts<T[K]>;
+  [K in Fields<T> as (Omits<T[K]> extends true ? never : K)]: Inserts<T[K]> | Clears<T[K]>;
 } & {
-  [K in Fields<T> as (Omits<T[K]> extends true ? K : never)]?: Inserts<T[K]>;
+  [K in Fields<T> as (Omits<T[K]> extends true ? K : never)]?: Inserts<T[K]> | Clears<T[K]>;
 };
 
 type Matches<T> = T extends Type ? T | T["id"] | Type.Compat<T> : T;
