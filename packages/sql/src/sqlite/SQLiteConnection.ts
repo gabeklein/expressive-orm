@@ -99,9 +99,6 @@ export class SQLiteConnection extends Connection {
     const columns = await db.all(`PRAGMA table_info(${table})`) as TableInfo[];
 
     for (const field of fields) {
-      if (!field.datatype)
-        continue;
-
       const columnInfo = columns.find(col => col.name === field.column);
 
       if (!columnInfo)

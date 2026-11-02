@@ -2,7 +2,21 @@
   "name": "@expressive/sqlite",
   "version": "0.4.0",
   "description": "Deprecated - use @expressive/sql, which includes the SQLite connection.",
+  "keywords": [
+    "sqlite",
+    "deprecated",
+    "expressive"
+  ],
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabeklein/expressive-orm.git",
+    "directory": "packages/sqlite"
+  },
+  "homepage": "https://github.com/gabeklein/expressive-orm/tree/main/packages/sqlite#readme",
+  "bugs": {
+    "url": "https://github.com/gabeklein/expressive-orm/issues"
+  },
   "type": "module",
   "publishConfig": {
     "access": "public"

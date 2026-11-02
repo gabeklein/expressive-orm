@@ -1,8 +1,26 @@
 {
   "name": "@expressive/orm",
   "version": "0.12.1",
-  "description": "Query builder and ORM",
+  "description": "Entities on @expressive/mvc State: driver contract, Query builder and an in-memory driver.",
+  "keywords": [
+    "orm",
+    "entity",
+    "state",
+    "reactive",
+    "query-builder",
+    "expressive",
+    "mvc"
+  ],
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabeklein/expressive-orm.git",
+    "directory": "packages/orm"
+  },
+  "homepage": "https://github.com/gabeklein/expressive-orm/tree/main/packages/orm#readme",
+  "bugs": {
+    "url": "https://github.com/gabeklein/expressive-orm/issues"
+  },
   "type": "module",
   "publishConfig": {
     "access": "public"
