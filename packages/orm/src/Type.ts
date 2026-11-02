@@ -314,7 +314,7 @@ abstract class Type extends Model {
 
   static get<T extends Type>(this: Model.Extends<T>): T;
   static get<T extends Type>(this: Model.Extends<T>, required: false): T | undefined;
-  static get<T extends Type>(this: Model.Extends<T>, id: T["id"]): T;
+  static get<T extends Type>(this: Model.Extends<T>, id: T["id"]): T | (T & PromiseLike<T>);
   static get<T extends Type>(this: Model.Extends<T>, id?: T["id"] | false): T | undefined {
     if (typeof id != "number" && typeof id != "string")
       return super.get(id as false) as T | undefined;
