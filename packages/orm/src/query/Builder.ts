@@ -228,10 +228,11 @@ class Builder {
     if (rest.length)
       arg2 = this.with([arg2, ...rest] as {}[]);
 
-    if (schema){
-      table.alias = 'T' + tables.size;
+    if (schema)
       table.name = schema + '.' + table.name;
-    }
+
+    if (schema || typeof arg2 != "object" && Array.from(tables.values()).some(other => other.name === table.name))
+      table.alias = 'T' + tables.size;
 
     tables.set(proxy, table);
     fields.forEach((field, key) => {

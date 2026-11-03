@@ -285,6 +285,31 @@ describe("select", () => {
     expect(await some).toBe(1);
   })
 
+  it("will alias a table joined twice", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    class Post extends Type {
+      author = one(User);
+      editor = one(User, { column: "editor_id" });
+    }
+
+    await TestConnection.new([User, Post]);
+
+    const a = await User.insert({ name: "A" });
+    const b = await User.insert({ name: "B" });
+
+    await Post.insert({ author: a.id, editor: b.id });
+
+    const query = Query(where => {
+      const post = where(Post);
+      return { author: post.author.name, editor: post.editor.name };
+    });
+
+    expect(await query).toEqual([{ author: "A", editor: "B" }]);
+  })
+
   it("will select without tables", async () => {
     const query = Query(where => {
       where.connection = db;
