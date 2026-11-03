@@ -807,6 +807,11 @@ describe("valid", () => {
       .rejects.toThrow("Column name in table author has type INTEGER, expected TEXT");
   })
 
+  it("will accept a primary key not declared NOT NULL", async () => {
+    await expect(check(Author, "CREATE TABLE author (id INTEGER PRIMARY KEY, name TEXT NOT NULL, rank INTEGER)"))
+      .resolves.toBe(true);
+  })
+
   it("will throw for a mismatched nullable", async () => {
     await expect(check(Author, "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name TEXT, rank INTEGER)"))
       .rejects.toThrow("Column name in table author has incorrect nullable value");

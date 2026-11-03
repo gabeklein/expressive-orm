@@ -115,7 +115,7 @@ export class SQLiteConnection extends Connection {
   }
 
   protected async checkIntegrity(field: Field, info: TableInfo){
-    const { column, nullable, reference } = field;
+    const { column, nullable, primary, reference } = field;
     const parent = field.parent!;
 
     const expected = affinity(field);
@@ -125,7 +125,7 @@ export class SQLiteConnection extends Connection {
         `Column ${column} in table ${parent.table} has type ${info.type}, expected ${expected}`
       );
 
-    if (info.notnull === (nullable ? 1 : 0))
+    if (!primary && info.notnull === (nullable ? 1 : 0))
       throw new Error(
         `Column ${column} in table ${parent.table} has incorrect nullable value`
       );
