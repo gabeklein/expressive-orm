@@ -165,7 +165,7 @@ user.get(({ name }) => console.log(name)); // runs once the row lands
 await user; // the entity
 ```
 
-`Type.get(id)` is synchronous: the entity from the identity map, or a placeholder registered there at once, so concurrent gets share it. A placeholder's columns suspend until the row lands - a read throws a promise, which an effect or a React component waits for. Awaiting a reference resolves to the entity. A missing row rejects awaits and pending reads with `No User found with id 1` and leaves the identity map. `get(User, id)` in a Model, or `this.get(User, id)`, resolves through the same path; `User.get()` with no id stays Model's context lookup.
+`Type.get(id)` is synchronous: the entity from the identity map, or a placeholder registered there at once, so concurrent gets share it. A placeholder's columns suspend until the row lands - a read throws a promise, which an effect or a React component waits for. Awaiting a reference resolves to the entity; `get(id)` and `Type.new` return `Type.Async<User>` - the entity, typed awaitable. A missing row rejects awaits and pending reads with `No User found with id 1` and leaves the identity map. `get(User, id)` in a Model, or `this.get(User, id)`, resolves through the same path, typed as the entity; `User.get()` with no id stays Model's context lookup.
 
 ## Relations
 
