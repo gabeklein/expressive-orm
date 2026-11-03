@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { asc, bool, Builder, date, desc, greaterThan, isIn, isLike, isNull, json, notIn, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
+import { asc, bool, Builder, date, desc, greaterThan, isIn, isLike, isNull, json, notIn, notNull, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
 
 import { spy } from '../../test.setup';
 
@@ -430,6 +430,36 @@ describe("insert", () => {
     name = str();
     color = str();
   }
+
+  it("will insert a row of defaults", async () => {
+    class Tick extends Type {
+      note = str(orNull);
+    }
+
+    await TestConnection.new([Tick]);
+
+    const first = await Tick.insert({});
+    const second = await Tick.insert({});
+
+    expect([first.id, second.id]).toEqual([1, 2]);
+    await expect(Query(where => void where(Tick))).resolves.toBe(2);
+  })
+
+  it("will not insert defaults per joined row", async () => {
+    class Tick extends Type {
+      note = str(orNull);
+    }
+
+    await TestConnection.new([Foo, Tick]);
+    await Foo.insert({ name: "a", color: "red" });
+
+    const query = () => Query(where => {
+      where(Foo);
+      where(Tick, {});
+    });
+
+    expect(query).toThrow("Insert into tick for each joined row needs at least one value.");
+  })
 
   it("will throw for bad value", async () => {
     const insert = () => Query(where => {

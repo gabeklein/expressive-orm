@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, test, vi } from 'vitest';
 
 import { PGlite } from '@electric-sql/pglite';
 
-import { asc, bool, date, desc, greaterThan, isIn, isLike, isNull, json, notIn, notNull, num, one, Query, str, Type, uuid } from '@expressive/orm';
+import { asc, bool, date, desc, greaterThan, isIn, isLike, isNull, json, notIn, notNull, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
 import type { Connection } from '@expressive/sql';
 
 import { PGLiteConnection } from './PGLiteConnection';
@@ -249,6 +249,19 @@ describe("schema", () => {
     });
   })
   
+  it("will insert a row of defaults", async () => {
+    class Tick extends Type {
+      note = str(orNull);
+    }
+
+    await TestConnection.new([Tick]);
+
+    const first = await Tick.insert({});
+    const second = await Tick.insert({});
+
+    expect([first.id, second.id]).toEqual([1, 2]);
+  })
+
   it("will convert camelCase names to underscore", async () => {
     class FooBar extends Type {
       fooBar = bool();
