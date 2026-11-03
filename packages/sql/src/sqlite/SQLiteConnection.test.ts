@@ -272,6 +272,19 @@ describe("select", () => {
     expect(foo.columns).toEqual({ id: 1, bar: "hello", baz: "world" });
   })
 
+  it("will count rows", async () => {
+    await Foo.insert({ bar: "goodbye", baz: "world" });
+
+    const all = Query(where => void where(Foo));
+    const some = Query(where => {
+      const foo = where(Foo);
+      where(foo.bar).equal("goodbye");
+    });
+
+    expect(await all).toBe(2);
+    expect(await some).toBe(1);
+  })
+
   it("will select without tables", async () => {
     const query = Query(where => {
       where.connection = db;

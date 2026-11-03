@@ -51,9 +51,13 @@ export class SQLiteConnection extends Connection {
       }
     };
 
+    const counts = !builder.returns && !builder.inserts.size && !builder.updates.size && !builder.deletes.size;
+
     return {
       all: (p?: any[]) => run(e => e.all(sql, string(p))),
-      run: (p?: any[]) => run(e => e.run(sql, string(p)).then(r => r.changes)),
+      run: counts
+        ? (p?: any[]) => run(e => e.get(sql, string(p)).then(row => Number(Object.values(row)[0])))
+        : (p?: any[]) => run(e => e.run(sql, string(p)).then(r => r.changes)),
       toString: () => pretty(sql)
     };
   }
