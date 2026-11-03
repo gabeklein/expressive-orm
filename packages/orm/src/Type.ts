@@ -46,6 +46,13 @@ type Matches<T> = T extends Type ? T | T["id"] | Type.Compat<T> : T;
 declare namespace Type {
   type Class<T extends Type = Type> = (abstract new (...args: any[]) => T) & typeof Type;
 
+  type Async<T> = T & {
+    then<A = T, B = never>(
+      onfulfilled?: ((value: T) => A | PromiseLike<A>) | null,
+      onrejected?: ((reason: unknown) => B | PromiseLike<B>) | null
+    ): Promise<A | B>;
+  };
+
   type Instance<T> = T extends Class<infer U> ? U : T;
 
   type Conds<T> = Where | T | Conds<T>[]
@@ -63,6 +70,7 @@ declare namespace Type {
   type Connection = import('./Connection').Connection.Ready;
 
   export {
+    Async,
     Class,
     Columns,
     Compat,
@@ -176,7 +184,7 @@ function exists(entity: Type) {
     throw new Error(`${name} is not loaded yet.`);
 }
 
-function awaitable<T extends Type>(entity: T) {
+function awaitable<T extends Type>(entity: T): Type.Async<T> {
   function then(this: T, resolve?: (value: T) => unknown, reject?: (reason: unknown) => unknown){
     AWAITED.add(entity);
 
@@ -192,7 +200,7 @@ function awaitable<T extends Type>(entity: T) {
   PENDING.add(entity);
   entity.get(() => {}).then(loaded, loaded);
 
-  return entity;
+  return entity as Type.Async<T>;
 }
 
 abstract class Type extends Model {
@@ -293,7 +301,7 @@ abstract class Type extends Model {
 
   static get<T extends Type>(this: Model.Extends<T>): T;
   static get<T extends Type>(this: Model.Extends<T>, required: false): T | undefined;
-  static get<T extends Type>(this: Model.Extends<T>, id: T["id"]): T;
+  static get<T extends Type>(this: Model.Extends<T>, id: T["id"]): Type.Async<T>;
   static get<T extends Type>(this: Model.Extends<T>, id?: T["id"] | false): T | undefined {
     if (typeof id != "number" && typeof id != "string")
       return super.get(id as false) as T | undefined;
@@ -314,7 +322,7 @@ abstract class Type extends Model {
     return row;
   }
 
-  static new<T extends Model>(this: Model.Type<T>, values: T extends Type ? Type.Insert<T> : never): T {
+  static new<T extends Model>(this: Model.Type<T>, values: T extends Type ? Type.Insert<T> : never): Type.Async<T> {
     const type = this as unknown as typeof Type;
 
     return awaitable(placeholder(() => (Model.new as Function).call(type, async (entity: Type) => {

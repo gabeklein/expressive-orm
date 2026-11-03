@@ -1202,7 +1202,7 @@ describe("extended types", () => {
 })
 
 describe("types", () => {
-  it("will type references and new as the entity", () => {
+  it("will type references and new as awaitable entities", () => {
     class User extends Type {
       name = str();
       age = num(orNull);
@@ -1212,10 +1212,12 @@ describe("types", () => {
       const ref = User.get(1);
       const created = User.new({ name: "A" });
 
-      expectTypeOf(ref).toEqualTypeOf<User>();
-      expectTypeOf(created).toEqualTypeOf<User>();
+      expectTypeOf(ref).toEqualTypeOf<Type.Async<User>>();
+      expectTypeOf(created).toEqualTypeOf<Type.Async<User>>();
       expectTypeOf(await User.get(1)).toEqualTypeOf<User>();
       expectTypeOf(await User.new({ name: "A" })).toEqualTypeOf<User>();
+      expectTypeOf(ref).toExtend<User>();
+      expectTypeOf(await Promise.all([ref, created])).toEqualTypeOf<[User, User]>();
 
       ref.get(({ name }) => void name);
       created.get(({ name }) => void name);
