@@ -465,6 +465,20 @@ describe("select", () => {
     }]);
   })
   
+  it("will count rows", async () => {
+    await prepare();
+    await Foo.insert({ bar: "goodbye", baz: "world" });
+
+    const all = Query(where => void where(Foo));
+    const some = Query(where => {
+      const foo = where(Foo);
+      where(foo.bar).equal("goodbye");
+    });
+
+    expect(await all).toBe(2);
+    expect(await some).toBe(1);
+  })
+
   it("will select a field directly", async () => {
     await prepare();
     
