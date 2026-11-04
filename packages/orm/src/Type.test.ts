@@ -1947,6 +1947,11 @@ describe("insert conflict", () => {
     const row = await Asset.insert({ id: "d", file: "eight", made: 2 }, { conflict: "ignore" });
 
     expectTypeOf(row).toEqualTypeOf<Type.Columns<Asset> | undefined>();
+
+    const conflict = "update" as "update" | "ignore";
+
+    expectTypeOf(Asset.insert({ id: "z", file: "z", made: 0 }, { conflict })).resolves.toEqualTypeOf<Type.Columns<Asset> | undefined>();
+    expectTypeOf(Asset.insert({ id: "z", file: "z", made: 0 }, { conflict: "update" })).resolves.toEqualTypeOf<Type.Columns<Asset>>();
     expect(row).toBeUndefined();
     await expect(Asset.one("d")).resolves.toEqual({ id: "d", file: "seven", made: 1 });
   })
@@ -2138,6 +2143,15 @@ describe("composite key", () => {
   it("will throw keying by anything but fields", async () => {
     class Bad extends connect() {
       id = key(() => [this.kind, 1]);
+      kind = str();
+    }
+
+    await expect(Bad.find()).rejects.toThrow("Bad.id must list fields to key by, like key(() => [this.a, this.b]).");
+  })
+
+  it("will throw when the key arrow throws", async () => {
+    class Bad extends connect() {
+      id = key(() => [(this.kind as any).length.value]);
       kind = str();
     }
 
