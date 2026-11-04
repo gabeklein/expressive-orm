@@ -289,6 +289,68 @@ function json<T>(config?: Config){
   }, config);
 }
 
+class KeyField extends Field<readonly unknown[]> {
+  absent = true;
+  primary = true;
+
+  async apply(){}
+
+  async get(value: any, from?: Record<string, any>){
+    if (!from)
+      return Object.freeze([...value]);
+
+    const values = await Promise.all(this.parts!.map(part => (
+      (part.reference || part).get(from[part.column], from)
+    )));
+
+    return Object.freeze(values);
+  }
+}
+
+function key<T extends readonly (string | number)[]>(...names: string[]): Optional<Readonly<T>> {
+  return field(
+    (key, type) => Object.defineProperty(new KeyField(key), "parts", {
+      get: () => names.map(name => {
+        const part = type.fields.get(name);
+
+        if (!part)
+          throw new Error(`${type.name}.${name} is not a field to key by.`);
+
+        return part;
+      })
+    }),
+    (_field, subject) => {
+      let last: readonly unknown[] | undefined;
+
+      return {
+        value: undefined,
+        get() {
+          const peek = !PEEK.has(subject);
+
+          if (peek)
+            PEEK.add(subject);
+
+          try {
+            const next = names.map(name => (subject as any)[name]);
+
+            if (!last || next.some((value, i) => value !== last![i]))
+              last = Object.freeze(next);
+
+            return last;
+          }
+          finally {
+            if (peek)
+              PEEK.delete(subject);
+          }
+        },
+        set() {
+          throw false;
+        }
+      };
+    }
+  );
+}
+
 const orNull = { nullable: true } as const;
 const optional = { optional: true } as const;
 
@@ -302,6 +364,7 @@ export {
   write,
   field,
   json,
+  key,
   str,
   num,
   bool,

@@ -34,6 +34,7 @@ export class Field<T = unknown> {
   absent = false;
   fallback?: unknown;
   reference?: Field;
+  declare parts?: Field[];
   parent?: Query.Table;
   table?: Builder.ITable;
   query?: Builder;
@@ -87,6 +88,20 @@ export async function row(fields: Map<string, Field>, raw: Record<string, any>) 
   }
 
   return Object.freeze(values);
+}
+
+export function columns(primary: Field) {
+  return primary.parts ? primary.parts.map(part => part.column) : [primary.column];
+}
+
+export function match(primary: Field, id: unknown): [string, string, unknown][] {
+  return primary.parts
+    ? primary.parts.map((part, i) => [part.column, "=", (id as unknown[])[i]])
+    : [[primary.column, "=", id]];
+}
+
+export function identify(primary: Field, row: Record<string, any>) {
+  return primary.parts ? Object.freeze(primary.parts.map(part => row[part.column])) : row[primary.column];
 }
 
 export function configure<F extends Field>(field: F, opts: Config<any>[]) {

@@ -43,6 +43,7 @@ class Builder {
   updates = new Map<Builder.ITable, Builder.Insert>();
   inserts = new Map<Builder.ITable, Builder.Insert>();
 
+  conflict?: { on: Field[]; update?: Field[] };
   returns?: Map<string, unknown> | Field | Value;
   entity?: Builder.ITable;
   limit?: number;
@@ -390,7 +391,10 @@ class Builder {
         const property = path.pop()!;
         const target = into(path);
 
-        target[property] = raw[use + ".id"] == null ? undefined : await entry(table, raw, use + ".");
+        const { parts } = table.fields.get("id")!;
+        const probe = parts ? parts[0].key : "id";
+
+        target[property] = raw[use + "." + probe] == null ? undefined : await entry(table, raw, use + ".");
       }
 
       objects.forEach(freeze);

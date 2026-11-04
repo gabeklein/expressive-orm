@@ -11,10 +11,17 @@ declare namespace Connection {
 
   type Ready<T extends Connection = Connection> = Omit<T, "then">;
 
+  type Key = string | number | readonly (string | number)[];
+
+  type Conflict = {
+    on: string[];
+    update?: string[];
+  };
+
   type Change = {
     table: string;
     op: "insert" | "update" | "delete";
-    id: string | number;
+    id: Key;
     row?: Record<string, unknown>;
   };
 }
@@ -82,11 +89,11 @@ abstract class Connection extends Model {
 
   abstract select(table: string, constraints: Type.Constraint[], limit?: number, offset?: number): Promise<any[]>;
 
-  abstract insert(table: string, data: Record<string, any>, returns?: boolean): Promise<any>;
+  abstract insert(table: string, data: Record<string, any>, returns?: boolean, conflict?: Connection.Conflict): Promise<any>;
 
-  abstract update(table: string, id: string | number, data: Record<string, any>): Promise<void>;
+  abstract update(table: string, id: Connection.Key, data: Record<string, any>): Promise<void>;
 
-  abstract remove(table: string, id: string | number): Promise<void>;
+  abstract remove(table: string, id: Connection.Key): Promise<void>;
 
   prepare?(builder: Builder): Builder.Statement;
 

@@ -7,7 +7,7 @@ import { memory } from './memory';
 import { Query } from './query/Query';
 import { Type } from './Type';
 import { asc, desc, equal, greaterThan, isIn, Where } from './where';
-import { bool, date, json, lazy, num, one, optional, orNull, str, uuid } from '.';
+import { bool, date, json, key, lazy, num, one, optional, orNull, str, uuid } from '.';
 
 function spy<K extends "select" | "insert" | "update" | "remove">(connection: Connection, key: K) {
   void connection[key];
@@ -1342,7 +1342,7 @@ describe("primary key", () => {
 
     const doc = {} as Doc;
     const user = {} as User;
-    const key: string | number = user.id;
+    const key: string | number | readonly (string | number)[] = user.id;
     const narrow: Doc["id"] = "x1";
     const read: string = narrow;
 
@@ -1906,5 +1906,228 @@ describe("null", () => {
 
     expect(entity.n).toBeUndefined();
     await expect(NullRow.one(entity.id)).resolves.toEqual({ id: entity.id, ...empty });
+  })
+})
+
+describe("insert conflict", () => {
+  class Asset extends connect() {
+    id = str({ primary: true });
+    file = str({ unique: true });
+    made = num();
+  }
+
+  it("will update a conflicting row", async () => {
+    await Asset.insert({ id: "a", file: "one", made: 1 });
+
+    const row = await Asset.insert({ id: "a", file: "two", made: 2 }, { conflict: "update" });
+
+    expect(row).toEqual({ id: "a", file: "two", made: 2 });
+    await expect(Asset.find()).resolves.toEqual([row]);
+  })
+
+  it("will keep columns on conflict", async () => {
+    await Asset.insert({ id: "b", file: "three", made: 1 });
+
+    const row = await Asset.insert({ id: "b", file: "four", made: 2 }, { conflict: "update", keep: ["made"] });
+
+    expect(row).toEqual({ id: "b", file: "four", made: 1 });
+  })
+
+  it("will return the row with nothing left to update", async () => {
+    await Asset.insert({ id: "c", file: "five", made: 1 });
+
+    const row = await Asset.insert({ id: "c", file: "six", made: 2 }, { conflict: "update", keep: ["file", "made"] });
+
+    expect(row).toEqual({ id: "c", file: "five", made: 1 });
+  })
+
+  it("will ignore a conflicting row", async () => {
+    await Asset.insert({ id: "d", file: "seven", made: 1 });
+
+    const row = await Asset.insert({ id: "d", file: "eight", made: 2 }, { conflict: "ignore" });
+
+    expectTypeOf(row).toEqualTypeOf<Type.Columns<Asset> | undefined>();
+    expect(row).toBeUndefined();
+    await expect(Asset.one("d")).resolves.toEqual({ id: "d", file: "seven", made: 1 });
+  })
+
+  it("will insert when nothing conflicts", async () => {
+    await expect(Asset.insert({ id: "e", file: "nine", made: 1 }, { conflict: "ignore" }))
+      .resolves.toEqual({ id: "e", file: "nine", made: 1 });
+  })
+
+  it("will target a unique column", async () => {
+    await Asset.insert({ id: "f", file: "ten", made: 1 });
+
+    const row = await Asset.insert({ id: "g", file: "ten", made: 2 }, { conflict: "update", on: "file" });
+
+    expect(row).toEqual({ id: "g", file: "ten", made: 2 });
+  })
+
+  it("will settle a loaded entity", async () => {
+    await Asset.insert({ id: "h", file: "eleven", made: 1 });
+
+    const asset = await Asset.get("h");
+
+    await Asset.insert({ id: "h", file: "twelve", made: 2 }, { conflict: "update" });
+
+    expect(asset.file).toBe("twelve");
+  })
+})
+
+describe("composite key", () => {
+  const db = memory();
+
+  class Account extends Type {
+    static connection = db;
+    name = str();
+  }
+
+  class Pick extends Type {
+    static connection = db;
+    id = key<[number, string]>("account", "kind");
+    account = one(Account);
+    kind = str();
+    note = str(orNull);
+  }
+
+  const id = (kind: string) => [1, kind] as const;
+
+  it("will type id as a tuple", () => {
+    const pick = {} as Pick;
+    const tuple: readonly [number, string] = pick.id;
+
+    // @ts-expect-error
+    const wrong: readonly [string, string] = pick.id;
+
+    void tuple;
+    void wrong;
+  })
+
+  it("will not store a key column", () => {
+    expect(Array.from(Pick.fields.values(), field => field.column)).toEqual(["id", "account_id", "kind", "note"]);
+    expect(Pick.fields.get("id")!.parts).toEqual([Pick.fields.get("account"), Pick.fields.get("kind")]);
+  })
+
+  it("will read rows keyed by tuple", async () => {
+    await Account.insert({ name: "Gabe" });
+
+    const row = await Pick.insert({ account: 1, kind: "a", note: "first" });
+
+    expect(row).toEqual({ id: [1, "a"], account: 1, kind: "a", note: "first" });
+    expect(Object.isFrozen(row.id)).toBe(true);
+    await expect(db.select(Pick.ref, [])).resolves.toEqual([{ account_id: 1, kind: "a", note: "first" }]);
+    await expect(Pick.one(id("a"))).resolves.toEqual(row);
+  })
+
+  it("will get an entity by tuple", async () => {
+    const pick = await Pick.get(id("a"));
+
+    expect(pick.note).toBe("first");
+    expect(pick.id).toEqual([1, "a"]);
+    expect(pick.id).toBe(pick.id);
+    expect(pick.columns).toEqual({ id: [1, "a"], account: 1, kind: "a", note: "first" });
+    expect(Pick.get(id("a"))).toBe(pick);
+  })
+
+  it("will update and settle by tuple", async () => {
+    const pick = await Pick.get(id("a"));
+
+    await Pick.update(id("a"), { note: "second" });
+
+    expect(pick.note).toBe("second");
+    await expect(Pick.one(id("a"))).resolves.toMatchObject({ note: "second" });
+  })
+
+  it("will rekey an entity when a part changes", async () => {
+    const pick = await Pick.get(id("a"));
+    const before = pick.id;
+
+    await pick.set({ kind: "b" });
+
+    expect(pick.id).toEqual([1, "b"]);
+    expect(pick.id).not.toBe(before);
+    expect(Pick.get(id("b"))).toBe(pick);
+
+    await Pick.update(id("b"), { kind: "a" });
+
+    expect(Pick.get(id("a"))).toBe(pick);
+  })
+
+  it("will settle a live change", async () => {
+    const pick = await Pick.get(id("a"));
+
+    await db.update(Pick.ref, id("a"), { note: "live" });
+    await settled();
+
+    expect(pick.note).toBe("live");
+  })
+
+  it("will order by key parts", async () => {
+    await Pick.insert({ account: 1, kind: "c" });
+
+    const rows = await Pick.find();
+
+    expect(rows.map(row => row.kind)).toEqual(["c", "a"]);
+  })
+
+  it("will throw comparing a composite key", async () => {
+    await expect(Pick.find({ id: greaterThan(id("a")) }))
+      .rejects.toThrow("Pick.id is a composite key and can only be matched or ordered.");
+  })
+
+  it("will select through a query", async () => {
+    const [entity] = await Pick.query((pick, where) => { where(pick.kind).equal("a") });
+    const [nested] = await Query(where => {
+      const pick = where(Pick);
+
+      where(pick.kind).equal("c");
+
+      return { pick };
+    });
+
+    expect(entity).toEqual({ id: [1, "a"], account: 1, kind: "a", note: "live" });
+    expect(nested).toEqual({ pick: { id: [1, "c"], account: 1, kind: "c", note: undefined } });
+  })
+
+  it("will create and delete entities", async () => {
+    const pick = await Pick.new({ account: 1, kind: "d" });
+
+    expect(Pick.get(id("d"))).toBe(pick);
+
+    await pick.delete();
+
+    expect(Pick.loaded.has(JSON.stringify(id("d")))).toBe(false);
+
+    await Pick.get(id("c"));
+    await Pick.delete(id("c"));
+
+    expect(Pick.loaded.has(JSON.stringify(id("c")))).toBe(false);
+    await expect(Pick.one(id("c"), false)).resolves.toBeUndefined();
+  })
+
+  it("will upsert on the composite key", async () => {
+    const row = await Pick.insert({ account: 1, kind: "a", note: "upsert" }, { conflict: "update" });
+
+    expect(row).toEqual({ id: [1, "a"], account: 1, kind: "a", note: "upsert" });
+    await expect(Pick.insert({ account: 1, kind: "a" }, { conflict: "ignore" })).resolves.toBeUndefined();
+  })
+
+  it("will throw relating to a composite key", async () => {
+    class Ref extends Type {
+      static connection = db;
+      pick = one(Pick);
+    }
+
+    expect(() => Ref.fields.get("pick")!.reference)
+      .toThrow("Ref.pick cannot relate to Pick, which has a composite key.");
+  })
+
+  it("will throw keying by an unknown field", async () => {
+    class Bad extends connect() {
+      id = key<[number]>("nope");
+    }
+
+    await expect(Bad.find()).rejects.toThrow("Bad.nope is not a field to key by.");
   })
 })

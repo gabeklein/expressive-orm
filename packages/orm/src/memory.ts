@@ -1,5 +1,5 @@
 import { Connection } from './Connection';
-import { Field } from './Field';
+import { Field, identify, match as constraints } from './Field';
 import type { Builder } from './query/Builder';
 import type { Query } from './query/Query';
 import { Computed } from './query/Computed';
@@ -81,7 +81,13 @@ function sort<T>(items: T[], keys: [(item: T) => unknown, number][]) {
 type Table = { rows: Row[], next: number };
 
 function key(type: Query.Table) {
-  return type.fields.get("id")!.column;
+  return type.fields.get("id")!;
+}
+
+function matches(primary: Field, id: unknown) {
+  const where = constraints(primary, id);
+
+  return (row: Row) => where.every(([column, , value]) => row[column] === value);
 }
 
 class Memory extends Connection {
@@ -102,18 +108,18 @@ class Memory extends Connection {
       if ((type.schema ? `${type.schema}.${type.table}` : type.table) === name)
         return key(type);
 
-    return "id";
+    return new Field("id");
   }
 
-  _notify(table: string, op: Connection.Change["op"], id: string | number, row?: Row) {
+  _notify(table: string, op: Connection.Change["op"], id: Connection.Key, row?: Row) {
     for (const listener of this._listeners)
       listener(row ? { table, op, id, row: { ...row } } : { table, op, id });
   }
 
   _add(name: string, data: Row, primary = this._key(name)) {
     const into = this._table(name);
-    const row = { [primary]: into.next, ...data };
-    const id = row[primary];
+    const row = primary.parts ? { ...data } : { [primary.column]: into.next, ...data };
+    const id = identify(primary, row);
 
     if (typeof id == "number")
       into.next = Math.max(into.next, id + 1);
@@ -146,28 +152,46 @@ class Memory extends Connection {
       .map(row => ({ ...row }));
   }
 
-  async insert(name: string, data: Row, returns?: boolean) {
-    const row = this._add(name, data);
+  async insert(name: string, data: Row, returns?: boolean, conflict?: Connection.Conflict) {
+    const existing = conflict && this._table(name).rows.find(row => (
+      conflict.on.every(column => row[column] === data[column])
+    ));
+
+    let row = existing;
+
+    if (!existing)
+      row = this._add(name, data);
+    else if (conflict!.update) {
+      const assign: Row = {};
+
+      for (const column of conflict!.update)
+        assign[column] = data[column];
+
+      Object.assign(existing, assign);
+      this._notify(name, "update", identify(this._key(name), existing), assign);
+    }
+    else
+      return;
 
     if (returns)
       return { ...row };
   }
 
-  async update(name: string, id: string | number, data: Row) {
-    const primary = this._key(name);
+  async update(name: string, id: Connection.Key, data: Row) {
+    const test = matches(this._key(name), id);
 
     for (const row of this._table(name).rows)
-      if (row[primary] === id) {
+      if (test(row)) {
         Object.assign(row, data);
         this._notify(name, "update", id, data);
       }
   }
 
-  async remove(name: string, id: string | number) {
-    const primary = this._key(name);
+  async remove(name: string, id: Connection.Key) {
+    const test = matches(this._key(name), id);
     const into = this._table(name);
 
-    into.rows = into.rows.filter(row => row[primary] !== id);
+    into.rows = into.rows.filter(row => !test(row));
     this._notify(name, "delete", id);
   }
 
@@ -314,7 +338,7 @@ function execute(memory: Memory, query: Builder, params: unknown[]) {
 
       Object.assign(row, assign);
       changed.add(row);
-      memory._notify(target.name, "update", row[primary], assign);
+      memory._notify(target.name, "update", identify(primary, row), assign);
     }
 
     count = changed.size;
@@ -326,7 +350,7 @@ function execute(memory: Memory, query: Builder, params: unknown[]) {
     const primary = key(target.type!);
 
     store.rows = store.rows.filter(row => !removed.has(row));
-    removed.forEach(row => memory._notify(target.name, "delete", row[primary]));
+    removed.forEach(row => memory._notify(target.name, "delete", identify(primary, row)));
     count = removed.size;
   });
 

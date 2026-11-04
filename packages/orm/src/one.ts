@@ -110,7 +110,14 @@ function one<T extends Type, C extends one.Options[]>(from: Type.Class<T>, ...co
       let rel = ONE.get(parent);
 
       Object.defineProperty(field, "reference", {
-        get: () => from.fields.get("id")
+        get: () => {
+          const id = from.fields.get("id")!;
+
+          if (id.parts)
+            throw new Error(`${parent.name}.${key} cannot relate to ${from.name}, which has a composite key.`);
+
+          return id;
+        }
       });
 
       if (!rel)
