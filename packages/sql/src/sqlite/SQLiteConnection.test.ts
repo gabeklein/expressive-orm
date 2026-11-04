@@ -273,6 +273,44 @@ describe("select", () => {
     expect(Object.isFrozen(foo)).toBe(true);
   })
 
+  it("will count rows", async () => {
+    await Foo.insert({ bar: "goodbye", baz: "world" });
+
+    const all = Query(where => void where(Foo));
+    const some = Query(where => {
+      const foo = where(Foo);
+      where(foo.bar).equal("goodbye");
+    });
+
+    expect(await all).toBe(2);
+    expect(await some).toBe(1);
+  })
+
+  it("will alias a table joined twice", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    class Post extends Type {
+      author = one(User);
+      editor = one(User, { column: "editor_id" });
+    }
+
+    await TestConnection.new([User, Post]);
+
+    const a = await User.insert({ name: "A" });
+    const b = await User.insert({ name: "B" });
+
+    await Post.insert({ author: a.id, editor: b.id });
+
+    const query = Query(where => {
+      const post = where(Post);
+      return { author: post.author.name, editor: post.editor.name };
+    });
+
+    expect(await query).toEqual([{ author: "A", editor: "B" }]);
+  })
+
   it("will select without tables", async () => {
     const query = Query(where => {
       where.connection = db;
@@ -393,6 +431,36 @@ describe("insert", () => {
     name = str();
     color = str();
   }
+
+  it("will insert a row of defaults", async () => {
+    class Tick extends Type {
+      note = str(orNull);
+    }
+
+    await TestConnection.new([Tick]);
+
+    const first = await Tick.insert({});
+    const second = await Tick.insert({});
+
+    expect([first.id, second.id]).toEqual([1, 2]);
+    await expect(Query(where => void where(Tick))).resolves.toBe(2);
+  })
+
+  it("will not insert defaults per joined row", async () => {
+    class Tick extends Type {
+      note = str(orNull);
+    }
+
+    await TestConnection.new([Foo, Tick]);
+    await Foo.insert({ name: "a", color: "red" });
+
+    const query = () => Query(where => {
+      where(Foo);
+      where(Tick, {});
+    });
+
+    expect(query).toThrow("Insert into tick for each joined row needs at least one value.");
+  })
 
   it("will throw for bad value", async () => {
     const insert = () => Query(where => {
@@ -990,6 +1058,11 @@ describe("valid", () => {
   it("will throw for a mismatched type", async () => {
     await expect(check(Author, "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name INTEGER NOT NULL, rank INTEGER)"))
       .rejects.toThrow("Column name in table author has type INTEGER, expected TEXT");
+  })
+
+  it("will accept a primary key not declared NOT NULL", async () => {
+    await expect(check(Author, "CREATE TABLE author (id INTEGER PRIMARY KEY, name TEXT NOT NULL, rank INTEGER)"))
+      .resolves.toBe(true);
   })
 
   it("will throw for a mismatched nullable", async () => {

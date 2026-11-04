@@ -51,9 +51,13 @@ export class SQLiteConnection extends Connection {
       }
     };
 
+    const counts = !builder.returns && !builder.inserts.size && !builder.updates.size && !builder.deletes.size;
+
     return {
       all: (p?: any[]) => run(e => e.all(sql, string(p))),
-      run: (p?: any[]) => run(e => e.run(sql, string(p)).then(r => r.changes)),
+      run: counts
+        ? (p?: any[]) => run(e => e.get(sql, string(p)).then(row => Number(Object.values(row)[0])))
+        : (p?: any[]) => run(e => e.run(sql, string(p)).then(r => r.changes)),
       toString: () => pretty(sql)
     };
   }
@@ -137,7 +141,7 @@ export class SQLiteConnection extends Connection {
   }
 
   protected async checkIntegrity(field: Field, info: TableInfo){
-    const { column, nullable, reference } = field;
+    const { column, nullable, primary, reference } = field;
     const parent = field.parent!;
 
     const expected = affinity(field);
@@ -147,7 +151,7 @@ export class SQLiteConnection extends Connection {
         `Column ${column} in table ${parent.table} has type ${info.type}, expected ${expected}`
       );
 
-    if (info.notnull === (nullable ? 1 : 0))
+    if (!primary && info.notnull === (nullable ? 1 : 0))
       throw new Error(
         `Column ${column} in table ${parent.table} has incorrect nullable value`
       );

@@ -690,12 +690,19 @@ describe("relations", () => {
     c = one(C, null);
   }
 
+  class E extends Table {
+    static table = "e";
+    first = one(C);
+    second = one(C, { column: "second_id" });
+  }
+
   const ready = (async () => {
     const [c1, c2] = await seed(C, { value: 100, label: "hundred" }, { value: 200, label: "two" });
     const [b1, b2] = await seed(B, { c: c1, value: "b1" }, { c: c2, value: "b2" });
 
     await seed(A, { b: b1, value: "a1" }, { b: b2, value: "a2" });
     await seed(D, { c: c1 }, {});
+    await seed(E, { first: c1, second: c2 });
   })();
 
   it("will join through a relation", async () => {
@@ -734,6 +741,24 @@ describe("relations", () => {
         cLabel: c.label"
     `);
     await expect(query).resolves.toEqual([{ aValue: "a1", cLabel: "hundred" }]);
+  })
+
+  it("will alias a table joined twice", async () => {
+    await ready;
+    const query = Query(where => {
+      const e = where(E);
+      return { first: e.first.label, second: e.second.label };
+    });
+
+    expect(String(query)).toMatchInlineSnapshot(`
+      "from e
+      join c on c.id = e.c_id
+      join c T2 on T2.id = e.second_id
+      select
+        first: c.label
+        second: T2.label"
+    `);
+    await expect(query).resolves.toEqual([{ first: "hundred", second: "two" }]);
   })
 
   it("will left join a nullable relation", async () => {

@@ -358,6 +358,19 @@ describe("schema", () => {
     });
   })
   
+  it("will insert a row of defaults", async () => {
+    class Tick extends Type {
+      note = str(orNull);
+    }
+
+    await TestConnection.new([Tick]);
+
+    const first = await Tick.insert({});
+    const second = await Tick.insert({});
+
+    expect([first.id, second.id]).toEqual([1, 2]);
+  })
+
   it("will convert camelCase names to underscore", async () => {
     class FooBar extends Type {
       fooBar = bool();
@@ -574,6 +587,20 @@ describe("select", () => {
     }]);
   })
   
+  it("will count rows", async () => {
+    await prepare();
+    await Foo.insert({ bar: "goodbye", baz: "world" });
+
+    const all = Query(where => void where(Foo));
+    const some = Query(where => {
+      const foo = where(Foo);
+      where(foo.bar).equal("goodbye");
+    });
+
+    expect(await all).toBe(2);
+    expect(await some).toBe(1);
+  })
+
   it("will select a field directly", async () => {
     await prepare();
     

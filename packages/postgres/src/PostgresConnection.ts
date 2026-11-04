@@ -84,9 +84,13 @@ export abstract class PostgresConnection extends Connection {
       }
     }
 
+    const counts = typeof from != "string" && !from.returns && !from.inserts.size && !from.updates.size && !from.deletes.size;
+
     return {
       all: async (params?: any[]) => (await send(params)).rows,
-      run: async (params?: any[]) => (await send(params)).affectedRows || 0,
+      run: counts
+        ? async (params?: any[]) => Number(Object.values((await send(params)).rows[0])[0])
+        : async (params?: any[]) => (await send(params)).affectedRows || 0,
       toString: () => format(sql, { language: 'postgresql', keywordCase: "upper" })
     };
   }

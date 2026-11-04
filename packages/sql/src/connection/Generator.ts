@@ -53,6 +53,12 @@ export class Generator {
       values.push(this.value(value));
     }
 
+    if (!keys.length && tables.size > 1)
+      throw new Error(`Insert into ${table.name} for each joined row needs at least one value.`);
+
+    if (!keys.length)
+      return ['INSERT INTO', this.escape(table.name), 'DEFAULT VALUES'];
+
     return [
       'INSERT INTO',
       this.escape(table.name),
