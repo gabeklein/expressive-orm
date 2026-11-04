@@ -41,16 +41,41 @@ export class PGConnection extends PostgresConnection {
     await (await this.client()).query(sql);
   }
 
+  protected async lock(){
+    return () => {};
+  }
+
+  protected async idle(){}
+
   protected async transact<T>(fn: () => Promise<T>): Promise<T> {
     const client = await (await this.engine).connect();
+    let broken: Error | undefined;
+
+    const send = (sql: string) => client.query(sql).catch((error: Error) => {
+      throw broken = error;
+    });
 
     this._journal()!.session = client;
 
     try {
-      return await super.transact(fn);
+      await send("BEGIN");
+
+      try {
+        const result = await fn();
+
+        await send("COMMIT");
+
+        return result;
+      }
+      catch (error) {
+        if (!broken)
+          await send("ROLLBACK").catch(() => {});
+
+        throw error;
+      }
     }
     finally {
-      client.release();
+      client.release(broken);
     }
   }
 

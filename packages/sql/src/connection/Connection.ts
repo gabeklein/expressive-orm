@@ -70,13 +70,8 @@ abstract class Connection extends Base {
     if (outer?.has(this))
       return fn();
 
-    while (this._active)
-      await this._active;
-
-    let release!: () => void;
+    const release = await this.lock();
     const journal: Connection.Transaction = { undo: [], done: [] };
-
-    this._active = new Promise(resolve => release = resolve);
 
     try {
       const result = await storage.run(new Map(outer).set(this, journal), () => this.transact!(async () => fn()));
@@ -90,9 +85,22 @@ abstract class Connection extends Base {
       throw error;
     }
     finally {
-      this._active = undefined;
       release();
     }
+  }
+
+  protected async lock(){
+    while (this._active)
+      await this._active;
+
+    let release!: () => void;
+
+    this._active = new Promise(resolve => release = resolve);
+
+    return () => {
+      this._active = undefined;
+      release();
+    };
   }
 
   protected async idle(){

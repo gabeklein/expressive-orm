@@ -1059,6 +1059,7 @@ describe("transaction", () => {
     let created!: Item;
 
     const failed = db.transaction(async () => {
+      await kept.set({ label: "first" });
       await kept.set({ label: "changed" });
       await gone.delete();
       created = await Item.new({ label: "new" });
@@ -1090,6 +1091,21 @@ describe("transaction", () => {
     })).rejects.toThrow("nope");
 
     await expect(Item.find()).resolves.toEqual([]);
+  })
+
+  it("will keep a caught nested failure's writes", async () => {
+    const db = await TestConnection.new([Item]);
+
+    await db.transaction(async () => {
+      await db.transaction(async () => {
+        await Item.insert({ label: "inner" });
+        throw new Error("nope");
+      }).catch(() => {});
+
+      await Item.insert({ label: "outer" });
+    });
+
+    await expect(Item.find()).resolves.toHaveLength(2);
   })
 
   it("will hold other statements until it ends", async () => {
