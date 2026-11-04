@@ -84,6 +84,8 @@ export abstract class PostgresConnection extends Connection {
     const sql = typeof from == "string" ? from : String(new PostgresGenerator(from));
 
     const send = async (params?: any[]) => {
+      await this.idle();
+
       try {
         return await this.query(sql, params);
       }
@@ -107,6 +109,22 @@ export abstract class PostgresConnection extends Connection {
   }
 
   abstract query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }>;
+
+  protected async transact<T>(fn: () => Promise<T>): Promise<T> {
+    await this.exec("BEGIN");
+
+    try {
+      const result = await fn();
+
+      await this.exec("COMMIT");
+
+      return result;
+    }
+    catch (error) {
+      await this.exec("ROLLBACK");
+      throw error;
+    }
+  }
 
   abstract exec(sql: string): Promise<void>;
 

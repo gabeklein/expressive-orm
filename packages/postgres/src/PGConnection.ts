@@ -1,5 +1,5 @@
 import type { Connection } from '@expressive/sql';
-import type { Notification, Pool, PoolConfig } from 'pg';
+import type { Notification, Pool, PoolClient, PoolConfig } from 'pg';
 
 import { PostgresConnection } from './PostgresConnection';
 
@@ -24,8 +24,12 @@ export class PGConnection extends PostgresConnection {
     });
   }
 
+  protected async client(): Promise<Pool | PoolClient> {
+    return (this._journal()?.session as PoolClient | undefined) || this.engine;
+  }
+
   async query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }> {
-    const engine = await this.engine;
+    const engine = await this.client();
     const result = await engine.query(sql, params);
     return {
       rows: result.rows,
@@ -34,7 +38,20 @@ export class PGConnection extends PostgresConnection {
   }
 
   async exec(sql: string): Promise<void> {
-    await (await this.engine).query(sql);
+    await (await this.client()).query(sql);
+  }
+
+  protected async transact<T>(fn: () => Promise<T>): Promise<T> {
+    const client = await (await this.engine).connect();
+
+    this._journal()!.session = client;
+
+    try {
+      return await super.transact(fn);
+    }
+    finally {
+      client.release();
+    }
   }
 
   protected async listen(channel: string, callback: (payload: string) => void) {

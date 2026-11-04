@@ -40,6 +40,8 @@ export class SQLiteConnection extends Connection {
       : [];
 
     const run = async <R>(op: (engine: Engine) => Promise<R>) => {
+      await this.idle();
+
       try {
         return await op(await this.db());
       }
@@ -60,6 +62,24 @@ export class SQLiteConnection extends Connection {
         : (p?: any[]) => run(e => e.run(sql, string(p)).then(r => r.changes)),
       toString: () => pretty(sql)
     };
+  }
+
+  protected async transact<T>(fn: () => Promise<T>): Promise<T> {
+    const db = await this.db();
+
+    await db.exec("BEGIN");
+
+    try {
+      const result = await fn();
+
+      await db.exec("COMMIT");
+
+      return result;
+    }
+    catch (error) {
+      await db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   async close(){

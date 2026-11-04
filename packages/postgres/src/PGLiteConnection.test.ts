@@ -1454,6 +1454,39 @@ describe("composite key", () => {
   })
 })
 
+describe("transaction", () => {
+  class Item extends Type {
+    label = str();
+  }
+
+  it("will commit and notify live rows", async () => {
+    const db = await TestConnection.new([Item]);
+    const item = await Item.new({ label: "one" });
+
+    await db.transaction(async () => {
+      await Item.insert({ label: "two" });
+      await shared.query(`UPDATE "item" SET label = 'remote' WHERE id = $1`, [item.id]);
+    });
+
+    await vi.waitFor(() => expect(item.label).toBe("remote"));
+    await expect(Item.find()).resolves.toHaveLength(2);
+  })
+
+  it("will roll back and restore instances", async () => {
+    const db = await TestConnection.new([Item]);
+    const item = await Item.new({ label: "one" });
+
+    await expect(db.transaction(async () => {
+      await item.set({ label: "changed" });
+      await Item.insert({ label: "two" });
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    expect(item.label).toBe("one");
+    await expect(Item.find()).resolves.toEqual([{ id: item.id, label: "one" }]);
+  })
+})
+
 describe("renamed key column", () => {
   it("will round trip a numeric key", async () => {
     class User extends Type {

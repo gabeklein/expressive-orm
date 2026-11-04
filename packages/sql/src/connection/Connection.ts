@@ -16,6 +16,29 @@ declare namespace Connection {
   type Conflict = Base.Conflict;
 
   type Key = Base.Key;
+
+  type Transaction = Base.Journal & {
+    session?: unknown;
+  };
+}
+
+type Scope = Map<Connection, Connection.Transaction>;
+
+let storage: Promise<import('node:async_hooks').AsyncLocalStorage<Scope>> | undefined;
+let context: import('node:async_hooks').AsyncLocalStorage<Scope> | undefined;
+
+function hooks(name: string): Promise<typeof import('node:async_hooks')> {
+  return import(name);
+}
+
+function scope(){
+  return storage ||= hooks("node:async_hooks").then(
+    ({ AsyncLocalStorage }) => context = new AsyncLocalStorage<Scope>(),
+    () => {
+      storage = undefined;
+      throw new Error("Transactions need AsyncLocalStorage, which this runtime does not provide.");
+    }
+  );
 }
 
 function ref({ schema, table }: Query.Table){
@@ -23,11 +46,59 @@ function ref({ schema, table }: Query.Table){
 }
 
 abstract class Connection extends Base {
+  _active?: Promise<void>;
+
   abstract get schema(): string;
 
   abstract sync(fix?: boolean): Promise<this>;
 
   abstract prepare(builder: Builder): Builder.Statement;
+
+  protected transact?<T>(fn: () => Promise<T>): Promise<T>;
+
+  _journal(){
+    return context?.getStore()?.get(this);
+  }
+
+  async transaction<T>(fn: () => T | Promise<T>): Promise<T> {
+    if (!this.transact)
+      throw new Error(`${this.constructor.name} does not support transactions.`);
+
+    const storage = await scope();
+    const outer = storage.getStore();
+
+    if (outer?.has(this))
+      return fn();
+
+    while (this._active)
+      await this._active;
+
+    let release!: () => void;
+    const journal: Connection.Transaction = { undo: [], done: [] };
+
+    this._active = new Promise(resolve => release = resolve);
+
+    try {
+      const result = await storage.run(new Map(outer).set(this, journal), () => this.transact!(async () => fn()));
+
+      journal.done.forEach(apply => apply());
+
+      return result;
+    }
+    catch (error) {
+      journal.undo.reverse().forEach(apply => apply());
+      throw error;
+    }
+    finally {
+      this._active = undefined;
+      release();
+    }
+  }
+
+  protected async idle(){
+    while (this._active && !this._journal())
+      await this._active;
+  }
 
   async select(table: string, constraints: Type.Constraint[], limit?: number, offset?: number){
     const { builder, target, bind, run } = statement(this, table);

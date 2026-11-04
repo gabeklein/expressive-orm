@@ -72,6 +72,37 @@ describe('PGConnection', () => {
     expect(pool.end).not.toHaveBeenCalled();
   });
 
+  it('will run a transaction on one client', async () => {
+    class Item extends Type {}
+
+    const pool = new pg.Pool();
+    const query = vi.spyOn(pool, 'query').mockResolvedValue({ rows: [], rowCount: 0 } as never);
+    const client = {
+      query: vi.fn(async (_sql: string) => ({ rows: [], rowCount: 1 })),
+      release: vi.fn()
+    };
+
+    vi.spyOn(pool, 'connect').mockResolvedValue(client as never);
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = await PGConnection.new([Item], pool);
+
+    query.mockClear();
+
+    await conn.transaction(() => conn.prepare('UPDATE "item" SET id = id').run());
+    await expect(conn.transaction(async () => {
+      await conn.prepare('SELECT 1').all();
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    expect(client.query.mock.calls.map(([sql]) => sql)).toEqual(["BEGIN", 'UPDATE "item" SET id = id', "COMMIT", "BEGIN", "SELECT 1", "ROLLBACK"]);
+    expect(client.release).toHaveBeenCalledTimes(2);
+    expect(query).not.toHaveBeenCalled();
+
+    await conn.close();
+    Reflect.deleteProperty(Item, "connection");
+  });
+
   it('will end a pool it created', async () => {
     const end = vi.spyOn(pg.Pool.prototype, 'end').mockResolvedValue();
     const conn = PGConnection.new([TestType], 'postgresql://localhost');

@@ -1016,6 +1016,126 @@ describe("composite key", () => {
   })
 })
 
+describe("transaction", () => {
+  class Item extends Type {
+    label = str();
+  }
+
+  it("will commit", async () => {
+    const db = await TestConnection.new([Item]);
+    const old = await Item.new({ label: "old" });
+
+    const result = await db.transaction(async () => {
+      await Item.insert({ label: "one" });
+      await old.delete();
+
+      expect(old.get(null)).toBe(false);
+
+      return "done";
+    });
+
+    expect(result).toBe("done");
+    expect(old.get(null)).toBe(true);
+    await expect(Item.find()).resolves.toEqual([{ id: 2, label: "one" }]);
+  })
+
+  it("will roll back and restore instances", async () => {
+    const db = await TestConnection.new([Item]);
+    const kept = await Item.new({ label: "kept" });
+    const gone = await Item.new({ label: "gone" });
+    let created!: Item;
+
+    const failed = db.transaction(async () => {
+      await kept.set({ label: "changed" });
+      await gone.delete();
+      created = await Item.new({ label: "new" });
+
+      expect(kept.label).toBe("changed");
+      expect(await Item.find()).toHaveLength(2);
+
+      throw new Error("nope");
+    });
+
+    await expect(failed).rejects.toThrow("nope");
+
+    expect(kept.label).toBe("kept");
+    expect(gone.get(null)).toBe(false);
+    expect(created.get(null)).toBe(true);
+    await expect(Item.find()).resolves.toEqual([
+      { id: 2, label: "gone" },
+      { id: 1, label: "kept" }
+    ]);
+  })
+
+  it("will join an open transaction", async () => {
+    const db = await TestConnection.new([Item]);
+
+    await expect(db.transaction(async () => {
+      await Item.insert({ label: "outer" });
+      await db.transaction(() => Item.insert({ label: "inner" }));
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    await expect(Item.find()).resolves.toEqual([]);
+  })
+
+  it("will hold other statements until it ends", async () => {
+    const db = await TestConnection.new([Item]);
+    const order: string[] = [];
+    let resume!: () => void;
+
+    const open = db.transaction(async () => {
+      await Item.insert({ label: "inside" });
+      await new Promise<void>(resolve => resume = resolve);
+      order.push("commit");
+    });
+
+    await vi.waitFor(() => expect(resume).toBeDefined());
+
+    const outside = Item.find().then(rows => order.push(`read ${rows.length}`));
+
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(order).toEqual([]);
+
+    resume();
+    await Promise.all([open, outside]);
+
+    expect(order).toEqual(["commit", "read 1"]);
+  })
+
+  it("will queue transactions", async () => {
+    const db = await TestConnection.new([Item]);
+    const order: string[] = [];
+
+    await Promise.all(["a", "b"].map(label => db.transaction(async () => {
+      order.push(`${label} begin`);
+      await Item.insert({ label });
+      order.push(`${label} end`);
+    })));
+
+    expect(order).toEqual(["a begin", "a end", "b begin", "b end"]);
+  })
+
+  it("will keep connections apart", async () => {
+    class Note extends Type {
+      text = str();
+    }
+
+    const items = await TestConnection.new([Item]);
+    const notes = await TestConnection.new([Note]);
+
+    await expect(items.transaction(async () => {
+      await Item.insert({ label: "one" });
+      await notes.transaction(() => Note.insert({ text: "kept" }));
+      await Item.insert({ label: "two" });
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    await expect(Item.find()).resolves.toEqual([]);
+    await expect(Note.find()).resolves.toHaveLength(1);
+  })
+})
+
 describe("sync", () => {
   it("will reopen a file", async () => {
     const dir = mkdtempSync(join(tmpdir(), "expressive-sql-"));
