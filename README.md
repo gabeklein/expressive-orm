@@ -89,6 +89,24 @@ class Session extends Type {
 
 `Account["id"]` is a `number`, `Session["id"]` a `string`; `one(id)`, `update(id)` and relations follow it.
 
+`key` declares a composite primary key - `id` is the tuple of the named fields, in order, with no column of its own:
+
+```ts
+import { Type, key, one, str } from '@expressive/sql';
+
+class Membership extends Type {
+  id = key<[number, string]>("account", "role");
+  account = one(Account);
+  role = str();
+}
+
+await Membership.insert({ account: 1, role: "owner" }); // { id: [1, "owner"], account: 1, role: "owner" }
+
+const owner = await Membership.get([1, "owner"]);
+```
+
+`get`, `one`, `update` and `delete` take the tuple; `sync` declares `PRIMARY KEY (account_id, role)`. An instance's `id` is one frozen tuple until a part changes, so compare tuples by value. `id` matches or orders by its parts - other operators throw - and `one()` cannot relate to a composite-keyed class.
+
 ## Connect
 
 ```ts
@@ -140,6 +158,15 @@ for await (const page of User.all(100))
 ```
 
 Reads and `insert` return plain rows: decoded values by property, a relation as its id, frozen. `insert` returns the stored row, with its `id` and database defaults. For an instance to observe or edit, take a [reference](#references).
+
+```ts
+await User.insert(row, { conflict: "update" });                     // upsert on the primary key
+await User.insert(row, { conflict: "update", keep: ["createdAt"] }); // leave columns alone on conflict
+await User.insert(row, { conflict: "update", on: "email" });        // target a unique column
+await User.insert(row, { conflict: "ignore" });                     // undefined if the row exists
+```
+
+A `conflict` updates the existing row with every column given, minus the target and `keep`, and returns it, settling into a loaded instance; `"ignore"` leaves it and resolves `undefined`. `on` takes a key or an array of keys; the default is the primary key.
 
 Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, and `asc` / `desc` for order. A plain value is `equal`; an array applies each.
 
@@ -384,9 +411,11 @@ A connection is a `Connection`, itself a Model. The floor every driver implement
 | Method | Does |
 |---|---|
 | `select(table, constraints, limit?, offset?)` | rows matching `[column, op, value]` tuples |
-| `insert(table, data, returns?)` | inserts a row, returning it when asked |
+| `insert(table, data, returns?, conflict?)` | inserts a row, returning it when asked; `conflict` is `{ on, update? }` by column - `update` absent does nothing, otherwise those columns are overwritten |
 | `update(table, id, data)` | updates one row |
 | `remove(table, id)` | deletes one row |
+
+A composite `id` reaches the driver as its tuple, in the order `key` names the parts; `fields.get("id").parts` lists them.
 
 Optional capabilities: `prepare(builder)` runs a `Query` - without it `Query` and `Type.query` throw; `subscribe(listener)` reports changes for live rows; `sync(fix?)` checks or creates the schema, and runs when the connection is awaited.
 
