@@ -1014,6 +1014,19 @@ describe("composite key", () => {
     await expect(Pick.one([1, "a"])).resolves.toMatchObject({ note: "kept" });
     await db.close();
   })
+
+  it("will adopt key parts not declared NOT NULL", async () => {
+    const db = SQLiteConnection.new([Account, Pick]);
+    const engine = await db["db"]();
+
+    await engine.exec(`
+      CREATE TABLE account (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL);
+      CREATE TABLE pick (account_id INTEGER, kind TEXT, note TEXT, PRIMARY KEY (account_id, kind));
+    `);
+
+    await expect(db.then()).resolves.toBeUndefined();
+    await db.close();
+  })
 })
 
 describe("transaction", () => {

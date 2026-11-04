@@ -424,7 +424,8 @@ abstract class Type extends Model {
   }
 
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options: Type.Conflict<T> & { conflict: "ignore" }): Promise<Type.Columns<T> | undefined>;
-  static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options?: Type.Conflict<T>): Promise<Type.Columns<T>>;
+  static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options?: Type.Conflict<T> & { conflict: "update" }): Promise<Type.Columns<T>>;
+  static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options: Type.Conflict<T>): Promise<Type.Columns<T> | undefined>;
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options?: Type.Conflict<T>){
     const { connection, fields, loaded, ref, subset } = this;
     const input = await this.prepare({ ...data, ...subset } as Type.Update<T>);

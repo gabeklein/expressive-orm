@@ -316,7 +316,7 @@ function record(type: Type.Class, subject: Type, read: () => readonly unknown[])
   const saved = keys.map(key => [key, Object.getOwnPropertyDescriptor(subject, key)] as const);
   const marks = new Map(keys.map(key => [key, Symbol(key)]));
   const seen: string[] = [];
-  let output: readonly unknown[];
+  let output: readonly unknown[] | undefined;
 
   for (const key of keys)
     Object.defineProperty(subject, key, {
@@ -327,12 +327,13 @@ function record(type: Type.Class, subject: Type, read: () => readonly unknown[])
   try {
     output = read();
   }
+  catch {}
   finally {
     for (const [key, descriptor] of saved)
       Object.defineProperty(subject, key, descriptor!);
   }
 
-  if (output.length != seen.length || output.some((value, i) => value !== marks.get(seen[i])))
+  if (!output || output.length != seen.length || output.some((value, i) => value !== marks.get(seen[i])))
     throw new Error(`${type.name}.id must list fields to key by, like key(() => [this.a, this.b]).`);
 
   return seen.map(key => type.fields.get(key)!);
