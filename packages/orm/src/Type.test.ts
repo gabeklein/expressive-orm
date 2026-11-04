@@ -2231,6 +2231,34 @@ describe("journal", () => {
     expect(post.columns.author).toBe(1);
   })
 
+  it("will write to a reference still loading", async () => {
+    const { db, begin, end } = journaled();
+    const { select } = db;
+    let resume!: () => void;
+
+    class Item extends Type {
+      static connection = db;
+      label = str();
+    }
+
+    await Item.insert({ label: "x" });
+
+    Object.assign(db, {
+      select: (...args: Parameters<typeof select>) => new Promise<void>(resolve => resume = resolve).then(() => select(...args))
+    });
+
+    const item = Item.get(1);
+
+    begin();
+    await expect(Item.update(1, { label: "y" })).resolves.toBeUndefined();
+    end(true);
+
+    resume();
+
+    await expect(item).resolves.toBe(item);
+    expect(item.label).toBe("y");
+  })
+
   it("will undo a settled upsert", async () => {
     const { db, begin, end } = journaled();
 

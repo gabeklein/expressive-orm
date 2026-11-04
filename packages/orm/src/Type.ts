@@ -138,7 +138,7 @@ function journal(entity: Type) {
 function track(entity: Type, values: Record<string, unknown>) {
   const record = journal(entity);
 
-  if (!record)
+  if (!record || PENDING.has(entity))
     return;
 
   const before: Record<string, unknown> = {};
