@@ -2202,6 +2202,35 @@ describe("journal", () => {
     expect(user.name).toBe("Gabe");
   })
 
+  it("will undo a relation not yet loaded", async () => {
+    const { db, begin, end } = journaled();
+
+    class User extends Type {
+      static connection = db;
+      name = str();
+    }
+
+    class Post extends Type {
+      static connection = db;
+      author = one(User, lazy);
+    }
+
+    await User.insert({ name: "Gabe" });
+    await User.insert({ name: "Bob" });
+    await Post.insert({ author: 1 });
+
+    const post = await Post.get(1);
+
+    begin();
+    await post.set({ author: 2 });
+
+    expect(post.columns.author).toBe(2);
+
+    end(false);
+
+    expect(post.columns.author).toBe(1);
+  })
+
   it("will undo a settled upsert", async () => {
     const { db, begin, end } = journaled();
 

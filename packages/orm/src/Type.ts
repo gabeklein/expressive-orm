@@ -143,8 +143,15 @@ function track(entity: Type, values: Record<string, unknown>) {
 
   const before: Record<string, unknown> = {};
 
-  for (const key in values)
-    before[key] = entity.get(key as any, false);
+  PEEK.add(entity.is);
+
+  try {
+    for (const key in values)
+      before[key] = (entity as any)[key];
+  }
+  finally {
+    PEEK.delete(entity.is);
+  }
 
   record.undo.push(() => {
     const key = slot(entity.id);
