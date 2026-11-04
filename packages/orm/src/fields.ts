@@ -289,7 +289,11 @@ function json<T>(config?: Config){
   }, config);
 }
 
-class KeyField extends Field<readonly unknown[]> {
+type Key<P> = string & { readonly "~key": P };
+
+type KeyOf<P extends readonly unknown[]> = Key<{ -readonly [I in keyof P]: P[I] extends Type | undefined ? NonNullable<P[I]>["id"] : P[I] }>;
+
+class KeyField extends Field<string> {
   absent = true;
   primary = true;
 
@@ -297,30 +301,56 @@ class KeyField extends Field<readonly unknown[]> {
 
   async get(value: any, from?: Record<string, any>){
     if (!from)
-      return Object.freeze([...value]);
+      return JSON.stringify(value);
 
     const values = await Promise.all(this.parts!.map(part => (
       (part.reference || part).get(from[part.column], from)
     )));
 
-    return Object.freeze(values);
+    return JSON.stringify(values);
   }
 }
 
-function key<T extends readonly (string | number)[]>(...names: string[]): Optional<Readonly<T>> {
+function record(type: Type.Class, subject: Type, read: () => readonly unknown[]) {
+  const keys = Array.from(type.fields.keys()).filter(key => key != "id");
+  const saved = keys.map(key => [key, Object.getOwnPropertyDescriptor(subject, key)] as const);
+  const marks = new Map(keys.map(key => [key, Symbol(key)]));
+  const seen: string[] = [];
+  let output: readonly unknown[];
+
+  for (const key of keys)
+    Object.defineProperty(subject, key, {
+      configurable: true,
+      get: () => (seen.push(key), marks.get(key))
+    });
+
+  try {
+    output = read();
+  }
+  finally {
+    for (const [key, descriptor] of saved)
+      Object.defineProperty(subject, key, descriptor!);
+  }
+
+  if (output.length != seen.length || output.some((value, i) => value !== marks.get(seen[i])))
+    throw new Error(`${type.name}.id must list fields to key by, like key(() => [this.a, this.b]).`);
+
+  return seen.map(key => type.fields.get(key)!);
+}
+
+function key<P extends readonly unknown[]>(read: () => readonly [...P]): Optional<KeyOf<P>> {
+  let first: Type;
+
   return field(
-    (key, type) => Object.defineProperty(new KeyField(key), "parts", {
-      get: () => names.map(name => {
-        const part = type.fields.get(name);
+    (key, type) => {
+      let parts: Field[] | undefined;
 
-        if (!part)
-          throw new Error(`${type.name}.${name} is not a field to key by.`);
-
-        return part;
-      })
-    }),
+      return Object.defineProperty(new KeyField(key), "parts", {
+        get: () => parts ||= record(type, first, read)
+      });
+    },
     (_field, subject) => {
-      let last: readonly unknown[] | undefined;
+      first ||= subject;
 
       return {
         value: undefined,
@@ -331,12 +361,7 @@ function key<T extends readonly (string | number)[]>(...names: string[]): Option
             PEEK.add(subject);
 
           try {
-            const next = names.map(name => (subject as any)[name]);
-
-            if (!last || next.some((value, i) => value !== last![i]))
-              last = Object.freeze(next);
-
-            return last;
+            return JSON.stringify(read());
           }
           finally {
             if (peek)
@@ -354,7 +379,7 @@ function key<T extends readonly (string | number)[]>(...names: string[]): Option
 const orNull = { nullable: true } as const;
 const optional = { optional: true } as const;
 
-export type { DataTypes, Exact, Has, OptionsOf };
+export type { DataTypes, Exact, Has, Key, OptionsOf };
 
 export {
   FIELDS,

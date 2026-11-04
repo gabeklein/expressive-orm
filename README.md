@@ -89,23 +89,23 @@ class Session extends Type {
 
 `Account["id"]` is a `number`, `Session["id"]` a `string`; `one(id)`, `update(id)` and relations follow it.
 
-`key` declares a composite primary key - `id` is the tuple of the named fields, in order, with no column of its own:
+`key` declares a composite primary key - the fields it lists, in order, with no column of its own:
 
 ```ts
 import { Type, key, one, str } from '@expressive/sql';
 
 class Membership extends Type {
-  id = key<[number, string]>("account", "role");
+  id = key(() => [this.account, this.role]);
   account = one(Account);
   role = str();
 }
 
-await Membership.insert({ account: 1, role: "owner" }); // { id: [1, "owner"], account: 1, role: "owner" }
+await Membership.insert({ account: 1, role: "owner" }); // { id: '[1,"owner"]', account: 1, role: "owner" }
 
 const owner = await Membership.get([1, "owner"]);
 ```
 
-`get`, `one`, `update` and `delete` take the tuple; `sync` declares `PRIMARY KEY (account_id, role)`. An instance's `id` is one frozen tuple until a part changes, so compare tuples by value. `id` matches or orders by its parts - other operators throw - and `one()` cannot relate to a composite-keyed class.
+The arrow lists `this.<field>` reads and nothing else; it runs lazily, so `id` stays on top. `id` is a string - the parts as JSON - typed as a key of `[number, string]`, so it compares by value; read the parts from their fields. `get`, `one`, `update` and `delete` take the key or the tuple; `sync` declares `PRIMARY KEY (account_id, role)`. `id` matches or orders by its parts - other operators throw - and `one()` cannot relate to a composite-keyed class.
 
 ## Connect
 
@@ -415,7 +415,7 @@ A connection is a `Connection`, itself a Model. The floor every driver implement
 | `update(table, id, data)` | updates one row |
 | `remove(table, id)` | deletes one row |
 
-A composite `id` reaches the driver as its tuple, in the order `key` names the parts; `fields.get("id").parts` lists them.
+A composite `id` reaches the driver as its tuple, in the order `key` lists the parts; `fields.get("id").parts` lists them.
 
 Optional capabilities: `prepare(builder)` runs a `Query` - without it `Query` and `Type.query` throw; `subscribe(listener)` reports changes for live rows; `sync(fix?)` checks or creates the schema, and runs when the connection is awaited.
 

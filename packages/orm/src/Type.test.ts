@@ -1342,7 +1342,7 @@ describe("primary key", () => {
 
     const doc = {} as Doc;
     const user = {} as User;
-    const key: string | number | readonly (string | number)[] = user.id;
+    const key: string | number = user.id;
     const narrow: Doc["id"] = "x1";
     const read: string = narrow;
 
@@ -1980,28 +1980,42 @@ describe("composite key", () => {
 
   class Account extends Type {
     static connection = db;
+    id = num({ primary: true, increment: true });
     name = str();
   }
 
   class Pick extends Type {
     static connection = db;
-    id = key<[number, string]>("account", "kind");
+    id = key(() => [this.account, this.kind]);
     account = one(Account);
     kind = str();
     note = str(orNull);
   }
 
-  const id = (kind: string) => [1, kind] as const;
+  const A = '[1,"a"]';
 
-  it("will type id as a tuple", () => {
+  it("will type id as a key of its parts", () => {
     const pick = {} as Pick;
-    const tuple: readonly [number, string] = pick.id;
+    const user = {} as Account;
+    const id: string = pick.id;
+    const plain: string | number = user.id;
 
-    // @ts-expect-error
-    const wrong: readonly [string, string] = pick.id;
+    () => {
+      Pick.get([1, "a"]);
+      Pick.get(pick.id);
 
-    void tuple;
-    void wrong;
+      // @ts-expect-error
+      Pick.get(["1", "a"]);
+
+      // @ts-expect-error
+      Pick.get([1, 2]);
+
+      // @ts-expect-error
+      Pick.get("loose");
+    };
+
+    void id;
+    void plain;
   })
 
   it("will not store a key column", () => {
@@ -2009,55 +2023,53 @@ describe("composite key", () => {
     expect(Pick.fields.get("id")!.parts).toEqual([Pick.fields.get("account"), Pick.fields.get("kind")]);
   })
 
-  it("will read rows keyed by tuple", async () => {
+  it("will read rows keyed by their parts", async () => {
     await Account.insert({ name: "Gabe" });
 
     const row = await Pick.insert({ account: 1, kind: "a", note: "first" });
 
-    expect(row).toEqual({ id: [1, "a"], account: 1, kind: "a", note: "first" });
-    expect(Object.isFrozen(row.id)).toBe(true);
+    expect(row).toEqual({ id: A, account: 1, kind: "a", note: "first" });
     await expect(db.select(Pick.ref, [])).resolves.toEqual([{ account_id: 1, kind: "a", note: "first" }]);
-    await expect(Pick.one(id("a"))).resolves.toEqual(row);
+    await expect(Pick.one([1, "a"])).resolves.toEqual(row);
+    await expect(Pick.one(row.id)).resolves.toEqual(row);
   })
 
-  it("will get an entity by tuple", async () => {
-    const pick = await Pick.get(id("a"));
+  it("will get an entity by tuple or key", async () => {
+    const pick = await Pick.get([1, "a"]);
 
     expect(pick.note).toBe("first");
-    expect(pick.id).toEqual([1, "a"]);
-    expect(pick.id).toBe(pick.id);
-    expect(pick.columns).toEqual({ id: [1, "a"], account: 1, kind: "a", note: "first" });
-    expect(Pick.get(id("a"))).toBe(pick);
+    expect(pick.id).toBe(A);
+    expect(pick.columns).toEqual({ id: A, account: 1, kind: "a", note: "first" });
+    expect(Pick.get(A as Pick["id"])).toBe(pick);
+    expect(Pick.get([1, "a"])).toBe(pick);
   })
 
-  it("will update and settle by tuple", async () => {
-    const pick = await Pick.get(id("a"));
+  it("will update and settle by key", async () => {
+    const pick = await Pick.get([1, "a"]);
 
-    await Pick.update(id("a"), { note: "second" });
+    await Pick.update([1, "a"], { note: "second" });
 
     expect(pick.note).toBe("second");
-    await expect(Pick.one(id("a"))).resolves.toMatchObject({ note: "second" });
+    await expect(Pick.one(pick.id)).resolves.toMatchObject({ note: "second" });
   })
 
   it("will rekey an entity when a part changes", async () => {
-    const pick = await Pick.get(id("a"));
-    const before = pick.id;
+    const pick = await Pick.get([1, "a"]);
 
     await pick.set({ kind: "b" });
 
-    expect(pick.id).toEqual([1, "b"]);
-    expect(pick.id).not.toBe(before);
-    expect(Pick.get(id("b"))).toBe(pick);
+    expect(pick.id).toBe('[1,"b"]');
+    expect(Pick.get([1, "b"])).toBe(pick);
 
-    await Pick.update(id("b"), { kind: "a" });
+    await Pick.update(pick.id, { kind: "a" });
 
-    expect(Pick.get(id("a"))).toBe(pick);
+    expect(Pick.get([1, "a"])).toBe(pick);
   })
 
   it("will settle a live change", async () => {
-    const pick = await Pick.get(id("a"));
+    const pick = await Pick.get([1, "a"]);
 
-    await db.update(Pick.ref, id("a"), { note: "live" });
+    await db.update(Pick.ref, [1, "a"], { note: "live" });
     await settled();
 
     expect(pick.note).toBe("live");
@@ -2072,7 +2084,7 @@ describe("composite key", () => {
   })
 
   it("will throw comparing a composite key", async () => {
-    await expect(Pick.find({ id: greaterThan(id("a")) }))
+    await expect(Pick.find({ id: greaterThan(A) }))
       .rejects.toThrow("Pick.id is a composite key and can only be matched or ordered.");
   })
 
@@ -2086,30 +2098,30 @@ describe("composite key", () => {
       return { pick };
     });
 
-    expect(entity).toEqual({ id: [1, "a"], account: 1, kind: "a", note: "live" });
-    expect(nested).toEqual({ pick: { id: [1, "c"], account: 1, kind: "c", note: undefined } });
+    expect(entity).toEqual({ id: A, account: 1, kind: "a", note: "live" });
+    expect(nested).toEqual({ pick: { id: '[1,"c"]', account: 1, kind: "c", note: undefined } });
   })
 
   it("will create and delete entities", async () => {
     const pick = await Pick.new({ account: 1, kind: "d" });
 
-    expect(Pick.get(id("d"))).toBe(pick);
+    expect(Pick.get([1, "d"])).toBe(pick);
 
     await pick.delete();
 
-    expect(Pick.loaded.has(JSON.stringify(id("d")))).toBe(false);
+    expect(Pick.loaded.has('[1,"d"]')).toBe(false);
 
-    await Pick.get(id("c"));
-    await Pick.delete(id("c"));
+    await Pick.get([1, "c"]);
+    await Pick.delete([1, "c"]);
 
-    expect(Pick.loaded.has(JSON.stringify(id("c")))).toBe(false);
-    await expect(Pick.one(id("c"), false)).resolves.toBeUndefined();
+    expect(Pick.loaded.has('[1,"c"]')).toBe(false);
+    await expect(Pick.one([1, "c"], false)).resolves.toBeUndefined();
   })
 
   it("will upsert on the composite key", async () => {
     const row = await Pick.insert({ account: 1, kind: "a", note: "upsert" }, { conflict: "update" });
 
-    expect(row).toEqual({ id: [1, "a"], account: 1, kind: "a", note: "upsert" });
+    expect(row).toEqual({ id: A, account: 1, kind: "a", note: "upsert" });
     await expect(Pick.insert({ account: 1, kind: "a" }, { conflict: "ignore" })).resolves.toBeUndefined();
   })
 
@@ -2123,11 +2135,12 @@ describe("composite key", () => {
       .toThrow("Ref.pick cannot relate to Pick, which has a composite key.");
   })
 
-  it("will throw keying by an unknown field", async () => {
+  it("will throw keying by anything but fields", async () => {
     class Bad extends connect() {
-      id = key<[number]>("nope");
+      id = key(() => [this.kind, 1]);
+      kind = str();
     }
 
-    await expect(Bad.find()).rejects.toThrow("Bad.nope is not a field to key by.");
+    await expect(Bad.find()).rejects.toThrow("Bad.id must list fields to key by, like key(() => [this.a, this.b]).");
   })
 })

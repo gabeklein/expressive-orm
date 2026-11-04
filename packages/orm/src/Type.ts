@@ -1,7 +1,7 @@
 import { Context, Model } from '@expressive/mvc';
 
 import { Connection } from './Connection';
-import { FIELDS, num, PEEK, placeholder, write } from './fields';
+import { FIELDS, Key, num, PEEK, placeholder, write } from './fields';
 import { columns, Field, match, Omits, Optional, row, underscore } from './Field';
 import { Query } from './query/Query';
 import type { Rows } from './rows';
@@ -43,6 +43,8 @@ type Insert<T extends Type> = {
 
 type Matches<T> = T extends Type ? T | T["id"] | Type.Compat<T> : T;
 
+type Id<T extends Type> = T["id"] | (T["id"] extends Key<infer P> ? Readonly<P> : never);
+
 type Conflict<T extends Type> = {
   conflict: "update" | "ignore";
   on?: Fields<T> | Fields<T>[];
@@ -82,6 +84,7 @@ declare namespace Type {
     Compat,
     Conflict,
     Connection,
+    Id,
     Constraint,
     Insert,
     Instance,
@@ -180,6 +183,10 @@ function slot(id: unknown) {
   return Array.isArray(id) ? JSON.stringify(id) : id;
 }
 
+function locate(type: typeof Type, id: unknown): Connection.Key {
+  return type.fields.get("id")!.parts && typeof id == "string" ? JSON.parse(id) : id as Connection.Key;
+}
+
 function rekey(entity: Type, before: unknown) {
   const { loaded } = entity.constructor as typeof Type;
   const after = slot(entity.id);
@@ -225,7 +232,7 @@ function awaitable<T extends Type>(entity: T): Type.Async<T> {
 }
 
 abstract class Type extends Model {
-  id: Optional<string | number | readonly (string | number)[]> = num({ primary: true, increment: true });
+  id: Optional<string | number> = num({ primary: true, increment: true });
 
   static get loaded(){
     return register(this);
@@ -282,7 +289,7 @@ abstract class Type extends Model {
     if (typeof this.onDelete === "function")
       await this.onDelete();
 
-    await connection.remove(ref, this.id);
+    await connection.remove(ref, locate(type, this.id));
     evict(loaded, slot(this.id), this);
   }
 
@@ -322,8 +329,8 @@ abstract class Type extends Model {
 
   static get<T extends Type>(this: Model.Extends<T>): T;
   static get<T extends Type>(this: Model.Extends<T>, required: false): T | undefined;
-  static get<T extends Type>(this: Model.Extends<T>, id: T["id"]): Type.Async<T>;
-  static get<T extends Type>(this: Model.Extends<T>, id?: T["id"] | false): T | undefined {
+  static get<T extends Type>(this: Model.Extends<T>, id: Type.Id<T>): Type.Async<T>;
+  static get<T extends Type>(this: Model.Extends<T>, id?: Type.Id<T> | false): T | undefined {
     if (typeof id != "number" && typeof id != "string" && !Array.isArray(id))
       return super.get(id as false) as T | undefined;
 
@@ -365,13 +372,13 @@ abstract class Type extends Model {
     }) as T & Type));
   }
 
-  static async update<T extends Type>(this: Type.Class<T>, id: T["id"], data: Type.Update<T>): Promise<void> {
+  static async update<T extends Type>(this: Type.Class<T>, id: Type.Id<T>, data: Type.Update<T>): Promise<void> {
     const { connection, loaded, ref } = this;
     const row = await this.prepare(data, true);
     const key = slot(id);
     const entity = loaded.get(key);
 
-    await connection.update(ref, id, row);
+    await connection.update(ref, locate(this, id), row);
 
     if (entity) {
       settle(entity, await decode(this, row, true));
@@ -401,11 +408,11 @@ abstract class Type extends Model {
     return columns;
   }
 
-  static async delete<T extends Type>(this: Type.Class<T>, id: T["id"]): Promise<void> {
+  static async delete<T extends Type>(this: Type.Class<T>, id: Type.Id<T>): Promise<void> {
     const { connection, loaded, ref } = this;
     const key = slot(id);
 
-    await connection.remove(ref, id);
+    await connection.remove(ref, locate(this, id));
 
     const entity = loaded.get(key);
 
@@ -413,9 +420,9 @@ abstract class Type extends Model {
       evict(loaded, key, entity);
   }
 
-  static async one<T extends Type>(this: Type.Class<T>, where: T["id"] | Type.Query<T> | undefined, expect: boolean): Promise<Type.Columns<T> | undefined>;
-  static async one<T extends Type>(this: Type.Class<T>, where?: T["id"] | Type.Query<T>, expect?: true): Promise<Type.Columns<T>>;
-  static async one<T extends Type>(this: Type.Class<T>, where?: T["id"] | Type.Query<T>, expect?: boolean){
+  static async one<T extends Type>(this: Type.Class<T>, where: Type.Id<T> | Type.Query<T> | undefined, expect: boolean): Promise<Type.Columns<T> | undefined>;
+  static async one<T extends Type>(this: Type.Class<T>, where?: Type.Id<T> | Type.Query<T>, expect?: true): Promise<Type.Columns<T>>;
+  static async one<T extends Type>(this: Type.Class<T>, where?: Type.Id<T> | Type.Query<T>, expect?: boolean){
     if (where != null && (typeof where != "object" || Array.isArray(where)))
       where = { id: equal(where) };
 
@@ -499,8 +506,10 @@ async function select(
       if (op != "=" && op != "asc" && op != "desc")
         throw new Error(`${type.name}.${key} is a composite key and can only be matched or ordered.`);
 
+      const parts = locate(type, value) as unknown[];
+
       for (const [i, part] of field.parts.entries())
-        query.push([part.column, op, op == "=" ? await part.set(value[i], true) : undefined]);
+        query.push([part.column, op, op == "=" ? await part.set(parts[i], true) : undefined]);
     }
     else if (field) {
       const computed = Array.isArray(value)
@@ -516,7 +525,7 @@ async function select(
   return connection.select(ref, query, limit, offset);
 }
 
-function reference<T extends Type>(type: Type.Class<T>, id: T["id"]): T {
+function reference<T extends Type>(type: Type.Class<T>, id: Type.Id<T>): T {
   const { loaded } = type;
   const key = slot(id);
   const cached = loaded.get(key);
@@ -525,7 +534,7 @@ function reference<T extends Type>(type: Type.Class<T>, id: T["id"]): T {
     return cached as T;
 
   const { parts } = type.fields.get("id")!;
-  const values = parts ? Object.fromEntries(parts.map((part, i) => [part.key, (id as unknown[])[i]])) : { id };
+  const values = parts ? Object.fromEntries(parts.map((part, i) => [part.key, (locate(type, id) as unknown[])[i]])) : { id };
   const entity = placeholder(() => (Model.new as Function).call(type, values, load) as T);
 
   async function load(){
@@ -562,7 +571,7 @@ async function persist(entity: Type, patch: Type.Update<Type>) {
   const key = slot(entity.id);
 
   if (Object.keys(row).length)
-    await type.connection.update(type.ref, entity.id, row);
+    await type.connection.update(type.ref, locate(type, entity.id), row);
 
   const updated = settle(entity, await decode(type, row, true));
 

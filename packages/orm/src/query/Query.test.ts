@@ -768,7 +768,7 @@ describe("relations", () => {
       return { id: d.id, label: d.c.label };
     });
 
-    expect<Query.Selects<{ id: Type["id"], label: string | undefined }>>(query);
+    expect<Query.Selects<{ id: string | number, label: string | undefined }>>(query);
     expect(String(query)).toMatchInlineSnapshot(`
       "from d
       left join c on c.id = d.c_id
@@ -813,7 +813,7 @@ describe("relations", () => {
       return { nested: { id: d.id, c: d.c } };
     });
 
-    expect<Query.Selects<{ nested: { id: Type["id"], c: Type.Columns<C> | undefined } }>>(query);
+    expect<Query.Selects<{ nested: { id: string | number, c: Type.Columns<C> | undefined } }>>(query);
     // @ts-expect-error
     expect<Query.Selects<{ nested: { id: string | number, c: Type.Columns<C> } }>>(query);
     await expect(query).resolves.toEqual([

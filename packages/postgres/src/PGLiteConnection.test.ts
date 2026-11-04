@@ -1387,7 +1387,7 @@ describe("composite key", () => {
   }
 
   class Pick extends Type {
-    id = key<[number, string]>("account", "kind");
+    id = key(() => [this.account, this.kind]);
     account = one(Account);
     kind = str();
     note = str(orNull);
@@ -1424,7 +1424,7 @@ describe("composite key", () => {
     const pick = await Pick.get([1, "a"]);
 
     await pick.set({ note: "second" });
-    await expect(Pick.one([1, "a"])).resolves.toEqual({ id: [1, "a"], account: 1, kind: "a", note: "second" });
+    await expect(Pick.one([1, "a"])).resolves.toEqual({ id: '[1,"a"]', account: 1, kind: "a", note: "second" });
 
     await expect(Pick.insert({ account: 1, kind: "a", note: "third" }, { conflict: "update" }))
       .resolves.toMatchObject({ note: "third" });
