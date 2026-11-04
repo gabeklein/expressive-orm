@@ -1062,7 +1062,7 @@ describe("valid", () => {
 
   it("will accept a primary key not declared NOT NULL", async () => {
     await expect(check(Author, "CREATE TABLE author (id INTEGER PRIMARY KEY, name TEXT NOT NULL, rank INTEGER)"))
-      .resolves.toBe(true);
+      .resolves.toEqual([]);
   })
 
   it("will throw for a mismatched nullable", async () => {
