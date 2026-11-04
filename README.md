@@ -337,7 +337,7 @@ console.log(String(admins));
 ## Transactions
 
 ```ts
-const moved = await db.transaction(async () => {
+const ann = await db.transaction(async () => {
   const ann = await User.insert({ name: "Ann", email: "ann@example.com" });
 
   await User.update(gabe.id, { admin: true });
@@ -346,9 +346,9 @@ const moved = await db.transaction(async () => {
 });
 ```
 
-`transaction(fn)` runs `fn` in one database transaction: it commits when `fn` resolves, to its result, and rolls back when it throws, rethrowing. Statements inside - statics, `Query`, instance writes - join it without a handle; a nested `transaction` joins the open one. Other statements on the connection wait until it ends, and transactions run one at a time. Instances change as writes land; a rollback restores what they changed, destroys entities created inside, and keeps entities deleted inside, which a commit then destroys. Values read into an instance inside a rolled-back transaction stay.
+`transaction(fn)` runs `fn` in one database transaction: it commits when `fn` resolves, to its result, and rolls back when it throws, rethrowing. Statements inside - statics, `Query`, instance writes, and effects they trigger - join it without a handle. A nested `transaction` joins the open one, so a nested failure is undone only if it reaches the outer `fn`; caught, its writes commit with the rest. Instances change as writes land; a rollback restores what they changed, destroys entities created inside, and keeps entities deleted inside, which a commit then destroys. Values read into an instance inside a rolled-back transaction stay.
 
-SQLite and Postgres connections support it; `pg` runs it on one client from the pool. It needs `AsyncLocalStorage` - Bun, Node, Deno and Workers - and throws where that is missing, such as PGlite in a browser. `memory()` has no transactions.
+On SQLite and PGlite, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite in a browser. `memory()` has no transactions.
 
 ## Live rows
 
@@ -433,7 +433,7 @@ A connection is a `Connection`, itself a Model. The floor every driver implement
 
 A composite `id` reaches the driver as its tuple, in the order `key` lists the parts; `fields.get("id").parts` lists them.
 
-Optional capabilities: `prepare(builder)` runs a `Query` - without it `Query` and `Type.query` throw; `subscribe(listener)` reports changes for live rows; `sync(fix?)` checks or creates the schema, and runs when the connection is awaited; `transaction(fn)` runs `fn` in one transaction. `@expressive/sql`'s `Connection` implements `transaction` over a protected `transact(fn)` - `BEGIN`, `fn`, `COMMIT` or `ROLLBACK` - and a driver calls `idle()` before each statement so it waits out another's transaction.
+Optional capabilities: `prepare(builder)` runs a `Query` - without it `Query` and `Type.query` throw; `subscribe(listener)` reports changes for live rows; `sync(fix?)` checks or creates the schema, and runs when the connection is awaited; `transaction(fn)` runs `fn` in one transaction. `@expressive/sql`'s `Connection` implements `transaction` over a protected `transact(fn)` - `BEGIN`, `fn`, `COMMIT` or `ROLLBACK` - and a driver calls `idle()` before each statement so it waits out another's transaction; a pooled driver overrides `lock()` and `idle()` to run transactions side by side.
 
 To write a driver, extend `Connection` from `@expressive/orm` and implement the floor - entities, relations, writes and the identity map work on that alone. For a SQL database extend `Connection` from `@expressive/sql`: it implements the floor over `Query`, leaving `prepare` (with a `Generator` subclass for the dialect) and `sync`.
 
