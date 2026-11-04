@@ -2144,3 +2144,139 @@ describe("composite key", () => {
     await expect(Bad.find()).rejects.toThrow("Bad.id must list fields to key by, like key(() => [this.a, this.b]).");
   })
 })
+
+describe("journal", () => {
+  function journaled(){
+    const db = memory();
+    const record: Connection.Journal = { undo: [], done: [] };
+    let open = false;
+
+    Object.defineProperty(db, "subscribe", { value: undefined });
+    Object.assign(db, { _journal: () => open ? record : undefined });
+
+    const begin = () => {
+      open = true;
+      record.undo.length = record.done.length = 0;
+    };
+
+    const end = (commit: boolean) => {
+      open = false;
+      (commit ? record.done : record.undo.reverse()).forEach(apply => apply());
+    };
+
+    return { db, begin, end };
+  }
+
+  it("will undo a set", async () => {
+    const { db, begin, end } = journaled();
+
+    class User extends Type {
+      static connection = db;
+      name = str();
+    }
+
+    const user = await User.new({ name: "Gabe" });
+
+    begin();
+    await user.set({ name: "Bob" });
+    await User.update(user.id, { name: "Ann" });
+
+    expect(user.name).toBe("Ann");
+
+    end(false);
+
+    expect(user.name).toBe("Gabe");
+  })
+
+  it("will undo a settled upsert", async () => {
+    const { db, begin, end } = journaled();
+
+    class Asset extends Type {
+      static connection = db;
+      id = str({ primary: true });
+      file = str();
+    }
+
+    await Asset.insert({ id: "a", file: "one" });
+
+    const asset = await Asset.get("a");
+
+    begin();
+    await Asset.insert({ id: "a", file: "two" }, { conflict: "update" });
+
+    expect(asset.file).toBe("two");
+
+    end(false);
+
+    expect(asset.file).toBe("one");
+  })
+
+  it("will evict a created entity on undo", async () => {
+    const { db, begin, end } = journaled();
+
+    class User extends Type {
+      static connection = db;
+      name = str();
+    }
+
+    begin();
+
+    const user = await User.new({ name: "Gabe" });
+
+    end(false);
+
+    expect(user.get(null)).toBe(true);
+    expect(User.loaded.size).toBe(0);
+  })
+
+  it("will evict a deleted entity once done", async () => {
+    const { db, begin, end } = journaled();
+
+    class User extends Type {
+      static connection = db;
+      name = str();
+    }
+
+    const gabe = await User.new({ name: "Gabe" });
+    const bob = await User.new({ name: "Bob" });
+
+    begin();
+    await gabe.delete();
+    await User.delete(bob.id);
+
+    expect(gabe.get(null)).toBe(false);
+    expect(User.loaded.size).toBe(2);
+
+    end(true);
+
+    expect(gabe.get(null)).toBe(true);
+    expect(bob.get(null)).toBe(true);
+    expect(User.loaded.size).toBe(0);
+  })
+
+  it("will rekey a composite entity on undo", async () => {
+    const { db, begin, end } = journaled();
+
+    class Pick extends Type {
+      static connection = db;
+      id = key(() => [this.account, this.kind]);
+      account = num();
+      kind = str();
+    }
+
+    await Pick.insert({ account: 1, kind: "a" });
+
+    const pick = await Pick.get([1, "a"]);
+
+    begin();
+    await pick.set({ kind: "b" });
+
+    expect(Pick.get([1, "b"])).toBe(pick);
+
+    end(false);
+
+    expect(pick.id).toBe('[1,"a"]');
+    expect(Pick.get([1, "a"])).toBe(pick);
+    expect(Pick.loaded.has('[1,"b"]')).toBe(false);
+  })
+})

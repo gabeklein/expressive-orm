@@ -18,6 +18,11 @@ declare namespace Connection {
     update?: string[];
   };
 
+  type Journal = {
+    undo: (() => void)[];
+    done: (() => void)[];
+  };
+
   type Change = {
     table: string;
     op: "insert" | "update" | "delete";
@@ -94,6 +99,12 @@ abstract class Connection extends Model {
   abstract update(table: string, id: Connection.Key, data: Record<string, any>): Promise<void>;
 
   abstract remove(table: string, id: Connection.Key): Promise<void>;
+
+  _journal(): Connection.Journal | undefined {
+    return undefined;
+  }
+
+  transaction?<T>(fn: () => T | Promise<T>): Promise<T>;
 
   prepare?(builder: Builder): Builder.Statement;
 

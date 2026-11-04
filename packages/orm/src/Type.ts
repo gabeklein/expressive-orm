@@ -131,6 +131,29 @@ async function decode(type: typeof Type, row: Record<string, any>, partial?: boo
   return values;
 }
 
+function journal(entity: Type) {
+  return (entity.constructor as typeof Type).connection._journal();
+}
+
+function track(entity: Type, values: Record<string, unknown>) {
+  const record = journal(entity);
+
+  if (!record)
+    return;
+
+  const before: Record<string, unknown> = {};
+
+  for (const key in values)
+    before[key] = entity.get(key as any, false);
+
+  record.undo.push(() => {
+    const key = slot(entity.id);
+
+    settle(entity, before);
+    rekey(entity, key);
+  });
+}
+
 function settle(entity: Type, values: Record<string, unknown>) {
   for (const key in values) {
     const next = values[key];
@@ -195,6 +218,16 @@ function rekey(entity: Type, before: unknown) {
     loaded.delete(before);
     loaded.set(after, entity);
   }
+}
+
+function retire(entity: Type, key: unknown) {
+  const { loaded } = entity.constructor as typeof Type;
+  const record = journal(entity);
+
+  if (record)
+    record.done.push(() => evict(loaded, key, entity));
+  else
+    evict(loaded, key, entity);
 }
 
 function evict(loaded: Map<unknown, Type>, key: unknown, entity: Type) {
@@ -284,13 +317,13 @@ abstract class Type extends Model {
     exists(this);
 
     const type = this.constructor as typeof Type;
-    const { connection, loaded, ref } = type;
+    const { connection, ref } = type;
 
     if (typeof this.onDelete === "function")
       await this.onDelete();
 
     await connection.remove(ref, locate(type, this.id));
-    evict(loaded, slot(this.id), this);
+    retire(this, slot(this.id));
   }
 
   static schema?: string;
@@ -362,6 +395,7 @@ abstract class Type extends Model {
 
         settle(entity, await decode(type, inserted));
         loaded.set(slot(entity.id), entity);
+        journal(entity)?.undo.push(() => evict(loaded, slot(entity.id), entity));
       }
       catch (error) {
         if (AWAITED.has(entity))
@@ -381,7 +415,10 @@ abstract class Type extends Model {
     await connection.update(ref, locate(this, id), row);
 
     if (entity) {
-      settle(entity, await decode(this, row, true));
+      const values = await decode(this, row, true);
+
+      track(entity, values);
+      settle(entity, values);
       rekey(entity, key);
     }
   }
@@ -402,8 +439,12 @@ abstract class Type extends Model {
     const columns = await row(fields, inserted) as Type.Columns<T>;
     const entity = loaded.get(slot(columns.id));
 
-    if (entity)
-      settle(entity, await decode(this, inserted));
+    if (entity) {
+      const values = await decode(this, inserted);
+
+      track(entity, values);
+      settle(entity, values);
+    }
 
     return columns;
   }
@@ -417,7 +458,7 @@ abstract class Type extends Model {
     const entity = loaded.get(key);
 
     if (entity)
-      evict(loaded, key, entity);
+      retire(entity, key);
   }
 
   static async one<T extends Type>(this: Type.Class<T>, where: Type.Id<T> | Type.Query<T> | undefined, expect: boolean): Promise<Type.Columns<T> | undefined>;
@@ -573,7 +614,11 @@ async function persist(entity: Type, patch: Type.Update<Type>) {
   if (Object.keys(row).length)
     await type.connection.update(type.ref, locate(type, entity.id), row);
 
-  const updated = settle(entity, await decode(type, row, true));
+  const values = await decode(type, row, true);
+
+  track(entity, values);
+
+  const updated = settle(entity, values);
 
   rekey(entity, key);
 
