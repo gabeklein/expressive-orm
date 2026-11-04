@@ -27,6 +27,7 @@ export class Generator {
       this.where(),
       this.order(),
       this.limit(),
+      this.upsert(),
       this.returning()
     ];
 
@@ -65,6 +66,24 @@ export class Generator {
       `(${keys}) SELECT ${values}`,
       tables.size > 1 && this.from()
     ];
+  }
+
+  protected upsert(){
+    const { conflict } = this.query;
+
+    if (!conflict)
+      return;
+
+    const on = `ON CONFLICT (${conflict.on.map(field => this.escape(field.column))})`;
+
+    if (!conflict.update)
+      return [on, 'DO NOTHING'];
+
+    const set = (conflict.update.length ? conflict.update : conflict.on).map(({ column }) => (
+      `${this.escape(column)} = excluded.${this.escape(column)}`
+    ));
+
+    return [on, 'DO UPDATE SET', set.join(', ')];
   }
 
   protected returning(){

@@ -4,10 +4,11 @@ import { join } from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { asc, bool, Builder, date, desc, greaterThan, isIn, isLike, isNull, json, notIn, notNull, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
+import { asc, bool, Builder, date, desc, greaterThan, isIn, isLike, isNull, json, key, notIn, notNull, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
 
 import { spy } from '../../test.setup';
 
+import type { Connection } from '../connection/Connection';
 import { SQLiteConnection } from './SQLiteConnection';
 import { TestConnection } from './TestConnection';
 
@@ -849,6 +850,169 @@ describe("renamed key column", () => {
 
     await doc.delete();
     await expect(Doc.one("a1", false)).resolves.toBeUndefined();
+  })
+})
+
+describe("conflict", () => {
+  class Asset extends Type {
+    id = str({ primary: true });
+    file = str({ unique: true });
+    made = num();
+  }
+
+  function statements(db: Connection.Ready<SQLiteConnection>){
+    const prepare = spy(db, "prepare");
+
+    return () => prepare.mock.results.map(result => String(result.value));
+  }
+
+  it("will update a conflicting row", async () => {
+    const db = await TestConnection.new([Asset]);
+    const sql = statements(db);
+
+    await Asset.insert({ id: "a", file: "one", made: 1 });
+    await expect(Asset.insert({ id: "a", file: "two", made: 2 }, { conflict: "update", keep: ["made"] }))
+      .resolves.toEqual({ id: "a", file: "two", made: 1 });
+    await expect(db.select("asset", [])).resolves.toEqual([{ id: "a", file: "two", made: 1 }]);
+
+    expect(sql()[1]).toMatchInlineSnapshot(`
+      "INSERT INTO
+        asset (id, file, made)
+      SELECT
+        ?,
+        ?,
+        ? ON CONFLICT (id) DO
+      UPDATE
+      SET
+        file = excluded.file RETURNING asset.id AS "id",
+        asset.file AS "file",
+        asset.made AS "made""
+    `);
+  })
+
+  it("will ignore a conflicting row", async () => {
+    const db = await TestConnection.new([Asset]);
+    const sql = statements(db);
+
+    await Asset.insert({ id: "a", file: "one", made: 1 });
+    await expect(Asset.insert({ id: "b", file: "one", made: 2 }, { conflict: "ignore", on: "file" }))
+      .resolves.toBeUndefined();
+    await expect(db.select("asset", [])).resolves.toEqual([{ id: "a", file: "one", made: 1 }]);
+
+    expect(sql()[1]).toMatchInlineSnapshot(`
+      "INSERT INTO
+        asset (id, file, made)
+      SELECT
+        ?,
+        ?,
+        ? ON CONFLICT (file) DO NOTHING RETURNING asset.id AS "id",
+        asset.file AS "file",
+        asset.made AS "made""
+    `);
+  })
+
+  it("will return the row with nothing left to update", async () => {
+    const db = await TestConnection.new([Asset]);
+    const sql = statements(db);
+
+    await Asset.insert({ id: "a", file: "one", made: 1 });
+    await expect(Asset.insert({ id: "a", file: "two", made: 2 }, { conflict: "update", keep: ["file", "made"] }))
+      .resolves.toEqual({ id: "a", file: "one", made: 1 });
+
+    expect(sql()[1]).toMatchInlineSnapshot(`
+      "INSERT INTO
+        asset (id, file, made)
+      SELECT
+        ?,
+        ?,
+        ? ON CONFLICT (id) DO
+      UPDATE
+      SET
+        id = excluded.id RETURNING asset.id AS "id",
+        asset.file AS "file",
+        asset.made AS "made""
+    `);
+  })
+})
+
+describe("composite key", () => {
+  class Account extends Type {
+    name = str();
+  }
+
+  class Pick extends Type {
+    id = key<[number, string]>("account", "kind");
+    account = one(Account);
+    kind = str();
+    note = str(orNull);
+  }
+
+  it("will create a composite primary key", () => {
+    const db = TestConnection.new([Account, Pick]);
+
+    expect(db.schema).toMatchInlineSnapshot(`
+      "CREATE TABLE
+        account (
+          id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL
+        );
+
+      CREATE TABLE
+        pick (
+          account_id INTEGER NOT NULL REFERENCES account (id),
+          kind TEXT NOT NULL,
+          note TEXT,
+          PRIMARY KEY (account_id, kind)
+        );"
+    `);
+  })
+
+  it("will round trip by tuple", async () => {
+    const db = await TestConnection.new([Account, Pick]);
+
+    await Account.insert({ name: "Gabe" });
+    await expect(Pick.insert({ account: 1, kind: "a", note: "first" }))
+      .resolves.toEqual({ id: [1, "a"], account: 1, kind: "a", note: "first" });
+    await Pick.insert({ account: 1, kind: "b" });
+
+    const pick = await Pick.get([1, "a"]);
+
+    await pick.set({ note: "second" });
+    await Pick.update([1, "b"], { note: "third" });
+    await expect(db.select("pick", [])).resolves.toEqual([
+      { account_id: 1, kind: "a", note: "second" },
+      { account_id: 1, kind: "b", note: "third" }
+    ]);
+
+    await pick.delete();
+    await Pick.delete([1, "b"]);
+    await expect(db.select("pick", [])).resolves.toEqual([]);
+  })
+
+  it("will upsert on the composite key", async () => {
+    await TestConnection.new([Account, Pick]);
+    await Account.insert({ name: "Gabe" });
+    await Pick.insert({ account: 1, kind: "a", note: "first" });
+
+    await expect(Pick.insert({ account: 1, kind: "a", note: "second" }, { conflict: "update" }))
+      .resolves.toMatchObject({ note: "second" });
+    await expect(Pick.insert({ account: 1, kind: "a" }, { conflict: "ignore" }))
+      .resolves.toBeUndefined();
+  })
+
+  it("will adopt an existing table", async () => {
+    const db = SQLiteConnection.new([Account, Pick]);
+    const engine = await db["db"]();
+
+    await engine.exec(`
+      CREATE TABLE account (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL);
+      CREATE TABLE pick (account_id INTEGER NOT NULL, kind TEXT NOT NULL, note TEXT, PRIMARY KEY (account_id, kind));
+      INSERT INTO pick VALUES (1, 'a', 'kept');
+    `);
+
+    await db;
+    await expect(Pick.one([1, "a"])).resolves.toMatchObject({ note: "kept" });
+    await db.close();
   })
 })
 

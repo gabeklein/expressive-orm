@@ -129,6 +129,9 @@ export class SQLiteConnection extends Connection {
     const absent: Field[] = [];
 
     for (const field of type.fields.values()) {
+      if (field.parts)
+        continue;
+
       const columnInfo = columns.find(col => col.name === field.column);
 
       if (columnInfo)
@@ -198,7 +201,11 @@ export class SQLiteConnection extends Connection {
   }
 
   protected generateTableSchema(type: Query.Table): string {
-    const fields = Array.from(type.fields.values(), definition);
+    const { parts } = type.fields.get("id")!;
+    const fields = Array.from(type.fields.values()).filter(field => !field.parts).map(definition);
+
+    if (parts)
+      fields.push(`PRIMARY KEY (${parts.map(part => `\`${part.column}\``).join(', ')})`);
 
     return `CREATE TABLE ${type.table} (${fields.join(', ')});`;
   }

@@ -12,6 +12,10 @@ declare namespace Connection {
   type Ready<T extends Connection = Connection> = Base.Ready<T>;
 
   type Change = Base.Change;
+
+  type Conflict = Base.Conflict;
+
+  type Key = Base.Key;
 }
 
 function ref({ schema, table }: Query.Table){
@@ -52,7 +56,7 @@ abstract class Connection extends Base {
     return rows.map(raw => decode(builder, raw));
   }
 
-  async insert(table: string, data: Record<string, any>, returns?: boolean){
+  async insert(table: string, data: Record<string, any>, returns?: boolean, conflict?: Connection.Conflict){
     const { builder, target, bind, run } = statement(this, table);
     const values: Builder.Insert = new Map();
 
@@ -62,6 +66,12 @@ abstract class Connection extends Base {
 
     builder.inserts.set(target, values);
 
+    if (conflict)
+      builder.conflict = {
+        on: conflict.on.map(column => lookup(target, column)),
+        update: conflict.update?.map(column => lookup(target, column))
+      };
+
     if (!returns)
       return this.prepare(builder).run(run());
 
@@ -69,10 +79,10 @@ abstract class Connection extends Base {
 
     const [row] = await this.prepare(builder).all(run());
 
-    return decode(builder, row);
+    return row && decode(builder, row);
   }
 
-  async update(table: string, id: string | number, data: Record<string, any>){
+  async update(table: string, id: Connection.Key, data: Record<string, any>){
     const { builder, target, bind, run } = statement(this, table);
     const values: Builder.Insert = new Map();
 
@@ -80,19 +90,28 @@ abstract class Connection extends Base {
       values.set(lookup(target, column), bind(data[column]));
 
     builder.updates.set(target, values);
-    builder.filters.add(target.fields.get("id")!, '=', bind(id));
+    identify(builder, target, id, bind);
 
     await this.prepare(builder).run(run());
   }
 
-  async remove(table: string, id: string | number){
+  async remove(table: string, id: Connection.Key){
     const { builder, target, bind, run } = statement(this, table);
 
     builder.deletes.add(target);
-    builder.filters.add(target.fields.get("id")!, '=', bind(id));
+    identify(builder, target, id, bind);
 
     await this.prepare(builder).run(run());
   }
+}
+
+function identify(builder: Builder, target: Builder.ITable, id: Connection.Key, bind: (value: unknown) => Parameter){
+  const { parts } = target.fields.get("id")!;
+
+  if (parts)
+    parts.forEach((part, i) => builder.filters.add(lookup(target, part.column), '=', bind((id as unknown[])[i])));
+  else
+    builder.filters.add(target.fields.get("id")!, '=', bind(id));
 }
 
 function statement(connection: Connection, table: string){

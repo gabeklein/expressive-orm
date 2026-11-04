@@ -41,6 +41,7 @@ const NOTIFY = `
 CREATE OR REPLACE FUNCTION expressive_notify() RETURNS trigger AS $$
 DECLARE
   rec jsonb;
+  id jsonb;
   payload jsonb;
 BEGIN
   IF TG_OP = 'DELETE' THEN
@@ -49,7 +50,17 @@ BEGIN
     rec := to_jsonb(NEW);
   END IF;
 
-  payload := jsonb_build_object('table', TG_TABLE_NAME, 'op', lower(TG_OP), 'id', rec -> TG_ARGV[0]);
+  IF TG_NARGS > 1 THEN
+    id := '[]'::jsonb;
+
+    FOR i IN 0 .. TG_NARGS - 1 LOOP
+      id := id || jsonb_build_array(rec -> TG_ARGV[i]);
+    END LOOP;
+  ELSE
+    id := rec -> TG_ARGV[0];
+  END IF;
+
+  payload := jsonb_build_object('table', TG_TABLE_NAME, 'op', lower(TG_OP), 'id', id);
 
   IF TG_OP <> 'DELETE' AND octet_length((payload || jsonb_build_object('row', rec))::text) < 8000 THEN
     payload := payload || jsonb_build_object('row', rec);
@@ -272,20 +283,29 @@ export abstract class PostgresConnection extends Connection {
   }
 
   protected generateTriggers(types: Iterable<Query.Table>): string {
-    const triggers = Array.from(types, ({ table, fields }) => (
-      `CREATE OR REPLACE TRIGGER "${table}_notify" AFTER INSERT OR UPDATE OR DELETE ON "${table}" ` +
-      `FOR EACH ROW EXECUTE FUNCTION expressive_notify('${fields.get("id")!.column}');`
-    ));
+    const triggers = Array.from(types, ({ table, fields }) => {
+      const { column, parts = [{ column }] } = fields.get("id")!;
+
+      return (
+        `CREATE OR REPLACE TRIGGER "${table}_notify" AFTER INSERT OR UPDATE OR DELETE ON "${table}" ` +
+        `FOR EACH ROW EXECUTE FUNCTION expressive_notify(${parts.map(part => `'${part.column}'`).join(", ")});`
+      );
+    });
 
     return [NOTIFY, ...triggers].join('\n');
   }
 
   protected generateTableSchema(type: Query.Table) {
     const { table, fields } = type;
-    const values = Array.from(fields.values());
+    const { parts } = fields.get("id")!;
+    const values = Array.from(fields.values()).filter(field => !field.parts);
+    const columns = values.map(definition);
+
+    if (parts)
+      columns.push(`PRIMARY KEY (${parts.map(part => `"${part.column}"`).join(", ")})`);
 
     return {
-      table: `CREATE TABLE "${table}" (${values.map(definition).join(", ")});`,
+      table: `CREATE TABLE "${table}" (${columns.join(", ")});`,
       constraints: values.flatMap(field => foreignKey(table, field)).join('\n')
     };
   }
