@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { asc, bool, Builder, date, desc, greaterThan, index, isIn, isLike, isNull, json, key, notIn, notNull, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
+import { asc, bool, Builder, date, desc, greaterThan, index, isIn, isLike, isNull, json, key, lessThan, notIn, notNull, now, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
 
 import { spy } from '../../test.setup';
 
@@ -132,7 +132,7 @@ describe("schema", () => {
           name TEXT NOT NULL DEFAULT 'it''s',
           rank INTEGER NOT NULL UNIQUE DEFAULT 3,
           note TEXT DEFAULT NULL,
-          created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          created TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now'))
         );"
     `);
   });
@@ -1379,6 +1379,112 @@ describe("index", () => {
     expect(await indexes(conn, "post")).toEqual(["existing", "pair", "post_slug"]);
 
     await conn.close();
+  })
+})
+
+describe("timestamps", () => {
+  it("will fill created and updated from the database", async () => {
+    class Post extends Type {
+      title = str();
+      created = date.created({ type: "ms" });
+      updated = date.updated();
+    }
+
+    const conn = await TestConnection.new([Post]);
+    const before = Date.now();
+    const post = await Post.insert({ title: "a" });
+
+    expect(conn.schema.replace(/\s+/g, " ")).toContain("created INTEGER NOT NULL DEFAULT ( CAST( (JULIANDAY('now') - 2440587.5) * 86400000 AS INTEGER ) )");
+    expect(post.created.getTime()).toBeGreaterThanOrEqual(before - 5);
+    expect(post.updated.toISOString()).toMatch(/\.\d{3}Z$/);
+
+    await Post.update(post.id, { title: "b", created: new Date(0) });
+
+    const after = await Post.one(post.id);
+
+    expect(after.created).toEqual(post.created);
+    expect(after.updated.getTime()).toBeGreaterThanOrEqual(post.updated.getTime());
+  })
+
+  it("will keep created on replace", async () => {
+    class Image extends Type {
+      id = key({ type: "text", column: "name" });
+      prompt = str(null);
+      created = date.created();
+      mtime = date.updated();
+    }
+
+    await TestConnection.new([Image]);
+
+    const first = await Image.insert({ id: "a", prompt: "p", created: new Date(1) });
+    const second = await Image.insert({ id: "a" }, { conflict: "replace" });
+
+    expect(second.created).toEqual(new Date(1));
+    expect(second.prompt).toBeUndefined();
+    expect(second.mtime.getTime()).toBeGreaterThanOrEqual(first.mtime.getTime());
+  })
+
+  it("will compare and write the database time", async () => {
+    class Session extends Type {
+      id = key({ type: "text" });
+      expires = date({ type: "ms" });
+    }
+
+    await TestConnection.new([Session]);
+    await Session.insert({ id: "old", expires: new Date(1) });
+    await Session.insert({ id: "new", expires: new Date(Date.now() + 60000) });
+
+    expect(await Session.delete({ expires: lessThan(now) })).toBe(1);
+    expect(await Session.count()).toBe(1);
+
+    await Query(where => {
+      const session = where(Session);
+
+      where(session.expires).over(now);
+      where(session).update({ expires: now });
+    });
+
+    expect((await Session.one("new")).expires.getTime()).toBeLessThanOrEqual(Date.now());
+  })
+
+  it("will not add a column defaulting to now", async () => {
+    class Post extends Type {
+      title = str();
+      at = date.created({ type: "ms" });
+    }
+
+    const conn = SQLiteConnection.new([Post]);
+    const db = await conn["db"]();
+
+    await db.exec("CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT NOT NULL)");
+    await expect(conn.sync()).rejects.toThrow("Column at in table post defaults to the current time and cannot be added by SQLite.");
+    await conn.close();
+  })
+})
+
+describe("query writes", () => {
+  class Asset extends Type {
+    kind = str();
+    file = str();
+    loras = json<{ file: string }[]>(null);
+  }
+
+  it("will match, update and delete by columns", async () => {
+    await TestConnection.new([Asset]);
+    await Asset.insert({ kind: "loras", file: "a", loras: [{ file: "x" }] });
+    await Asset.insert({ kind: "loras", file: "b", loras: [{ file: "y" }] });
+    await Asset.insert({ kind: "models", file: "a" });
+
+    expect(await Asset.count({ kind: "loras", file: "a" })).toBe(1);
+    expect(await Asset.count({ loras: isLike('%"x"%') })).toBe(1);
+    expect(await Asset.update({ kind: "loras", file: "a" }, { file: "c" })).toBe(1);
+    expect((await Asset.find({ loras: isLike('%"y"%') })).map(asset => asset.file)).toEqual(["b"]);
+    expect(await Asset.delete({ file: "a" })).toBe(1);
+    expect(await Query(where => {
+      const asset = where(Asset);
+
+      where(asset).match({ kind: "loras", file: "c" });
+    })).toBe(1);
   })
 })
 

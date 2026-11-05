@@ -1,4 +1,7 @@
+import { now } from '@expressive/orm';
+
 const sql = {
+  now,
   text: { type: "text" },
   uuid: { type: "uuid" },
   integer: { type: "integer" },

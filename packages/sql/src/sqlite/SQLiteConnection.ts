@@ -1,9 +1,9 @@
-import { Builder, Field, Query } from '@expressive/orm';
+import { Builder, Field, now, Query } from '@expressive/orm';
 import { Connection } from '../connection/Connection';
 import { format } from 'sql-formatter';
 
 import { createEngine, Engine } from './engine';
-import { SQLiteGenerator } from './SQLiteGenerator';
+import { now as current, SQLiteGenerator } from './SQLiteGenerator';
 
 type TableInfo = {
   name: string;
@@ -454,7 +454,7 @@ function unfit({ primary, unique, nullable, fallback }: Field){
   if (!nullable && fallback === undefined)
     return "is NOT NULL without a default and cannot be added to existing rows.";
 
-  if (fallback === "NOW")
+  if (fallback === "NOW" || fallback === now)
     return "defaults to the current time and cannot be added by SQLite.";
 }
 
@@ -484,8 +484,8 @@ function affinity(field: Field){
 }
 
 function literal(field: Field, value: unknown){
-  if (value === "NOW")
-    return "CURRENT_TIMESTAMP";
+  if (value === "NOW" || value === now)
+    return `(${current(field)})`;
 
   if (value === null)
     return "NULL";

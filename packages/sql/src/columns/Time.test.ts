@@ -55,7 +55,7 @@ describe("schema", () => {
 
     const { schema } = TestConnection.new([ Records ]);
 
-    expect(String(schema)).toContain("created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP");
+    expect(String(schema)).toContain("created TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now'))");
   });
 });
 
@@ -75,6 +75,13 @@ describe("ms", () => {
 
     expect(field.set(value)).toBe(value.getTime() / 1000);
     expect((field.get(value.getTime() / 1000) as Date).toISOString()).toBe(value.toISOString());
+  })
+
+  it("will read SQLite's own UTC text as UTC", () => {
+    const field = column(() => date());
+
+    expect((field.get("2026-11-05 07:55:04") as Date).toISOString()).toBe("2026-11-05T07:55:04.000Z");
+    expect((field.get("2026-11-05 07:55:04.250") as Date).toISOString()).toBe("2026-11-05T07:55:04.250Z");
   })
 
   it("will round trip through SQLite", async () => {

@@ -70,6 +70,9 @@ export class TimeColumn extends date.Type {
     if (typeof value === 'string' && this.type === "time")
       return new Date(`1970-01-01T${value}Z`);
 
+    if (typeof value === 'string' && /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d(\.\d+)?$/.test(value))
+      return new Date(value.replace(" ", "T") + "Z");
+
     return new Date(value as string | Date);
   }
 

@@ -1,4 +1,4 @@
-import { Builder, Computed, DataField, DataTable, Field, Parameter, QueryTemplate } from '@expressive/orm';
+import { Builder, Computed, DataField, DataTable, Field, now, Parameter, QueryTemplate } from '@expressive/orm';
 
 import { escape } from '../utils';
 
@@ -51,7 +51,7 @@ export class Generator {
 
     for (const [field, value] of data) {
       keys.push(this.escape(field.column));
-      values.push(this.value(value));
+      values.push(this.value(value, field));
     }
 
     if (!keys.length && tables.size > 1)
@@ -111,11 +111,18 @@ export class Generator {
       return 'WITH ' + cte.join();
   }
 
-  protected value(input: unknown){
+  protected value(input: unknown, field?: Field){
+    if(input === now)
+      return this.now(field);
+
     if(isValue(input))
       return this.reference(input);
 
     return String(escape(input));
+  }
+
+  protected now(_field?: Field){
+    return "CURRENT_TIMESTAMP";
   }
 
   protected jsonTable(_table: DataTable): string {
@@ -168,6 +175,7 @@ export class Generator {
     for(const [_table, data] of updates)
       for(const [field, value] of data)
         sets.push(`${this.escape(field.column)} = ${
+          value === now ? this.now(field) :
           isValue(value) ? this.reference(value) :
           value === null ? 'NULL' :
           escape(value)
@@ -260,7 +268,11 @@ export class Generator {
   }
 
   protected filter(left: Field, op: string, right: unknown){
-    const raw = (value: unknown) => isValue(value) ? this.reference(value) : escape(left.set(value));
+    const raw = (value: unknown) => (
+      value === now ? this.now(left) :
+      isValue(value) ? this.reference(value) :
+      escape(op.includes("LIKE") ? value : left.set(value))
+    );
 
     if (right === null){
       if(op == '=')

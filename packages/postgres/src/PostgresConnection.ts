@@ -1,10 +1,10 @@
 import './columns';
 
-import { Builder, Field, Query, Type } from '@expressive/orm';
+import { Builder, Field, now, Query, Type } from '@expressive/orm';
 import { Connection } from '@expressive/sql';
 import { format } from 'sql-formatter';
 
-import { PostgresGenerator } from './PostgresGenerator';
+import { now as current, PostgresGenerator } from './PostgresGenerator';
 
 const TYPE_SYNONYMS: Record<string, string> = {
   "int": "integer",
@@ -503,8 +503,8 @@ function parse(payload: string): Connection.Change | undefined {
 }
 
 function literal(field: Field, value: unknown){
-  if (value === "NOW")
-    return "CURRENT_TIMESTAMP";
+  if (value === "NOW" || value === now)
+    return current(field);
 
   if (value === null)
     return "NULL";

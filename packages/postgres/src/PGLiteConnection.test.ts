@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, test, vi } from 'vitest';
 
 import { PGlite } from '@electric-sql/pglite';
 
-import { asc, bool, date, desc, greaterThan, index, isIn, isLike, isNull, json, key, notIn, notNull, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
+import { asc, bool, date, desc, greaterThan, index, isIn, lessThan, now, isLike, isNull, json, key, notIn, notNull, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
 import type { Connection } from '@expressive/sql';
 
 import { PGLiteConnection } from './PGLiteConnection';
@@ -489,6 +489,47 @@ describe("schema", () => {
     );
 
     expect(rows.map(row => row.indexname)).toEqual(["by_author", "post_slug"]);
+  })
+
+  it("will fill created and updated from the database", async () => {
+    class Post extends Type {
+      title = str();
+      created = date.created({ type: "ms" });
+      updated = date.updated();
+    }
+
+    await TestConnection.new([Post]);
+
+    const before = Date.now();
+    const post = await Post.insert({ title: "a" });
+
+    expect(post.created.getTime()).toBeGreaterThanOrEqual(before - 1000);
+    expect(Math.abs(post.updated.getTime() - Date.now())).toBeLessThan(5000);
+
+    await Post.update(post.id, { title: "b", created: new Date(0) });
+
+    expect((await Post.one(post.id)).created).toEqual(post.created);
+  })
+
+  it("will compare and write the database time", async () => {
+    class Session extends Type {
+      expires = date({ type: "ms" });
+    }
+
+    await TestConnection.new([Session]);
+    await Session.insert({ expires: new Date(1) });
+    await Session.insert({ expires: new Date(Date.now() + 60000) });
+
+    expect(await Session.delete({ expires: lessThan(now) })).toBe(1);
+
+    await Query(where => {
+      const session = where(Session);
+
+      where(session.expires).over(now);
+      where(session).update({ expires: now });
+    });
+
+    expect((await Session.one()).expires.getTime()).toBeLessThanOrEqual(Date.now() + 1000);
   })
 
   it("will round trip epoch milliseconds", async () => {
