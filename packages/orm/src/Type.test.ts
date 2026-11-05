@@ -2080,6 +2080,33 @@ describe("query writes", () => {
     expect(await Item.count({ file: isLike("1%") })).toBe(2);
   })
 
+  it("will match a relation by its columns", async () => {
+    const connection = memory();
+
+    class Author extends Type {
+      static connection = connection;
+      name = str();
+    }
+
+    class Post extends Type {
+      static connection = connection;
+      author = one(Author);
+      title = str();
+    }
+
+    const ann = await Author.insert({ name: "ann" });
+    const bob = await Author.insert({ name: "bob" });
+
+    await Post.insert({ author: ann.id, title: "a" });
+    await Post.insert({ author: bob.id, title: "b" });
+
+    expect(await Post.count({ author: { name: "ann" } })).toBe(1);
+    expect(await Post.count({ author: isIn([ann.id, { name: "bob" }]) })).toBe(2);
+    expect(await Post.update({ author: { name: "bob" } }, { title: "c" })).toBe(1);
+    expect(await Post.delete({ author: { name: "ann" } })).toBe(1);
+    expect((await Post.find()).map(post => post.title)).toEqual(["c"]);
+  })
+
   it("will match null as missing", async () => {
     await seed();
 

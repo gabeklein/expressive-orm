@@ -480,7 +480,7 @@ abstract class Type extends Model {
   }
 
   static async count<T extends Type>(this: Type.Class<T>, where: Type.Query<T> = {}): Promise<number> {
-    return matching(this, conditions(this, where, true));
+    return matching(this, await conditions(this, where, true));
   }
 
   static async one<T extends Type>(this: Type.Class<T>, where: Type.Id<T> | Type.Query<T> | undefined, expect: boolean): Promise<Type.Columns<T> | undefined>;
@@ -706,14 +706,22 @@ function isQuery(where: unknown): where is Type.Query<any> {
   return typeof where == "object" && where !== null && !Array.isArray(where);
 }
 
-function conditions(type: typeof Type, where: Type.Query<any>, empty?: boolean){
+async function conditions(type: typeof Type, where: Type.Query<any>, empty?: boolean){
   const constraints = buildConstraints({ ...where, ...type.subset })
     .filter(([, op]) => op != "asc" && op != "desc");
 
   if (!empty && !constraints.length)
     throw new Error(`${type.name} needs a condition to write by query.`);
 
-  return constraints;
+  return Promise.all(constraints.map(async ([key, op, value]): Promise<Type.Constraint> => {
+    const field = type.fields.get(key)!;
+    const related = (value: unknown) => field.set(value, true);
+
+    if ("entity" in field && value != null)
+      value = Array.isArray(value) ? await Promise.all(value.map(related)) : await related(value);
+
+    return [key, op, value];
+  }));
 }
 
 function matching(type: typeof Type, constraints: Type.Constraint[], act?: (verbs: Query.Verbs<any>) => void){
@@ -745,7 +753,7 @@ function matching(type: typeof Type, constraints: Type.Constraint[], act?: (verb
 
 async function updateWhere(type: typeof Type, where: Type.Query<any>, data: Type.Update<any>){
   const { fields, loaded } = type;
-  const constraints = conditions(type, where);
+  const constraints = await conditions(type, where);
   const values: Record<string, unknown> = {};
 
   for (const [key, field] of fields) {
@@ -782,7 +790,7 @@ async function updateWhere(type: typeof Type, where: Type.Query<any>, data: Type
 
 async function deleteWhere(type: typeof Type, where: Type.Query<any>){
   const { fields, loaded } = type;
-  const constraints = conditions(type, where);
+  const constraints = await conditions(type, where);
   const affected = loaded.size ? await select(type, constraints) : [];
   const count = await matching(type, constraints, verbs => verbs.delete());
 
