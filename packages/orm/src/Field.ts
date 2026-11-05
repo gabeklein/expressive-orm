@@ -14,6 +14,10 @@ export type Omissible =
 
 export type Optional<T> = T & { readonly "~optional"?: true };
 
+export type Fixed<T> = T & { readonly "~fixed"?: true };
+
+export type Fixes<V> = "~fixed" extends keyof NonNullable<V> ? true : false;
+
 export type Omits<V> =
   undefined extends V ? true :
   "~optional" extends keyof NonNullable<V> ? true :
@@ -64,14 +68,16 @@ export class Field<T = unknown> {
   }
 
   async apply(update: Record<string, string>, from: Record<string, any>, partial?: boolean) {
-    const { key, column, nullable, fixed, touch } = this;
+    const { key, column, nullable, fixed } = this;
     let value = from[key];
 
-    if (partial && fixed)
+    if (partial && fixed) {
+      fixes(this, value);
       return;
+    }
 
     if (value === undefined)
-      value = partial ? touch : this.fallback === "NOW" ? now : this.fallback;
+      value = partial ? updates(this) : this.fallback === "NOW" ? now : this.fallback;
 
     if (value === undefined && (nullable || partial || omits(this)))
       return;
@@ -83,6 +89,15 @@ export class Field<T = unknown> {
 
     update[column] = value ?? null;
   }
+}
+
+export function updates({ touch }: Field) {
+  return typeof touch == "function" ? touch() : touch;
+}
+
+export function fixes(field: Field, value: unknown) {
+  if (value !== undefined)
+    throw new Error(`${field.key} is fixed and can't be updated.`);
 }
 
 export function present(value: unknown){

@@ -2,7 +2,7 @@ import { Context, Model } from '@expressive/mvc';
 
 import { Connection } from './Connection';
 import { FIELDS, Key, num, PEEK, placeholder, write } from './fields';
-import { columns, Field, match, Omits, Optional, present, row, underscore } from './Field';
+import { columns, Field, Fixes, fixes, match, Omits, Optional, present, row, underscore, updates } from './Field';
 import { Query } from './query/Query';
 import type { Moment } from './query/Value';
 import type { Rows } from './rows';
@@ -15,7 +15,7 @@ type Compat<T extends Type> = {
 }
 
 type Update<T extends Type> = {
-  [K in Exclude<keyof T, keyof Type>]?: Inserts<T[K]> | Clears<T[K]>
+  [K in Exclude<keyof T, keyof Type>]?: Fixes<T[K]> extends true ? never : Inserts<T[K]> | Clears<T[K]>
 }
 
 type ClassKeys<T> = {
@@ -446,7 +446,7 @@ abstract class Type extends Model {
     if (options && options.conflict != "ignore")
       for (const [key, field] of fields)
         if (field.touch !== undefined)
-          touched[key] = field.touch;
+          touched[key] = updates(field);
 
     const input = await this.prepare({ ...touched, ...data, ...subset } as Type.Update<T>);
 
@@ -752,9 +752,12 @@ async function updateWhere(type: typeof Type, where: Type.Query<any>, data: Type
   const values: Record<string, unknown> = {};
 
   for (const [key, field] of fields) {
-    const value = key in data ? (data as Record<string, unknown>)[key] : field.touch;
+    const given = (data as Record<string, unknown>)[key];
+    const value = given === undefined ? updates(field) : given;
 
-    if (!field.fixed && value !== undefined)
+    if (field.fixed)
+      fixes(field, given);
+    else if (value !== undefined)
       values[key] = present(value);
   }
 

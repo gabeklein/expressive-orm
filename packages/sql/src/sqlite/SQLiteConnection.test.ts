@@ -1398,7 +1398,7 @@ describe("timestamps", () => {
     expect(post.created.getTime()).toBeGreaterThanOrEqual(before - 5);
     expect(post.updated.toISOString()).toMatch(/\.\d{3}Z$/);
 
-    await Post.update(post.id, { title: "b", created: new Date(0) });
+    await Post.update(post.id, { title: "b" });
 
     const after = await Post.one(post.id);
 

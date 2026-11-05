@@ -506,7 +506,7 @@ describe("schema", () => {
     expect(post.created.getTime()).toBeGreaterThanOrEqual(before - 1000);
     expect(Math.abs(post.updated.getTime() - Date.now())).toBeLessThan(5000);
 
-    await Post.update(post.id, { title: "b", created: new Date(0) });
+    await Post.update(post.id, { title: "b" });
 
     expect((await Post.one(post.id)).created).toEqual(post.created);
   })

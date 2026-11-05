@@ -1977,12 +1977,53 @@ describe("created and updated", () => {
   it("will keep created and touch updated on update", async () => {
     const { id } = await Post.insert({ title: "a", created: new Date(1), updated: new Date(1) });
 
-    await Post.update(id, { title: "b", created: new Date(2) });
+    await Post.update(id, { title: "b" });
 
     const post = await Post.one(id);
 
     expect(post.created).toEqual(new Date(1));
     expect(post.updated!.getTime()).toBeGreaterThan(1);
+  })
+
+  it("will throw if created is updated", async () => {
+    const { id } = await Post.insert({ title: "a" });
+    const post = await Post.get(id);
+
+    // @ts-expect-error
+    await expect(Post.update(id, { created: new Date(2) })).rejects.toThrow("created is fixed and can't be updated.");
+    // @ts-expect-error
+    await expect(Post.update({ title: "a" }, { created: new Date(2) })).rejects.toThrow("created is fixed and can't be updated.");
+    // @ts-expect-error
+    await expect(post.set({ created: new Date(2) })).rejects.toThrow("created is fixed and can't be updated.");
+  })
+
+  it("will write created by query", async () => {
+    const { id } = await Post.insert({ title: "a", created: new Date(1) });
+
+    await Query(where => {
+      const post = where(Post);
+
+      where(post.id).equal(id);
+      where(post).update({ created: new Date(2) });
+    });
+
+    expect((await Post.one(id)).created).toEqual(new Date(2));
+  })
+
+  it("will update by a callback", async () => {
+    let count = 0;
+
+    class Doc extends connect() {
+      title = str();
+      revision = num({ fallback: 0, touch: () => ++count });
+    }
+
+    const { id } = await Doc.insert({ title: "a" });
+
+    await Doc.update(id, { title: "b" });
+    await Doc.update({ title: "b" }, { title: "c" });
+
+    expect(await Doc.one(id)).toMatchObject({ title: "c", revision: 2 });
   })
 
   it("will take an updated value given", async () => {

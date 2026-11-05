@@ -72,7 +72,7 @@ Options, in any order:
 - `{ column }` - column name; default is the property in snake case.
 - `{ fallback }` - column default, also optional on insert. `sql.now` is the database's current time in the column's storage; `"NOW"` is a deprecated alias.
 
-`date.created()` and `date.updated()` take `date()`'s options and default to `sql.now`. `created` is written on insert only - updates and upserts leave it. `updated` is set to now on every update and upsert that doesn't give it. Underneath they are `{ fixed: true }` and `{ touch: sql.now }`, which any column takes.
+`date.created()` and `date.updated()` take `date()`'s options and default to `sql.now`. `created` is written on insert only - upserts leave it, and an update giving it fails to compile and throws. `updated` is set to now on every update and upsert that doesn't give it. Underneath they are `{ fixed: true }` and `{ touch: sql.now }`, which any column takes; `touch` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
 
 `orNull` and `uuid()` are deprecated for `null` and `str(sql.uuid)`.
 

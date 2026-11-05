@@ -1,6 +1,6 @@
 import { def } from '@expressive/mvc';
 
-import { Config, configure, Field, Nullable, Omissible, Optional } from './Field';
+import { Config, configure, Field, Fixed, Nullable, Omissible, Optional } from './Field';
 import { now } from './query/Value';
 import { type Type } from './Type';
 
@@ -9,10 +9,12 @@ type Has<T extends any[], M> =
     ? First extends M ? true : Has<Rest, M>
     : false;
 
+type Marked<T extends any[], Base> = Has<T, { fixed: true }> extends true ? Fixed<Base> : Base;
+
 export type Infer<T extends any[], Base> =
-  Has<T, Nullable> extends true ? Base | undefined :
-  Has<T, Omissible> extends true ? Optional<Base> :
-  Base;
+  Has<T, Nullable> extends true ? Marked<T, Base> | undefined :
+  Has<T, Omissible> extends true ? Optional<Marked<T, Base>> :
+  Marked<T, Base>;
 
 type DataTypes<Types> =
   [Exclude<keyof Types, "default">] extends [never] ? string : Exclude<keyof Types, "default">;
@@ -282,7 +284,7 @@ function date<T extends date.Options[]>(...config: T & Exact<T, date.Types>): In
 
 date.Type = TimeColumn;
 
-date.created = function created<T extends date.Options[]>(...config: T & Exact<T, date.Types>): Infer<[...T, { fallback: {} }], Date> {
+date.created = function created<T extends date.Options[]>(...config: T & Exact<T, date.Types>): Infer<[...T, { fallback: {}, fixed: true }], Date> {
   return column(date.Type, { kind: Date, fallback: now, fixed: true }, ...config);
 };
 
