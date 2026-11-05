@@ -1382,6 +1382,195 @@ describe("index", () => {
   })
 })
 
+describe("plan", () => {
+  async function open(types: Type.Class[], ddl?: string){
+    const conn = SQLiteConnection.new(types);
+    const db = await conn["db"]();
+
+    if (ddl)
+      await db.exec(ddl);
+
+    return { conn, db };
+  }
+
+  it("will list what sync would change", async () => {
+    class Author extends Type {
+      name = str();
+    }
+
+    class Post extends Type {
+      title = str();
+      note = str(null);
+      slug = str(index);
+    }
+
+    const { conn } = await open([Author, Post], "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT NOT NULL, slug TEXT NOT NULL)");
+    const { steps, problems } = await conn.plan();
+
+    expect(problems).toEqual([]);
+    expect(steps.map(({ table, column, action, reason }) => ({ table, column, action, reason }))).toEqual([
+      { table: "author", column: undefined, action: "create table author", reason: "Table author does not exist." },
+      { table: "post", column: "note", action: "add column note to post", reason: "Column note does not exist in table post" },
+      { table: "post", column: "slug", action: "create index post_slug on post", reason: "Index post_slug does not exist on post" }
+    ]);
+
+    await expect(conn.sync(false)).rejects.toThrow(
+      "Table author does not exist.\n" +
+      "Column note does not exist in table post\n" +
+      "Index post_slug does not exist on post"
+    );
+
+    await conn.close();
+  })
+
+  it("will accept a reference to a table it creates", async () => {
+    class Author extends Type {
+      name = str();
+    }
+
+    class Post extends Type {
+      author = one(Author);
+    }
+
+    const { conn } = await open([Post, Author], "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, author_id INTEGER NOT NULL)");
+
+    expect((await conn.plan()).problems).toEqual([]);
+    await expect(conn.valid(Post)).rejects.toThrow("Referenced table author does not exist");
+    await conn.close();
+  })
+
+  it("will report a class with a schema", async () => {
+    class Foo extends Type {
+      static schema = "app";
+    }
+
+    const { conn } = await open([Foo]);
+
+    expect(await conn.plan()).toEqual({ steps: [], problems: ["static schema is not supported by SQLiteConnection."] });
+    await conn.close();
+  })
+
+  it("will report drift unless forced", async () => {
+    class Post extends Type {
+      title = str();
+    }
+
+    const { conn } = await open([Post], "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT)");
+
+    expect((await conn.plan()).problems).toEqual(["Column title in table post has incorrect nullable value"]);
+    expect((await conn.plan(true)).steps.map(step => [step.action, step.reason])).toEqual([
+      ["rebuild table post", "Column title in table post has incorrect nullable value"]
+    ]);
+
+    await conn.close();
+  })
+
+  it("will rebuild drifted columns and keep the rest", async () => {
+    class Post extends Type {
+      title = str();
+      rank = num(null);
+      score = num({ type: "real", nullable: true });
+      note = str(null);
+    }
+
+    const { conn, db } = await open([Post],
+      "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT, rank TEXT, score TEXT, legacy TEXT NOT NULL DEFAULT 'x', extra INTEGER);" +
+      "CREATE INDEX post_legacy ON post (legacy);" +
+      "INSERT INTO post (title, rank, score, legacy, extra) VALUES ('a', ' 42', '1.5', 'kept', NULL), ('b', '7', NULL, 'y', 3);"
+    );
+
+    await conn.sync(true, true);
+
+    expect(await db.all("SELECT * FROM post ORDER BY id")).toEqual([
+      { id: 1, title: "a", rank: 42, score: 1.5, note: null, legacy: "kept", extra: null },
+      { id: 2, title: "b", rank: 7, score: null, note: null, legacy: "y", extra: 3 }
+    ]);
+    expect(await db.all("PRAGMA index_list(post)")).toEqual([expect.objectContaining({ name: "post_legacy" })]);
+    expect(await conn.valid(Post)).toEqual([]);
+
+    await conn.close();
+  })
+
+  it("will rebuild a composite-keyed table", async () => {
+    class Tag extends Type {
+      id = key(() => [this.post, this.name]);
+      post = num();
+      name = str();
+    }
+
+    const { conn, db } = await open([Tag],
+      "CREATE TABLE tag (post TEXT NOT NULL, name TEXT NOT NULL, PRIMARY KEY (post, name));" +
+      "INSERT INTO tag VALUES ('1', 'a');"
+    );
+
+    await conn.sync(true, true);
+
+    expect(await db.all("SELECT post, typeof(post) AS kind FROM tag")).toEqual([{ post: 1, kind: "integer" }]);
+    await conn.close();
+  })
+
+  it("will refuse to rebuild rows that do not fit", async () => {
+    class Post extends Type {
+      title = str();
+      rank = num(null);
+      score = num({ type: "real", nullable: true });
+    }
+
+    const { conn, db } = await open([Post],
+      "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT, rank TEXT, score TEXT);" +
+      "INSERT INTO post (title, rank, score) VALUES (NULL, '1.5', 'x'), (NULL, 'abc', '2'), ('c', '3.0', '');"
+    );
+
+    expect((await conn.plan(true)).problems).toEqual([
+      "Column title in table post cannot be rebuilt: 2 rows are NULL.",
+      "Column rank in table post cannot be rebuilt: 2 rows are not INTEGER.",
+      "Column score in table post cannot be rebuilt: 2 rows are not REAL."
+    ]);
+
+    await db.exec("DELETE FROM post WHERE id < 3");
+
+    expect((await conn.plan(true)).problems).toEqual([
+      "Column score in table post cannot be rebuilt: 1 row is not REAL."
+    ]);
+
+    await conn.close();
+  })
+
+  it("will not alter a text column's values", async () => {
+    class Post extends Type {
+      title = str();
+    }
+
+    const { conn, db } = await open([Post],
+      "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title INTEGER NOT NULL);" +
+      "INSERT INTO post (title) VALUES (5);"
+    );
+
+    await conn.sync(true, true);
+
+    expect(await db.all("SELECT title, typeof(title) AS kind FROM post")).toEqual([{ title: "5", kind: "text" }]);
+    await conn.close();
+  })
+
+  it("will apply nothing if a step fails", async () => {
+    class Post extends Type {
+      title = str();
+    }
+
+    const { conn, db } = await open([Post]);
+
+    spy(conn, "plan").mockResolvedValue({
+      steps: [{ table: "post", action: "create table post", reason: "", sql: ["CREATE TABLE post (id INTEGER);", "NOT SQL;"] }],
+      problems: []
+    });
+
+    await expect(conn.sync()).rejects.toThrow();
+    expect(await db.all("SELECT name FROM sqlite_master WHERE type = 'table'")).toEqual([]);
+
+    await conn.close();
+  })
+})
+
 describe("valid", () => {
   const Author = class Author extends Type {
     name = str();

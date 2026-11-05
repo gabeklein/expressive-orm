@@ -341,6 +341,139 @@ describe("persistence", () => {
   });
 });
 
+describe("plan", () => {
+  it("will list what sync would change", async () => {
+    class Author extends Type {
+      name = str();
+    }
+
+    class Post extends Type {
+      title = str();
+      note = str(null);
+      slug = str(index);
+      author = one(Author);
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec('CREATE TABLE "post" ("id" INTEGER NOT NULL PRIMARY KEY, "title" TEXT NOT NULL, "slug" TEXT NOT NULL, "author_id" INTEGER NOT NULL);');
+
+    const conn = PGLiteConnection.new([Author, Post], pg);
+    const { steps, problems } = await conn.plan();
+
+    expect(problems).toEqual([]);
+    expect(steps.map(({ action, reason }) => [action, reason])).toEqual([
+      ["create table author", "Table author does not exist."],
+      ["add column note to post", 'Column "note" does not exist in table post'],
+      ["create index post_slug on post", "Index post_slug does not exist on post"]
+    ]);
+
+    await expect(conn.sync(false)).rejects.toThrow('Column "note" does not exist in table post');
+    await conn.sync();
+
+    const { rows } = await pg.query<{ indexname: string }>("SELECT indexname FROM pg_indexes WHERE indexname = 'post_slug'");
+
+    expect(rows).toHaveLength(1);
+  })
+
+  it("will create constraints after every new table", async () => {
+    class Author extends Type {
+      name = str();
+    }
+
+    class Post extends Type {
+      author = one(Author);
+    }
+
+    const pg = new PGlite();
+    const { steps } = await PGLiteConnection.new([Post, Author], pg).plan();
+
+    expect(steps.map(step => step.sql.length)).toEqual([1, 2]);
+    expect(steps[1].sql[1]).toContain('FOREIGN KEY ("author_id")');
+  })
+
+  it("will report a missing index without fix", async () => {
+    class Post extends Type {
+      slug = str(index);
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec('CREATE TABLE "post" ("id" INTEGER NOT NULL PRIMARY KEY, "slug" TEXT NOT NULL);');
+    await expect(PGLiteConnection.new([Post], pg).sync(false)).rejects.toThrow("Index post_slug does not exist on post");
+  })
+
+  it("will report a class with a schema", async () => {
+    class Foo extends Type {
+      static schema = "app";
+    }
+
+    expect(await PGLiteConnection.new([Foo], new PGlite()).plan()).toEqual({
+      steps: [],
+      problems: ["static schema is not supported by PGLiteConnection."]
+    });
+  })
+
+  it("will alter drifted columns when forced", async () => {
+    class Post extends Type {
+      title = str();
+      rank = num(null);
+      note = str(null);
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec(`
+      CREATE TABLE "post" ("id" INTEGER NOT NULL PRIMARY KEY, "title" TEXT, "rank" TEXT NOT NULL, "note" TEXT NOT NULL);
+      INSERT INTO "post" VALUES (1, 'a', '42', 'n');
+    `);
+
+    const conn = PGLiteConnection.new([Post], pg);
+
+    expect((await conn.plan()).problems).toEqual([
+      'Column "title" in table post has incorrect nullable value',
+      'Column "rank" in table post has incorrect nullable value',
+      'Column "rank" in table post has type "text", expected "integer"',
+      'Column "note" in table post has incorrect nullable value'
+    ]);
+
+    await conn.sync(true, true);
+
+    const { rows } = await pg.query<{ column_name: string, data_type: string, is_nullable: string }>(
+      "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = 'post' ORDER BY column_name"
+    );
+
+    expect(rows).toEqual([
+      { column_name: "id", data_type: "integer", is_nullable: "NO" },
+      { column_name: "note", data_type: "text", is_nullable: "YES" },
+      { column_name: "rank", data_type: "integer", is_nullable: "YES" },
+      { column_name: "title", data_type: "text", is_nullable: "NO" }
+    ]);
+    expect((await pg.query('SELECT "rank" FROM "post"')).rows).toEqual([{ rank: 42 }]);
+  })
+
+  it("will refuse NOT NULL over NULL rows", async () => {
+    class Post extends Type {
+      title = str();
+    }
+
+    const pg = new PGlite();
+
+    await pg.exec(`
+      CREATE TABLE "post" ("id" INTEGER NOT NULL PRIMARY KEY, "title" TEXT);
+      INSERT INTO "post" VALUES (1, NULL), (2, NULL);
+    `);
+
+    const conn = PGLiteConnection.new([Post], pg);
+
+    expect((await conn.plan(true)).problems).toEqual(['Column "title" in table post cannot be rebuilt: 2 rows are NULL.']);
+
+    await pg.exec(`DELETE FROM "post" WHERE "id" = 2`);
+
+    expect((await conn.plan(true)).problems).toEqual(['Column "title" in table post cannot be rebuilt: 1 row is NULL.']);
+  })
+})
+
 describe("schema", () => {
   it("will create indexes", async () => {
     class Post extends Type {

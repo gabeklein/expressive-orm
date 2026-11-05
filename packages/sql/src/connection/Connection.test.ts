@@ -18,6 +18,10 @@ class Recorder extends Connection {
     return this;
   }
 
+  async plan(){
+    return { steps: [], problems: [] };
+  }
+
   prepare(builder: Builder){
     const sql = String(new Generator(builder));
 
@@ -168,6 +172,10 @@ describe("transaction", () => {
 
       async sync(){
         return this;
+      }
+
+      async plan(){
+        return { steps: [], problems: [] };
       }
 
       prepare(): never {

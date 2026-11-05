@@ -5,10 +5,10 @@ import { format } from 'sql-formatter';
 import { createEngine, Engine } from './engine';
 import { SQLiteGenerator } from './SQLiteGenerator';
 
-type TableInfo = { 
-  name: string; 
-  type: string; 
-  notnull: number; 
+type TableInfo = {
+  name: string;
+  type: string;
+  notnull: number;
   dflt_value: any
 };
 
@@ -89,62 +89,124 @@ export class SQLiteConnection extends Connection {
     await super.close();
   }
 
-  async sync(fix = true){
+  async sync(fix = true, force = false){
     if (this.ready)
       throw new Error("Connection is already active.");
 
-    for (const type of this.using)
-      if (type.schema)
-        throw new Error(`static schema is not supported by ${this.constructor.name}.`);
-
-    const missing: Query.Table[] = [];
-    const added: string[] = [];
-    const issues: string[] = [];
-
-    for (const type of this.using) {
-      const absent = await this.valid(type);
-
-      if (!absent)
-        if (fix)
-          missing.push(type);
-        else
-          throw new Error(`Table ${type.table} does not exist.`);
-      else
-        for (const field of absent) {
-          const reason = unfit(field);
-
-          if (!fix)
-            issues.push(`Column ${field.column} does not exist in table ${type.table}`);
-          else if (reason)
-            issues.push(`Column ${field.column} in table ${type.table} ${reason}`);
-          else
-            added.push(`ALTER TABLE ${type.table} ADD COLUMN ${definition(field)};`);
-        }
-    }
+    const { steps, problems } = await this.plan(force);
+    const issues = fix ? problems : [...problems, ...steps.map(step => step.reason)];
 
     if (issues.length)
       throw new Error(issues.join("\n"));
 
-    await this.createSchema(missing);
-
-    if (added.length)
-      await (await this.db()).exec(added.join("\n"));
-
-    const indexes: string[] = [];
-
-    for (const type of this.using)
-      for (const field of await this.unindexed(type))
-        indexes.push(index(field));
-
-    if (indexes.length)
-      await (await this.db()).exec(indexes.join("\n"));
+    if (steps.length)
+      await this.apply(steps);
 
     (this as Connection).set({ ready: true });
 
     return this;
   }
 
+  async plan(force = false): Promise<Connection.Plan> {
+    const steps: Connection.Step[] = [];
+    const problems: string[] = [];
+
+    for (const type of this.using) {
+      const { table } = type;
+
+      if (type.schema) {
+        problems.push(`static schema is not supported by ${this.constructor.name}.`);
+        continue;
+      }
+
+      const found = await this.inspect(type, true);
+
+      if (!found) {
+        steps.push({ table, action: `create table ${table}`, reason: `Table ${table} does not exist.`, sql: [this.generateTableSchema(type)] });
+        continue;
+      }
+
+      const { columns, absent, drift, issues } = found;
+      const rebuild = force && drift.length > 0;
+
+      problems.push(...issues);
+
+      if (!rebuild)
+        problems.push(...drift.map(({ message }) => message));
+
+      for (const field of absent) {
+        const reason = unfit(field);
+
+        if (reason)
+          problems.push(`Column ${field.column} in table ${table} ${reason}`);
+        else if (!rebuild)
+          steps.push({
+            table,
+            column: field.column,
+            action: `add column ${field.column} to ${table}`,
+            reason: `Column ${field.column} does not exist in table ${table}`,
+            sql: [`ALTER TABLE ${table} ADD COLUMN ${definition(field)};`]
+          });
+      }
+
+      if (rebuild) {
+        const fields = drift.map(({ field }) => field);
+        const misfit = await this.misfit(type, fields, columns);
+
+        if (misfit.length)
+          problems.push(...misfit);
+        else
+          steps.push({
+            table,
+            action: `rebuild table ${table}`,
+            reason: drift.map(({ message }) => message).join("; "),
+            sql: await this.rebuild(type, fields, columns)
+          });
+      }
+
+      for (const field of await this.unindexed(type))
+        steps.push({
+          table,
+          column: field.column,
+          action: `create index ${indexName(field)} on ${table}`,
+          reason: `Index ${indexName(field)} does not exist on ${table}`,
+          sql: [index(field)]
+        });
+    }
+
+    return { steps, problems };
+  }
+
+  protected async apply(steps: Connection.Step[]){
+    const db = await this.db();
+
+    await db.exec("BEGIN");
+
+    try {
+      await db.exec(steps.flatMap(step => step.sql).join("\n"));
+      await db.exec("COMMIT");
+    }
+    catch (error) {
+      await db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   async valid(type: Query.Table){
+    const found = await this.inspect(type);
+
+    if (!found)
+      return false;
+
+    const [problem] = [...found.drift.map(({ message }) => message), ...found.issues];
+
+    if (problem)
+      throw new Error(problem);
+
+    return found.absent;
+  }
+
+  protected async inspect(type: Query.Table, planning = false){
     const { table } = type;
     const db = await this.db();
 
@@ -156,20 +218,29 @@ export class SQLiteConnection extends Connection {
 
     const columns = await db.all(`PRAGMA table_info(${table})`) as TableInfo[];
     const absent: Field[] = [];
+    const drift: { field: Field, message: string }[] = [];
+    const issues: string[] = [];
 
     for (const field of type.fields.values()) {
       if (field.parts)
         continue;
 
-      const columnInfo = columns.find(col => col.name === field.column);
+      const info = columns.find(col => col.name === field.column);
 
-      if (columnInfo)
-        await this.checkIntegrity(field, columnInfo);
-      else
+      if (!info) {
         absent.push(field);
+        continue;
+      }
+
+      const message = drifted(field, info);
+
+      if (message)
+        drift.push({ field, message });
+
+      issues.push(...await this.references(field, planning));
     }
 
-    return absent;
+    return { columns, absent, drift, issues };
   }
 
   protected async unindexed(type: Query.Table){
@@ -186,33 +257,83 @@ export class SQLiteConnection extends Connection {
     return indexed(type).filter(field => !covered.has(field.column));
   }
 
-  protected async checkIntegrity(field: Field, info: TableInfo){
-    const { column, nullable, primary, reference } = field;
-    const parent = field.parent!;
-    const keyed = primary || parent.fields.get("id")!.parts?.includes(field);
+  protected async misfit(type: Query.Table, fields: Field[], columns: TableInfo[]){
+    const db = await this.db();
+    const { table } = type;
+    const problems: string[] = [];
 
-    const expected = affinity(field);
+    for (const field of fields) {
+      const info = columns.find(col => col.name === field.column)!;
+      const column = `\`${field.column}\``;
+      const expected = affinity(field);
+      const fits = FITS[expected];
+      const checks: [string, string][] = [];
 
-    if (info.type.toUpperCase() !== expected)
-      throw new Error(
-        `Column ${column} in table ${parent.table} has type ${info.type}, expected ${expected}`
-      );
+      if (!field.nullable)
+        checks.push([`${column} IS NULL`, "NULL"]);
 
-    if (!keyed && info.notnull === (nullable ? 1 : 0))
-      throw new Error(
-        `Column ${column} in table ${parent.table} has incorrect nullable value`
-      );
+      if (info.type.toUpperCase() !== expected && fits)
+        checks.push([`${column} IS NOT NULL AND NOT (${fits(column)})`, `not ${expected}`]);
+
+      for (const [where, what] of checks) {
+        const { count } = await db.get(`SELECT COUNT(*) AS count FROM ${table} WHERE ${where}`);
+
+        if (count)
+          problems.push(
+            `Column ${field.column} in table ${table} cannot be rebuilt: ${count} ${count == 1 ? "row is" : "rows are"} ${what}.`
+          );
+      }
+    }
+
+    return problems;
+  }
+
+  protected async rebuild(type: Query.Table, fields: Field[], columns: TableInfo[]){
+    const db = await this.db();
+    const { table } = type;
+    const temp = `${table}__rebuild`;
+    const own = Array.from(type.fields.values()).filter(field => !field.parts);
+    const known = new Set(own.map(field => field.column));
+    const extra = columns.filter(col => !known.has(col.name));
+    const cast = new Set(fields.filter(field => (
+      columns.find(col => col.name === field.column)!.type.toUpperCase() !== affinity(field)
+    )));
+
+    const copied = [
+      ...own
+        .filter(field => columns.some(col => col.name === field.column))
+        .map(field => [field.column, cast.has(field) ? `CAST(\`${field.column}\` AS ${affinity(field)})` : `\`${field.column}\``]),
+      ...extra.map(col => [col.name, `\`${col.name}\``])
+    ];
+
+    const indexes = await db.all(
+      `SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL`, [table]);
+
+    return [
+      this.tableSchema(type, temp, extra.map(col => (
+        `\`${col.name}\` ${col.type}` +
+        (col.notnull ? " NOT NULL" : "") +
+        (col.dflt_value != null ? ` DEFAULT ${col.dflt_value}` : "")
+      ))),
+      `INSERT INTO ${temp} (${copied.map(([column]) => `\`${column}\``).join(", ")}) ` +
+      `SELECT ${copied.map(([, value]) => value).join(", ")} FROM ${table};`,
+      `DROP TABLE ${table};`,
+      `ALTER TABLE ${temp} RENAME TO ${table};`,
+      ...indexes.map(({ sql }: { sql: string }) => `${sql};`)
+    ];
+  }
+
+  protected async references(field: Field, planning: boolean): Promise<string[]> {
+    const { reference } = field;
 
     if (!reference)
-      return;
+      return [];
 
     const foreignKey = reference.column;
     const foreignTable = reference.parent!.table;
 
     if (reference.parent!.connection !== this)
-      throw new Error(
-        `Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`
-      );
+      return [`Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`];
 
     const db = await this.db();
 
@@ -220,22 +341,15 @@ export class SQLiteConnection extends Connection {
       `SELECT name FROM sqlite_master WHERE type='table' AND name=?`, [foreignTable]);
 
     if (!foreignTableExists)
-      throw new Error(`Referenced table ${foreignTable} does not exist`);
+      return planning && this.using.has(reference.parent!) ? [] : [`Referenced table ${foreignTable} does not exist`];
 
     const foreignColumn = (await db.all(`PRAGMA table_info(${foreignTable})`))
       .find(col => col.name === foreignKey);
 
     if (!foreignColumn)
-      throw new Error(
-        `Referenced column ${foreignKey} does not exist in table ${foreignTable}`
-      );
-  }
+      return [`Referenced column ${foreignKey} does not exist in table ${foreignTable}`];
 
-  protected async createSchema(types: Iterable<Query.Table>): Promise<void> {
-    const schema = this.generateSchema(types);
-
-    if (schema)
-      await (await this.db()).exec(schema);
+    return [];
   }
 
   protected generateSchema(types: Iterable<Query.Table>): string {
@@ -245,16 +359,20 @@ export class SQLiteConnection extends Connection {
   }
 
   protected generateTableSchema(type: Query.Table): string {
+    return [this.tableSchema(type), ...indexed(type).map(index)].join('\n');
+  }
+
+  protected tableSchema(type: Query.Table, name = type.table, extra: string[] = []){
     const { parts } = type.fields.get("id")!;
-    const fields = Array.from(type.fields.values()).filter(field => !field.parts).map(definition);
+    const fields = [
+      ...Array.from(type.fields.values()).filter(field => !field.parts).map(definition),
+      ...extra
+    ];
 
     if (parts)
       fields.push(`PRIMARY KEY (${parts.map(part => `\`${part.column}\``).join(', ')})`);
 
-    return [
-      `CREATE TABLE ${type.table} (${fields.join(', ')});`,
-      ...indexed(type).map(index)
-    ].join('\n');
+    return `CREATE TABLE ${name} (${fields.join(', ')});`;
   }
 }
 
@@ -262,12 +380,38 @@ function indexed(type: Query.Table){
   return Array.from(type.fields.values()).filter(field => field.index && !field.primary && !field.unique);
 }
 
-function index(field: Field){
-  const { table } = field.parent!;
-  const name = typeof field.index == "string" ? field.index : `${table}_${field.column}`;
-
-  return `CREATE INDEX IF NOT EXISTS \`${name}\` ON ${table} (\`${field.column}\`);`;
+function indexName(field: Field){
+  return typeof field.index == "string" ? field.index : `${field.parent!.table}_${field.column}`;
 }
+
+function index(field: Field){
+  return `CREATE INDEX IF NOT EXISTS \`${indexName(field)}\` ON ${field.parent!.table} (\`${field.column}\`);`;
+}
+
+function drifted(field: Field, info: TableInfo){
+  const { column, nullable, primary } = field;
+  const parent = field.parent!;
+  const keyed = primary || parent.fields.get("id")!.parts?.includes(field);
+  const expected = affinity(field);
+
+  if (info.type.toUpperCase() !== expected)
+    return `Column ${column} in table ${parent.table} has type ${info.type}, expected ${expected}`;
+
+  if (!keyed && info.notnull === (nullable ? 1 : 0))
+    return `Column ${column} in table ${parent.table} has incorrect nullable value`;
+}
+
+const FITS: Record<string, (column: string) => string> = {
+  INTEGER: column =>
+    `typeof(${column}) = 'integer' OR typeof(${column}) = 'real' AND ${column} = CAST(${column} AS INTEGER) ` +
+    `OR typeof(${column}) = 'text' AND trim(${column}) <> '' AND trim(${column}) NOT GLOB '*[^0-9.eE+-]*' ` +
+    `AND CAST(${column} AS REAL) = CAST(${column} AS INTEGER)`,
+  REAL: column =>
+    `typeof(${column}) IN ('integer', 'real') ` +
+    `OR typeof(${column}) = 'text' AND trim(${column}) <> '' AND trim(${column}) NOT GLOB '*[^0-9.eE+-]*'`
+};
+
+FITS.NUMERIC = FITS.REAL;
 
 function definition(field: Field){
   const {

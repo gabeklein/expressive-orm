@@ -15,6 +15,10 @@ class TestConnection extends Connection {
     return this;
   }
 
+  async plan(){
+    return { steps: [], problems: [] };
+  }
+
   prepare(builder: Builder){
     const sql = String(new Generator(builder));
 

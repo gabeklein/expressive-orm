@@ -20,6 +20,19 @@ declare namespace Connection {
   type Transaction = Base.Journal & {
     session?: unknown;
   };
+
+  type Step = {
+    table: string;
+    column?: string;
+    action: string;
+    reason: string;
+    sql: string[];
+  };
+
+  type Plan = {
+    steps: Step[];
+    problems: string[];
+  };
 }
 
 type Scope = Map<Connection, Connection.Transaction>;
@@ -50,7 +63,9 @@ abstract class Connection extends Base {
 
   abstract get schema(): string;
 
-  abstract sync(fix?: boolean): Promise<this>;
+  abstract sync(fix?: boolean, force?: boolean): Promise<this>;
+
+  abstract plan(force?: boolean): Promise<Connection.Plan>;
 
   abstract prepare(builder: Builder): Builder.Statement;
 

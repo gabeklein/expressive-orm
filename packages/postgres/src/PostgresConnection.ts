@@ -150,11 +150,19 @@ export abstract class PostgresConnection extends Connection {
   }
 
   async verify(fix = false){
+    const { tables, columns, messages } = await this.inspect(fix);
+
+    if (messages.length)
+      throw new Error("Schema verification failed:\n" + messages.map(({ message }) => message).join('\n'));
+
+    return { tables, columns };
+  }
+
+  protected async inspect(fix: boolean){
     const required = new Set(this.using);
     const tables = await getTableInformation.call(this);
     const added: Field[] = [];
-
-    const messages = [] as string[];
+    const messages: { message: string, drift?: Field }[] = [];
 
     for (const Type of required) {
       const { fields, table } = Type;
@@ -179,74 +187,141 @@ export abstract class PostgresConnection extends Connection {
             field.get = () => undefined;
           }
           else if(fix)
-            messages.push(`Column "${field.column}" in table ${table} ${reason}`);
+            messages.push({ message: `Column "${field.column}" in table ${table} ${reason}` });
           else
-            messages.push(`Column "${field.column}" does not exist in table ${table}`);
+            messages.push({ message: `Column "${field.column}" does not exist in table ${table}` });
 
           continue;
         }
-          
-          const { reference } = field;
-          const parent = field.parent!;
-          const { nullable } = info;
 
-          if ((nullable === 'YES') === !field.nullable){
-            messages.push(
-              `Column "${field.column}" in table ${parent.table} has incorrect nullable value`
-            );
-            continue;
-          }
-            
-      
-          if (base(info.type) !== base(field.datatype)){
-            messages.push(
-              `Column "${field.column}" in table ${parent.table} has type "${info.type.toLowerCase()}", expected "${field.datatype.toLowerCase()}"`
-            );
-            continue;
-          }
+        const { reference } = field;
+        const parent = field.parent!;
 
-          if (!reference) continue;
+        if ((info.nullable === 'YES') === !field.nullable)
+          messages.push({
+            message: `Column "${field.column}" in table ${parent.table} has incorrect nullable value`,
+            drift: field
+          });
 
-          const foreignKey = reference.column;
-          const {
-            table: foreignTable,
-            connection: foreignConnection
-          } = reference.parent!;
+        if (base(info.type) !== base(field.datatype))
+          messages.push({
+            message: `Column "${field.column}" in table ${parent.table} has type "${info.type.toLowerCase()}", expected "${field.datatype.toLowerCase()}"`,
+            drift: field
+          });
 
-          if (foreignConnection !== this){
-            messages.push(
-              `Column "${field.column}" in table ${parent.table} references a foreign connection`
-            );
-            continue;
-          }
+        if (!reference) continue;
 
-          const foreign = tables[foreignTable];
+        const foreignKey = reference.column;
+        const {
+          table: foreignTable,
+          connection: foreignConnection
+        } = reference.parent!;
 
-          if (!foreign){
-            messages.push(`Referenced table ${foreignTable} does not exist`);
-            continue;
-          }
+        if (foreignConnection !== this){
+          messages.push({ message: `Column "${field.column}" in table ${parent.table} references a foreign connection` });
+          continue;
+        }
 
-          const foreignExists = foreign[foreignKey];
+        const foreign = tables[foreignTable];
 
-          if (!foreignExists){
-            messages.push(
-              `Referenced column ${foreignKey} does not exist in table ${foreignTable}`
-            );
-            continue;
-          }
+        if (!foreign){
+          if (!fix || !this.using.has(reference.parent!))
+            messages.push({ message: `Referenced table ${foreignTable} does not exist` });
+
+          continue;
+        }
+
+        if (!foreign[foreignKey])
+          messages.push({ message: `Referenced column ${foreignKey} does not exist in table ${foreignTable}` });
       }
 
       required.delete(Type);
     }
 
-    if (messages.length)
-      throw new Error("Schema verification failed:\n" + messages.join('\n'));
-
-    return { tables: required, columns: added };
+    return { tables: required, columns: added, messages, info: tables };
   }
 
-  async sync(fix = true) {
+  async plan(force = false): Promise<Connection.Plan> {
+    const steps: Connection.Step[] = [];
+    const problems: string[] = [];
+
+    for (const type of this.using)
+      if (type.schema)
+        problems.push(`static schema is not supported by ${this.constructor.name}.`);
+
+    if (problems.length)
+      return { steps, problems };
+
+    const { tables: required, columns, messages, info } = await this.inspect(true);
+    const drift = new Map<Field, string[]>();
+
+    for (const { message, drift: field } of messages)
+      if (force && field)
+        drift.set(field, [...drift.get(field) || [], message]);
+      else
+        problems.push(message);
+
+    const created = Array.from(required, type => ({ type, ...this.generateTableSchema(type) }));
+
+    for (const { type, table } of created)
+      steps.push({ table: type.table, action: `create table ${type.table}`, reason: `Table ${type.table} does not exist.`, sql: [table] });
+
+    if (created.length)
+      steps[steps.length - 1].sql.push(...created.map(({ constraints }) => constraints).filter(Boolean));
+
+    for (const field of columns) {
+      const { table } = field.parent!;
+
+      steps.push({
+        table,
+        column: field.column,
+        action: `add column ${field.column} to ${table}`,
+        reason: `Column "${field.column}" does not exist in table ${table}`,
+        sql: [generateColumns([field])]
+      });
+    }
+
+    for (const [field, reasons] of drift) {
+      const { table } = field.parent!;
+      const { column, datatype, nullable } = field;
+      const current = info[table][column];
+      const sql: string[] = [];
+
+      if (base(current.type) !== base(datatype))
+        sql.push(`ALTER TABLE "${table}" ALTER COLUMN "${column}" TYPE ${datatype.toUpperCase()} USING "${column}"::${datatype.toUpperCase()};`);
+
+      if ((current.nullable === 'YES') === !nullable)
+        if (nullable)
+          sql.push(`ALTER TABLE "${table}" ALTER COLUMN "${column}" DROP NOT NULL;`);
+        else {
+          const [{ count }] = await this.fetch<{ count: number }>(`SELECT COUNT(*)::int AS count FROM "${table}" WHERE "${column}" IS NULL`, []);
+
+          if (count) {
+            problems.push(`Column "${column}" in table ${table} cannot be rebuilt: ${count} ${count == 1 ? "row is" : "rows are"} NULL.`);
+            continue;
+          }
+
+          sql.push(`ALTER TABLE "${table}" ALTER COLUMN "${column}" SET NOT NULL;`);
+        }
+
+      steps.push({ table, column, action: `alter column ${column} on ${table}`, reason: reasons.join("; "), sql });
+    }
+
+    for (const field of await this.unindexed())
+      steps.push(indexStep(field));
+
+    return { steps, problems };
+  }
+
+  protected async unindexed(){
+    const covered = await getIndexedColumns.call(this);
+
+    return Array.from(this.using).flatMap(type => (
+      indexed(type).filter(field => !covered.has(`${type.table}.${field.column}`))
+    ));
+  }
+
+  async sync(fix = true, force = false) {
     if(!this.engine)
       throw new Error("Connection engine is not initialized.");
 
@@ -257,29 +332,33 @@ export abstract class PostgresConnection extends Connection {
       if (type.schema)
         throw new Error(`static schema is not supported by ${this.constructor.name}.`);
 
-    const { tables: required, columns } = await this.verify(fix);
+    if (fix) {
+      const { steps, problems } = await this.plan(force);
 
-    if(required.size)
-      if(fix)
-        await this.createSchema(required);
-      else {
+      if (problems.length)
+        throw new Error("Schema verification failed:\n" + problems.join('\n'));
+
+      await this.exec([...steps.flatMap(step => step.sql), this.generateTriggers(this.using)].join('\n'));
+    }
+    else {
+      const { tables: required } = await this.verify(false);
+
+      if (required.size) {
         const missing = Array.from(required).map(t => t.table);
         const message = missing.length > 1
           ? `Tables ${missing.join(', ')} are expected but do not exist.`
           : `Table ${missing[0]} is expected but does not exist.`;
-        
+
         throw new Error(message);
       }
 
-    if(columns.length)
-      await this.exec(generateColumns(columns));
+      const unindexed = await this.unindexed();
 
-    const indexes = Array.from(this.using, generateIndexes).flat();
+      if (unindexed.length)
+        throw new Error(unindexed.map(field => indexStep(field).reason).join('\n'));
 
-    if(indexes.length)
-      await this.exec(indexes.join('\n'));
-
-    await this.exec(this.generateTriggers(this.using));
+      await this.exec(this.generateTriggers(this.using));
+    }
 
     (this as Connection).set({ ready: true });
 
@@ -288,11 +367,6 @@ export abstract class PostgresConnection extends Connection {
 
   protected fetch<T>(query: string, params: unknown[]) {
     return this.query(query, params).then(x => x.rows) as Promise<T[]>;
-  }
-
-  protected async createSchema(types: Iterable<Query.Table>): Promise<void> {
-    const schema = this.generateSchema(types);
-    await this.exec(schema);
   }
 
   protected generateSchema(types: Iterable<Query.Table>): string {
@@ -375,14 +449,28 @@ function foreignKey(table: string, field: Field){
   return [constraint + ";"];
 }
 
-function generateIndexes({ table, fields }: Query.Table){
-  return Array.from(fields.values())
-    .filter(field => field.index && !field.primary && !field.unique)
-    .map(({ column, index }) => {
-      const name = typeof index == "string" ? index : `${table}_${column}`;
+function indexed({ fields }: Query.Table){
+  return Array.from(fields.values()).filter(field => field.index && !field.primary && !field.unique);
+}
 
-      return `CREATE INDEX IF NOT EXISTS "${name}" ON "${table}" ("${column}");`;
-    });
+function indexName(field: Field){
+  return typeof field.index == "string" ? field.index : `${field.parent!.table}_${field.column}`;
+}
+
+function indexStep(field: Field): Connection.Step {
+  const { table } = field.parent!;
+
+  return {
+    table,
+    column: field.column,
+    action: `create index ${indexName(field)} on ${table}`,
+    reason: `Index ${indexName(field)} does not exist on ${table}`,
+    sql: [generateIndex(field)]
+  };
+}
+
+function generateIndex(field: Field){
+  return `CREATE INDEX IF NOT EXISTS "${indexName(field)}" ON "${field.parent!.table}" ("${field.column}");`;
 }
 
 function generateColumns(fields: Field[]){
@@ -439,6 +527,19 @@ interface ColumnInfo {
   fk_column_name: string;
   referenced_table: string;
   referenced_column: string;
+}
+
+async function getIndexedColumns(this: PostgresConnection){
+  const rows = await this.fetch<{ table: string, column: string }>(`
+    SELECT t.relname AS "table", a.attname AS "column"
+    FROM pg_index i
+    JOIN pg_class t ON t.oid = i.indrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = i.indkey[0]
+    WHERE i.indnatts = 1 AND n.nspname = 'public'
+  `, []);
+
+  return new Set(rows.map(({ table, column }) => `${table}.${column}`));
 }
 
 async function getTableInformation(this: PostgresConnection){
