@@ -179,16 +179,31 @@ export class SQLiteConnection extends Connection {
 
   protected async apply(steps: Connection.Step[]){
     const db = await this.db();
+    const { foreign_keys } = await db.get("PRAGMA foreign_keys");
+    const guard = foreign_keys && steps.some(step => step.action.startsWith("rebuild"));
+
+    if (guard)
+      await db.exec("PRAGMA foreign_keys = OFF");
 
     await db.exec("BEGIN");
 
     try {
       await db.exec(steps.flatMap(step => step.sql).join("\n"));
+
+      const broken: { table: string }[] = guard ? await db.all("PRAGMA foreign_key_check") : [];
+
+      if (broken.length)
+        throw new Error(dangling(broken));
+
       await db.exec("COMMIT");
     }
     catch (error) {
       await db.exec("ROLLBACK");
       throw error;
+    }
+    finally {
+      if (guard)
+        await db.exec("PRAGMA foreign_keys = ON");
     }
   }
 
@@ -378,6 +393,12 @@ export class SQLiteConnection extends Connection {
 
 function indexed(type: Query.Table){
   return Array.from(type.fields.values()).filter(field => field.index && !field.primary && !field.unique);
+}
+
+function dangling(rows: { table: string }[]){
+  const tables = [...new Set(rows.map(row => row.table))].join(", ");
+
+  return `Cannot rebuild: ${tables} has references to missing rows (${rows.length}).`;
 }
 
 function indexName(field: Field){

@@ -75,7 +75,7 @@ describe("bun:sqlite", () => {
     await engine.close();
 
     expect(db.file).toBe("test.db");
-    expect(db.log).toEqual([["exec", "SELECT 1"], ["close"]]);
+    expect(db.log).toEqual([["exec", "PRAGMA foreign_keys = ON"], ["exec", "SELECT 1"], ["close"]]);
   });
 });
 
@@ -101,6 +101,7 @@ describe("better-sqlite3", () => {
 
     expect(db.file).toBe("test.db");
     expect(db.log).toEqual([
+      ["exec", "PRAGMA foreign_keys = ON"],
       ["all", "SELECT ?", [1]],
       ["get", "SELECT ?", [2]],
       ["run", "UPDATE ?", [3]]
@@ -168,6 +169,7 @@ describe("sqlite3", () => {
 
     expect(db.file).toBe("test.db");
     expect(db.log).toEqual([
+      ["exec", "PRAGMA foreign_keys = ON"],
       ["all", "SELECT ?", [1]],
       ["get", "SELECT 2", []],
       ["run", "UPDATE 3", []],
@@ -230,6 +232,7 @@ describe("@libsql/client", () => {
 
     expect(client.url).toBe(":memory:");
     expect(client.log).toEqual([
+      ["executeMultiple", "PRAGMA foreign_keys = ON"],
       ["execute", { sql: "SELECT ?", args: [1] }],
       ["execute", { sql: "SELECT 5", args: [] }],
       ["execute", { sql: "SELECT 2", args: [] }],
