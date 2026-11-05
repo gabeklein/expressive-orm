@@ -16,6 +16,7 @@ declare namespace Connection {
   type Conflict = {
     on: string[];
     update?: string[];
+    set?: Record<string, unknown>;
   };
 
   type Journal = {

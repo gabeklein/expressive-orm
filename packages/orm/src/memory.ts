@@ -162,7 +162,7 @@ class Memory extends Connection {
     if (!existing)
       row = this._add(name, data);
     else if (conflict!.update) {
-      const assign: Row = {};
+      const assign: Row = { ...conflict!.set };
 
       for (const column of conflict!.update)
         assign[column] = data[column] ?? null;

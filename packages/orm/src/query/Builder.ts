@@ -43,7 +43,7 @@ class Builder {
   updates = new Map<Builder.ITable, Builder.Insert>();
   inserts = new Map<Builder.ITable, Builder.Insert>();
 
-  conflict?: { on: Field[]; update?: Field[] };
+  conflict?: { on: Field[]; update?: Field[]; set: Builder.Insert };
   returns?: Map<string, unknown> | Field | Value;
   entity?: Builder.ITable;
   limit?: number;

@@ -79,9 +79,13 @@ export class Generator {
     if (!conflict.update)
       return [on, 'DO NOTHING'];
 
-    const set = (conflict.update.length ? conflict.update : conflict.on).map(({ column }) => (
-      `${this.escape(column)} = excluded.${this.escape(column)}`
-    ));
+    const set = conflict.update.map(({ column }) => `${this.escape(column)} = excluded.${this.escape(column)}`);
+
+    for (const [field, value] of conflict.set)
+      set.push(`${this.escape(field.column)} = ${this.value(value)}`);
+
+    if (!set.length)
+      set.push(...conflict.on.map(({ column }) => `${this.escape(column)} = excluded.${this.escape(column)}`));
 
     return [on, 'DO UPDATE SET', set.join(', ')];
   }

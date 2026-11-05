@@ -163,7 +163,8 @@ abstract class Connection extends Base {
     if (conflict)
       builder.conflict = {
         on: conflict.on.map(column => lookup(target, column)),
-        update: conflict.update?.map(column => lookup(target, column))
+        update: conflict.update?.map(column => lookup(target, column)),
+        set: new Map(Object.entries(conflict.set || {}).map(([column, value]) => [lookup(target, column), bind(value)]))
       };
 
     if (!returns)

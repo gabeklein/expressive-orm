@@ -1507,6 +1507,23 @@ describe("query writes", () => {
       where(asset).match({ kind: "loras", file: "c" });
     })).toBe(1);
   })
+
+  it("will settle a date into every loaded instance", async () => {
+    class Event extends Type {
+      kind = str();
+      at = date();
+    }
+
+    await TestConnection.new([Event]);
+
+    const { id: first } = await Event.insert({ kind: "a", at: new Date(5) });
+    const { id: second } = await Event.insert({ kind: "a", at: new Date(1) });
+    const loaded = [await Event.get(first), await Event.get(second)];
+
+    await Event.update({ kind: "a" }, { at: new Date(5) });
+
+    expect(loaded.map(event => event.at)).toEqual([new Date(5), new Date(5)]);
+  })
 })
 
 describe("plan", () => {
@@ -1633,6 +1650,43 @@ describe("plan", () => {
     await conn.sync(true, true);
 
     expect(await db.all("SELECT post, typeof(post) AS kind FROM tag")).toEqual([{ post: 1, kind: "integer" }]);
+    await conn.close();
+  })
+
+  it("will rebuild a referenced table without touching its children", async () => {
+    class Author extends Type {
+      rank = num();
+    }
+
+    const { conn, db } = await open([Author],
+      "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, rank TEXT NOT NULL);" +
+      "CREATE TABLE post (id INTEGER PRIMARY KEY, author_id INTEGER REFERENCES author (id) ON DELETE CASCADE);" +
+      "INSERT INTO author (rank) VALUES ('1');" +
+      "INSERT INTO post (author_id) VALUES (1), (1);"
+    );
+
+    await conn.sync(true, true);
+
+    expect(await db.all("SELECT id, author_id FROM post")).toEqual([{ id: 1, author_id: 1 }, { id: 2, author_id: 1 }]);
+    expect(await db.get("PRAGMA foreign_keys")).toEqual({ foreign_keys: 1 });
+    await conn.close();
+  })
+
+  it("will not rebuild over a broken reference", async () => {
+    class Author extends Type {
+      rank = num();
+    }
+
+    const { conn, db } = await open([Author],
+      "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, rank TEXT NOT NULL);" +
+      "CREATE TABLE post (id INTEGER PRIMARY KEY, author_id INTEGER REFERENCES author (id));" +
+      "PRAGMA foreign_keys = OFF;" +
+      "INSERT INTO post (author_id) VALUES (9), (8);" +
+      "PRAGMA foreign_keys = ON;"
+    );
+
+    await expect(conn.sync(true, true)).rejects.toThrow("Cannot rebuild: post has references to missing rows (2).");
+    expect(await db.all("PRAGMA table_info(author)")).toContainEqual(expect.objectContaining({ name: "rank", type: "TEXT" }));
     await conn.close();
   })
 

@@ -163,14 +163,11 @@ function track(entity: Type, values: Record<string, unknown>) {
 }
 
 function settle(entity: Type, values: Record<string, unknown>) {
-  for (const key in values) {
-    const next = values[key];
+  const changed = Object.fromEntries(Object.entries(values).filter(([key, next]) => (
+    !(next instanceof Date && +next === +entity.get(key as any, false))
+  )));
 
-    if (next instanceof Date && +next === +entity.get(key as any, false))
-      delete values[key];
-  }
-
-  return write(() => (Model.prototype.set as Function).call(entity, values) as Model.Updated<Type>);
+  return write(() => (Model.prototype.set as Function).call(entity, changed) as Model.Updated<Type>);
 }
 
 async function receive(connection: Type.Connection, { table, op, id, row }: Connection.Change) {
@@ -441,18 +438,13 @@ abstract class Type extends Model {
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options: Type.Conflict<T>): Promise<Type.Columns<T> | undefined>;
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options?: Type.Conflict<T>){
     const { connection, fields, loaded, ref, subset } = this;
-    const updating: Record<string, unknown> = {};
-
-    if (options && options.conflict != "ignore")
-      for (const [key, field] of fields)
-        if (field.update !== undefined)
-          updating[key] = updates(field);
-
-    const input = await this.prepare({ ...updating, ...data, ...subset } as Type.Update<T>);
+    const given = { ...data, ...subset } as Type.Update<T>;
+    const input = await this.prepare(given);
+    const set = options && options.conflict != "ignore" ? await this.prepare({}, true) : {};
 
     register(this);
 
-    const inserted = await connection.insert(ref, input, true, options && conflict(this, input, options));
+    const inserted = await connection.insert(ref, input, true, options && conflict(this, given, set, options));
 
     if (!inserted)
       return;
@@ -655,22 +647,27 @@ async function persist(entity: Type, patch: Type.Update<Type>) {
   return updated;
 }
 
-function conflict<T extends Type>(type: typeof Type, input: Record<string, unknown>, options: Type.Conflict<T>) {
+function conflict<T extends Type>(type: typeof Type, given: Record<string, unknown>, set: Record<string, unknown>, options: Type.Conflict<T>) {
   const { fields } = type;
   const column = (key: unknown) => fields.get(key as string)!.column;
   const on = options.on ? [options.on].flat().map(column) : columns(fields.get("id")!);
   const keep = (options.keep || []).map(column);
 
-  const fixed = Array.from(fields.values()).filter(field => field.fixed).map(field => field.column);
-  const skip = (key: string) => on.includes(key) || keep.includes(key) || fixed.includes(key);
-  const all = Array.from(fields.values()).filter(field => !field.absent && !field.parts).map(field => field.column);
+  if (options.conflict == "ignore")
+    return { on };
+
+  const writable = Array.from(fields.values()).filter(field => (
+    !field.absent && !field.parts && !field.fixed && !on.includes(field.column) && !keep.includes(field.column)
+  ));
+
+  const named = (field: Field) => given[field.key] !== undefined;
+  const touched = (field: Field) => !named(field) && field.column in set;
+  const replaced = (field: Field) => options.conflict == "replace" && !field.primary;
 
   return {
     on,
-    update:
-      options.conflict == "update" ? Object.keys(input).filter(key => !skip(key)) :
-      options.conflict == "replace" ? all.filter(key => !skip(key)) :
-      undefined
+    update: writable.filter(field => !touched(field) && (named(field) || replaced(field))).map(field => field.column),
+    set: Object.fromEntries(writable.filter(touched).map(field => [field.column, set[field.column]]))
   };
 }
 

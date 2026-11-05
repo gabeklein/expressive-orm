@@ -2176,6 +2176,56 @@ describe("insert conflict", () => {
     await expect(Asset.find()).resolves.toEqual([row]);
   })
 
+  describe("on another column", () => {
+    class User extends connect() {
+      email = str({ unique: true });
+      name = str(null);
+      status = str({ fallback: "active" });
+      revision = num({ fallback: 0, update: () => 7 });
+    }
+
+    class Token extends connect() {
+      id = key({ type: "uuid" });
+      file = str({ unique: true });
+      note = str(null);
+    }
+
+    it("will keep the key on replace", async () => {
+      const { id } = await User.insert({ email: "a", name: "ann" });
+      const row = await User.insert({ email: "a" }, { conflict: "replace", on: "email" });
+
+      expect(row).toEqual({ id, email: "a", name: undefined, status: "active", revision: 7 });
+    })
+
+    it("will keep a generated key on update", async () => {
+      const { id } = await Token.insert({ file: "a" });
+      const row = await Token.insert({ file: "a", note: "n" }, { conflict: "update", on: "file" });
+
+      expect(row).toEqual({ id, file: "a", note: "n" });
+    })
+
+    it("will update only columns given", async () => {
+      const { id } = await User.insert({ email: "d", status: "banned" });
+      const row = await User.insert({ email: "d", name: "ann" }, { conflict: "update", on: "email" });
+
+      expect(row).toEqual({ id, email: "d", name: "ann", status: "banned", revision: 7 });
+    })
+
+    it("will insert fallbacks over update values", async () => {
+      const row = await User.insert({ email: "b" }, { conflict: "update", on: "email" });
+
+      expect(row).toMatchObject({ status: "active", revision: 0 });
+    })
+
+    it("will take an update value given", async () => {
+      await User.insert({ email: "c" });
+
+      const row = await User.insert({ email: "c", revision: 3 }, { conflict: "update", on: "email" });
+
+      expect(row.revision).toBe(3);
+    })
+  })
+
   it("will replace every column but the key", async () => {
     class Image extends connect() {
       id = str({ primary: true });
