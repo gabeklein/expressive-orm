@@ -125,7 +125,7 @@ import { SQLiteConnection } from '@expressive/sql';
 const db = await SQLiteConnection.new([User, Account, Session], "app.db");
 ```
 
-`new(types, ...)` binds each class to the connection. Awaiting it runs `sync`: missing tables are created, missing columns and indexes added, existing ones checked against the classes. A column added to a class appears on reopen, reading `undefined` or its `fallback` on old rows; one that cannot fill existing rows - primary, or `NOT NULL` without a `fallback` - is reported and nothing changes. Type and nullability drift is reported; `sync(true, true)` rebuilds it - Postgres alters the column, SQLite rebuilds the table - and refuses while a row would not fit, like a NULL under `NOT NULL`. Columns not on the class are left alone. `sync(false)` only verifies. `plan(force?)` returns what `sync` would do - `{ steps, problems }`, each step with its `action`, `reason` and `sql` - without doing it. A sync applies in one transaction. Omit the filename for an in-memory database. `await db.close()` releases it and destroys every entity loaded through it.
+`new(types, ...)` binds each class to the connection. Awaiting it runs `sync`: missing tables are created, missing columns and indexes added, existing ones checked against the classes. A column added to a class appears on reopen, reading `undefined` or its `fallback` on old rows; one that cannot fill existing rows - primary, or `NOT NULL` without a `fallback` - is reported and nothing changes. A nullable column defaulting to now is added without the default; inserts fill it. Type and nullability drift is reported; `sync(true, true)` rebuilds it - Postgres alters the column, SQLite rebuilds the table - and refuses while a row would not fit, like a NULL under `NOT NULL`; SQLite also checks each value converts. A SQLite rebuild keeps columns not on the class, indexes and triggers, but not UNIQUE or REFERENCES on columns the class doesn't declare, and refuses while any row references a missing one. SQLite connections enforce foreign keys. `sync(false)` only verifies. `plan(force?)` returns what `sync` would do - `{ steps, problems }`, each step with its `action`, `reason` and `sql` - without doing it. A sync applies in one transaction. Omit the filename for an in-memory database. `await db.close()` releases it and destroys every entity loaded through it.
 
 ```ts
 import { PGConnection, PGLiteConnection } from '@expressive/postgres';
@@ -155,7 +155,7 @@ expressive sql sync src/db.ts         # create missing tables, columns and index
 expressive sql sync --force src/db.ts # also rebuild drifted columns
 ```
 
-The entry is the module that creates your connections; it is imported with `sync` held back, so `await Connection.new()` resolves without touching the database, and the command plans and syncs each connection it created. A TypeScript entry needs Bun (`bunx --bun expressive ...`) or Node 23.6+. `expressive` is shared by `@expressive/*` packages: `expressive <package> ...` runs the command an installed package declares.
+The entry is the module that creates your connections; it is imported with `sync` held back, so `await Connection.new()` resolves without touching the database, and the command plans and syncs each connection it created. A TypeScript entry needs Bun (`bunx --bun expressive ...`) or Node 22.18+. `expressive` is shared by `@expressive/*` packages: `expressive <package> ...` runs the command an installed package declares.
 
 ## Read and write
 
@@ -187,7 +187,7 @@ await User.insert(row, { conflict: "update", on: "email" });        // target a 
 await User.insert(row, { conflict: "ignore" });                     // undefined if the row exists
 ```
 
-A `conflict` updates the existing row with every column given, minus the target, `keep` and `date.created` columns, and returns it, settling into a loaded instance; `"replace"` sets every column, an omitted one to its default or NULL; `"ignore"` leaves it and resolves `undefined`. `on` takes a key or an array of keys; the default is the primary key.
+A `conflict` updates the existing row with every column given, minus the target, `keep` and `date.created` columns, and returns it, settling into a loaded instance; `"replace"` sets every column but the primary key, an omitted one to its default or NULL; `"ignore"` leaves it and resolves `undefined`. Columns with an `update` value take it on conflict; a new row gets its `fallback`. `on` takes a key or an array of keys; the default is the primary key.
 
 Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, and `asc` / `desc` for order. A plain value is `equal`, `null` is `isNull`; an array applies each. `isLike` matches stored text, also on a `json()` column. `sql.now` stands for the current time in a statics write or comparison; statics read it from the app's clock, so a settled instance holds the exact value written.
 
@@ -460,7 +460,7 @@ A connection is a `Connection`, itself a Model. The floor every driver implement
 | Method | Does |
 |---|---|
 | `select(table, constraints, limit?, offset?)` | rows matching `[column, op, value]` tuples |
-| `insert(table, data, returns?, conflict?)` | inserts a row, returning it when asked; `conflict` is `{ on, update? }` by column - `update` absent does nothing, otherwise those columns are overwritten |
+| `insert(table, data, returns?, conflict?)` | inserts a row, returning it when asked; `conflict` is `{ on, update?, set? }` by column - `update` absent does nothing, otherwise those columns are overwritten from the row and `set`'s columns with its values |
 | `update(table, id, data)` | updates one row |
 | `remove(table, id)` | deletes one row |
 
