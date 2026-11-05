@@ -122,7 +122,7 @@ declare namespace Query {
   }
 }
 
-interface Query<T = any> extends PromiseLike<T> {
+interface Query<T = any> extends Promise<T> {
   toString(): string;
 
   params: unknown[];

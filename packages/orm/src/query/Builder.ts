@@ -64,7 +64,13 @@ class Builder {
         then: (resolve, reject) => {
           const run = this.returns ? get() : statement.run(params);
           return run.then(resolve, reject);
-        }
+        },
+        catch: reject => query.then(undefined, reject),
+        finally: done => query.then(
+          value => Promise.resolve(done?.()).then(() => value),
+          error => Promise.resolve(done?.()).then(() => { throw error; })
+        ),
+        [Symbol.toStringTag]: "Query"
       } as Query);
 
       if (this.returns)

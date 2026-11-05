@@ -29,6 +29,49 @@ it("will expose Builder as this", () => {
   });
 })
 
+describe("promise", () => {
+  class User extends connect() {
+    name = str();
+  }
+
+  async function count(): Promise<number> {
+    return Query(where => void where(User));
+  }
+
+  it("will be a Promise", async () => {
+    await seed(User, { name: "Gabe" });
+
+    const query: Promise<number> = Query(where => void where(User));
+
+    expect(String(Object.prototype.toString.call(query))).toBe("[object Query]");
+    expect(await count()).toBe(1);
+  })
+
+  it("will catch a failure", async () => {
+    const query = Query(where => {
+      where(User);
+      where("raw");
+    });
+
+    expect(await query.catch(error => error.message)).toMatch(/not supported/);
+  })
+
+  it("will run finally on success and failure", async () => {
+    const done: string[] = [];
+    const ok = Query(where => void where(User));
+    const fail = Query(where => {
+      where(User);
+      where("raw");
+    });
+
+    await expect(ok.finally(() => done.push("ok"))).resolves.toBe(1);
+    await expect(fail.finally(() => done.push("fail"))).rejects.toThrow();
+    await expect(ok.finally()).resolves.toBe(1);
+
+    expect(done).toEqual(["ok", "fail"]);
+  })
+})
+
 describe("select", () => {
   class Foo extends connect() {
     static table = "foo";
