@@ -29,6 +29,7 @@ export class Field<T = unknown> {
   nullable = false;
   optional = false;
   unique = false;
+  index: boolean | string = false;
   increment = false;
   primary = false;
   absent = false;

@@ -26,6 +26,8 @@ type Exact<T extends any[], Types> = {
     : T[K]
 };
 
+declare const crypto: { getRandomValues<T extends Uint8Array>(array: T): T };
+
 const FIELDS = new WeakMap<Function, Map<string, Field>>();
 const PEEK = new WeakSet<Type>();
 
@@ -145,6 +147,7 @@ function str<T extends str.Options[]>(...config: T & Exact<T, str.Types>): Infer
 
 str.Type = StringColumn;
 
+/** @deprecated Use `key(sql.uuid)` for an id, or `str(sql.uuid)` for a column. */
 function uuid<T extends str.Options[]>(...config: T & Exact<T, str.Types>): Infer<T, string> {
   return column(str.Type, { kind: String }, ...config);
 }
@@ -339,7 +342,64 @@ function record(type: Type.Class, subject: Type, read: () => readonly unknown[])
   return seen.map(key => type.fields.get(key)!);
 }
 
-function key<P extends readonly unknown[]>(read: () => readonly [...P]): Optional<KeyOf<P>> {
+type KeyType<T extends any[]> =
+  Has<T, { type: str.DataType }> extends true
+    ? Has<T, { type: "uuid" }> extends true ? Optional<string> : string
+    : Has<T, { increment: false }> extends true ? number : Optional<number>;
+
+const INTEGER = new Set(["integer", "smallint", "bigint", "serial", "smallserial", "bigserial"]);
+const NUMERIC = new Set([...INTEGER, "real", "float", "double", "numeric", "decimal"]);
+
+function key(): Optional<number>;
+function key<P extends readonly unknown[]>(read: () => readonly [...P]): Optional<KeyOf<P>>;
+function key<T extends (str.Options | num.Options)[]>(...config: T): KeyType<T>;
+function key(...config: any[]): unknown {
+  if (typeof config[0] == "function")
+    return composite(config[0]);
+
+  const type = config.reduce((type, opt) => opt && opt.type || type, undefined);
+  const numeric = !type || NUMERIC.has(type);
+
+  return field(key => {
+    const column = configure(new (numeric ? num.Type : str.Type)(key), [
+      { kind: numeric ? Number : String, primary: true, increment: !type || INTEGER.has(type) },
+      ...config
+    ]);
+
+    if (!numeric) {
+      const { apply } = column;
+
+      column.apply = (update, from, partial) => {
+        if (!partial && from[key] === undefined)
+          if (type == "uuid")
+            from = { ...from, [key]: uuidv7() };
+          else
+            throw new Error(`Missing required field: ${key}`);
+
+        return apply.call(column, update, from, partial);
+      };
+    }
+
+    return column;
+  });
+}
+
+function uuidv7() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  let time = Date.now();
+
+  for (let i = 5; i >= 0; i--, time = Math.floor(time / 256))
+    bytes[i] = time % 256;
+
+  bytes[6] = bytes[6] & 0x0f | 0x70;
+  bytes[8] = bytes[8] & 0x3f | 0x80;
+
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function composite<P extends readonly unknown[]>(read: () => readonly [...P]): Optional<KeyOf<P>> {
   let first: Type;
 
   return field(
@@ -377,8 +437,11 @@ function key<P extends readonly unknown[]>(read: () => readonly [...P]): Optiona
   );
 }
 
+/** @deprecated Pass `null`, like `str(null)`. */
 const orNull = { nullable: true } as const;
 const optional = { optional: true } as const;
+const unique = { unique: true } as const;
+const index = { index: true } as const;
 
 export type { DataTypes, Exact, Has, Key, OptionsOf };
 
@@ -398,4 +461,6 @@ export {
   uuid,
   orNull,
   optional,
+  unique,
+  index,
 }

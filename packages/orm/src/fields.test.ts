@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { bool, date, json, memory, num, one, optional, orNull, Query, str, Type, uuid } from '.';
+import { bool, date, index, json, key, memory, num, one, optional, orNull, Query, str, Type, unique, uuid } from '.';
 import { Field } from './Field';
 
 class TextColumn extends str.Type {
@@ -26,10 +26,15 @@ declare module '@expressive/orm' {
       length: number;
     }
 
+    interface UUID extends TextColumn {
+      type: "uuid";
+    }
+
     interface Types {
       default: Text;
       text: Text;
       varchar: VarChar;
+      uuid: UUID;
     }
   }
 
@@ -132,6 +137,101 @@ describe("uuid", () => {
 
     expect(field).toBeInstanceOf(str.Type);
     expect(field.kind).toBe(String);
+  })
+})
+
+describe("modifiers", () => {
+  it("will mark unique and index", () => {
+    const field = column(() => str(unique, index));
+
+    expect([field.unique, field.index]).toEqual([true, true]);
+  })
+
+  it("will name an index", () => {
+    expect(column(() => str({ index: "by_value" })).index).toBe("by_value");
+  })
+})
+
+describe("key", () => {
+  function id(type: Type.Class){
+    return type.fields.get("id")!;
+  }
+
+  it("will default to an incrementing integer", async () => {
+    class User extends connect() {
+      id = key();
+      name = str();
+    }
+
+    const { primary, increment, kind } = id(User);
+    const user = await User.insert({ name: "Gabe" });
+    const value: number = user.id;
+
+    expect({ primary, increment, kind, value }).toEqual({ primary: true, increment: true, kind: Number, value: 1 });
+  })
+
+  it("will rename its column", () => {
+    class User extends connect() {
+      id = key({ column: "user_id" });
+    }
+
+    expect(id(User).column).toBe("user_id");
+  })
+
+  it("will key by a string the insert supplies", async () => {
+    class Image extends connect() {
+      id = key({ type: "text", column: "name" });
+      size = num();
+    }
+
+    const { increment, kind, column } = id(Image);
+    const image = await Image.insert({ id: "a.png", size: 1 });
+    const value: string = image.id;
+
+    expect({ increment, kind, column, value }).toEqual({ increment: false, kind: String, column: "name", value: "a.png" });
+
+    // @ts-expect-error
+    await expect(Image.insert({ size: 1 })).rejects.toThrow("Missing required field: id");
+  })
+
+  it("will key by a number without increment", async () => {
+    class Version extends connect() {
+      id = key({ type: "numeric", precision: 4, increment: false });
+    }
+
+    const { increment, kind } = id(Version);
+    const version = await Version.insert({ id: 7 });
+    const value: number = version.id;
+
+    expect({ increment, kind, value }).toEqual({ increment: false, kind: Number, value: 7 });
+  })
+
+  it("will generate a uuid v7", async () => {
+    class Asset extends connect() {
+      id = key({ type: "uuid" });
+      file = str();
+    }
+
+    const before = Date.now();
+    const { id: generated } = await Asset.insert({ file: "a" });
+    const time = parseInt(generated.replace(/-/g, "").slice(0, 12), 16);
+
+    expect(generated).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(time).toBeGreaterThanOrEqual(before);
+    expect(time).toBeLessThanOrEqual(Date.now());
+  })
+
+  it("will keep a uuid supplied", async () => {
+    class Asset extends connect() {
+      id = key({ type: "uuid" });
+      file = str();
+    }
+
+    const asset = await Asset.insert({ id: "given", file: "a" });
+
+    await Asset.update(asset.id, { file: "b" });
+
+    expect(await Asset.one(asset.id)).toEqual({ id: "given", file: "b" });
   })
 })
 
