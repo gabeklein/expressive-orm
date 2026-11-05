@@ -289,7 +289,7 @@ date.created = function created<T extends date.Options[]>(...config: T & Exact<T
 };
 
 date.updated = function updated<T extends date.Options[]>(...config: T & Exact<T, date.Types>): Infer<[...T, { fallback: {} }], Date> {
-  return column(date.Type, { kind: Date, fallback: now, touch: now }, ...config);
+  return column(date.Type, { kind: Date, fallback: now, update: now }, ...config);
 };
 
 function json<T>(nullable: Nullable): T | undefined;

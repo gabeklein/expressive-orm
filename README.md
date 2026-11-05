@@ -72,7 +72,7 @@ Options, in any order:
 - `{ column }` - column name; default is the property in snake case.
 - `{ fallback }` - column default, also optional on insert. `sql.now` is the database's current time in the column's storage; `"NOW"` is a deprecated alias.
 
-`date.created()` and `date.updated()` take `date()`'s options and default to `sql.now`. `created` is written on insert only - upserts leave it, and an update giving it fails to compile and throws. `updated` is set to now on every update and upsert that doesn't give it. Underneath they are `{ fixed: true }` and `{ touch: sql.now }`, which any column takes; `touch` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
+`date.created()` and `date.updated()` take `date()`'s options and default to `sql.now`. `created` is written on insert only - upserts leave it, and an update giving it fails to compile and throws. `updated` is set to now on every update and upsert that doesn't give it. Underneath they are `{ fixed: true }` and `{ update: sql.now }`, which any column takes; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
 
 `orNull` and `uuid()` are deprecated for `null` and `str(sql.uuid)`.
 
@@ -189,7 +189,7 @@ await User.insert(row, { conflict: "ignore" });                     // undefined
 
 A `conflict` updates the existing row with every column given, minus the target, `keep` and `date.created` columns, and returns it, settling into a loaded instance; `"replace"` sets every column, an omitted one to its default or NULL; `"ignore"` leaves it and resolves `undefined`. `on` takes a key or an array of keys; the default is the primary key.
 
-Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, and `asc` / `desc` for order. A plain value is `equal`; an array applies each. `isLike` matches stored text, also on a `json()` column. `sql.now` stands for the current time in a statics write or comparison; statics read it from the app's clock, so a settled instance holds the exact value written.
+Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, and `asc` / `desc` for order. A plain value is `equal`, `null` is `isNull`; an array applies each. `isLike` matches stored text, also on a `json()` column. `sql.now` stands for the current time in a statics write or comparison; statics read it from the app's clock, so a settled instance holds the exact value written.
 
 ```ts
 await UserAsset.count({ kind: "loras", file });                   // matching rows

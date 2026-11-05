@@ -40,7 +40,7 @@ export class Field<T = unknown> {
   absent = false;
   fallback?: unknown;
   fixed = false;
-  touch?: unknown;
+  update?: unknown;
   reference?: Field;
   declare parts?: Field[];
   parent?: Query.Table;
@@ -91,8 +91,8 @@ export class Field<T = unknown> {
   }
 }
 
-export function updates({ touch }: Field) {
-  return typeof touch == "function" ? touch() : touch;
+export function updates({ update }: Field) {
+  return typeof update == "function" ? update() : update;
 }
 
 export function fixes(field: Field, value: unknown) {

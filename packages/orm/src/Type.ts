@@ -42,7 +42,7 @@ type Insert<T extends Type> = {
   [K in Fields<T> as (Omits<T[K]> extends true ? K : never)]?: Inserts<T[K]> | Clears<T[K]>;
 };
 
-type Matches<T> = T extends Type ? T | T["id"] | Type.Compat<T> : T | Moment<T>;
+type Matches<T> = (T extends Type ? T | T["id"] | Type.Compat<T> : T | Moment<T>) | Clears<T>;
 
 type Id<T extends Type> = T["id"] | (T["id"] extends Key<infer P> ? Readonly<P> : never);
 
@@ -441,14 +441,14 @@ abstract class Type extends Model {
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options: Type.Conflict<T>): Promise<Type.Columns<T> | undefined>;
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options?: Type.Conflict<T>){
     const { connection, fields, loaded, ref, subset } = this;
-    const touched: Record<string, unknown> = {};
+    const updating: Record<string, unknown> = {};
 
     if (options && options.conflict != "ignore")
       for (const [key, field] of fields)
-        if (field.touch !== undefined)
-          touched[key] = updates(field);
+        if (field.update !== undefined)
+          updating[key] = updates(field);
 
-    const input = await this.prepare({ ...touched, ...data, ...subset } as Type.Update<T>);
+    const input = await this.prepare({ ...updating, ...data, ...subset } as Type.Update<T>);
 
     register(this);
 
@@ -814,9 +814,9 @@ function buildConstraints(where: Type.Query<any>) {
         continue;
 
       constraints.push(
-        val instanceof Where
-          ? [key, val.op || "=", val.value]
-          : [key, '=', val]
+        val instanceof Where ? [key, val.op || "=", val.value] :
+        val === null ? [key, "IS NULL", undefined] :
+        [key, '=', val]
       )
     }
   }

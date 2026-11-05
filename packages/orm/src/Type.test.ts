@@ -2015,7 +2015,7 @@ describe("created and updated", () => {
 
     class Doc extends connect() {
       title = str();
-      revision = num({ fallback: 0, touch: () => ++count });
+      revision = num({ fallback: 0, update: () => ++count });
     }
 
     const { id } = await Doc.insert({ title: "a" });
@@ -2078,6 +2078,18 @@ describe("query writes", () => {
     expect(await Item.count({ kind: notEqual("a") })).toBe(1);
     expect(await Item.count({ kind: "a", id: asc() })).toBe(2);
     expect(await Item.count({ file: isLike("1%") })).toBe(2);
+  })
+
+  it("will match null as missing", async () => {
+    await seed();
+
+    expect(await Item.count({ note: null })).toBe(2);
+    expect((await Item.find({ note: null, kind: "a" })).map(item => item.file)).toEqual(["1"]);
+    expect(await Item.update({ note: null }, { note: "y" })).toBe(2);
+    expect(await Item.count({ note: "y" })).toBe(2);
+
+    // @ts-expect-error
+    void (() => Item.find({ kind: null }));
   })
 
   it("will update matching rows and settle loaded ones", async () => {
