@@ -1941,6 +1941,18 @@ describe("now", () => {
     expect(past.map(event => event.name)).toContain("past");
   })
 
+  it("will fill a fallback on insert", async () => {
+    class Note extends connect() {
+      text = str({ fallback: "hi" });
+      at = date({ fallback: "NOW" });
+    }
+
+    const note = await Note.insert({});
+
+    expect(note.text).toBe("hi");
+    near(note.at);
+  })
+
   it("will not accept now for other columns", () => {
     // @ts-expect-error
     void (() => Event.insert({ name: now }));

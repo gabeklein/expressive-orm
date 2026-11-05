@@ -70,8 +70,8 @@ export class Field<T = unknown> {
     if (partial && fixed)
       return;
 
-    if (partial && value === undefined)
-      value = touch;
+    if (value === undefined)
+      value = partial ? touch : this.fallback === "NOW" ? now : this.fallback;
 
     if (value === undefined && (nullable || partial || omits(this)))
       return;

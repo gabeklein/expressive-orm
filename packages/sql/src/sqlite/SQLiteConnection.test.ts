@@ -1406,6 +1406,27 @@ describe("timestamps", () => {
     expect(after.updated.getTime()).toBeGreaterThanOrEqual(post.updated.getTime());
   })
 
+  it("will fill defaults an existing table lacks", async () => {
+    class Image extends Type {
+      status = str(null, { fallback: "done" });
+      created = date.created({ type: "ms" }, null);
+      legacy = date(null, { fallback: "NOW" });
+    }
+
+    const conn = SQLiteConnection.new([Image]);
+    const db = await conn["db"]();
+
+    await db.exec("CREATE TABLE image (id INTEGER NOT NULL PRIMARY KEY, status TEXT, created INTEGER, legacy TEXT)");
+    await conn.sync();
+
+    const image = await Image.insert({});
+
+    expect(image.status).toBe("done");
+    expect(image.created).toBeInstanceOf(Date);
+    expect(image.legacy).toBeInstanceOf(Date);
+    await conn.close();
+  })
+
   it("will keep created on replace", async () => {
     class Image extends Type {
       id = key({ type: "text", column: "name" });
