@@ -115,7 +115,7 @@ await Membership.insert({ account: 1, role: "owner" }); // { id: '[1,"owner"]', 
 const owner = await Membership.get([1, "owner"]);
 ```
 
-The arrow lists `this.<field>` reads and nothing else; it runs lazily, so `id` stays on top. `id` is a string - the parts as JSON - typed as a key of `[number, string]`, so it compares by value; read the parts from their fields. `get`, `one`, `update` and `delete` take the key or the tuple; `sync` declares `PRIMARY KEY (account_id, role)`. `id` matches or orders by its parts - other operators throw - and `one()` cannot relate to a composite-keyed class.
+The arrow lists `this.<field>` reads and nothing else; it runs lazily, so `id` stays on top. `id` is a string - the parts as JSON - typed `Key<[number, string]>`, so it compares by value; read the parts from their fields. `Key` is exported to name it. `get`, `one`, `update` and `delete` take the key or the tuple; `sync` declares `PRIMARY KEY (account_id, role)`. `id` matches or orders by its parts - other operators throw - and `one()` cannot relate to a composite-keyed class.
 
 ## Connect
 

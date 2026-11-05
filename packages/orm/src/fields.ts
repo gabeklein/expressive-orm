@@ -308,9 +308,7 @@ function json<T>(config?: Config){
   }, config);
 }
 
-type Key<P> = string & { readonly "~key": P };
-
-type KeyOf<P extends readonly unknown[]> = Key<{ -readonly [I in keyof P]: P[I] extends Type | undefined ? NonNullable<P[I]>["id"] : P[I] }>;
+type Key<P> = string & { readonly "~key": P; readonly "~optional"?: true };
 
 class KeyField extends Field<string> {
   absent = true;
@@ -367,7 +365,7 @@ const INTEGER = new Set(["integer", "smallint", "bigint", "serial", "smallserial
 const NUMERIC = new Set([...INTEGER, "real", "float", "double", "numeric", "decimal"]);
 
 function key(): Optional<number>;
-function key<P extends readonly unknown[]>(read: () => readonly [...P]): Optional<KeyOf<P>>;
+function key<P extends readonly unknown[]>(read: () => readonly [...P]): Key<{ -readonly [I in keyof P]: P[I] extends Type | undefined ? NonNullable<P[I]>["id"] : P[I] }>;
 function key<T extends (str.Options | num.Options)[]>(...config: T): KeyType<T>;
 function key(...config: any[]): unknown {
   if (typeof config[0] == "function")
@@ -415,7 +413,7 @@ function uuidv7() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-function composite<P extends readonly unknown[]>(read: () => readonly [...P]): Optional<KeyOf<P>> {
+function composite<P extends readonly unknown[]>(read: () => readonly [...P]) {
   let first: Type;
 
   return field(

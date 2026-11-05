@@ -1,7 +1,7 @@
 export { Connection } from './Connection';
 export { default, Type } from './Type';
 export type { Columns, Compat, Insert } from './Type';
-export type { Infer } from './fields';
+export type { Infer, Key } from './fields';
 export { Field, json, key, str, num, bool, date, uuid, orNull, optional, unique, index } from './fields';
 export * from './where';
 export { one, lazy } from './one';
