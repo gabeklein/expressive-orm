@@ -3,7 +3,7 @@ import { Field, identify, match as constraints } from './Field';
 import type { Builder } from './query/Builder';
 import type { Query } from './query/Query';
 import { Computed } from './query/Computed';
-import { Cond, DataField, DataTable, Expression, Parameter, Value } from './query/Value';
+import { Cond, DataField, DataTable, Expression, now, Parameter, Value } from './query/Value';
 import type { Type } from './Type';
 
 type Row = Record<string, any>;
@@ -165,7 +165,7 @@ class Memory extends Connection {
       const assign: Row = {};
 
       for (const column of conflict!.update)
-        assign[column] = data[column];
+        assign[column] = data[column] ?? null;
 
       Object.assign(existing, assign);
       this._notify(name, "update", identify(this._key(name), existing), assign);
@@ -218,7 +218,10 @@ function execute(memory: Memory, query: Builder, params: unknown[]) {
   if (query.templates.size)
     throw new Error("Query templates are not supported by the memory driver.");
 
-  function value(input: unknown, scope: Scope): unknown {
+  function value(input: unknown, scope: Scope, field?: Field): unknown {
+    if (input === now)
+      return field!.set(new Date());
+
     if (input instanceof Field || input instanceof DataField)
       return scope.get(input.table!)?.[input.column];
 
@@ -243,8 +246,8 @@ function execute(memory: Memory, query: Builder, params: unknown[]) {
   function test({ left, op, right }: Cond, scope: Scope): boolean {
     const encode = (input: unknown) => (
       input instanceof Value || input instanceof Field || input == null
-        ? value(input, scope)
-        : left.set(input)
+        ? value(input, scope, left)
+        : op.includes("LIKE") ? input : left.set(input)
     );
 
     const field = value(left, scope);
@@ -317,7 +320,7 @@ function execute(memory: Memory, query: Builder, params: unknown[]) {
       const row: Row = {};
 
       data.forEach((input, field) => {
-        row[field.column] = value(input, scope);
+        row[field.column] = value(input, scope, field);
       });
 
       scope.set(target, memory._add(target.name, row, key(target.type!)));
@@ -333,7 +336,7 @@ function execute(memory: Memory, query: Builder, params: unknown[]) {
       const assign: Row = {};
 
       data.forEach((input, field) => {
-        assign[field.column] = value(input, scope);
+        assign[field.column] = value(input, scope, field);
       });
 
       Object.assign(row, assign);

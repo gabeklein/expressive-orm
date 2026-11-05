@@ -2,8 +2,9 @@ import { Context, Model } from '@expressive/mvc';
 
 import { Connection } from './Connection';
 import { FIELDS, Key, num, PEEK, placeholder, write } from './fields';
-import { columns, Field, match, Omits, Optional, row, underscore } from './Field';
+import { columns, Field, match, Omits, Optional, present, row, underscore } from './Field';
 import { Query } from './query/Query';
+import type { Moment } from './query/Value';
 import type { Rows } from './rows';
 import { desc, equal, Where } from './where';
 
@@ -33,7 +34,7 @@ type Columns<T extends Type> = Pick<T, "id"> & {
 
 type Clears<T> = undefined extends T ? null : never;
 
-type Inserts<T> = T extends Type ? T | T["id"] | Type.Insert<T> : T;
+type Inserts<T> = T extends Type ? T | T["id"] | Type.Insert<T> : T | Moment<T>;
 
 type Insert<T extends Type> = {
   [K in Fields<T> as (Omits<T[K]> extends true ? never : K)]: Inserts<T[K]> | Clears<T[K]>;
@@ -41,12 +42,12 @@ type Insert<T extends Type> = {
   [K in Fields<T> as (Omits<T[K]> extends true ? K : never)]?: Inserts<T[K]> | Clears<T[K]>;
 };
 
-type Matches<T> = T extends Type ? T | T["id"] | Type.Compat<T> : T;
+type Matches<T> = T extends Type ? T | T["id"] | Type.Compat<T> : T | Moment<T>;
 
 type Id<T extends Type> = T["id"] | (T["id"] extends Key<infer P> ? Readonly<P> : never);
 
 type Conflict<T extends Type> = {
-  conflict: "update" | "ignore";
+  conflict: "update" | "replace" | "ignore";
   on?: Fields<T> | Fields<T>[];
   keep?: Fields<T>[];
 };
@@ -413,7 +414,12 @@ abstract class Type extends Model {
     }) as T & Type));
   }
 
-  static async update<T extends Type>(this: Type.Class<T>, id: Type.Id<T>, data: Type.Update<T>): Promise<void> {
+  static async update<T extends Type>(this: Type.Class<T>, id: Type.Id<T>, data: Type.Update<T>): Promise<void>;
+  static async update<T extends Type>(this: Type.Class<T>, where: Type.Query<T>, data: Type.Update<T>): Promise<number>;
+  static async update<T extends Type>(this: Type.Class<T>, id: Type.Id<T> | Type.Query<T>, data: Type.Update<T>): Promise<void | number> {
+    if (isQuery(id))
+      return updateWhere(this, id, data);
+
     const { connection, loaded, ref } = this;
     const row = await this.prepare(data, true);
     const key = slot(id);
@@ -431,11 +437,18 @@ abstract class Type extends Model {
   }
 
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options: Type.Conflict<T> & { conflict: "ignore" }): Promise<Type.Columns<T> | undefined>;
-  static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options?: Type.Conflict<T> & { conflict: "update" }): Promise<Type.Columns<T>>;
+  static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options?: Type.Conflict<T> & { conflict: "update" | "replace" }): Promise<Type.Columns<T>>;
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options: Type.Conflict<T>): Promise<Type.Columns<T> | undefined>;
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options?: Type.Conflict<T>){
     const { connection, fields, loaded, ref, subset } = this;
-    const input = await this.prepare({ ...data, ...subset } as Type.Update<T>);
+    const touched: Record<string, unknown> = {};
+
+    if (options && options.conflict != "ignore")
+      for (const [key, field] of fields)
+        if (field.touch !== undefined)
+          touched[key] = field.touch;
+
+    const input = await this.prepare({ ...touched, ...data, ...subset } as Type.Update<T>);
 
     register(this);
 
@@ -457,7 +470,12 @@ abstract class Type extends Model {
     return columns;
   }
 
-  static async delete<T extends Type>(this: Type.Class<T>, id: Type.Id<T>): Promise<void> {
+  static async delete<T extends Type>(this: Type.Class<T>, id: Type.Id<T>): Promise<void>;
+  static async delete<T extends Type>(this: Type.Class<T>, where: Type.Query<T>): Promise<number>;
+  static async delete<T extends Type>(this: Type.Class<T>, id: Type.Id<T> | Type.Query<T>): Promise<void | number> {
+    if (isQuery(id))
+      return deleteWhere(this, id);
+
     const { connection, loaded, ref } = this;
     const key = slot(id);
 
@@ -467,6 +485,10 @@ abstract class Type extends Model {
 
     if (entity)
       retire(entity, key);
+  }
+
+  static async count<T extends Type>(this: Type.Class<T>, where: Type.Query<T> = {}): Promise<number> {
+    return matching(this, conditions(this, where, true));
   }
 
   static async one<T extends Type>(this: Type.Class<T>, where: Type.Id<T> | Type.Query<T> | undefined, expect: boolean): Promise<Type.Columns<T> | undefined>;
@@ -561,9 +583,9 @@ async function select(
         query.push([part.column, op, op == "=" ? await part.set(parts[i], true) : undefined]);
     }
     else if (field) {
-      const computed = Array.isArray(value)
-        ? Promise.all(value.map(v => field.set(v, true)))
-        : field.set(value, true);
+      const computed = op.includes("LIKE") ? value : Array.isArray(value)
+        ? Promise.all(value.map(v => field.set(present(v), true)))
+        : field.set(present(value), true);
 
       query.push([field.column, op, await computed]);
     }
@@ -639,11 +661,16 @@ function conflict<T extends Type>(type: typeof Type, input: Record<string, unkno
   const on = options.on ? [options.on].flat().map(column) : columns(fields.get("id")!);
   const keep = (options.keep || []).map(column);
 
+  const fixed = Array.from(fields.values()).filter(field => field.fixed).map(field => field.column);
+  const skip = (key: string) => on.includes(key) || keep.includes(key) || fixed.includes(key);
+  const all = Array.from(fields.values()).filter(field => !field.absent && !field.parts).map(field => field.column);
+
   return {
     on,
-    update: options.conflict == "update"
-      ? Object.keys(input).filter(key => !on.includes(key) && !keep.includes(key))
-      : undefined
+    update:
+      options.conflict == "update" ? Object.keys(input).filter(key => !skip(key)) :
+      options.conflict == "replace" ? all.filter(key => !skip(key)) :
+      undefined
   };
 }
 
@@ -677,6 +704,98 @@ Type.on({
       return error;
   }
 });
+
+function isQuery(where: unknown): where is Type.Query<any> {
+  return typeof where == "object" && where !== null && !Array.isArray(where);
+}
+
+function conditions(type: typeof Type, where: Type.Query<any>, empty?: boolean){
+  const constraints = buildConstraints({ ...where, ...type.subset })
+    .filter(([, op]) => op != "asc" && op != "desc");
+
+  if (!empty && !constraints.length)
+    throw new Error(`${type.name} needs a condition to write by query.`);
+
+  return constraints;
+}
+
+function matching(type: typeof Type, constraints: Type.Constraint[], act?: (verbs: Query.Verbs<any>) => void){
+  return Query(function(from){
+    const self = from(type);
+    const { fields } = this.tables.get(self)!;
+
+    for (const [key, op, value] of constraints) {
+      const field = fields.get(key)!;
+
+      if (field.parts) {
+        if (op != "=")
+          throw new Error(`${type.name}.${key} is a composite key and can only be matched or ordered.`);
+
+        const parts = locate(type, value) as unknown[];
+
+        field.parts.forEach((part, i) => this.where(fields.get(part.key)!, "=", parts[i]));
+      }
+      else if (op == "IS NULL" || op == "IS NOT NULL")
+        this.where(field, op == "IS NULL" ? "=" : "<>", null);
+      else
+        this.where(field, op == "!=" ? "<>" : op, Array.isArray(value) ? value.map(present) : present(value));
+    }
+
+    if (act)
+      act(from(self));
+  });
+}
+
+async function updateWhere(type: typeof Type, where: Type.Query<any>, data: Type.Update<any>){
+  const { fields, loaded } = type;
+  const constraints = conditions(type, where);
+  const values: Record<string, unknown> = {};
+
+  for (const [key, field] of fields) {
+    const value = key in data ? (data as Record<string, unknown>)[key] : field.touch;
+
+    if (!field.fixed && value !== undefined)
+      values[key] = present(value);
+  }
+
+  const affected = loaded.size ? await select(type, constraints) : [];
+  const count = await matching(type, constraints, verbs => verbs.update(values));
+
+  if (affected.length) {
+    const changed = await decode(type, await type["prepare"](values as Type.Update<Type>, true), true);
+
+    for (const raw of affected) {
+      const { id } = await row(fields, raw);
+      const key = slot(id);
+      const entity = loaded.get(key);
+
+      if (entity) {
+        track(entity, changed);
+        settle(entity, changed);
+        rekey(entity, key);
+      }
+    }
+  }
+
+  return count;
+}
+
+async function deleteWhere(type: typeof Type, where: Type.Query<any>){
+  const { fields, loaded } = type;
+  const constraints = conditions(type, where);
+  const affected = loaded.size ? await select(type, constraints) : [];
+  const count = await matching(type, constraints, verbs => verbs.delete());
+
+  for (const raw of affected) {
+    const key = slot((await row(fields, raw)).id);
+    const entity = loaded.get(key);
+
+    if (entity)
+      retire(entity, key);
+  }
+
+  return count;
+}
 
 function buildConstraints(where: Type.Query<any>) {
   const constraints: Type.Constraint[] = [];

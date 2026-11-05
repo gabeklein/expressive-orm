@@ -1,6 +1,7 @@
 import { def } from '@expressive/mvc';
 
 import { Config, configure, Field, Nullable, Omissible, Optional } from './Field';
+import { now } from './query/Value';
 import { type Type } from './Type';
 
 type Has<T extends any[], M> =
@@ -281,6 +282,14 @@ function date<T extends date.Options[]>(...config: T & Exact<T, date.Types>): In
 
 date.Type = TimeColumn;
 
+date.created = function created<T extends date.Options[]>(...config: T & Exact<T, date.Types>): Infer<[...T, { fallback: {} }], Date> {
+  return column(date.Type, { kind: Date, fallback: now, fixed: true }, ...config);
+};
+
+date.updated = function updated<T extends date.Options[]>(...config: T & Exact<T, date.Types>): Infer<[...T, { fallback: {} }], Date> {
+  return column(date.Type, { kind: Date, fallback: now, touch: now }, ...config);
+};
+
 function json<T>(nullable: Nullable): T | undefined;
 function json<T>(config?: Config): T;
 function json<T>(config?: Config){
@@ -288,7 +297,14 @@ function json<T>(config?: Config){
     kind: Object,
     type: "text",
     set: (value: T) => value == null ? null : JSON.stringify(value),
-    get: (value: string) => value ? JSON.parse(value) : undefined,
+    get: (value: string) => {
+      try {
+        return value ? JSON.parse(value) : undefined;
+      }
+      catch {
+        return undefined;
+      }
+    },
   }, config);
 }
 

@@ -1,4 +1,5 @@
 import type { Builder } from './query/Builder';
+import { now } from './query/Value';
 import type { Query } from './query/Query';
 
 export type Async<T> = T | Promise<T>;
@@ -34,6 +35,8 @@ export class Field<T = unknown> {
   primary = false;
   absent = false;
   fallback?: unknown;
+  fixed = false;
+  touch?: unknown;
   reference?: Field;
   declare parts?: Field[];
   parent?: Query.Table;
@@ -61,19 +64,29 @@ export class Field<T = unknown> {
   }
 
   async apply(update: Record<string, string>, from: Record<string, any>, partial?: boolean) {
-    const { key, column, nullable } = this;
+    const { key, column, nullable, fixed, touch } = this;
     let value = from[key];
+
+    if (partial && fixed)
+      return;
+
+    if (partial && value === undefined)
+      value = touch;
 
     if (value === undefined && (nullable || partial || omits(this)))
       return;
 
-    value = await this.set(value);
+    value = await this.set(present(value));
 
     if (value == null && !nullable)
       throw new Error(`Missing required field: ${key}`);
 
     update[column] = value ?? null;
   }
+}
+
+export function present(value: unknown){
+  return value === now ? new Date() : value;
 }
 
 export async function row(fields: Map<string, Field>, raw: Record<string, any>) {

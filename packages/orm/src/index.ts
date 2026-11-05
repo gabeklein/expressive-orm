@@ -10,4 +10,4 @@ export { memory } from './memory';
 export { Query } from './query/Query';
 export { Builder } from './query/Builder';
 export { Computed } from './query/Computed';
-export { DataField, DataTable, Parameter, QueryTemplate } from './query/Value';
+export { DataField, DataTable, now, Parameter, QueryTemplate } from './query/Value';

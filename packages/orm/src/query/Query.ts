@@ -3,7 +3,7 @@ import type { Rows } from '../rows';
 import type { Type } from '../Type';
 import { Builder } from './Builder';
 import { BitWise, Computed, MathOps } from './Computed';
-import { Cond, Expression, Group, QueryTemplate } from './Value';
+import { Cond, Expression, Group, type Moment, QueryTemplate } from './Value';
 
 declare const ENTITY: unique symbol;
 
@@ -36,12 +36,12 @@ declare namespace Query {
 
   type Value<V> = Field<V | undefined> | Computed<V>;
 
-  type Match<V = any> = V | Value<NonNullable<V>> | (undefined extends V ? null : never);
+  type Match<V = any> = V | Value<NonNullable<V>> | Moment<V> | (undefined extends V ? null : never);
 
   type Assigns<V> =
     [NonNullable<V>] extends [Type]
       ? NonNullable<V> | Type.Columns<Extract<NonNullable<V>, Type>> | NonNullable<V>["id"] | From<NonNullable<V>> | Value<NonNullable<V>["id"]>
-      : V | Value<NonNullable<V>>;
+      : V | Value<NonNullable<V>> | Moment<V>;
 
   type Writable<T> = Exclude<Keys<T>, "id">;
 
@@ -50,6 +50,10 @@ declare namespace Query {
     & { [K in Keys<T> as Omits<T[K]> extends true ? K : never]?: Assigns<T[K]> | (undefined extends T[K] ? null : never) };
 
   type Update<T> = {
+    [K in Writable<T>]?: Assigns<T[K]> | (undefined extends T[K] ? null : never)
+  };
+
+  type Matching<T> = {
     [K in Writable<T>]?: Assigns<T[K]> | (undefined extends T[K] ? null : never)
   };
 
@@ -112,6 +116,7 @@ declare namespace Query {
   interface Verbs<T> {
     delete(): void;
     update(values: Update<T>): void;
+    match(values: Matching<T>): void;
   }
 
   interface Selects<T> extends Query<Row<T>[]> {

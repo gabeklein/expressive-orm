@@ -176,6 +176,11 @@ class Builder {
             this.put(updates, target.fields.get(key)!, data[key]);
 
         this.updates.set(target, updates);
+      },
+      match: (data: Record<string, unknown>) => {
+        for (const key in data)
+          if (data[key] !== undefined)
+            this.where(target.fields.get(key)!, "=", data[key]);
       }
     }
   }

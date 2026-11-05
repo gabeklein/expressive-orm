@@ -1,12 +1,13 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { Field } from '../Field';
-import { bool, num, str } from '../fields';
+import { bool, date, num, str } from '../fields';
 import { memory } from '../memory';
 import { one } from '../one';
 import { Type } from '../Type';
 import { Builder } from './Builder';
 import { Query } from './Query';
+import { now } from './Value';
 
 function connect(){
   return class Table extends Type {
@@ -70,6 +71,61 @@ describe("promise", () => {
 
     expect(done).toEqual(["ok", "fail"]);
   })
+})
+
+describe("match", () => {
+  class Asset extends connect() {
+    kind = str();
+    file = str();
+    note = str(null);
+  }
+
+  it("will match several columns", async () => {
+    await seed(Asset, { kind: "a", file: "1" }, { kind: "a", file: "2" }, { kind: "b", file: "1" });
+
+    const count = await Query(where => {
+      const asset = where(Asset);
+
+      where(asset).match({ kind: "a", file: "1", note: undefined });
+    });
+
+    expect(count).toBe(1);
+  })
+})
+
+describe("now", () => {
+  class Event extends connect() {
+    at = date(null);
+  }
+
+  it("will write and compare the current time", async () => {
+    const insert = Query(where => void where(Event, { at: now }));
+
+    expect(String(insert)).toBe("insert event\n  at: now");
+    await insert;
+
+    await Query(where => {
+      const event = where(Event);
+
+      where(event).update({ at: now });
+    });
+
+    const [row] = await Query(where => {
+      const event = where(Event);
+
+      where(event.at).under(now, true);
+      where(event.at).over(sql(where));
+
+      return event;
+    });
+
+    expect(Math.abs(Date.now() - row.at!.getTime())).toBeLessThan(1000);
+  })
+
+  function sql(where: Query.Where){
+    void where;
+    return new Date(0);
+  }
 })
 
 describe("select", () => {

@@ -6,8 +6,8 @@ import { Field } from './Field';
 import { memory } from './memory';
 import { Query } from './query/Query';
 import { Type } from './Type';
-import { asc, desc, equal, greaterThan, isIn, Where } from './where';
-import { bool, date, json, key, lazy, num, one, optional, orNull, str, uuid } from '.';
+import { asc, desc, equal, greaterThan, isIn, isLike, isNull, lessThan, notEqual, notNull, Where } from './where';
+import { bool, date, json, key, lazy, now, num, one, optional, orNull, str, uuid } from '.';
 
 function spy<K extends "select" | "insert" | "update" | "remove">(connection: Connection, key: K) {
   void connection[key];
@@ -1909,6 +1909,192 @@ describe("null", () => {
   })
 })
 
+describe("now", () => {
+  class Event extends connect() {
+    name = str();
+    at = date(null);
+  }
+
+  function near(value: Date | undefined){
+    expect(value).toBeInstanceOf(Date);
+    expect(Math.abs(Date.now() - value!.getTime())).toBeLessThan(1000);
+  }
+
+  it("will write the current time", async () => {
+    const { id, at } = await Event.insert({ name: "a", at: now });
+
+    near(at);
+
+    const event = await Event.get(id);
+
+    await Event.update(id, { at: null });
+    await Event.update(id, { at: now });
+
+    near(event.at);
+  })
+
+  it("will compare with the current time", async () => {
+    await Event.insert({ name: "past", at: new Date(1000) });
+
+    const past = await Event.find({ at: lessThan(now) });
+
+    expect(past.map(event => event.name)).toContain("past");
+  })
+
+  it("will not accept now for other columns", () => {
+    // @ts-expect-error
+    void (() => Event.insert({ name: now }));
+  })
+})
+
+describe("created and updated", () => {
+  class Post extends connect() {
+    title = str();
+    created = date.created();
+    updated = date.updated(null);
+  }
+
+  it("will be optional on insert", async () => {
+    const created: Date = ({} as Post).created;
+    const updated: Date | undefined = ({} as Post).updated;
+    const post = await Post.insert({ title: "a", created: new Date(1), updated: new Date(1) });
+
+    expect([created, updated, post.created]).toEqual([undefined, undefined, new Date(1)]);
+  })
+
+  it("will keep created and touch updated on update", async () => {
+    const { id } = await Post.insert({ title: "a", created: new Date(1), updated: new Date(1) });
+
+    await Post.update(id, { title: "b", created: new Date(2) });
+
+    const post = await Post.one(id);
+
+    expect(post.created).toEqual(new Date(1));
+    expect(post.updated!.getTime()).toBeGreaterThan(1);
+  })
+
+  it("will take an updated value given", async () => {
+    const { id } = await Post.insert({ title: "a", created: new Date(1), updated: new Date(1) });
+
+    await Post.update(id, { updated: new Date(5) });
+
+    expect((await Post.one(id)).updated).toEqual(new Date(5));
+  })
+
+  it("will keep created and touch updated on upsert", async () => {
+    const { id } = await Post.insert({ title: "a", created: new Date(1), updated: new Date(1) });
+    const post = await Post.insert({ id, title: "b", created: new Date(3) }, { conflict: "update" });
+
+    expect(post.created).toEqual(new Date(1));
+    expect(post.updated!.getTime()).toBeGreaterThan(1);
+  })
+})
+
+describe("query writes", () => {
+  let Item: ReturnType<typeof table>;
+
+  function table(){
+    return class Item extends connect() {
+      kind = str();
+      file = str();
+      note = str(null);
+      revised = date.updated(null);
+    }
+  }
+
+  async function seed(live = true){
+    Item = table();
+
+    if (!live)
+      Object.defineProperty(Item.connection, "subscribe", { value: undefined });
+
+    await Item.insert({ kind: "a", file: "1" });
+    await Item.insert({ kind: "a", file: "2", note: "x" });
+    await Item.insert({ kind: "b", file: "1" });
+  }
+
+  it("will count matching rows", async () => {
+    await seed();
+
+    expect(await Item.count()).toBe(3);
+    expect(await Item.count({ kind: "a" })).toBe(2);
+    expect(await Item.count({ kind: "a", file: "1" })).toBe(1);
+    expect(await Item.count({ note: isNull() })).toBe(2);
+    expect(await Item.count({ note: notNull() })).toBe(1);
+    expect(await Item.count({ file: isIn(["1", "3"]) })).toBe(2);
+    expect(await Item.count({ kind: notEqual("a") })).toBe(1);
+    expect(await Item.count({ kind: "a", id: asc() })).toBe(2);
+    expect(await Item.count({ file: isLike("1%") })).toBe(2);
+  })
+
+  it("will update matching rows and settle loaded ones", async () => {
+    await seed();
+
+    const first = await Item.get(1);
+    const third = await Item.get(3);
+    const count = await Item.update({ file: "1" }, { note: "y" });
+
+    expect(count).toBe(2);
+    expect([first.note, third.note]).toEqual(["y", "y"]);
+    expect(first.revised).toBeInstanceOf(Date);
+    expect((await Item.one(2)).note).toBe("x");
+    expect(await Item.update({ kind: "a" }, { note: "w" })).toBe(2);
+    expect(first.note).toBe("w");
+  })
+
+  it("will update without anything loaded", async () => {
+    await seed();
+
+    expect(await Item.update({ kind: "b" }, { note: "z" })).toBe(1);
+    expect((await Item.one(3)).note).toBe("z");
+  })
+
+  it("will delete matching rows and retire loaded ones", async () => {
+    await seed(false);
+
+    const first = await Item.get(1);
+    const second = await Item.get(2);
+    const count = await Item.delete({ file: "1" });
+
+    expect(count).toBe(2);
+    expect(second.get(null)).toBeFalsy();
+    expect(Item.loaded.has(1)).toBe(false);
+    expect(await Item.count()).toBe(1);
+    expect(first.get(null)).toBeTruthy();
+  })
+
+  it("will delete without anything loaded", async () => {
+    await seed();
+
+    expect(await Item.delete({ kind: "a" })).toBe(2);
+  })
+
+  it("will throw for an empty query", async () => {
+    await seed();
+    await expect(Item.update({}, { note: "y" })).rejects.toThrow("Item needs a condition to write by query.");
+    await expect(Item.delete({ id: asc() })).rejects.toThrow("Item needs a condition to write by query.");
+  })
+
+  it("will match a composite key", async () => {
+    class Tag extends connect() {
+      id = key(() => [this.post, this.name]);
+      post = num();
+      name = str();
+      note = str(null);
+    }
+
+    await Tag.insert({ post: 1, name: "a" });
+    await Tag.insert({ post: 1, name: "b" });
+
+    const tag = await Tag.get([1, "a"]);
+
+    expect(await Tag.update({ id: tag.id }, { note: "n" })).toBe(1);
+    expect(tag.note).toBe("n");
+    expect(await Tag.count({ id: tag.id })).toBe(1);
+    await expect(Tag.count({ id: isIn([tag.id]) })).rejects.toThrow("Tag.id is a composite key and can only be matched or ordered.");
+  })
+})
+
 describe("insert conflict", () => {
   class Asset extends connect() {
     id = str({ primary: true });
@@ -1923,6 +2109,21 @@ describe("insert conflict", () => {
 
     expect(row).toEqual({ id: "a", file: "two", made: 2 });
     await expect(Asset.find()).resolves.toEqual([row]);
+  })
+
+  it("will replace every column but the key", async () => {
+    class Image extends connect() {
+      id = str({ primary: true });
+      prompt = str(null);
+      seed = num(null);
+      created = date.created(null);
+    }
+
+    await Image.insert({ id: "a", prompt: "p", seed: 1, created: new Date(1) });
+
+    const row = await Image.insert({ id: "a", seed: 2 }, { conflict: "replace" });
+
+    expect(row).toEqual({ id: "a", prompt: undefined, seed: 2, created: new Date(1) });
   })
 
   it("will keep columns on conflict", async () => {

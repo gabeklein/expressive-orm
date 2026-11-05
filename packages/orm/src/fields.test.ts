@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { bool, date, index, json, key, memory, num, one, optional, orNull, Query, str, Type, unique, uuid } from '.';
+import { bool, date, index, isLike, json, key, memory, num, one, optional, orNull, Query, str, Type, unique, uuid } from '.';
 import { Field } from './Field';
 
 class TextColumn extends str.Type {
@@ -325,6 +325,26 @@ describe("date", () => {
 })
 
 describe("json", () => {
+  it("will read malformed text as undefined", () => {
+    const field = column(() => json());
+
+    expect(field.get("{", {})).toBeUndefined();
+    expect(field.get('{"a":1}', {})).toEqual({ a: 1 });
+  })
+
+  it("will match text by pattern", async () => {
+    class Image extends connect() {
+      loras = json<{ file: string }[]>(null);
+    }
+
+    await Image.insert({ loras: [{ file: "a.ckpt" }] });
+    await Image.insert({ loras: [{ file: "b.ckpt" }] });
+
+    const found = await Image.find({ loras: isLike('%"a.ckpt"%') });
+
+    expect(found.map(image => image.loras)).toEqual([[{ file: "a.ckpt" }]]);
+  })
+
   it("will be a plain field", () => {
     const field = column(() => json());
 
