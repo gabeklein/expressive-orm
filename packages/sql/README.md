@@ -9,11 +9,11 @@ npm install @expressive/sql @expressive/mvc
 SQLite is built into Bun (`bun:sqlite`) and Node 24 (`node:sqlite`). Elsewhere add one of `better-sqlite3`, `sqlite3` or `@libsql/client`; the first found is used.
 
 ```ts
-import { Query, SQLiteConnection, Type, greaterThan, num, one, orNull, str } from '@expressive/sql';
+import { Query, SQLiteConnection, Type, greaterThan, num, one, str } from '@expressive/sql';
 
 class User extends Type {
   name = str();
-  age = num(orNull);
+  age = num(null);
 }
 
 class Post extends Type {

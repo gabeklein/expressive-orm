@@ -40,16 +40,17 @@ npm install @expressive/postgres @expressive/mvc @electric-sql/pglite
 ## Entities
 
 ```ts
-import { Type, bool, date, json, num, orNull, str, uuid } from '@expressive/sql';
+import { Type, bool, date, index, json, num, sql, str, unique } from '@expressive/sql';
 
 class User extends Type {
-  name = str();
-  email = str({ type: "varchar", length: 255, unique: true });
-  age = num(orNull);
+  name = str(index);
+  email = str(sql.varchar(255), unique);
+  age = num(null);
   admin = bool({ fallback: false });
   joined = date({ fallback: "NOW" });
-  prefs = json<{ theme: string }>(orNull);
-  token = uuid(orNull, { column: "api_token" });
+  seen = date(sql.millis, null);
+  prefs = json<{ theme: string }>(null);
+  token = str(sql.uuid, null, { column: "api_token" });
 }
 ```
 
@@ -60,36 +61,42 @@ class User extends Type {
 | `bool()` | `boolean` |
 | `date()` | `Date` |
 | `json<T>()` | `T`, stored as text |
-| `uuid()` | `string` |
 
 Options, in any order:
 
-- `orNull` (or `null`) - nullable; the value is `T | undefined`.
+- `null` - nullable; the value is `T | undefined`.
 - `optional` - may be left out of an insert, for a column the database fills; on Postgres a missing column is tolerated and reads `undefined`.
+- `unique`, `index` - `sync` creates a missing index as `<table>_<column>`, or `{ index: "name" }`; on SQLite an existing single-column index on it counts.
+- `sql.*` - the datatype, see [Datatypes](#datatypes).
 - `{ column }` - column name; default is the property in snake case.
 - `{ fallback }` - column default, also optional on insert. `"NOW"` is `CURRENT_TIMESTAMP`.
-- `{ unique, type, length, precision, scale }` - see [Datatypes](#datatypes).
+
+`orNull` and `uuid()` are deprecated for `null` and `str(sql.uuid)`.
 
 The table is the class name in snake case; `static table` overrides it.
 
-Every entity has `id = num({ primary: true, increment: true })`. Redeclare it to rename the column or change its type:
+Every entity has an incrementing integer `id`. Declare it with `key` to rename the column or change its type:
 
 ```ts
-import { Type, num, str, uuid } from '@expressive/sql';
+import { Type, key, sql, str } from '@expressive/sql';
 
 class Account extends Type {
-  id = num({ column: "account_id", primary: true, increment: true });
+  id = key({ column: "account_id" }); // number, increments
   name = str();
 }
 
+class Image extends Type {
+  id = key(sql.text, { column: "name" }); // string, required on insert
+}
+
 class Session extends Type {
-  id = uuid({ primary: true });
+  id = key(sql.uuid); // string, a UUIDv7 generated on insert when absent
 }
 ```
 
-`Account["id"]` is a `number`, `Session["id"]` a `string`; `one(id)`, `update(id)` and relations follow it.
+An integer `key` increments; another numeric type does not. `Account["id"]` is a `number`, `Session["id"]` a `string`; `one(id)`, `update(id)` and relations follow it. The property stays `id`.
 
-`key` declares a composite primary key - the fields it lists, in order, with no column of its own:
+`key` with an arrow declares a composite primary key - the fields it lists, in order, with no column of its own:
 
 ```ts
 import { Type, key, one, str } from '@expressive/sql';
@@ -197,7 +204,7 @@ await user; // the entity
 ## Relations
 
 ```ts
-import { Type, lazy, one, orNull, rows, str } from '@expressive/sql';
+import { Type, lazy, one, rows, str } from '@expressive/sql';
 
 class Author extends Type {
   name = str();
@@ -207,7 +214,7 @@ class Author extends Type {
 class Post extends Type {
   title = str();
   author = one(Author);
-  editor = one(Author, orNull, lazy, { column: "editor_id" });
+  editor = one(Author, null, lazy, { column: "editor_id" });
 }
 ```
 
@@ -287,6 +294,7 @@ const titles = await Query(where => {
 - Comparisons: `equal`, `not`, `over`, `under` (`true` for or-equal), `in`.
 - A `one()` relation joins on access: inner when required, left when nullable. `where(Other)` joins another table, `where(Other, true)` left joins it.
 - `query.one()` resolves the first row, `query.one(true)` throws without one.
+- A query is a `Promise` and runs when awaited, once per `then`.
 
 ```ts
 const promoted = await Query(where => {
@@ -379,27 +387,27 @@ await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 
 ## Datatypes
 
-`type` picks the column type. A config is portable: the same class syncs on SQLite and Postgres.
+`sql.*` picks the column type; a factory takes its size. A config is portable: the same class syncs on SQLite and Postgres.
 
-| Helper | `type` | SQLite | Postgres |
+| Helper | `sql.*` | SQLite | Postgres |
 |---|---|---|---|
-| `str` | `text` (default), `varchar`, `char`, `uuid` | TEXT | TEXT, VARCHAR(n), CHAR(n), UUID |
-| `num` | `integer` (default), `smallint`, `bigint`, `real`, `float`, `double`, `numeric`, `decimal` | INTEGER, REAL, NUMERIC | the type, `(precision, scale)` where set |
-| `bool` | `boolean` (default), `integer` (1/0), `text` / `varchar` with `either` | INTEGER, TEXT | BOOLEAN, INTEGER, TEXT, VARCHAR |
-| `date` | `timestamp` (default), `date`, `time`, `integer` (unix seconds), `text` | TEXT, INTEGER | TIMESTAMP(p), DATE, TIME(p), INTEGER, TEXT |
+| `str` | `text` (default), `varchar(n)`, `char(n)`, `uuid` | TEXT | TEXT, VARCHAR(n), CHAR(n), UUID |
+| `num` | `integer` (default), `smallint`, `bigint`, `real`, `float`, `double`, `numeric(p, s)`, `decimal(p, s)` | INTEGER, REAL, NUMERIC | the type, `(precision, scale)` where set |
+| `bool` | `boolean` (default), `integer` (1/0), `text` / `varchar(n)` with `either` | INTEGER, TEXT | BOOLEAN, INTEGER, TEXT, VARCHAR |
+| `date` | `timestamp` (default), `date`, `time`, `millis` (epoch ms), `integer` (epoch seconds), `text` | TEXT, INTEGER | TIMESTAMP(p), DATE, TIME(p), BIGINT, INTEGER, TEXT |
 | `one` | `integer` (default), `bigint` | INTEGER | INTEGER, BIGINT |
 
-Postgres only: `num({ type: "serial" })`, `timezone: true` on `timestamp` and `time`, and `date({ type: "interval", fields })` - for schema; its values do not yet round-trip.
+A datatype of another helper, like `num(sql.text)`, is a type error. `@expressive/postgres` exports `sql` with `serial`, `timestamptz`, `timetz` and `interval` - the last for schema; its values do not yet round-trip. Options a factory doesn't take, like `precision` on `timestamp`, go in an object: `date({ type: "timestamp", precision: 3 })`.
 
 Every connection validates on write: `varchar` and `char` length, integer ranges, `numeric` precision and scale.
 
 ```ts
-import { Type, bool, num, str } from '@expressive/sql';
+import { Type, bool, num, sql, str } from '@expressive/sql';
 
 class Product extends Type {
-  code = str({ type: "char", length: 3 });
-  price = num({ type: "numeric", precision: 10, scale: 2 });
-  listed = bool({ type: "text", either: ["yes", "no"] });
+  code = str(sql.char(3));
+  price = num(sql.numeric(10, 2));
+  listed = bool(sql.text, { either: ["yes", "no"] });
 }
 ```
 
