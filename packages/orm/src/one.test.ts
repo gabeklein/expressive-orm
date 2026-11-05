@@ -557,6 +557,28 @@ describe("references", () => {
 })
 
 describe("config", () => {
+  it("will name the column after the property", () => {
+    class User extends connect() {}
+
+    class Post extends connect() {
+      author = one(User);
+      editor = one(User, null);
+    }
+
+    expect([Post.fields.get("author")!.column, Post.fields.get("editor")!.column]).toEqual(["author_id", "editor_id"]);
+  })
+
+  it("will throw if two fields use one column", () => {
+    class User extends connect() {}
+
+    class Post extends connect() {
+      author = one(User);
+      writer = one(User, { column: "author_id" });
+    }
+
+    expect(() => Post.fields).toThrow("Post.author and Post.writer both use column author_id.");
+  })
+
   it("will record referential actions", () => {
     class User extends connect() {}
 

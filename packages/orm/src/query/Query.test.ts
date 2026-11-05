@@ -851,7 +851,7 @@ describe("relations", () => {
 
     expect(String(query)).toMatchInlineSnapshot(`
       "from e
-      join c on c.id = e.c_id
+      join c on c.id = e.first_id
       join c T2 on T2.id = e.second_id
       select
         first: c.label

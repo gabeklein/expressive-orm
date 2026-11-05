@@ -1614,6 +1614,26 @@ describe("plan", () => {
     await conn.close();
   })
 
+  it("will not move a relation off its old column", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    class Post extends Type {
+      author = one(User);
+    }
+
+    const { conn } = await open([Post, User],
+      "CREATE TABLE user (id INTEGER NOT NULL PRIMARY KEY, name TEXT NOT NULL);" +
+      "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES user (id));"
+    );
+
+    expect((await conn.plan()).problems).toEqual([
+      'Column author_id in table post is missing but user_id exists; add { column: "user_id" } to Post.author to keep it.'
+    ]);
+    await conn.close();
+  })
+
   it("will report a class with a schema", async () => {
     class Foo extends Type {
       static schema = "app";

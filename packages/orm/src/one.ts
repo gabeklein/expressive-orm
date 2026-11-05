@@ -1,5 +1,5 @@
 import { DataTypes, Exact, field, Has, OptionsOf, PEEK } from "./fields";
-import { configure, Field, Nullable } from './Field';
+import { configure, Field, Nullable, underscore } from './Field';
 import type { Builder } from './query/Builder';
 import Type, { adopt } from "./Type";
 
@@ -106,7 +106,7 @@ declare namespace one {
 function one<T extends Type, C extends one.Options[]>(from: Type.Class<T>, ...config: C & Exact<C, one.Types>){
   return field<Has<C, Nullable> extends true ? T | undefined : T, OneToOneField<T>>(
     (key, parent) => {
-      const field = configure(new one.Type<T>(key), [{ entity: from, column: `${from.table}_id` }, ...config]);
+      const field = configure(new one.Type<T>(key), [{ entity: from, column: `${underscore(key)}_id` }, ...config]);
       let rel = ONE.get(parent);
 
       Object.defineProperty(field, "reference", {

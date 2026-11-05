@@ -75,6 +75,10 @@ function field<T, F extends Field = Field>(
     if (!fields.has(key)) {
       const field = create(key, type);
 
+      for (const other of fields.values())
+        if (other.column === field.column && !other.parts && !field.parts)
+          throw new Error(`${type.name}.${other.key} and ${type.name}.${key} both use column ${field.column}.`);
+
       field.parent = type;
       fields.set(key, field);
     }

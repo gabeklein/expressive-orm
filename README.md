@@ -237,11 +237,11 @@ class Author extends Type {
 class Post extends Type {
   title = str();
   author = one(Author);
-  editor = one(Author, null, lazy, { column: "editor_id" });
+  editor = one(Author, null, lazy);
 }
 ```
 
-`one(Other)` stores `other_id` - a second relation to the same class needs its own `column` - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. `set`, an insert or a filter takes an entity, an id or a row.
+`author = one(Other)` stores `author_id` - `{ column }` names another, and two fields on one column throw - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. `set`, an insert or a filter takes an entity, an id or a row.
 
 `rows(Other, key?)` is a handle on the rows pointing back - `find`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class.
 

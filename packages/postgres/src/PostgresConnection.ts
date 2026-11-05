@@ -178,7 +178,13 @@ export abstract class PostgresConnection extends Connection {
         const info = columns[field.column];
 
         if(!info){
+          const shift = moved(field, Object.keys(columns));
           const reason = unfit(field);
+
+          if(shift){
+            messages.push({ message: `Column "${field.column}" in table ${table} ${shift}` });
+            continue;
+          }
 
           if(fix && !reason)
             added.push(field);
@@ -478,6 +484,15 @@ function generateColumns(fields: Field[]){
   const constraints = fields.flatMap(field => foreignKey(field.parent!.table, field));
 
   return [...columns, ...constraints].join('\n');
+}
+
+function moved(field: Field, existing: string[]){
+  const { entity } = field as Field & { entity?: Query.Table };
+  const old = entity && `${entity.table}_id`;
+  const taken = Array.from(field.parent!.fields.values()).some(other => other.column === old);
+
+  if (old && !taken && existing.includes(old))
+    return `is missing but ${old} exists; add { column: "${old}" } to ${field.parent!.name}.${field.key} to keep it.`;
 }
 
 function unfit({ primary, unique, nullable, fallback }: Field){

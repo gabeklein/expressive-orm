@@ -410,7 +410,7 @@ describe("Type hook", () => {
 
       expect(field).toBeInstanceOf(Foreign);
       expect(field.datatype).toBe("integer");
-      expect(field.column).toBe("user_id");
+      expect(field.column).toBe("value_id");
     }
     finally {
       one.Type = Base;

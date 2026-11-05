@@ -135,7 +135,7 @@ export class SQLiteConnection extends Connection {
         problems.push(...drift.map(({ message }) => message));
 
       for (const field of absent) {
-        const reason = unfit(field);
+        const reason = moved(field, columns.map(col => col.name)) || unfit(field);
 
         if (reason)
           problems.push(`Column ${field.column} in table ${table} ${reason}`);
@@ -464,6 +464,15 @@ function definition(field: Field, adding?: boolean){
   if (onUpdate) parts += ` ON UPDATE ${onUpdate}`;
 
   return parts;
+}
+
+function moved(field: Field, existing: string[]){
+  const { entity } = field as Field & { entity?: Query.Table };
+  const old = entity && `${entity.table}_id`;
+  const taken = Array.from(field.parent!.fields.values()).some(other => other.column === old);
+
+  if (old && !taken && existing.includes(old))
+    return `is missing but ${old} exists; add { column: "${old}" } to ${field.parent!.name}.${field.key} to keep it.`;
 }
 
 function clock(fallback: unknown){
