@@ -10,6 +10,6 @@
 
 **`key()` declares any id.** `key()` is an incrementing integer, typed `number`; `key(sql.text, { column: "name" })` a string required on insert; `key(sql.uuid)` a string generated on insert as a UUIDv7 when absent. A non-integer numeric key does not increment. `uuid()` is deprecated for `key(sql.uuid)` or `str(sql.uuid)`.
 
-**Epoch milliseconds.** `date(sql.millis)` stores a `Date` as epoch milliseconds - INTEGER on SQLite, BIGINT on Postgres.
+**Epoch dates.** `date(sql.ms)` stores a `Date` as epoch milliseconds - INTEGER on SQLite, BIGINT on Postgres; `date(sql.seconds)` names the existing epoch-seconds `integer` storage.
 
 **`Query` is a `Promise`.** It has `catch` and `finally`, so returning one from an async function typechecks.

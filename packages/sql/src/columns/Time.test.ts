@@ -59,9 +59,9 @@ describe("schema", () => {
   });
 });
 
-describe("millis", () => {
+describe("ms", () => {
   it("will store epoch milliseconds", () => {
-    const field = column(() => date({ type: "millis" }));
+    const field = column(() => date({ type: "ms" }));
     const value = new Date("2023-01-15T14:30:45.123Z");
 
     expect(field.set(value)).toBe(value.getTime());
@@ -69,9 +69,17 @@ describe("millis", () => {
     expect((field.get(String(value.getTime())) as Date).toISOString()).toBe(value.toISOString());
   })
 
+  it("will store epoch seconds by name", () => {
+    const field = column(() => date({ type: "seconds" }));
+    const value = new Date("2023-01-15T14:30:45.000Z");
+
+    expect(field.set(value)).toBe(value.getTime() / 1000);
+    expect((field.get(value.getTime() / 1000) as Date).toISOString()).toBe(value.toISOString());
+  })
+
   it("will round trip through SQLite", async () => {
     class Event extends Type {
-      at = date({ type: "millis" });
+      at = date({ type: "ms" });
     }
 
     const { schema } = await TestConnection.new([Event]);

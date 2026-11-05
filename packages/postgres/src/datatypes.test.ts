@@ -19,7 +19,8 @@ describe("sql", () => {
     expect(column(() => date(sql.timestamptz)).datatype).toBe("timestamptz");
     expect(column(() => date(sql.timetz)).datatype).toBe("timetz");
     expect(column(() => date(sql.interval)).datatype).toBe("interval");
-    expect(column(() => date(sql.millis)).datatype).toBe("bigint");
+    expect(column(() => date(sql.ms)).datatype).toBe("bigint");
+    expect(column(() => date(sql.seconds)).datatype).toBe("integer");
     expect(column(() => num(sql.bigint)).datatype).toBe("bigint");
   })
 })
