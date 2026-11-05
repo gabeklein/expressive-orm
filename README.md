@@ -47,7 +47,8 @@ class User extends Type {
   email = str(sql.varchar(255), unique);
   age = num(null);
   admin = bool({ fallback: false });
-  joined = date({ fallback: "NOW" });
+  joined = date.created();
+  edited = date.updated(sql.ms);
   seen = date(sql.ms, null);
   prefs = json<{ theme: string }>(null);
   token = str(sql.uuid, null, { column: "api_token" });
@@ -60,7 +61,7 @@ class User extends Type {
 | `num()` | `number` |
 | `bool()` | `boolean` |
 | `date()` | `Date` |
-| `json<T>()` | `T`, stored as text |
+| `json<T>()` | `T`, stored as text; unparseable text reads `undefined` |
 
 Options, in any order:
 
@@ -69,7 +70,9 @@ Options, in any order:
 - `unique`, `index` - `sync` creates a missing index as `<table>_<column>`, or `{ index: "name" }`; on SQLite an existing single-column index on it counts.
 - `sql.*` - the datatype, see [Datatypes](#datatypes).
 - `{ column }` - column name; default is the property in snake case.
-- `{ fallback }` - column default, also optional on insert. `"NOW"` is `CURRENT_TIMESTAMP`.
+- `{ fallback }` - column default, also optional on insert. `sql.now` is the database's current time in the column's storage; `"NOW"` is a deprecated alias.
+
+`date.created()` and `date.updated()` take `date()`'s options and default to `sql.now`. `created` is written on insert only - updates and upserts leave it. `updated` is set to now on every update and upsert that doesn't give it. Underneath they are `{ fixed: true }` and `{ touch: sql.now }`, which any column takes.
 
 `orNull` and `uuid()` are deprecated for `null` and `str(sql.uuid)`.
 
@@ -178,14 +181,24 @@ Reads and `insert` return plain rows: decoded values by property, a relation as 
 
 ```ts
 await User.insert(row, { conflict: "update" });                     // upsert on the primary key
+await User.insert(row, { conflict: "replace" });                    // every column from row; omitted ones reset
 await User.insert(row, { conflict: "update", keep: ["createdAt"] }); // leave columns alone on conflict
 await User.insert(row, { conflict: "update", on: "email" });        // target a unique column
 await User.insert(row, { conflict: "ignore" });                     // undefined if the row exists
 ```
 
-A `conflict` updates the existing row with every column given, minus the target and `keep`, and returns it, settling into a loaded instance; `"ignore"` leaves it and resolves `undefined`. `on` takes a key or an array of keys; the default is the primary key.
+A `conflict` updates the existing row with every column given, minus the target, `keep` and `date.created` columns, and returns it, settling into a loaded instance; `"replace"` sets every column, an omitted one to its default or NULL; `"ignore"` leaves it and resolves `undefined`. `on` takes a key or an array of keys; the default is the primary key.
 
-Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, and `asc` / `desc` for order. A plain value is `equal`; an array applies each.
+Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, and `asc` / `desc` for order. A plain value is `equal`; an array applies each. `isLike` matches stored text, also on a `json()` column. `sql.now` stands for the current time in a statics write or comparison; statics read it from the app's clock, so a settled instance holds the exact value written.
+
+```ts
+await UserAsset.count({ kind: "loras", file });                   // matching rows
+await Asset.delete({ file });                                    // resolves the rows deleted
+await Session.delete({ expires: lessThan(sql.now) });
+await Image.update({ model: from }, { model: to });              // resolves the rows changed
+```
+
+A query object in place of an id writes every matching row, settling into or destroying loaded instances; an empty one throws. `count()` with no query counts the table.
 
 ```ts
 const ann = await User.new({ name: "Ann", email: "ann@example.com" });
@@ -304,6 +317,8 @@ const titles = await Query(where => {
 - Comparisons: `equal`, `not`, `over`, `under` (`true` for or-equal), `in`.
 - A `one()` relation joins on access: inner when required, left when nullable. `where(Other)` joins another table, `where(Other, true)` left joins it.
 - `query.one()` resolves the first row, `query.one(true)` throws without one.
+- `where(table).match({ kind, file })` adds an `equal` per key.
+- `sql.now` renders as the database's current time, matching the column it meets.
 - A query is a `Promise` and runs when awaited, once per `then`.
 
 ```ts
