@@ -69,6 +69,13 @@ describe("usage", () => {
     expect(lines).toEqual([`${file} created no connection.`]);
   })
 
+  it("will fail for an entry that throws", async () => {
+    const file = entry(() => { throw new Error("nope"); });
+
+    expect(await sql(["check", file], out)).toBe(1);
+    expect(lines).toEqual([`Could not import ${file}: nope`]);
+  })
+
   it("will fail for a connection that cannot plan", async () => {
     class Note extends Type {
       text = str();

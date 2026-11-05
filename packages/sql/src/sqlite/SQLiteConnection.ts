@@ -145,7 +145,7 @@ export class SQLiteConnection extends Connection {
             column: field.column,
             action: `add column ${field.column} to ${table}`,
             reason: `Column ${field.column} does not exist in table ${table}`,
-            sql: [`ALTER TABLE ${table} ADD COLUMN ${definition(field)};`]
+            sql: [`ALTER TABLE ${table} ADD COLUMN ${definition(field, true)};`]
           });
       }
 
@@ -322,7 +322,7 @@ export class SQLiteConnection extends Connection {
     ];
 
     const indexes = await db.all(
-      `SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL`, [table]);
+      `SELECT sql FROM sqlite_master WHERE type IN ('index', 'trigger') AND tbl_name = ? AND sql IS NOT NULL`, [table]);
 
     return [
       this.tableSchema(type, temp, extra.map(col => (
@@ -380,7 +380,7 @@ export class SQLiteConnection extends Connection {
   protected tableSchema(type: Query.Table, name = type.table, extra: string[] = []){
     const { parts } = type.fields.get("id")!;
     const fields = [
-      ...Array.from(type.fields.values()).filter(field => !field.parts).map(definition),
+      ...Array.from(type.fields.values()).filter(field => !field.parts).map(field => definition(field)),
       ...extra
     ];
 
@@ -422,19 +422,20 @@ function drifted(field: Field, info: TableInfo){
     return `Column ${column} in table ${parent.table} has incorrect nullable value`;
 }
 
+const NUMBER = (column: string) =>
+  `typeof(${column}) = 'text' AND CASE WHEN json_valid(trim(${column})) THEN json_type(trim(${column})) ELSE '' END IN ('integer', 'real')`;
+
 const FITS: Record<string, (column: string) => string> = {
   INTEGER: column =>
     `typeof(${column}) = 'integer' OR typeof(${column}) = 'real' AND ${column} = CAST(${column} AS INTEGER) ` +
-    `OR typeof(${column}) = 'text' AND trim(${column}) <> '' AND trim(${column}) NOT GLOB '*[^0-9.eE+-]*' ` +
-    `AND CAST(${column} AS REAL) = CAST(${column} AS INTEGER)`,
+    `OR ${NUMBER(column)} AND ${column} NOT GLOB '*[eE]*' AND CAST(${column} AS REAL) = CAST(${column} AS INTEGER)`,
   REAL: column =>
-    `typeof(${column}) IN ('integer', 'real') ` +
-    `OR typeof(${column}) = 'text' AND trim(${column}) <> '' AND trim(${column}) NOT GLOB '*[^0-9.eE+-]*'`
+    `typeof(${column}) IN ('integer', 'real') OR ${NUMBER(column)}`
 };
 
 FITS.NUMERIC = FITS.REAL;
 
-function definition(field: Field){
+function definition(field: Field, adding?: boolean){
   const {
     column,
     fallback,
@@ -453,7 +454,7 @@ function definition(field: Field){
   if (increment) parts += ' AUTOINCREMENT';
   if (unique)    parts += ' UNIQUE';
 
-  if (fallback !== undefined)
+  if (fallback !== undefined && !(adding && clock(fallback)))
     parts += ' DEFAULT ' + literal(field, fallback);
 
   if (reference)
@@ -463,6 +464,10 @@ function definition(field: Field){
   if (onUpdate) parts += ` ON UPDATE ${onUpdate}`;
 
   return parts;
+}
+
+function clock(fallback: unknown){
+  return fallback === "NOW" || fallback === now;
 }
 
 function unfit({ primary, unique, nullable, fallback }: Field){
@@ -475,7 +480,7 @@ function unfit({ primary, unique, nullable, fallback }: Field){
   if (!nullable && fallback === undefined)
     return "is NOT NULL without a default and cannot be added to existing rows.";
 
-  if (fallback === "NOW" || fallback === now)
+  if (!nullable && clock(fallback))
     return "defaults to the current time and cannot be added by SQLite.";
 }
 
@@ -501,7 +506,12 @@ const AFFINITY: Record<string, string> = {
 };
 
 function affinity(field: Field){
-  return AFFINITY[field.type] || field.datatype.toUpperCase();
+  const type = AFFINITY[field.type] || field.datatype.toUpperCase();
+
+  if (!type)
+    throw new Error(`Column ${field.column} has no datatype. Is @expressive/orm installed twice?`);
+
+  return type;
 }
 
 function literal(field: Field, value: unknown){

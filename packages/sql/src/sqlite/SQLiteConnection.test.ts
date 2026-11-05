@@ -1468,6 +1468,26 @@ describe("timestamps", () => {
     expect((await Session.one("new")).expires.getTime()).toBeLessThanOrEqual(Date.now());
   })
 
+  it("will add a nullable column defaulting to now", async () => {
+    class Post extends Type {
+      title = str();
+      at = date.created({ type: "ms" }, null);
+    }
+
+    const conn = SQLiteConnection.new([Post]);
+    const db = await conn["db"]();
+
+    await db.exec("CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT NOT NULL); INSERT INTO post (title) VALUES ('old');");
+    await conn.sync();
+    await Post.insert({ title: "new" });
+
+    const [old, post] = await Post.find({ id: asc() });
+
+    expect(old.at).toBeUndefined();
+    expect(post.at).toBeInstanceOf(Date);
+    await conn.close();
+  })
+
   it("will not add a column defaulting to now", async () => {
     class Post extends Type {
       title = str();
@@ -1583,6 +1603,17 @@ describe("plan", () => {
     await conn.close();
   })
 
+  it("will throw for a column without a datatype", async () => {
+    class Foo extends Type {
+      bar = str({ type: "" as "text" });
+    }
+
+    const { conn } = await open([Foo]);
+
+    await expect(conn.plan()).rejects.toThrow("Column bar has no datatype. Is @expressive/orm installed twice?");
+    await conn.close();
+  })
+
   it("will report a class with a schema", async () => {
     class Foo extends Type {
       static schema = "app";
@@ -1620,6 +1651,7 @@ describe("plan", () => {
     const { conn, db } = await open([Post],
       "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT, rank TEXT, score TEXT, legacy TEXT NOT NULL DEFAULT 'x', extra INTEGER);" +
       "CREATE INDEX post_legacy ON post (legacy);" +
+      "CREATE TRIGGER post_seen AFTER UPDATE ON post BEGIN SELECT 1; END;" +
       "INSERT INTO post (title, rank, score, legacy, extra) VALUES ('a', ' 42', '1.5', 'kept', NULL), ('b', '7', NULL, 'y', 3);"
     );
 
@@ -1630,6 +1662,7 @@ describe("plan", () => {
       { id: 2, title: "b", rank: 7, score: null, note: null, legacy: "y", extra: 3 }
     ]);
     expect(await db.all("PRAGMA index_list(post)")).toEqual([expect.objectContaining({ name: "post_legacy" })]);
+    expect(await db.all("SELECT name FROM sqlite_master WHERE type = 'trigger'")).toEqual([{ name: "post_seen" }]);
     expect(await conn.valid(Post)).toEqual([]);
 
     await conn.close();
@@ -1699,16 +1732,17 @@ describe("plan", () => {
 
     const { conn, db } = await open([Post],
       "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT, rank TEXT, score TEXT);" +
-      "INSERT INTO post (title, rank, score) VALUES (NULL, '1.5', 'x'), (NULL, 'abc', '2'), ('c', '3.0', '');"
+      "INSERT INTO post (title, rank, score) VALUES (NULL, '1.5', 'x'), (NULL, 'abc', '2'), ('c', '3.0', ''), " +
+      "('d', '-', '.'), ('e', '1-2', 'e'), ('f', '1e3', '-'), ('g', ' 7 ', '1e3');"
     );
 
     expect((await conn.plan(true)).problems).toEqual([
       "Column title in table post cannot be rebuilt: 2 rows are NULL.",
-      "Column rank in table post cannot be rebuilt: 2 rows are not INTEGER.",
-      "Column score in table post cannot be rebuilt: 2 rows are not REAL."
+      "Column rank in table post cannot be rebuilt: 5 rows are not INTEGER.",
+      "Column score in table post cannot be rebuilt: 5 rows are not REAL."
     ]);
 
-    await db.exec("DELETE FROM post WHERE id < 3");
+    await db.exec("DELETE FROM post WHERE id <> 3");
 
     expect((await conn.plan(true)).problems).toEqual([
       "Column score in table post cannot be rebuilt: 1 row is not REAL."

@@ -11,7 +11,8 @@ const USAGE = `Usage: expressive sql <check | sync [--force]> <entry>
   sync     create missing tables, columns and indexes
   --force  sync also rebuilds columns whose type or nullability drifted
 
-<entry> is the module that creates your connections, imported without syncing them.`;
+<entry> is the module that creates your connections, imported without syncing them.
+Connections must be created while it loads.`;
 
 type Output = Pick<Console, "log" | "error">;
 
@@ -83,7 +84,12 @@ export default async function sql(args: string[], out: Output): Promise<number> 
     return 2;
   }
 
-  const connections = await collect(entry);
+  const connections = await collect(entry).catch((error: Error) => {
+    out.error(`Could not import ${entry}: ${error.message}`);
+  });
+
+  if (!connections)
+    return 1;
 
   if (!connections.size) {
     out.error(`${entry} created no connection.`);
