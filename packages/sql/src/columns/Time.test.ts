@@ -59,6 +59,31 @@ describe("schema", () => {
   });
 });
 
+describe("millis", () => {
+  it("will store epoch milliseconds", () => {
+    const field = column(() => date({ type: "millis" }));
+    const value = new Date("2023-01-15T14:30:45.123Z");
+
+    expect(field.set(value)).toBe(value.getTime());
+    expect((field.get(value.getTime()) as Date).toISOString()).toBe(value.toISOString());
+    expect((field.get(String(value.getTime())) as Date).toISOString()).toBe(value.toISOString());
+  })
+
+  it("will round trip through SQLite", async () => {
+    class Event extends Type {
+      at = date({ type: "millis" });
+    }
+
+    const { schema } = await TestConnection.new([Event]);
+    const at = new Date(1793845205641);
+
+    await Event.insert({ at });
+
+    expect(schema).toContain("at INTEGER NOT NULL");
+    expect((await Event.one(1)).at).toEqual(at);
+  })
+})
+
 describe("serialization", () => {
   it("will serialize and deserialize timestamp values", () => {
     const field = column(() => date());

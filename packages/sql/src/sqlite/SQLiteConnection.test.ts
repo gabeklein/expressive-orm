@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { asc, bool, Builder, date, desc, greaterThan, isIn, isLike, isNull, json, key, notIn, notNull, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
+import { asc, bool, Builder, date, desc, greaterThan, index, isIn, isLike, isNull, json, key, notIn, notNull, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
 
 import { spy } from '../../test.setup';
 
@@ -1338,6 +1338,47 @@ describe("sync", () => {
     const conn = await TestConnection.new([Foo]);
 
     await expect(conn.sync()).rejects.toThrow("Connection is already active.");
+  })
+})
+
+describe("index", () => {
+  async function indexes(conn: object, table: string){
+    const db = await (conn as SQLiteConnection)["db"]();
+    const list: { name: string }[] = await db.all(`PRAGMA index_list(${table})`);
+
+    return list.map(({ name }) => name).filter(name => !name.startsWith("sqlite_")).sort();
+  }
+
+  it("will create indexes with a new table", async () => {
+    class Post extends Type {
+      slug = str(index);
+      author = num({ index: "by_author" });
+      code = str({ unique: true, index: true });
+    }
+
+    const conn = await TestConnection.new([Post]);
+
+    expect(conn.schema).toContain("CREATE INDEX IF NOT EXISTS by_author ON post (author);");
+    expect(await indexes(conn, "post")).toEqual(["by_author", "post_slug"]);
+  })
+
+  it("will add missing indexes to an existing table", async () => {
+    class Post extends Type {
+      slug = str(index);
+      title = str(index);
+    }
+
+    const conn = SQLiteConnection.new([Post]);
+    const db = await conn["db"]();
+
+    await db.exec("CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, slug TEXT NOT NULL, title TEXT NOT NULL)");
+    await db.exec("CREATE INDEX existing ON post (title)");
+    await db.exec("CREATE INDEX pair ON post (slug, title)");
+    await conn.sync();
+
+    expect(await indexes(conn, "post")).toEqual(["existing", "pair", "post_slug"]);
+
+    await conn.close();
   })
 })
 

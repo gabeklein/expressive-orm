@@ -130,6 +130,15 @@ export class SQLiteConnection extends Connection {
     if (added.length)
       await (await this.db()).exec(added.join("\n"));
 
+    const indexes: string[] = [];
+
+    for (const type of this.using)
+      for (const field of await this.unindexed(type))
+        indexes.push(index(field));
+
+    if (indexes.length)
+      await (await this.db()).exec(indexes.join("\n"));
+
     (this as Connection).set({ ready: true });
 
     return this;
@@ -161,6 +170,20 @@ export class SQLiteConnection extends Connection {
     }
 
     return absent;
+  }
+
+  protected async unindexed(type: Query.Table){
+    const db = await this.db();
+    const covered = new Set<string>();
+
+    for (const { name } of await db.all(`PRAGMA index_list(${type.table})`)) {
+      const columns = await db.all(`PRAGMA index_info(\`${name}\`)`);
+
+      if (columns.length == 1)
+        covered.add(columns[0].name);
+    }
+
+    return indexed(type).filter(field => !covered.has(field.column));
   }
 
   protected async checkIntegrity(field: Field, info: TableInfo){
@@ -228,8 +251,22 @@ export class SQLiteConnection extends Connection {
     if (parts)
       fields.push(`PRIMARY KEY (${parts.map(part => `\`${part.column}\``).join(', ')})`);
 
-    return `CREATE TABLE ${type.table} (${fields.join(', ')});`;
+    return [
+      `CREATE TABLE ${type.table} (${fields.join(', ')});`,
+      ...indexed(type).map(index)
+    ].join('\n');
   }
+}
+
+function indexed(type: Query.Table){
+  return Array.from(type.fields.values()).filter(field => field.index && !field.primary && !field.unique);
+}
+
+function index(field: Field){
+  const { table } = field.parent!;
+  const name = typeof field.index == "string" ? field.index : `${table}_${field.column}`;
+
+  return `CREATE INDEX IF NOT EXISTS \`${name}\` ON ${table} (\`${field.column}\`);`;
 }
 
 function definition(field: Field){
@@ -281,6 +318,7 @@ const AFFINITY: Record<string, string> = {
   integer: "INTEGER",
   smallint: "INTEGER",
   bigint: "INTEGER",
+  millis: "INTEGER",
   boolean: "INTEGER",
   real: "REAL",
   float: "REAL",

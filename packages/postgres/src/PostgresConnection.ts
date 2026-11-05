@@ -274,6 +274,11 @@ export abstract class PostgresConnection extends Connection {
     if(columns.length)
       await this.exec(generateColumns(columns));
 
+    const indexes = Array.from(this.using, generateIndexes).flat();
+
+    if(indexes.length)
+      await this.exec(indexes.join('\n'));
+
     await this.exec(this.generateTriggers(this.using));
 
     (this as Connection).set({ ready: true });
@@ -368,6 +373,16 @@ function foreignKey(table: string, field: Field){
   if (onUpdate) constraint += ` ON UPDATE ${onUpdate}`;
 
   return [constraint + ";"];
+}
+
+function generateIndexes({ table, fields }: Query.Table){
+  return Array.from(fields.values())
+    .filter(field => field.index && !field.primary && !field.unique)
+    .map(({ column, index }) => {
+      const name = typeof index == "string" ? index : `${table}_${column}`;
+
+      return `CREATE INDEX IF NOT EXISTS "${name}" ON "${table}" ("${column}");`;
+    });
 }
 
 function generateColumns(fields: Field[]){

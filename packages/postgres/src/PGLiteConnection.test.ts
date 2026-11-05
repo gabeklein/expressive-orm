@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, test, vi } from 'vitest';
 
 import { PGlite } from '@electric-sql/pglite';
 
-import { asc, bool, date, desc, greaterThan, isIn, isLike, isNull, json, key, notIn, notNull, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
+import { asc, bool, date, desc, greaterThan, index, isIn, isLike, isNull, json, key, notIn, notNull, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
 import type { Connection } from '@expressive/sql';
 
 import { PGLiteConnection } from './PGLiteConnection';
@@ -342,6 +342,35 @@ describe("persistence", () => {
 });
 
 describe("schema", () => {
+  it("will create indexes", async () => {
+    class Post extends Type {
+      slug = str(index);
+      author = num({ index: "by_author" });
+      code = str({ unique: true, index: true });
+    }
+
+    await TestConnection.new([Post]);
+
+    const { rows } = await shared.query<{ indexname: string }>(
+      "SELECT indexname FROM pg_indexes WHERE tablename = 'post' AND indexname NOT LIKE '%_pkey' AND indexname NOT LIKE '%_key' ORDER BY indexname"
+    );
+
+    expect(rows.map(row => row.indexname)).toEqual(["by_author", "post_slug"]);
+  })
+
+  it("will round trip epoch milliseconds", async () => {
+    class Event extends Type {
+      at = date({ type: "millis" });
+    }
+
+    const at = new Date(1793845205641);
+
+    await TestConnection.new([Event]);
+    await Event.insert({ at });
+
+    expect((await Event.one(1)).at).toEqual(at);
+  })
+
   it("will create a table", async () => {
     class Users extends Type {
       name = str();
