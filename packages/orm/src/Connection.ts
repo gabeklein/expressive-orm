@@ -32,6 +32,7 @@ declare namespace Connection {
 }
 
 const synced = new WeakMap<Connection, Promise<unknown>>();
+const COLLECT = Symbol.for("@expressive/orm.collect");
 
 abstract class Connection extends Model {
   readonly using: ReadonlySet<Query.Table>;
@@ -71,9 +72,13 @@ abstract class Connection extends Model {
     onfulfilled?: (value: Connection.Ready<this>) => any,
     onrejected?: (reason: any) => any) {
 
+    const collect = (globalThis as { [COLLECT]?: Set<Connection> })[COLLECT];
     let sync = synced.get(this);
 
-    if (this.ready || !this.sync)
+    if (collect)
+      collect.add(this);
+
+    if (this.ready || !this.sync || collect)
       sync = Promise.resolve();
     else if (!sync)
       synced.set(this, sync = this.sync());

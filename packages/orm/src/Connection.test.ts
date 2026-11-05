@@ -155,6 +155,25 @@ describe("then", () => {
     expect(sync).not.toHaveBeenCalled();
   })
 
+  it("will collect instead of sync for a tool", async () => {
+    const key = Symbol.for("@expressive/orm.collect");
+    const found = new Set();
+    const db = Store.new();
+    const sync = db.sync = vi.fn(async () => {});
+
+    Object.assign(globalThis, { [key]: found });
+
+    try {
+      await db;
+    }
+    finally {
+      delete (globalThis as Record<symbol, unknown>)[key];
+    }
+
+    expect(sync).not.toHaveBeenCalled();
+    expect(found).toEqual(new Set([db]));
+  })
+
   it("will reject when sync fails", async () => {
     const db = Store.new();
     const failed = vi.fn();
