@@ -360,7 +360,7 @@ describe("schema", () => {
 
   it("will round trip epoch milliseconds", async () => {
     class Event extends Type {
-      at = date({ type: "millis" });
+      at = date({ type: "ms" });
     }
 
     const at = new Date(1793845205641);

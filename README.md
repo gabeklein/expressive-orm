@@ -48,7 +48,7 @@ class User extends Type {
   age = num(null);
   admin = bool({ fallback: false });
   joined = date({ fallback: "NOW" });
-  seen = date(sql.millis, null);
+  seen = date(sql.ms, null);
   prefs = json<{ theme: string }>(null);
   token = str(sql.uuid, null, { column: "api_token" });
 }
@@ -394,7 +394,7 @@ await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 | `str` | `text` (default), `varchar(n)`, `char(n)`, `uuid` | TEXT | TEXT, VARCHAR(n), CHAR(n), UUID |
 | `num` | `integer` (default), `smallint`, `bigint`, `real`, `float`, `double`, `numeric(p, s)`, `decimal(p, s)` | INTEGER, REAL, NUMERIC | the type, `(precision, scale)` where set |
 | `bool` | `boolean` (default), `integer` (1/0), `text` / `varchar(n)` with `either` | INTEGER, TEXT | BOOLEAN, INTEGER, TEXT, VARCHAR |
-| `date` | `timestamp` (default), `date`, `time`, `millis` (epoch ms), `integer` (epoch seconds), `text` | TEXT, INTEGER | TIMESTAMP(p), DATE, TIME(p), BIGINT, INTEGER, TEXT |
+| `date` | `timestamp` (default), `date`, `time`, `ms` (epoch milliseconds), `seconds` or `integer` (epoch seconds), `text` | TEXT, INTEGER | TIMESTAMP(p), DATE, TIME(p), BIGINT, INTEGER, TEXT |
 | `one` | `integer` (default), `bigint` | INTEGER | INTEGER, BIGINT |
 
 A datatype of another helper, like `num(sql.text)`, is a type error. `@expressive/postgres` exports `sql` with `serial`, `timestamptz`, `timetz` and `interval` - the last for schema; its values do not yet round-trip. Options a factory doesn't take, like `precision` on `timestamp`, go in an object: `date({ type: "timestamp", precision: 3 })`.

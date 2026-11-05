@@ -22,8 +22,12 @@ declare module '@expressive/orm' {
       type: "text";
     }
 
-    interface Millis extends TimeColumn {
-      type: "millis";
+    interface Ms extends TimeColumn {
+      type: "ms";
+    }
+
+    interface Seconds extends TimeColumn {
+      type: "seconds";
     }
 
     interface Types {
@@ -33,7 +37,8 @@ declare module '@expressive/orm' {
       time: Time;
       integer: Integer;
       text: Text;
-      millis: Millis;
+      ms: Ms;
+      seconds: Seconds;
     }
   }
 }
@@ -42,14 +47,16 @@ export class TimeColumn extends date.Type {
   type: date.DataType = "timestamp";
 
   get datatype() {
-    return this.type === "millis" ? "bigint" : super.datatype;
+    const { type } = this;
+
+    return type === "ms" ? "bigint" : type === "seconds" ? "integer" : super.datatype;
   }
 
   get(value: unknown) {
     if (value == null)
       return undefined;
 
-    if (this.type === "millis")
+    if (this.type === "ms")
       return new Date(Number(value));
 
     if (typeof value === 'number')
@@ -74,10 +81,10 @@ export class TimeColumn extends date.Type {
 
     const date = new Date(iso);
 
-    if (this.type === "millis")
+    if (this.type === "ms")
       return date.getTime();
 
-    if (this.type === "integer")
+    if (this.type === "integer" || this.type === "seconds")
       return Math.floor(date.getTime() / 1000);
 
     if (this.type === "date")

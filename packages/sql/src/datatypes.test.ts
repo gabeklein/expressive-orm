@@ -24,7 +24,8 @@ describe("sql", () => {
     expect(column(() => num(sql.decimal(4))).datatype).toBe("decimal(4,0)");
     expect(column(() => date(sql.timestamp)).datatype).toBe("timestamp");
     expect(column(() => bool(sql.integer)).datatype).toBe("integer");
-    expect(column(() => date(sql.millis)).datatype).toBe("bigint");
+    expect(column(() => date(sql.ms)).datatype).toBe("bigint");
+    expect(column(() => date(sql.seconds)).datatype).toBe("integer");
   })
 
   it("will combine with null and other options", () => {
