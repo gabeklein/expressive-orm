@@ -10,7 +10,7 @@ npm install @expressive/orm @expressive/mvc
 
 ## memory()
 
-A connection keeping rows in arrays. It runs the floor and `Query` - joins, filters, order, paging, projections, math, inserts, updates and deletes - but not raw SQL templates, and reports every write for live rows. For tests and prototypes.
+A connection keeping rows in arrays. It runs the floor and `Query` - joins, filters, order, paging, projections, math, inserts, updates and deletes - but not raw SQL templates, and reports every write for live rows. For tests and prototypes, or, with `memory({ persist: memory.indexedDB(name) })` or `memory.file(path)`, for apps whose data fits in memory - see [Persisted memory](https://github.com/gabeklein/expressive-orm#persisted-memory).
 
 ```ts
 import { Query, Type, memory, one, str } from '@expressive/orm';

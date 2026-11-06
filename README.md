@@ -147,6 +147,25 @@ class Note extends Type {
 }
 ```
 
+### Persisted memory
+
+`memory({ persist })` keeps the same arrays and query engine, and saves them through an adapter - for casual and local-first apps:
+
+```ts
+import { Type, memory, str } from '@expressive/sql';
+
+class Note extends Type {
+  static connection = memory({ persist: memory.indexedDB("notes") });
+  text = str();
+}
+```
+
+`memory.indexedDB(name)` stores each table as one record in the browser's IndexedDB database `name`. `memory.file(path)` stores every table in one JSON file on Node or Bun, writing a `path.tmp` beside it and renaming it over, so a crash never leaves a half-written file; the directory must exist. The connection loads on creation and every statement waits for it. Writes mark their table; changed tables save together once per tick, one save at a time, ids continuing where they left off. `close()` waits for the last save and throws if it failed; a failed save otherwise retries on the next write.
+
+An adapter is `{ load, save }`: `load()` returns `{ [table]: { rows, next } }` or nothing, `save(changes)` receives the changed tables as copies.
+
+Each connection holds its own copy. Two tabs or processes on the same store don't see each other's writes, and the last to save a table wins it - inserts from both can share an id. Open one connection per store.
+
 ### Command line
 
 ```sh
@@ -381,7 +400,9 @@ const ann = await db.transaction(async () => {
 
 `transaction(fn)` runs `fn` in one database transaction: it commits when `fn` resolves, to its result, and rolls back when it throws, rethrowing. Statements inside - statics, `Query`, instance writes, and effects they trigger - join it without a handle. A nested `transaction` joins the open one, so a nested failure is undone only if it reaches the outer `fn`; caught, its writes commit with the rest. Instances change as writes land; a rollback restores what they changed, destroys entities created inside, and keeps entities deleted inside, which a commit then destroys. Values read into an instance inside a rolled-back transaction stay.
 
-On SQLite and PGlite, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite in a browser. `memory()` has no transactions.
+On SQLite and PGlite, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite in a browser.
+
+`memory()` runs transactions anywhere: a rollback restores every table and the id counters, and a persisted connection saves only once it commits. Without `AsyncLocalStorage` it can't tell callers apart, so every statement issued while a transaction is open joins it.
 
 ## Live rows
 
@@ -408,7 +429,7 @@ await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 - A delete destroys the entity.
 - An insert changes nothing loaded.
 
-`memory()` reports every write, floor or `Query`. Postgres uses LISTEN/NOTIFY: `sync` installs a trigger per table (Postgres 14+) - see [`@expressive/postgres`](packages/postgres). SQLite has no live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
+`memory()` reports every write, floor or `Query`; inside a transaction, on commit. Postgres uses LISTEN/NOTIFY: `sync` installs a trigger per table (Postgres 14+) - see [`@expressive/postgres`](packages/postgres). SQLite has no live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
 
 ## Datatypes
 
