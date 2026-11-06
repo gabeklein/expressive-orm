@@ -35,7 +35,13 @@ npm install @expressive/postgres @expressive/mvc pg
 npm install @expressive/postgres @expressive/mvc @electric-sql/pglite
 ```
 
-`@expressive/postgres` re-exports `@expressive/sql`, which re-exports `@expressive/orm`. Import from the one package you installed.
+For MySQL 8.0.19+ or MariaDB 10.6+:
+
+```sh
+npm install @expressive/mysql @expressive/mvc mysql2
+```
+
+`@expressive/postgres` and `@expressive/mysql` re-export `@expressive/sql`, which re-exports `@expressive/orm`. Import from the one package you installed.
 
 ## Entities
 
@@ -135,6 +141,14 @@ const lite = await PGLiteConnection.new([Account], "./data");
 ```
 
 `PGConnection` takes a connection string, a `pg` `PoolConfig` or a `Pool`. `PGLiteConnection` takes a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`. `close()` leaves a passed `Pool` or `PGlite` open.
+
+```ts
+import { MySQLConnection } from '@expressive/mysql';
+
+const my = await MySQLConnection.new([User], "mysql://root@localhost/app");
+```
+
+`MySQLConnection` takes a connection string, a `mysql2` `PoolOptions` or a `mysql2/promise` `Pool`, and works the same on MariaDB. MySQL has no `RETURNING`: an insert that returns its row re-selects it by its incrementing id or its key, so an insert across joined tables cannot return rows. A conflict matches any unique key, not only `on`; `conflict: "ignore"` is `INSERT IGNORE`. DDL commits as it runs, so a failed `sync` can leave earlier steps applied. Loaded entities are not live: MySQL has no change notifications.
 
 Without SQL, `memory()` keeps rows in arrays - for tests and prototypes:
 
@@ -414,13 +428,13 @@ await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 
 `sql.*` picks the column type; a factory takes its size. A config is portable: the same class syncs on SQLite and Postgres.
 
-| Helper | `sql.*` | SQLite | Postgres |
-|---|---|---|---|
-| `str` | `text` (default), `varchar(n)`, `char(n)`, `uuid` | TEXT | TEXT, VARCHAR(n), CHAR(n), UUID |
-| `num` | `integer` (default), `smallint`, `bigint`, `real`, `float`, `double`, `numeric(p, s)`, `decimal(p, s)` | INTEGER, REAL, NUMERIC | the type, `(precision, scale)` where set |
-| `bool` | `boolean` (default), `integer` (1/0), `text` / `varchar(n)` with `either` | INTEGER, TEXT | BOOLEAN, INTEGER, TEXT, VARCHAR |
-| `date` | `timestamp` (default), `date`, `time`, `ms` (epoch milliseconds), `seconds` or `integer` (epoch seconds), `text` | TEXT, INTEGER | TIMESTAMP(p), DATE, TIME(p), BIGINT, INTEGER, TEXT |
-| `one` | `integer` (default), `bigint` | INTEGER | INTEGER, BIGINT |
+| Helper | `sql.*` | SQLite | Postgres | MySQL |
+|---|---|---|---|---|
+| `str` | `text` (default), `varchar(n)`, `char(n)`, `uuid` | TEXT | TEXT, VARCHAR(n), CHAR(n), UUID | TEXT - VARCHAR(255) when keyed, unique or indexed - VARCHAR(n), CHAR(n), CHAR(36) |
+| `num` | `integer` (default), `smallint`, `bigint`, `real`, `float`, `double`, `numeric(p, s)`, `decimal(p, s)` | INTEGER, REAL, NUMERIC | the type, `(precision, scale)` where set | as Postgres |
+| `bool` | `boolean` (default), `integer` (1/0), `text` / `varchar(n)` with `either` | INTEGER, TEXT | BOOLEAN, INTEGER, TEXT, VARCHAR | TINYINT(1), INTEGER, TEXT, VARCHAR |
+| `date` | `timestamp` (default), `date`, `time`, `ms` (epoch milliseconds), `seconds` or `integer` (epoch seconds), `text` | TEXT, INTEGER | TIMESTAMP(p), DATE, TIME(p), BIGINT, INTEGER, TEXT | DATETIME(p, default 3) in UTC, DATE, TIME(p), BIGINT, INTEGER, TEXT |
+| `one` | `integer` (default), `bigint` | INTEGER | INTEGER, BIGINT | INTEGER, BIGINT |
 
 A datatype of another helper, like `num(sql.text)`, is a type error. `@expressive/postgres` exports `sql` with `serial`, `timestamptz`, `timetz` and `interval` - the last for schema; its values do not yet round-trip. Options a factory doesn't take, like `precision` on `timestamp`, go in an object: `date({ type: "timestamp", precision: 3 })`.
 
