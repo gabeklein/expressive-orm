@@ -7,5 +7,6 @@ export { TimeColumn } from './columns/Time';
 export { Connection } from './connection/Connection';
 export { Generator } from './connection/Generator';
 export { sql } from './datatypes';
+export { libsqlEngine } from './sqlite/engine';
 export type { Engine } from './sqlite/engine';
 export { SQLiteConnection } from './sqlite/SQLiteConnection';
