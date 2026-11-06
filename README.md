@@ -147,6 +147,31 @@ class Note extends Type {
 }
 ```
 
+### SQLite hosts
+
+`SQLiteConnection` also takes an engine in place of a filename, for SQLite the built-in loader can't open. Pass the client you already have:
+
+```ts
+import { SQLiteConnection, d1Engine, expoEngine, libsqlEngine } from '@expressive/sql';
+
+// Cloudflare D1, from a Worker binding
+const d1 = await SQLiteConnection.new([User], d1Engine(env.DB));
+
+// Turso or any libSQL server, from @libsql/client
+const turso = await SQLiteConnection.new([User], libsqlEngine(createClient({ url, authToken })));
+
+// React Native, from expo-sqlite
+const db = await openDatabaseAsync("app.db");
+
+await db.execAsync("PRAGMA foreign_keys = ON");
+
+const app = await SQLiteConnection.new([User], expoEngine(db));
+```
+
+D1 has no interactive transactions: `transaction` throws, and `sync` applies through `batch()`, which is atomic. D1 always enforces foreign keys, so `sync(true, true)` cannot rebuild a table other rows reference. A remote libSQL client runs each `transaction` on its own libSQL transaction and `sync` as one batch. A given engine is used as is: enable foreign keys on it yourself where the host doesn't. `close()` closes it.
+
+Any object implementing `Engine` works: `all`, `get`, `run`, `exec` and `close`, plus optional `transaction()`, returning a session with the same statements and `commit`/`rollback`, and `batch(sql)`, running statements atomically. Without them a transaction is `BEGIN` and `COMMIT` on the engine.
+
 ### Command line
 
 ```sh
@@ -381,7 +406,7 @@ const ann = await db.transaction(async () => {
 
 `transaction(fn)` runs `fn` in one database transaction: it commits when `fn` resolves, to its result, and rolls back when it throws, rethrowing. Statements inside - statics, `Query`, instance writes, and effects they trigger - join it without a handle. A nested `transaction` joins the open one, so a nested failure is undone only if it reaches the outer `fn`; caught, its writes commit with the rest. Instances change as writes land; a rollback restores what they changed, destroys entities created inside, and keeps entities deleted inside, which a commit then destroys. Values read into an instance inside a rolled-back transaction stay.
 
-On SQLite and PGlite, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite in a browser. `memory()` has no transactions.
+On SQLite and PGlite, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite in a browser or React Native. `memory()` has no transactions.
 
 ## Live rows
 
