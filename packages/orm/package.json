@@ -49,6 +49,7 @@
   },
   "devDependencies": {
     "@expressive/mvc": "^0.94.0",
+    "fake-indexeddb": "^6.2.7",
     "tsdown": "^0.20.1"
   },
   "peerDependencies": {

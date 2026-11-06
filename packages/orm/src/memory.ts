@@ -4,10 +4,26 @@ import type { Builder } from './query/Builder';
 import { evaluate, match, NULL, sort } from './query/evaluate';
 import type { Query } from './query/Query';
 import type { Type } from './Type';
+import { browser, disk } from './persist';
 
 type Row = evaluate.Row;
 
-type Table = { rows: Row[], next: number };
+type Table = memory.Table;
+
+declare namespace memory {
+  type Table = { rows: Row[], next: number };
+
+  type Snapshot = Record<string, Table>;
+
+  interface Adapter {
+    load(): Snapshot | undefined | Promise<Snapshot | undefined>;
+    save(changes: Snapshot): void | Promise<void>;
+  }
+
+  type Options = {
+    persist?: Adapter;
+  };
+}
 
 function key(type: Query.Table) {
   return type.fields.get("id")!;
@@ -22,6 +38,11 @@ function matches(primary: Field, id: unknown) {
 class Memory extends Connection {
   _tables = new Map<string, Table>();
   _listeners = new Set<(change: Connection.Change) => void>();
+  _persist?: memory.Adapter;
+  _ready?: Promise<void>;
+  _saving?: Promise<void>;
+  _dirty = new Set<string>();
+  _tx?: Connection.Journal;
 
   _table(name: string) {
     let table = this._tables.get(name);
@@ -40,9 +61,107 @@ class Memory extends Connection {
     return new Field("id");
   }
 
+  async _load(adapter: memory.Adapter) {
+    const snapshot = await adapter.load();
+
+    for (const name in snapshot)
+      this._tables.set(name, snapshot[name]);
+
+    this._persist = adapter;
+  }
+
+  _flush() {
+    return this._saving ||= this._write();
+  }
+
+  async _write() {
+    await undefined;
+
+    try {
+      while (this._dirty.size && !this._tx) {
+        const changes: memory.Snapshot = {};
+
+        for (const name of this._dirty) {
+          const { rows, next } = this._table(name);
+          changes[name] = { rows: rows.map(row => ({ ...row })), next };
+        }
+
+        this._dirty.clear();
+
+        try {
+          await this._persist!.save(changes);
+        }
+        catch (error) {
+          for (const name in changes)
+            this._dirty.add(name);
+
+          throw error;
+        }
+      }
+    }
+    finally {
+      this._saving = undefined;
+    }
+  }
+
+  _schedule() {
+    this._flush().catch(() => {});
+  }
+
+  _journal() {
+    return this._tx;
+  }
+
+  async transaction<T>(fn: () => T | Promise<T>): Promise<T> {
+    await this._ready;
+
+    if (this._tx)
+      return fn();
+
+    const journal: Connection.Journal = this._tx = { undo: [], done: [] };
+    const before = new Map(Array.from(this._tables, ([name, { rows, next }]) => (
+      [name, { rows: rows.map(row => ({ ...row })), next }]
+    )));
+
+    try {
+      const result = await fn();
+
+      this._tx = undefined;
+      journal.done.forEach(apply => apply());
+
+      return result;
+    }
+    catch (error) {
+      this._tx = undefined;
+      this._tables = before;
+      journal.undo.reverse().forEach(apply => apply());
+
+      throw error;
+    }
+    finally {
+      this._schedule();
+    }
+  }
+
+  async close() {
+    await this._ready;
+    await this._flush();
+    await super.close();
+  }
+
   _notify(table: string, op: Connection.Change["op"], id: Connection.Key, row?: Row) {
-    for (const listener of this._listeners)
-      listener(row ? { table, op, id, row: { ...row } } : { table, op, id });
+    if (this._persist) {
+      this._dirty.add(table);
+      this._schedule();
+    }
+
+    const change: Connection.Change = row ? { table, op, id, row: { ...row } } : { table, op, id };
+    const emit = () => this._listeners.forEach(listener => listener(change));
+
+    if (this._tx)
+      this._tx.done.push(emit);
+    else
+      emit();
   }
 
   _add(name: string, data: Row, primary = this._key(name)) {
@@ -60,6 +179,8 @@ class Memory extends Connection {
   }
 
   async select(name: string, constraints: Type.Constraint[], limit?: number, offset = 0) {
+    await this._ready;
+
     const order: [(row: Row) => unknown, number][] = [];
     let rows = this._table(name).rows;
 
@@ -82,6 +203,8 @@ class Memory extends Connection {
   }
 
   async insert(name: string, data: Row, returns?: boolean, conflict?: Connection.Conflict) {
+    await this._ready;
+
     const existing = conflict && this._table(name).rows.find(row => (
       conflict.on.every(column => row[column] === data[column])
     ));
@@ -107,6 +230,8 @@ class Memory extends Connection {
   }
 
   async update(name: string, id: Connection.Key, data: Row) {
+    await this._ready;
+
     const test = matches(this._key(name), id);
 
     for (const row of this._table(name).rows)
@@ -117,6 +242,8 @@ class Memory extends Connection {
   }
 
   async remove(name: string, id: Connection.Key) {
+    await this._ready;
+
     const test = matches(this._key(name), id);
     const into = this._table(name);
 
@@ -150,15 +277,29 @@ class Memory extends Connection {
 
   prepare(query: Builder): Builder.Statement {
     return {
-      all: async (params) => (await evaluate(this._store, query, params!)).rows!,
-      run: async (params) => (await evaluate(this._store, query, params!)).count,
+      all: async (params) => {
+        await this._ready;
+        return (await evaluate(this._store, query, params!)).rows!;
+      },
+      run: async (params) => {
+        await this._ready;
+        return (await evaluate(this._store, query, params!)).count;
+      },
       toString: () => String(query)
     };
   }
 }
 
-function memory(): Connection {
-  return Memory.new();
+function memory(options: memory.Options = {}): Connection {
+  const db = Memory.new();
+
+  if (options.persist)
+    db._ready = db._load(options.persist);
+
+  return db;
 }
+
+memory.indexedDB = browser;
+memory.file = disk;
 
 export { memory };
