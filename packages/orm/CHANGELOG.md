@@ -194,6 +194,123 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 # @expressive/orm
 
+## 0.13.0
+
+### Minor Changes
+
+- [#22](https://github.com/gabeklein/expressive-orm/pull/22) [`23f442c`](https://github.com/gabeklein/expressive-orm/commit/23f442c449927b10c9fb9b240eaa5161e6a01672) **Datatypes as modifiers.** `sql.*` names a column's datatype, with factories for sized ones: `num(sql.bigint, null)`, `str(sql.varchar(120), unique)`, `num(sql.decimal(10, 2))`. A datatype of another helper, like `num(sql.text)`, is a type error. `@expressive/postgres` adds `sql.serial`, `sql.timestamptz`, `sql.timetz` and `sql.interval`. `unique` and `index` join `optional` as modifiers; `null` replaces `orNull`, which is deprecated.
+  
+  **Indexes.** `index`, or `{ index: "name" }`, makes `sync` create a missing index, named `<table>_<column>` by default. On SQLite an existing single-column index on the column counts.
+  
+  **`key()` declares any id.** `key()` is an incrementing integer, typed `number`; `key(sql.text, { column: "name" })` a string required on insert; `key(sql.uuid)` a string generated on insert as a UUIDv7 when absent. A non-integer numeric key does not increment. `uuid()` is deprecated for `key(sql.uuid)` or `str(sql.uuid)`.
+  
+  **Epoch dates.** `date(sql.ms)` stores a `Date` as epoch milliseconds - INTEGER on SQLite, BIGINT on Postgres; `date(sql.seconds)` names the existing epoch-seconds `integer` storage.
+  
+  **`Query` is a `Promise`.** It has `catch` and `finally`, so returning one from an async function typechecks.
+
+- [#16](https://github.com/gabeklein/expressive-orm/pull/16) [`d4ee4e4`](https://github.com/gabeklein/expressive-orm/commit/d4ee4e443867520f8422b4c9b5bb240157ae3449) Rebuilt on `@expressive/mvc`. Entities are Models, the driver contract is a small floor with optional capabilities, and `Query` lives here.
+  
+  **Entities are Models.** `Type` extends `Model` from `@expressive/mvc`, now a peer dependency (`^0.94.0`). Observe an entity with `get(effect)` or `set(callback)`; destroy it with `set(null)`. Field helpers (`str`, `num`, `bool`, `date`, `uuid`, `json`, `one`) are `def` instructions; the private `use`/`init` registry is gone.
+  
+  **Renamed**
+  
+  - Static `Type.get(where, limit, offset)` is `Type.find`.
+  - Field `get(Child)` is `rows(Child, key?)`: a handle with `find`, `one` and `insert` applying the foreign key. It no longer mints a subclass of `Child`.
+  - The driver floor's `get(table, constraints, limit, offset)` is `select` - `get` is Model's.
+  - The constraint query behind `find`, `one` and `all` is the protected `fetch`.
+  - A `Field`'s JS constructor moves from `type` to `kind`; `type` is the datatype string.
+  - `Type.KeyOf` and `Type.Result` are removed.
+  - `values` is `columns`: the row keyed by property, decoded, a relation as its id - never suspending or loading a relation - in the shape `insert` takes. `get()` is the full snapshot. The `Values` type is `Columns` (`Type.Columns<T>`).
+  
+  **Rows.** Static reads return plain data; an instance is a reference for working with one live row.
+  
+  - `find`, `one` (`one(id)` included), `all` and the `rows()` handle's `find` and `one` resolve rows in the `columns` shape: decoded, a relation as its id, frozen, JSON-safe. They neither read nor fill the identity map; `one(id, reload)` is gone. Take an instance with `Type.get(id)`.
+  - A row passed as a relation value - to `insert`, a filter or a query insert - stands for its id.
+  
+  **Writes**
+  
+  - Entities are read-only: assigning a field throws `User.name is read-only; use set().` `save()`, instance `update(data)` and dirty tracking are gone.
+  - `await entity.set(patch)` is the write: it prepares the patch, updates the row, then settles the stored values into the entity - observers notified once - and resolves to the keys that changed. A relation takes an entity, an id or a row; `null` clears a nullable column, here and in static `update`. It rejects on a deleted entity, or one still loading. `set`'s other forms are Model's.
+  - `Type.new(values)` inserts a row. It returns the entity at once, its columns suspending until the row lands; awaiting resolves to it with its `id` and defaults, registered in the identity map. A failed insert destroys it and rejects awaits and pending reads; awaited, it stops there, otherwise mvc reports it to `catch` as `setup`.
+  - Static `update(id, data)` writes by id, resolves `void` and settles the written values into a loaded entity, so it stays current without live rows.
+  - `insert(data)` always inserts, so a supplied key is written, and resolves the stored row - `id` and database defaults included - not an entity. `rows()`'s `insert` likewise.
+  - Static `delete(id)` removes a row by id, evicting and destroying a loaded entity.
+  - `delete()` evicts the entity and destroys it. `set(patch)` and `delete()` on a deleted entity reject.
+  - `all(pageSize, where?)` pages through `find`; `subset` scopes a class's reads and writes.
+  
+  **Relations**
+  
+  - `one(Other)` holds a reference: not adopted, not destroyed with its parent, and parents sharing a row read the same instance. It records `onDelete` and `onUpdate`.
+  - `one(Other, lazy)` reads like an unset mvc property: the first read starts the load and throws mvc's suspense, resolving when the entity lands. Setting an id loads it the same way unless already loaded.
+  
+  **Columns**
+  
+  - `str`, `num`, `bool` and `date` build datatype-aware fields that validate on write: `str` checks type and `length`, `num` rejects non-numbers and `NaN`, `bool` rejects non-booleans and stores through `either` (default `1`/`0`), `date` rejects values that are not a date. `datatype` composes `type` with `length`, `precision`/`scale` and `collate`. `json` is `text`.
+  - Each helper and `one` carries a `Types` interface for adapters to augment - `declare module '@expressive/orm' { namespace str { interface Types { varchar: VarChar } } }` - narrowing `type` and typing options per datatype. `str.Type`, `num.Type`, `bool.Type`, `date.Type` and `one.Type` hold the field class each helper constructs; an adapter replaces it with a subclass.
+  - `optional`, `fallback`, `increment` and `primary` make a key optional in `Type.Insert` and a query insert; the property stays value-typed.
+  - `id` is `num({ primary: true, increment: true })`, typed `string | number`. Redeclare it with any helper carrying `primary` to narrow it: `id = num({ column: "user_id", primary: true })` is a `number`, `id = uuid({ primary: true })` a `string`. `one(id)`, `update(id)`, the identity map and relation inputs follow it.
+  
+  **Connections**
+  
+  - `Connection` is an abstract class extending `Model`, exported from here. Construct one with `.new(types, ...)`, or bare `new` as a field of a Model that owns it. `using` binds each class's `Type.connection`; `close()` destroys the connection, its identity map and every entity loaded through it, and unbinds the classes. Awaiting a connection runs `sync` once, when it has one.
+  - The floor is `select`, `insert`, `update(id)` and `remove(id)`, keyed by the class's primary column. Optional: `prepare(builder)` for `Query`, `subscribe(listener)` for live rows, `sync(fix?)` for schema.
+  - The identity map is held per connection instead of module-global.
+  
+  **New**
+  
+  - Live rows. A driver's `subscribe(listener)` reports `{ table, op, id, row? }`. A loaded entity settles an `update`, reloading the row when `row` is absent; a `delete` destroys and evicts it; an `insert` changes nothing.
+  - References. `Type.get(id)` returns the loaded entity or a placeholder registered in the identity map at once, loading the row. Its columns suspend until the row lands; awaiting it resolves to the entity. It and `Type.new` return `Type.Async<T>` - the entity, typed awaitable, so `await` is not flagged as redundant. A missing row rejects awaits and pending reads with `No {Type} found with id {id}` and evicts the placeholder. `get()` and `get(false)` stay Model's context lookup.
+  - `memory()`, an in-memory connection: auto-increment ids, every constraint operator, `Query` executed over arrays (joins, nested and/or filters, order, limit, offset, projections, math and bitwise ops, parameters, data tables, inserts, updates and deletes across joins; raw templates throw), and every write reported through `subscribe`.
+  - `Query` moves in from `@expressive/sql`. `Query(where => ...)` records tables, joins, filters, order, limit, selections, inserts, updates and deletes over entity classes; a connection's `prepare` renders or runs it. `where(Post).user.name` joins through `one()` - inner when required, left when nullable. A whole-entity selection resolves rows, as `find` does; `Query.Selects<Query.From<T>>` resolves `Type.Columns<T>[]`. A table inside a projection is the same row (`undefined` for a missing left join), and every result object is frozen. Without `prepare`, awaiting throws and `String(query)` lists the intent. `Type.query(fn?)` starts from the class.
+  - Exports for drivers and generators: `Connection`, `Builder`, `Computed`, `DataField`, `DataTable`, `Parameter`, `QueryTemplate`. `Builder` carries `offset`.
+  
+  **Packaging.** ESM only, built with tsdown; modules no longer trip over circular imports when evaluated one by one. Most applications install `@expressive/sql`, which depends on and re-exports this package. The PGLite test harness is removed.
+  
+  Requires `@expressive/mvc` `^0.94.0`.
+
+- [#22](https://github.com/gabeklein/expressive-orm/pull/22) [`0149fbe`](https://github.com/gabeklein/expressive-orm/commit/0149fbefd67b74f87ac9599b6f9b9bde4935e434) **A relation's column is named after its property.** `author = one(User)` stores `author_id`, not `user_id`; relations named after their class keep their column. Two fields on one column throw when the class is first used. On a table still holding the old column, sync reports the relation instead of adding an empty one: add `{ column: "user_id" }` to keep it.
+
+- [#22](https://github.com/gabeklein/expressive-orm/pull/22) [`b9d339f`](https://github.com/gabeklein/expressive-orm/commit/b9d339f65bfdaf9fc68d06e2d4d9b509c86600b8) **`expressive sql check | sync [--force] <entry>`.** A bin, shared by `@expressive/*` packages, that imports the module creating your connections with `sync` held back, then reports or applies what each connection's schema needs. `check` exits 1 when anything would change and marks drift `--force` can rebuild.
+  
+  **`plan(force?)`.** SQL connections return what `sync` would do - `{ steps, problems }`, each step with `action`, `reason` and `sql` - without doing it. `sync` applies the plan in one transaction, and verify-only `sync(false)` now also reports missing indexes. A table referencing one the same sync creates no longer fails as a missing referenced table.
+  
+  **`sync(true, true)` rebuilds drift.** A column whose type or nullability differs from its class is altered on Postgres and rebuilt with its table on SQLite, keeping columns the class doesn't declare, indexes and triggers, and casting values. It refuses while a row would not fit - a NULL under `NOT NULL`, or text that is not a number for a numeric column - or while any row references a missing one. `plan()` is abstract on `Connection`; a custom subclass implements it.
+
+- [#22](https://github.com/gabeklein/expressive-orm/pull/22) [`3c9c7a2`](https://github.com/gabeklein/expressive-orm/commit/3c9c7a2737be328077bf4c8c34060b60fbf338ef) **Transactions.** `connection.transaction(fn)` runs `fn` in one database transaction, committing when it resolves and rolling back when it throws. Statements inside join it without a handle, through `AsyncLocalStorage` loaded on first use; a nested call joins the open transaction, so a caught nested failure commits with it. On SQLite and PGlite, other statements wait until it ends and transactions queue; `pg` runs each on its own pooled client, discarding a client whose `BEGIN`, `COMMIT` or `ROLLBACK` failed. A rollback restores instances changed inside, destroys entities created inside and keeps entities deleted inside; a commit destroys those. SQLite and Postgres support it. Where `AsyncLocalStorage` is missing it throws, and `memory()` has none.
+  
+  **Driver contract.** orm's `Connection` declares an optional `transaction(fn)`. `@expressive/sql`'s `Connection` implements it over a protected `transact(fn)`, which a driver provides, plus `lock()` and an `idle()` its statements await - a pooled driver overrides both.
+
+- [#22](https://github.com/gabeklein/expressive-orm/pull/22) [`cdf383b`](https://github.com/gabeklein/expressive-orm/commit/cdf383be6f92e34b2b75b3764696855ba83c872f) **Upsert.** `Type.insert(data, { conflict })` writes `ON CONFLICT`. `"update"` overwrites the existing row with every column given, minus the target and `keep`, returns it and settles a loaded instance; `"ignore"` leaves it and resolves `undefined`. `on` names the target - a key or keys, the primary key by default. The memory driver matches.
+  
+  **Composite keys.** `id = key(() => [this.account, this.role])` keys an entity by the fields it lists, with no column of its own. `id` is a string - the parts as JSON - typed as a key of their tuple (`Type.Id<T>` takes either), so it compares by value. `get`, `one`, `update` and `delete` take the key or the tuple, the identity map holds it, a part change through `set` or `update` rekeys a loaded instance, and `sync` declares `PRIMARY KEY (...)` - existing tables included. Live rows report a composite id on Postgres and memory. `one()` cannot relate to a composite-keyed class.
+  
+  **Driver contract.** `insert(table, data, returns?, conflict?)` takes `Connection.Conflict` (`{ on, update? }` by column). `update` and `remove` take `Connection.Key`, which is a tuple for a composite key; `Change.id` likewise. `Field.parts` lists a composite key's fields.
+
+- [#22](https://github.com/gabeklein/expressive-orm/pull/22) [`a5fe1d2`](https://github.com/gabeklein/expressive-orm/commit/a5fe1d2b7c60a8a5a4485924d6ac50e99719caee) **`sql.now`.** The current time, wherever a date goes: a column `fallback`, an insert or update value, a comparison. In `Query` it renders as the database's clock in the column's own storage - ISO text with milliseconds, epoch ms or seconds, `date`, `time`, `timestamptz`; statics resolve it from the app's clock so settled instances hold the exact value. `fallback: "NOW"` is a deprecated alias, and a new SQLite `timestamp` default is ISO text with milliseconds rather than `CURRENT_TIMESTAMP`'s `YYYY-MM-DD HH:MM:SS`, which reads as UTC.
+  
+  **`date.created()` and `date.updated()`.** Date columns defaulting to now; `created` is never overwritten after insert, `updated` is set to now on every update and upsert that doesn't give it. They are `date()` with `{ fixed: true }` and `{ update: sql.now }`, which any column takes. A fixed column is left out of update types and throws if given to `update()` or `set()`; `update` also takes a function, called once per write.
+  
+  **`conflict: "replace"`.** An upsert setting every column from the new row - an omitted one to its default or NULL - except the primary key, `date.created` columns and `keep`. An upsert's `update` values apply only on conflict; a new row gets its `fallback`.
+  
+  **Writes by query.** `update(where, data)` and `delete(where)` take a query object in place of an id and resolve the rows affected, settling into or destroying loaded instances; an empty query throws. `count(where?)` counts rows. `null` in a query object matches a missing value. In `Query`, `where(table).match({ ... })` adds an `equal` per key.
+  
+  **`json()`** reads unparseable text as `undefined` instead of throwing, and `isLike` matches a `json()` column's stored text.
+  
+  **`Key<P>`** is exported, and a composite `id` is typed `Key<[number, string]>` rather than `Optional<KeyOf<...>>`.
+  
+  **Fallbacks fill on insert.** An omitted column with a `fallback` is written with it by the orm, not left to a database `DEFAULT` - a table created before the fallback existed gets it too. A nullable column defaulting to now can now be added to an existing SQLite table.
+  
+  **SQLite enforces foreign keys** on every driver; `bun:sqlite` left them off.
+
+### Patch Changes
+
+- [#22](https://github.com/gabeklein/expressive-orm/pull/22) [`338865e`](https://github.com/gabeklein/expressive-orm/commit/338865e3a62f411801517b02fc04b0c13832fc89) Fixes found adopting an existing SQLite database:
+  
+  - SQLite `sync` accepts a primary key column not declared `NOT NULL`, as tables created outside the library usually are.
+  - A count `Query` (no selection) resolves the matching row count on SQLite and Postgres; it resolved 0 on SQLite and the affected rows on Postgres.
+  - A table joined twice in one `Query`, such as two relations to the same class, is aliased instead of failing with an ambiguous column.
+  - `insert({})` writes `DEFAULT VALUES`. An insert per joined row with no values throws a clear error.
+
 ## 0.6.0
 
 ### Minor Changes

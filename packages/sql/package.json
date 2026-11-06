@@ -1,6 +1,6 @@
 {
   "name": "@expressive/sql",
-  "version": "0.4.4",
+  "version": "0.5.0",
   "description": "Expressive ORM on SQL: entities, Query and an embedded SQLite store from one import.",
   "keywords": [
     "orm",
@@ -55,7 +55,7 @@
     "test": "bun run typecheck && bun run coverage"
   },
   "dependencies": {
-    "@expressive/orm": "^0.12.1",
+    "@expressive/orm": "^0.13.0",
     "sql-formatter": "^10.7.2"
   },
   "devDependencies": {
