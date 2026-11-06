@@ -4,7 +4,7 @@ Contributor guide for AI agents working in this repository.
 
 ## Overview
 
-Expressive ORM - entities on `@expressive/mvc` Model with a pluggable driver contract and a `Query` builder. `@expressive/sql` holds the SQL toolkit, the SQL datatype vocabulary and SQLite, and re-exports orm; `@expressive/postgres` builds on it and re-exports it. `@expressive/sqlite` is a deprecated re-export of sql. Root `FEATURE.md` on a trunk branch holds the agreed scope and build plan for work in progress - read it first.
+Expressive ORM - entities on `@expressive/mvc` Model with a pluggable driver contract and a `Query` builder. `@expressive/sql` holds the SQL toolkit, the SQL datatype vocabulary and SQLite, and re-exports orm; `@expressive/postgres` builds on it and re-exports it. Root `FEATURE.md` on a trunk branch holds the agreed scope and build plan for work in progress - read it first.
 
 Monorepo: bun workspaces + changesets. Install, scripts and builds run under bun (`bun install`, `bun run test`, `bun run build`); tests run on vitest, which executes on node (`bun run test` invokes it). Never call node or npm directly. npm appears only in CI: `pr.yml`'s pack validation (`npm publish --dry-run`) and `release.yml`, where `changeset publish` shells to npm for the OIDC-authenticated publish.
 
@@ -14,7 +14,6 @@ Monorepo: bun workspaces + changesets. Install, scripts and builds run under bun
 packages/orm      - Entities, fields, relations, Connection (driver base and identity map), memory driver, Query (@expressive/orm)
 packages/sql      - SQL generator and connection base, datatype vocabulary, SQLite driver with runtime-selected engine (@expressive/sql)
 packages/postgres - Postgres and PGLite driver (@expressive/postgres)
-packages/sqlite   - Deprecated re-export of @expressive/sql (@expressive/sqlite)
 ```
 
 ## Commands
@@ -65,4 +64,4 @@ Naming: positive `it('will create instance')`, negative `it('will not trigger up
 
 ## Releasing
 
-All four packages publish; `@expressive/sqlite` is a deprecated shim, marked with `npm deprecate` by the maintainer after it publishes. Users install `@expressive/sql` or `@expressive/postgres`; the root README is the guide, each package README a short entry pointing to it. Internal dependencies are carets of the current release, not `workspace:` ranges - `changeset publish` packs with npm, which does not rewrite them. Merged changesets accumulate on `main`; `release.yml` maintains a "chore: version packages" PR and publishes from CI when it merges. No local publishing.
+All three packages publish; `@expressive/sqlite` is deprecated on npm and no longer in the repo. Users install `@expressive/sql` or `@expressive/postgres`; the root README is the guide, each package README a short entry pointing to it. Internal dependencies are carets of the current release, not `workspace:` ranges - `changeset publish` packs with npm, which does not rewrite them. Merged changesets accumulate on `main`; `release.yml` maintains a "chore: version packages" PR and publishes from CI when it merges. No local publishing.

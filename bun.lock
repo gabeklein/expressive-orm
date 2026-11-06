@@ -73,20 +73,6 @@
         "sqlite3",
       ],
     },
-    "packages/sqlite": {
-      "name": "@expressive/sqlite",
-      "version": "0.4.0",
-      "dependencies": {
-        "@expressive/sql": "^0.4.4",
-      },
-      "devDependencies": {
-        "@expressive/mvc": "^0.94.0",
-        "tsdown": "^0.20.1",
-      },
-      "peerDependencies": {
-        "@expressive/mvc": "^0.94.0",
-      },
-    },
   },
   "packages": {
     "@babel/code-frame": ["@babel/code-frame@7.29.7", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.29.7", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw=="],
@@ -174,8 +160,6 @@
     "@expressive/postgres": ["@expressive/postgres@workspace:packages/postgres"],
 
     "@expressive/sql": ["@expressive/sql@workspace:packages/sql"],
-
-    "@expressive/sqlite": ["@expressive/sqlite@workspace:packages/sqlite"],
 
     "@istanbuljs/schema": ["@istanbuljs/schema@0.1.6", "", {}, "sha512-+Sg6GCR/wy1oSmQDFq4LQDAhm3ETKnorxN+y5nbLULOR3P0c14f2Wurzj3/xqPXtasLFfHd5iRFQ7AJt4KH2cw=="],
 
