@@ -177,7 +177,7 @@ describe("prepare", () => {
       where(user.name).equal(fn(`upper('gabe')`) as any);
     });
 
-    await expect(query).rejects.toThrow("Query templates are not supported by the memory driver.");
+    await expect(query).rejects.toThrow("Query templates are not supported by this connection.");
   })
 })
 
