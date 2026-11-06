@@ -188,3 +188,27 @@ export function d1Engine(db: D1Database): Engine {
     async close() {}
   };
 }
+
+type ExpoDatabase = {
+  getAllAsync(sql: string, params: any[]): Promise<any[]>;
+  getFirstAsync(sql: string, params: any[]): Promise<any>;
+  runAsync(sql: string, params: any[]): Promise<{ changes: number }>;
+  execAsync(sql: string): Promise<void>;
+  closeAsync(): Promise<void>;
+};
+
+export function expoEngine(db: ExpoDatabase): Engine {
+  return {
+    async all(sql, params = []) {
+      return db.getAllAsync(sql, params);
+    },
+    async get(sql, params = []) {
+      return await db.getFirstAsync(sql, params) ?? undefined;
+    },
+    async run(sql, params = []) {
+      return { changes: (await db.runAsync(sql, params)).changes };
+    },
+    exec: sql => db.execAsync(sql),
+    close: () => db.closeAsync()
+  };
+}

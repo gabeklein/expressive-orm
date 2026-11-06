@@ -1,7 +1,7 @@
 import { Miniflare } from 'miniflare';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { createEngine, d1Engine, libsqlEngine } from './engine';
+import { createEngine, d1Engine, expoEngine, libsqlEngine } from './engine';
 
 const DRIVERS = ["bun:sqlite", "node:sqlite", "better-sqlite3", "sqlite3", "@libsql/client"];
 
@@ -310,6 +310,42 @@ describe("libsqlEngine", () => {
 
   it("will not open a session on a file", () => {
     expect(libsqlEngine(new Client("file")).transaction).toBeUndefined();
+  });
+});
+
+describe("expoEngine", () => {
+  it("will run statements", async () => {
+    const log: unknown[][] = [];
+    const db = {
+      getAllAsync: async (sql: string, params: unknown[]) => (log.push(["all", sql, params]), [{ a: 1 }]),
+      getFirstAsync: async (sql: string, params: unknown[]) => (log.push(["first", sql, params]), sql == "NONE" ? null : { a: 1 }),
+      runAsync: async (sql: string, params: unknown[]) => (log.push(["run", sql, params]), { changes: 2, lastInsertRowId: 1 }),
+      execAsync: async (sql: string) => { log.push(["exec", sql]) },
+      closeAsync: async () => { log.push(["close"]) }
+    };
+
+    const engine = expoEngine(db);
+
+    expect(await engine.all("SELECT ?", [1])).toEqual([{ a: 1 }]);
+    expect(await engine.all("SELECT 1")).toEqual([{ a: 1 }]);
+    expect(await engine.get("SELECT 2")).toEqual({ a: 1 });
+    expect(await engine.get("NONE", [3])).toBeUndefined();
+    expect(await engine.run("UPDATE 4")).toEqual({ changes: 2 });
+    expect(await engine.run("UPDATE ?", [5])).toEqual({ changes: 2 });
+
+    await engine.exec("SELECT 6");
+    await engine.close();
+
+    expect(log).toEqual([
+      ["all", "SELECT ?", [1]],
+      ["all", "SELECT 1", []],
+      ["first", "SELECT 2", []],
+      ["first", "NONE", [3]],
+      ["run", "UPDATE 4", []],
+      ["run", "UPDATE ?", [5]],
+      ["exec", "SELECT 6"],
+      ["close"]
+    ]);
   });
 });
 
