@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Miniflare } from 'miniflare';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { createEngine } from './engine';
+import { createEngine, d1Engine, expoEngine, libsqlEngine } from './engine';
 
 const DRIVERS = ["bun:sqlite", "node:sqlite", "better-sqlite3", "sqlite3", "@libsql/client"];
 
@@ -240,6 +241,159 @@ describe("@libsql/client", () => {
       ["executeMultiple", "SELECT 4"],
       ["close"]
     ]);
+  });
+});
+
+describe("libsqlEngine", () => {
+  class Client {
+    log: unknown[][] = [];
+
+    constructor(public protocol: string){}
+
+    async execute(statement: unknown){
+      this.log.push(["execute", statement]);
+      return { rows: [{ a: 1 }], rowsAffected: 1 };
+    }
+
+    async executeMultiple(sql: string){
+      this.log.push(["executeMultiple", sql]);
+    }
+
+    async batch(sql: string[], mode: string){
+      this.log.push(["batch", sql, mode]);
+    }
+
+    async transaction(mode: string){
+      const tx = new Client("tx");
+
+      this.log.push(["transaction", mode], tx.log);
+
+      return Object.assign(tx, {
+        commit: async () => { tx.log.push(["commit"]) },
+        rollback: async () => { tx.log.push(["rollback"]) }
+      });
+    }
+
+    close(){
+      this.log.push(["close"]);
+    }
+  }
+
+  it("will open a session on a remote client", async () => {
+    const client = new Client("https");
+    const engine = libsqlEngine(client);
+    const session = await engine.transaction!();
+
+    expect(await session.get("SELECT ?", [1])).toEqual({ a: 1 });
+    await session.exec("SELECT 2");
+    await session.commit();
+    await session.rollback();
+
+    expect(client.log).toEqual([
+      ["transaction", "write"],
+      [
+        ["execute", { sql: "SELECT ?", args: [1] }],
+        ["executeMultiple", "SELECT 2"],
+        ["commit"],
+        ["rollback"]
+      ]
+    ]);
+  });
+
+  it("will batch statements", async () => {
+    const client = new Client("wss");
+
+    await libsqlEngine(client).batch!(["SELECT 1", "SELECT 2"]);
+
+    expect(client.log).toEqual([["batch", ["SELECT 1", "SELECT 2"], "write"]]);
+  });
+
+  it("will not open a session on a file", () => {
+    expect(libsqlEngine(new Client("file")).transaction).toBeUndefined();
+  });
+});
+
+describe("expoEngine", () => {
+  it("will run statements", async () => {
+    const log: unknown[][] = [];
+    const db = {
+      getAllAsync: async (sql: string, params: unknown[]) => (log.push(["all", sql, params]), [{ a: 1 }]),
+      getFirstAsync: async (sql: string, params: unknown[]) => (log.push(["first", sql, params]), sql == "NONE" ? null : { a: 1 }),
+      runAsync: async (sql: string, params: unknown[]) => (log.push(["run", sql, params]), { changes: 2, lastInsertRowId: 1 }),
+      execAsync: async (sql: string) => { log.push(["exec", sql]) },
+      closeAsync: async () => { log.push(["close"]) }
+    };
+
+    const engine = expoEngine(db);
+
+    expect(await engine.all("SELECT ?", [1])).toEqual([{ a: 1 }]);
+    expect(await engine.all("SELECT 1")).toEqual([{ a: 1 }]);
+    expect(await engine.get("SELECT 2")).toEqual({ a: 1 });
+    expect(await engine.get("NONE", [3])).toBeUndefined();
+    expect(await engine.run("UPDATE 4")).toEqual({ changes: 2 });
+    expect(await engine.run("UPDATE ?", [5])).toEqual({ changes: 2 });
+
+    await engine.exec("SELECT 6");
+    await engine.close();
+
+    expect(log).toEqual([
+      ["all", "SELECT ?", [1]],
+      ["all", "SELECT 1", []],
+      ["first", "SELECT 2", []],
+      ["first", "NONE", [3]],
+      ["run", "UPDATE 4", []],
+      ["run", "UPDATE ?", [5]],
+      ["exec", "SELECT 6"],
+      ["close"]
+    ]);
+  });
+});
+
+describe("d1Engine", () => {
+  const mf = new Miniflare({
+    modules: true,
+    script: "export default { fetch: () => new Response() }",
+    d1Databases: ["DB"]
+  });
+
+  let engine: ReturnType<typeof d1Engine>;
+
+  beforeAll(async () => {
+    engine = d1Engine(await mf.getD1Database("DB") as any);
+  });
+
+  afterAll(() => mf.dispose());
+
+  it("will run statements", async () => {
+    await engine.exec("CREATE TABLE foo (id INTEGER PRIMARY KEY, name TEXT)");
+
+    expect(await engine.run("INSERT INTO foo (name) VALUES (?)", ["a"])).toEqual({ changes: 1 });
+    expect(await engine.run("INSERT INTO foo (name) VALUES ('b')")).toEqual({ changes: 1 });
+    expect(await engine.get("SELECT name FROM foo WHERE id = ?", [2])).toEqual({ name: "b" });
+    expect(await engine.get("SELECT name FROM foo WHERE id = 3")).toBeUndefined();
+    expect(await engine.all("SELECT name FROM foo WHERE id > ?", [0])).toEqual([{ name: "a" }, { name: "b" }]);
+    expect(await engine.all("SELECT id FROM foo")).toEqual([{ id: 1 }, { id: 2 }]);
+
+    await engine.close();
+  });
+
+  it("will batch atomically", async () => {
+    await engine.exec("CREATE TABLE bar (id INTEGER PRIMARY KEY)");
+    await expect(engine.batch!(["INSERT INTO bar VALUES (1)", "INSERT INTO nope VALUES (1)"])).rejects.toThrow("no such table: nope");
+
+    expect(await engine.all("SELECT * FROM bar")).toEqual([]);
+
+    await engine.batch!(["INSERT INTO bar VALUES (1)", "INSERT INTO bar VALUES (2)"]);
+
+    expect(await engine.all("SELECT * FROM bar")).toEqual([{ id: 1 }, { id: 2 }]);
+  });
+
+  it("will enforce foreign keys", async () => {
+    expect(await engine.get("PRAGMA foreign_keys")).toEqual({ foreign_keys: 1 });
+  });
+
+  it("will throw on transaction", async () => {
+    await expect(engine.transaction!()).rejects.toThrow("D1 has no interactive transactions.");
   });
 });
 

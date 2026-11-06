@@ -1,9 +1,21 @@
-export interface Engine {
-  all(sql: string, params?: any[]): Promise<any[]>;
-  get(sql: string, params?: any[]): Promise<any>;
-  run(sql: string, params?: any[]): Promise<{ changes: number }>;
-  exec(sql: string): Promise<void>;
+export interface Engine extends Engine.Statements {
   close(): Promise<void>;
+  transaction?(): Promise<Engine.Session>;
+  batch?(sql: string[]): Promise<void>;
+}
+
+export declare namespace Engine {
+  interface Statements {
+    all(sql: string, params?: any[]): Promise<any[]>;
+    get(sql: string, params?: any[]): Promise<any>;
+    run(sql: string, params?: any[]): Promise<{ changes: number }>;
+    exec(sql: string): Promise<void>;
+  }
+
+  interface Session extends Statements {
+    commit(): Promise<void>;
+    rollback(): Promise<void>;
+  }
 }
 
 const DRIVERS = [bunSqlite, nodeSqlite, betterSqlite3, sqlite3, libsql];
@@ -103,7 +115,30 @@ function asyncEngine(db: any): Engine {
   };
 }
 
-function libsqlEngine(client: any): Engine {
+export function libsqlEngine(client: any): Engine {
+  return {
+    ...libsqlStatements(client),
+    async batch(sql) {
+      await client.batch(sql, "write");
+    },
+    async close() {
+      client.close();
+    },
+    ...client.protocol !== "file" && {
+      async transaction() {
+        const tx = await client.transaction("write");
+
+        return {
+          ...libsqlStatements(tx),
+          commit: () => tx.commit(),
+          rollback: () => tx.rollback()
+        };
+      }
+    }
+  };
+}
+
+function libsqlStatements(client: any): Engine.Statements {
   const execute = (sql: string, args: any[]) => client.execute({ sql, args });
 
   return {
@@ -118,9 +153,62 @@ function libsqlEngine(client: any): Engine {
     },
     async exec(sql) {
       await client.executeMultiple(sql);
-    },
-    async close() {
-      client.close();
     }
+  };
+}
+
+type D1Database = {
+  prepare(sql: string): { bind(...values: any[]): any };
+  exec(sql: string): Promise<unknown>;
+  batch(statements: any[]): Promise<unknown>;
+};
+
+export function d1Engine(db: D1Database): Engine {
+  const statement = (sql: string, params: any[] = []) => db.prepare(sql).bind(...params);
+
+  return {
+    async all(sql, params) {
+      return (await statement(sql, params).all()).results;
+    },
+    async get(sql, params) {
+      return await statement(sql, params).first() ?? undefined;
+    },
+    async run(sql, params) {
+      return { changes: (await statement(sql, params).run()).meta.changes };
+    },
+    async exec(sql) {
+      await db.exec(sql);
+    },
+    async batch(sql) {
+      await db.batch(sql.map(sql => db.prepare(sql)));
+    },
+    async transaction(): Promise<never> {
+      throw new Error("D1 has no interactive transactions. Use the D1 binding's batch() for atomic writes.");
+    },
+    async close() {}
+  };
+}
+
+type ExpoDatabase = {
+  getAllAsync(sql: string, params: any[]): Promise<any[]>;
+  getFirstAsync(sql: string, params: any[]): Promise<any>;
+  runAsync(sql: string, params: any[]): Promise<{ changes: number }>;
+  execAsync(sql: string): Promise<void>;
+  closeAsync(): Promise<void>;
+};
+
+export function expoEngine(db: ExpoDatabase): Engine {
+  return {
+    async all(sql, params = []) {
+      return db.getAllAsync(sql, params);
+    },
+    async get(sql, params = []) {
+      return await db.getFirstAsync(sql, params) ?? undefined;
+    },
+    async run(sql, params = []) {
+      return { changes: (await db.runAsync(sql, params)).changes };
+    },
+    exec: sql => db.execAsync(sql),
+    close: () => db.closeAsync()
   };
 }
