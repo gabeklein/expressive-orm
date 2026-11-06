@@ -1,8 +1,8 @@
 export { Connection } from './Connection';
 export { default, Type } from './Type';
 export type { Columns, Compat, Insert } from './Type';
-export type { Infer } from './fields';
-export { Field, json, str, num, bool, date, uuid, orNull, optional } from './fields';
+export type { Infer, Key } from './fields';
+export { Field, json, key, str, num, bool, date, uuid, orNull, optional, unique, index } from './fields';
 export * from './where';
 export { one, lazy } from './one';
 export { rows } from './rows';
@@ -10,4 +10,4 @@ export { memory } from './memory';
 export { Query } from './query/Query';
 export { Builder } from './query/Builder';
 export { Computed } from './query/Computed';
-export { DataField, DataTable, Parameter, QueryTemplate } from './query/Value';
+export { DataField, DataTable, now, Parameter, QueryTemplate } from './query/Value';

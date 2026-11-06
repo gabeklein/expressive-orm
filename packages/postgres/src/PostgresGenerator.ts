@@ -1,7 +1,32 @@
-import { DataTable, Parameter } from '@expressive/orm';
+import { DataTable, Field, Parameter } from '@expressive/orm';
 import { Generator } from '@expressive/sql';
 
+export function now(field?: Field){
+  const utc = "(now() AT TIME ZONE 'UTC')";
+  const { timezone } = (field || {}) as { timezone?: boolean };
+
+  switch (field?.type) {
+    case "ms":
+      return "(extract(epoch from now()) * 1000)::bigint";
+    case "seconds":
+    case "integer":
+      return "extract(epoch from now())::integer";
+    case "date":
+      return `${utc}::date`;
+    case "time":
+      return timezone ? "now()::timetz" : `${utc}::time`;
+    case "text":
+      return `to_char(${utc}, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
+    default:
+      return timezone ? "now()" : utc;
+  }
+}
+
 export class PostgresGenerator extends Generator {
+  protected now(field?: Field){
+    return now(field);
+  }
+
   protected jsonTable(table: DataTable){
     const param = this.param(table);
     const types = Array.from(table.used, field => {

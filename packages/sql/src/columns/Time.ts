@@ -22,6 +22,14 @@ declare module '@expressive/orm' {
       type: "text";
     }
 
+    interface Ms extends TimeColumn {
+      type: "ms";
+    }
+
+    interface Seconds extends TimeColumn {
+      type: "seconds";
+    }
+
     interface Types {
       default: Timestamp;
       timestamp: Timestamp;
@@ -29,6 +37,8 @@ declare module '@expressive/orm' {
       time: Time;
       integer: Integer;
       text: Text;
+      ms: Ms;
+      seconds: Seconds;
     }
   }
 }
@@ -36,9 +46,18 @@ declare module '@expressive/orm' {
 export class TimeColumn extends date.Type {
   type: date.DataType = "timestamp";
 
+  get datatype() {
+    const { type } = this;
+
+    return type === "ms" ? "bigint" : type === "seconds" ? "integer" : super.datatype;
+  }
+
   get(value: unknown) {
     if (value == null)
       return undefined;
+
+    if (this.type === "ms")
+      return new Date(Number(value));
 
     if (typeof value === 'number')
       return new Date(value * 1000);
@@ -51,6 +70,9 @@ export class TimeColumn extends date.Type {
     if (typeof value === 'string' && this.type === "time")
       return new Date(`1970-01-01T${value}Z`);
 
+    if (typeof value === 'string' && /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d(\.\d+)?$/.test(value))
+      return new Date(value.replace(" ", "T") + "Z");
+
     return new Date(value as string | Date);
   }
 
@@ -62,7 +84,10 @@ export class TimeColumn extends date.Type {
 
     const date = new Date(iso);
 
-    if (this.type === "integer")
+    if (this.type === "ms")
+      return date.getTime();
+
+    if (this.type === "integer" || this.type === "seconds")
       return Math.floor(date.getTime() / 1000);
 
     if (this.type === "date")

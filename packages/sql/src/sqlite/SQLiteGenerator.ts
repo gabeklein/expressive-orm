@@ -1,7 +1,27 @@
-import { DataTable } from '@expressive/orm';
+import { DataTable, Field } from '@expressive/orm';
 import { Generator } from '../connection/Generator';
 
+export function now(field?: Field){
+  switch (field?.type) {
+    case "ms":
+      return "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+    case "seconds":
+    case "integer":
+      return "CAST(strftime('%s', 'now') AS INTEGER)";
+    case "date":
+      return "date('now')";
+    case "time":
+      return "time('now')";
+    default:
+      return "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')";
+  }
+}
+
 export class SQLiteGenerator extends Generator {
+  protected now(field?: Field){
+    return now(field);
+  }
+
   protected jsonTable(table: DataTable): string {
     const param = this.param(table);
     const fields = Array.from(table.used, (field, i) => {

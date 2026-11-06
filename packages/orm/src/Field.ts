@@ -1,4 +1,5 @@
 import type { Builder } from './query/Builder';
+import { now } from './query/Value';
 import type { Query } from './query/Query';
 
 export type Async<T> = T | Promise<T>;
@@ -12,6 +13,10 @@ export type Omissible =
   | { fallback: {} | null };
 
 export type Optional<T> = T & { readonly "~optional"?: true };
+
+export type Fixed<T> = T & { readonly "~fixed"?: true };
+
+export type Fixes<V> = "~fixed" extends keyof NonNullable<V> ? true : false;
 
 export type Omits<V> =
   undefined extends V ? true :
@@ -29,11 +34,15 @@ export class Field<T = unknown> {
   nullable = false;
   optional = false;
   unique = false;
+  index: boolean | string = false;
   increment = false;
   primary = false;
   absent = false;
   fallback?: unknown;
+  fixed = false;
+  update?: unknown;
   reference?: Field;
+  declare parts?: Field[];
   parent?: Query.Table;
   table?: Builder.ITable;
   query?: Builder;
@@ -59,19 +68,69 @@ export class Field<T = unknown> {
   }
 
   async apply(update: Record<string, string>, from: Record<string, any>, partial?: boolean) {
-    const { key, column, nullable } = this;
+    const { key, column, nullable, fixed } = this;
     let value = from[key];
+
+    if (partial && fixed) {
+      fixes(this, value);
+      return;
+    }
+
+    if (value === undefined)
+      value = partial ? updates(this) : this.fallback === "NOW" ? now : this.fallback;
 
     if (value === undefined && (nullable || partial || omits(this)))
       return;
 
-    value = await this.set(value);
+    value = await this.set(present(value));
 
     if (value == null && !nullable)
       throw new Error(`Missing required field: ${key}`);
 
-    update[column] = value;
+    update[column] = value ?? null;
   }
+}
+
+export function updates({ update }: Field) {
+  return typeof update == "function" ? update() : update;
+}
+
+export function fixes(field: Field, value: unknown) {
+  if (value !== undefined)
+    throw new Error(`${field.key} is fixed and can't be updated.`);
+}
+
+export function present(value: unknown){
+  return value === now ? new Date() : value;
+}
+
+export async function row(fields: Map<string, Field>, raw: Record<string, any>) {
+  const values: Record<string, unknown> = {};
+
+  for (const field of fields.values()) {
+    const { key, reference } = field;
+    const value = raw[field.column];
+
+    values[key] = reference
+      ? value == null ? undefined : await reference.get(value)
+      : await field.get(value ?? undefined, raw);
+  }
+
+  return Object.freeze(values);
+}
+
+export function columns(primary: Field) {
+  return primary.parts ? primary.parts.map(part => part.column) : [primary.column];
+}
+
+export function match(primary: Field, id: unknown): [string, string, unknown][] {
+  return primary.parts
+    ? primary.parts.map((part, i) => [part.column, "=", (id as unknown[])[i]])
+    : [[primary.column, "=", id]];
+}
+
+export function identify(primary: Field, row: Record<string, any>) {
+  return primary.parts ? Object.freeze(primary.parts.map(part => row[part.column])) : row[primary.column];
 }
 
 export function configure<F extends Field>(field: F, opts: Config<any>[]) {

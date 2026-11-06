@@ -9,11 +9,11 @@ npm install @expressive/sql @expressive/mvc
 SQLite is built into Bun (`bun:sqlite`) and Node 24 (`node:sqlite`). Elsewhere add one of `better-sqlite3`, `sqlite3` or `@libsql/client`; the first found is used.
 
 ```ts
-import { Query, SQLiteConnection, Type, greaterThan, num, one, orNull, str } from '@expressive/sql';
+import { Query, SQLiteConnection, Type, greaterThan, num, one, str } from '@expressive/sql';
 
 class User extends Type {
   name = str();
-  age = num(orNull);
+  age = num(null);
 }
 
 class Post extends Type {
@@ -23,7 +23,7 @@ class Post extends Type {
 
 const db = await SQLiteConnection.new([User, Post], "app.db");
 
-const gabe = await User.insert({ name: "Gabe", age: 35 });
+const gabe = await User.new({ name: "Gabe", age: 35 });
 await Post.insert({ author: gabe, title: "Hello" });
 
 const adults = await User.find({ age: greaterThan(17) });
@@ -37,12 +37,12 @@ const titles = await Query(where => {
 });
 
 gabe.get(({ name }) => console.log(name));
-await gabe.update({ name: "Gabriel" });
+await gabe.set({ name: "Gabriel" });
 
 await db.close();
 ```
 
-`SQLiteConnection.new(types, filename?)` binds the classes; awaiting it creates missing tables and checks existing ones. Omit `filename` for an in-memory database.
+`SQLiteConnection.new(types, filename?)` binds the classes; awaiting it creates missing tables, adds missing columns and checks existing ones. SQLite cannot add a `unique` column or one defaulting to `"NOW"`; `sync` reports those. Omit `filename` for an in-memory database.
 
 ## Also here
 

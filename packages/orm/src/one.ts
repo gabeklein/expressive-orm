@@ -1,7 +1,7 @@
 import { DataTypes, Exact, field, Has, OptionsOf, PEEK } from "./fields";
-import { configure, Field, Nullable } from './Field';
+import { configure, Field, Nullable, underscore } from './Field';
 import type { Builder } from './query/Builder';
-import Type from "./Type";
+import Type, { adopt } from "./Type";
 
 const ONE = new WeakMap<Type.Class, Map<Type.Class, Field | null>>();
 
@@ -33,7 +33,7 @@ class OneToOneField<T extends Type = Type> extends Field {
   load(id: string | number){
     const Class = this.entity;
 
-    return Class.one(id, false).catch((err: unknown) => {
+    return adopt(Class, id).catch((err: unknown) => {
       if(err instanceof Error)
         err.message = `Failed to load relation ${Class.name} for ${this.key}: ${err.message}`;
 
@@ -57,7 +57,7 @@ class OneToOneField<T extends Type = Type> extends Field {
       return (value as any).id;
 
     if(value instanceof Class){
-      const id = (value as any).id;
+      const id = value.get("id", false);
 
       if (id == null)
         throw new Error(`Cannot assign unsaved ${Class.name} to ${column}`);
@@ -66,6 +66,9 @@ class OneToOneField<T extends Type = Type> extends Field {
     }
 
     if(typeof value === "object"){
+      if ((value as any).id != null)
+        return (value as any).id;
+
       if (query)
         throw new Error(`Relation ${this} takes an entity, id or table in a query.`);
 
@@ -103,11 +106,18 @@ declare namespace one {
 function one<T extends Type, C extends one.Options[]>(from: Type.Class<T>, ...config: C & Exact<C, one.Types>){
   return field<Has<C, Nullable> extends true ? T | undefined : T, OneToOneField<T>>(
     (key, parent) => {
-      const field = configure(new one.Type<T>(key), [{ entity: from, column: `${from.table}_id` }, ...config]);
+      const field = configure(new one.Type<T>(key), [{ entity: from, column: `${underscore(key)}_id` }, ...config]);
       let rel = ONE.get(parent);
 
       Object.defineProperty(field, "reference", {
-        get: () => from.fields.get("id")
+        get: () => {
+          const id = from.fields.get("id")!;
+
+          if (id.parts)
+            throw new Error(`${parent.name}.${key} cannot relate to ${from.name}, which has a composite key.`);
+
+          return id;
+        }
       });
 
       if (!rel)

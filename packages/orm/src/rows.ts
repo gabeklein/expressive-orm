@@ -9,10 +9,10 @@ type Related<T> = {
 }[Exclude<keyof T, keyof Type>];
 
 interface Rows<T extends Type, K extends keyof T> {
-  find(where?: Type.Query<T>, limit?: number, offset?: number): Promise<T[]>;
-  one(where?: Type.Query<T>, expect?: true): Promise<T>;
-  one(where: Type.Query<T> | undefined, expect: boolean): Promise<T | undefined>;
-  insert(data: Omit<Type.Insert<T>, K> & Partial<Type.Insert<T>>): Promise<T>;
+  find(where?: Type.Query<T>, limit?: number, offset?: number): Promise<Type.Columns<T>[]>;
+  one(where?: Type.Query<T>, expect?: true): Promise<Type.Columns<T>>;
+  one(where: Type.Query<T> | undefined, expect: boolean): Promise<Type.Columns<T> | undefined>;
+  insert(data: Omit<Type.Insert<T>, K> & Partial<Type.Insert<T>>): Promise<Type.Columns<T>>;
 }
 
 function rows<T extends Type, K extends keyof T = Related<T>>(Class: Type.Class<T>, field?: K){
@@ -28,10 +28,6 @@ function rows<T extends Type, K extends keyof T = Related<T>>(Class: Type.Class<
 
         const { fields } = Class;
         const { id } = subject;
-
-        if (!id)
-          throw new Error(`Parent ${subject.constructor.name} is not saved.`);
-
         const fk = String(field || getRelated(Class, subject.constructor as Type.Class));
 
         if (!fields.has(fk))

@@ -1,4 +1,4 @@
-import { Builder, Computed, DataField, DataTable, Field, Parameter, QueryTemplate } from '@expressive/orm';
+import { Builder, Computed, DataField, DataTable, Field, now, Parameter, QueryTemplate } from '@expressive/orm';
 
 import { escape } from '../utils';
 
@@ -27,6 +27,7 @@ export class Generator {
       this.where(),
       this.order(),
       this.limit(),
+      this.upsert(),
       this.returning()
     ];
 
@@ -50,8 +51,14 @@ export class Generator {
 
     for (const [field, value] of data) {
       keys.push(this.escape(field.column));
-      values.push(this.value(value));
+      values.push(this.value(value, field));
     }
+
+    if (!keys.length && tables.size > 1)
+      throw new Error(`Insert into ${table.name} for each joined row needs at least one value.`);
+
+    if (!keys.length)
+      return ['INSERT INTO', this.escape(table.name), 'DEFAULT VALUES'];
 
     return [
       'INSERT INTO',
@@ -59,6 +66,28 @@ export class Generator {
       `(${keys}) SELECT ${values}`,
       tables.size > 1 && this.from()
     ];
+  }
+
+  protected upsert(){
+    const { conflict } = this.query;
+
+    if (!conflict)
+      return;
+
+    const on = `ON CONFLICT (${conflict.on.map(field => this.escape(field.column))})`;
+
+    if (!conflict.update)
+      return [on, 'DO NOTHING'];
+
+    const set = conflict.update.map(({ column }) => `${this.escape(column)} = excluded.${this.escape(column)}`);
+
+    for (const [field, value] of conflict.set)
+      set.push(`${this.escape(field.column)} = ${this.value(value)}`);
+
+    if (!set.length)
+      set.push(...conflict.on.map(({ column }) => `${this.escape(column)} = excluded.${this.escape(column)}`));
+
+    return [on, 'DO UPDATE SET', set.join(', ')];
   }
 
   protected returning(){
@@ -86,11 +115,18 @@ export class Generator {
       return 'WITH ' + cte.join();
   }
 
-  protected value(input: unknown){
+  protected value(input: unknown, field?: Field){
+    if(input === now)
+      return this.now(field);
+
     if(isValue(input))
       return this.reference(input);
 
     return String(escape(input));
+  }
+
+  protected now(_field?: Field){
+    return "CURRENT_TIMESTAMP";
   }
 
   protected jsonTable(_table: DataTable): string {
@@ -143,6 +179,7 @@ export class Generator {
     for(const [_table, data] of updates)
       for(const [field, value] of data)
         sets.push(`${this.escape(field.column)} = ${
+          value === now ? this.now(field) :
           isValue(value) ? this.reference(value) :
           value === null ? 'NULL' :
           escape(value)
@@ -235,7 +272,11 @@ export class Generator {
   }
 
   protected filter(left: Field, op: string, right: unknown){
-    const raw = (value: unknown) => isValue(value) ? this.reference(value) : escape(left.set(value));
+    const raw = (value: unknown) => (
+      value === now ? this.now(left) :
+      isValue(value) ? this.reference(value) :
+      escape(op.includes("LIKE") ? value : left.set(value))
+    );
 
     if (right === null){
       if(op == '=')

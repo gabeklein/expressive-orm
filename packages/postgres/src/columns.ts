@@ -38,6 +38,13 @@ export class TimeColumn extends SQLTimeColumn {
 
   get datatype() {
     const { type, precision, timezone, fields } = this;
+
+    if (type === "ms")
+      return "bigint";
+
+    if (type === "seconds")
+      return "integer";
+
     let datatype: string = type;
 
     if (timezone && type.startsWith("time"))

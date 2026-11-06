@@ -1,12 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { Field } from '../Field';
-import { bool, num, str } from '../fields';
+import { bool, date, num, str } from '../fields';
 import { memory } from '../memory';
 import { one } from '../one';
 import { Type } from '../Type';
 import { Builder } from './Builder';
 import { Query } from './Query';
+import { now } from './Value';
 
 function connect(){
   return class Table extends Type {
@@ -15,7 +16,7 @@ function connect(){
 }
 
 async function seed<T extends Type>(type: Type.Class<T>, ...rows: Type.Insert<T>[]){
-  const out: T[] = [];
+  const out: Type.Columns<T>[] = [];
 
   for (const row of rows)
     out.push(await type.insert(row));
@@ -27,6 +28,104 @@ it("will expose Builder as this", () => {
   Query(function(){
     expect<Builder>(this).toBeInstanceOf(Query.Builder);
   });
+})
+
+describe("promise", () => {
+  class User extends connect() {
+    name = str();
+  }
+
+  async function count(): Promise<number> {
+    return Query(where => void where(User));
+  }
+
+  it("will be a Promise", async () => {
+    await seed(User, { name: "Gabe" });
+
+    const query: Promise<number> = Query(where => void where(User));
+
+    expect(String(Object.prototype.toString.call(query))).toBe("[object Query]");
+    expect(await count()).toBe(1);
+  })
+
+  it("will catch a failure", async () => {
+    const query = Query(where => {
+      where(User);
+      where("raw");
+    });
+
+    expect(await query.catch(error => error.message)).toMatch(/not supported/);
+  })
+
+  it("will run finally on success and failure", async () => {
+    const done: string[] = [];
+    const ok = Query(where => void where(User));
+    const fail = Query(where => {
+      where(User);
+      where("raw");
+    });
+
+    await expect(ok.finally(() => done.push("ok"))).resolves.toBe(1);
+    await expect(fail.finally(() => done.push("fail"))).rejects.toThrow();
+    await expect(ok.finally()).resolves.toBe(1);
+
+    expect(done).toEqual(["ok", "fail"]);
+  })
+})
+
+describe("match", () => {
+  class Asset extends connect() {
+    kind = str();
+    file = str();
+    note = str(null);
+  }
+
+  it("will match several columns", async () => {
+    await seed(Asset, { kind: "a", file: "1" }, { kind: "a", file: "2" }, { kind: "b", file: "1" });
+
+    const count = await Query(where => {
+      const asset = where(Asset);
+
+      where(asset).match({ kind: "a", file: "1", note: undefined });
+    });
+
+    expect(count).toBe(1);
+  })
+})
+
+describe("now", () => {
+  class Event extends connect() {
+    at = date(null);
+  }
+
+  it("will write and compare the current time", async () => {
+    const insert = Query(where => void where(Event, { at: now }));
+
+    expect(String(insert)).toBe("insert event\n  at: now");
+    await insert;
+
+    await Query(where => {
+      const event = where(Event);
+
+      where(event).update({ at: now });
+    });
+
+    const [row] = await Query(where => {
+      const event = where(Event);
+
+      where(event.at).under(now, true);
+      where(event.at).over(sql(where));
+
+      return event;
+    });
+
+    expect(Math.abs(Date.now() - row.at!.getTime())).toBeLessThan(1000);
+  })
+
+  function sql(where: Query.Where){
+    void where;
+    return new Date(0);
+  }
 })
 
 describe("select", () => {
@@ -98,10 +197,15 @@ describe("select", () => {
         bar.value: foo.bar
         baz.value: foo.baz"
     `);
-    await expect(query.one()).resolves.toEqual({
+    const row = await query.one();
+
+    expect(row).toEqual({
       bar: { value: "hello" },
       baz: { value: "world" }
     });
+    expect(Object.isFrozen(row)).toBe(true);
+    expect(Object.isFrozen(row!.bar)).toBe(true);
+    expect(Object.isFrozen(row!.baz)).toBe(true);
   })
 
   it("will select a field directly", async () => {
@@ -120,7 +224,7 @@ describe("select", () => {
     await ready;
     const query = Query(where => where(Foo));
 
-    expect<Query.Selects<Foo>>(query);
+    expect<Query.Selects<Query.From<Foo>>>(query);
     expect(String(query)).toMatchInlineSnapshot(`
       "from foo
       select foo"
@@ -128,10 +232,12 @@ describe("select", () => {
 
     const [first, second] = await query;
 
-    expect(first).toBeInstanceOf(Foo);
-    expect(first.columns).toEqual({ id: 1, bar: "hello", baz: "world" });
+    expectTypeOf(first).toEqualTypeOf<Type.Columns<Foo>>();
+    expect(first).toEqual({ id: 1, bar: "hello", baz: "world" });
+    expect(first).not.toBeInstanceOf(Foo);
+    expect(Object.isFrozen(first)).toBe(true);
     expect(second.bar).toBe("goodbye");
-    await expect(Foo.one(1)).resolves.toBe(first);
+    expect(Foo.loaded.size).toBe(0);
   })
 
   it("will not select absent fields", async () => {
@@ -150,7 +256,7 @@ describe("select", () => {
       "from bar
       select bar"
     `);
-    expect(bar.name).toBe("Bob");
+    expect(bar).toEqual({ id: 1, name: "Bob", extra: undefined });
   })
 
   it("will select without tables", async () => {
@@ -683,12 +789,19 @@ describe("relations", () => {
     c = one(C, null);
   }
 
+  class E extends Table {
+    static table = "e";
+    first = one(C);
+    second = one(C, { column: "second_id" });
+  }
+
   const ready = (async () => {
     const [c1, c2] = await seed(C, { value: 100, label: "hundred" }, { value: 200, label: "two" });
     const [b1, b2] = await seed(B, { c: c1, value: "b1" }, { c: c2, value: "b2" });
 
     await seed(A, { b: b1, value: "a1" }, { b: b2, value: "a2" });
     await seed(D, { c: c1 }, {});
+    await seed(E, { first: c1, second: c2 });
   })();
 
   it("will join through a relation", async () => {
@@ -729,6 +842,24 @@ describe("relations", () => {
     await expect(query).resolves.toEqual([{ aValue: "a1", cLabel: "hundred" }]);
   })
 
+  it("will alias a table joined twice", async () => {
+    await ready;
+    const query = Query(where => {
+      const e = where(E);
+      return { first: e.first.label, second: e.second.label };
+    });
+
+    expect(String(query)).toMatchInlineSnapshot(`
+      "from e
+      join c on c.id = e.first_id
+      join c T2 on T2.id = e.second_id
+      select
+        first: c.label
+        second: T2.label"
+    `);
+    await expect(query).resolves.toEqual([{ first: "hundred", second: "two" }]);
+  })
+
   it("will left join a nullable relation", async () => {
     await ready;
     const query = Query(where => {
@@ -747,29 +878,66 @@ describe("relations", () => {
     await expect(query).resolves.toEqual([{ id: 1, label: "hundred" }, { id: 2 }]);
   })
 
-  it("will select a relation as nested object", async () => {
+  it("will select a table in a projection as a row", async () => {
     await ready;
     const query = Query(where => {
-      const b = where(B);
-      where(b.id).equal(1);
-      return { b };
+      const a = where(A);
+      where(a.id).equal(1);
+      return { a, b: a.b, label: a.b.c.label };
     });
 
-    await expect(query).resolves.toEqual([{
-      b: { id: 1, value: "b1", c: { id: 1, value: 100, label: "hundred" } }
-    }]);
+    expectTypeOf(query.get()).resolves.toEqualTypeOf<{
+      a: Type.Columns<A>;
+      b: Type.Columns<B>;
+      label: string;
+    }[]>();
+
+    const [row] = await query;
+
+    expect(row).toEqual({
+      a: { id: 1, b: 1, value: "a1" },
+      b: { id: 1, c: 1, value: "b1" },
+      label: "hundred"
+    });
+    expect(Object.isFrozen(row)).toBe(true);
+    expect(Object.isFrozen(row.a)).toBe(true);
+    expect(Object.isFrozen(row.b)).toBe(true);
+    expect(B.loaded.size).toBe(0);
   })
 
-  it("will hydrate relations of entities", async () => {
+  it("will select a missing joined table as undefined", async () => {
     await ready;
-    const [a] = await Query(where => {
+    const query = Query(where => {
+      const d = where(D);
+      return { nested: { id: d.id, c: d.c } };
+    });
+
+    expect<Query.Selects<{ nested: { id: string | number, c: Type.Columns<C> | undefined } }>>(query);
+    // @ts-expect-error
+    expect<Query.Selects<{ nested: { id: string | number, c: Type.Columns<C> } }>>(query);
+    await expect(query).resolves.toEqual([
+      { nested: { id: 1, c: { id: 1, value: 100, label: "hundred" } } },
+      { nested: { id: 2, c: undefined } }
+    ]);
+  })
+
+  it("will select relations of entities as ids", async () => {
+    await ready;
+    const [a, d] = await Query(where => {
       const a = where(A);
       where(a.id).equal(1);
       return a;
     });
+    const [none] = await Query(where => {
+      const d = where(D);
+      where(d.id).equal(2);
+      return d;
+    });
 
-    expect(a.b).toBeInstanceOf(B);
-    expect(a.b.c.label).toBe("hundred");
+    expect(a).toEqual({ id: 1, b: 1, value: "a1" });
+    expect(d).toBeUndefined();
+    expect(none).toEqual({ id: 2, c: undefined });
+    expect(B.loaded.size).toBe(0);
   })
 })
 
@@ -846,15 +1014,14 @@ describe("insert", () => {
 
     const infos = await Info.find({ color: "green" });
 
-    expect(infos.map(x => x.user)).toEqual([jane]);
+    expect(infos.map(x => x.user)).toEqual([jane.id]);
   })
 
   it("will return inserted entity", async () => {
     const [user] = await Query(where => where(User, { name: "Ann" }));
 
-    expect(user).toBeInstanceOf(User);
-    expect(user.name).toBe("Ann");
-    await expect(User.one(user.id)).resolves.toBe(user);
+    expect(user).toEqual({ id: 4, name: "Ann" });
+    await expect(User.one(user.id)).resolves.toEqual(user);
   })
 
   it("will insert iterable data", async () => {
@@ -943,7 +1110,7 @@ describe("insert", () => {
         note: null
       select seq"
     `);
-    expect(seq.note).toBeNull();
+    expect(seq.note).toBeUndefined();
     expect(() => Query(where => void where(User, { name: null as any }))).toThrow("Column user.name is not nullable.");
   })
 })
@@ -1164,7 +1331,7 @@ describe("computed", () => {
     `);
     await expect(query).resolves.toEqual([
       { add: 8, sub: 3, mul: 12, div: 3, mod: 2 },
-      { add: 12, sub: null, mul: 20, div: 5, mod: 2 }
+      { add: 12, sub: undefined, mul: 20, div: 5, mod: 2 }
     ]);
   })
 
@@ -1197,7 +1364,7 @@ describe("computed", () => {
     `);
     await expect(query).resolves.toEqual([
       { a: 66, b: 36, c: -106, d: -6, e: -3 },
-      { a: 150, b: 60, c: -110, d: -10, e: null }
+      { a: 150, b: 60, c: -110, d: -10, e: undefined }
     ]);
   })
 
@@ -1276,6 +1443,36 @@ describe("template", () => {
     `);
     await expect(query("red")).resolves.toEqual(["John"]);
     await expect(query("blue")).resolves.toEqual(["Jane"]);
+  })
+
+  it("will select rows from a template", async () => {
+    await ready;
+    const query = Query(where => (color: string) => {
+      const foo = where(Foo);
+      where(foo.color).equal(color);
+      return foo;
+    });
+
+    const [john] = await query("red");
+
+    expectTypeOf(john).toEqualTypeOf<Type.Columns<Foo>>();
+    expect(john).toEqual({ id: 1, first: "John", last: "Doe", color: "red" });
+    expect(Object.isFrozen(john)).toBe(true);
+  })
+
+  it("will freeze template projections", async () => {
+    await ready;
+    const query = Query(where => (color: string) => {
+      const foo = where(Foo);
+      where(foo.color).equal(color);
+      return { name: { first: foo.first } };
+    });
+
+    const [john] = await query("red");
+
+    expect(john).toEqual({ name: { first: "John" } });
+    expect(Object.isFrozen(john)).toBe(true);
+    expect(Object.isFrozen(john.name)).toBe(true);
   })
 
   it("will preserve params order", async () => {
@@ -1524,9 +1721,10 @@ describe("types", () => {
   it("will select entities by class", () => {
     const query = Query(where => where(Post));
 
-    expect<Query.Selects<Post>>(query);
+    expect<Query.Selects<Query.From<Post>>>(query);
+    expectTypeOf(query.get()).resolves.toEqualTypeOf<Type.Columns<Post>[]>();
     // @ts-expect-error
-    expect<Query.Selects<User>>(query);
+    expect<Query.Selects<Query.From<User>>>(query);
   })
 
   it("will check comparisons and writes", () => {

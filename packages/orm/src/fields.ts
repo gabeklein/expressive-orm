@@ -1,6 +1,7 @@
 import { def } from '@expressive/mvc';
 
-import { Config, configure, Field, Nullable, Omissible, Optional } from './Field';
+import { Config, configure, Field, Fixed, Nullable, Omissible, Optional } from './Field';
+import { now } from './query/Value';
 import { type Type } from './Type';
 
 type Has<T extends any[], M> =
@@ -8,10 +9,12 @@ type Has<T extends any[], M> =
     ? First extends M ? true : Has<Rest, M>
     : false;
 
+type Marked<T extends any[], Base> = Has<T, { fixed: true }> extends true ? Fixed<Base> : Base;
+
 export type Infer<T extends any[], Base> =
-  Has<T, Nullable> extends true ? Base | undefined :
-  Has<T, Omissible> extends true ? Optional<Base> :
-  Base;
+  Has<T, Nullable> extends true ? Marked<T, Base> | undefined :
+  Has<T, Omissible> extends true ? Optional<Marked<T, Base>> :
+  Marked<T, Base>;
 
 type DataTypes<Types> =
   [Exclude<keyof Types, "default">] extends [never] ? string : Exclude<keyof Types, "default">;
@@ -26,20 +29,35 @@ type Exact<T extends any[], Types> = {
     : T[K]
 };
 
+declare const crypto: { getRandomValues<T extends Uint8Array>(array: T): T };
+
 const FIELDS = new WeakMap<Function, Map<string, Field>>();
-const DIRTY = new WeakMap<Type, Record<string, unknown>>();
 const PEEK = new WeakSet<Type>();
 
 let PLACEHOLDER: Type | boolean = false;
+let WRITING = false;
 
 function placeholder<T extends Type>(create: () => T) {
   PLACEHOLDER = true;
 
   try {
-    return create();
+    return write(create);
   }
   finally {
     PLACEHOLDER = false;
+  }
+}
+
+function write<T>(apply: () => T) {
+  const previous = WRITING;
+
+  WRITING = true;
+
+  try {
+    return apply();
+  }
+  finally {
+    WRITING = previous;
   }
 }
 
@@ -56,6 +74,10 @@ function field<T, F extends Field = Field>(
 
     if (!fields.has(key)) {
       const field = create(key, type);
+
+      for (const other of fields.values())
+        if (other.column === field.column && !other.parts && !field.parts)
+          throw new Error(`${type.name}.${other.key} and ${type.name}.${key} both use column ${field.column}.`);
 
       field.parent = type;
       fields.set(key, field);
@@ -74,12 +96,8 @@ function field<T, F extends Field = Field>(
     return {
       ...output,
       set(next: unknown, prev: unknown) {
-        let dirty = DIRTY.get(subject);
-
-        if (!dirty)
-          DIRTY.set(subject, dirty = {});
-
-        dirty[key] = next;
+        if (!WRITING)
+          throw new Error(`${type.name}.${key} is read-only; use set().`);
 
         if (typeof output.set == "function")
           return output.set(next, prev);
@@ -136,6 +154,7 @@ function str<T extends str.Options[]>(...config: T & Exact<T, str.Types>): Infer
 
 str.Type = StringColumn;
 
+/** @deprecated Use `key(sql.uuid)` for an id, or `str(sql.uuid)` for a column. */
 function uuid<T extends str.Options[]>(...config: T & Exact<T, str.Types>): Infer<T, string> {
   return column(str.Type, { kind: String }, ...config);
 }
@@ -269,30 +288,192 @@ function date<T extends date.Options[]>(...config: T & Exact<T, date.Types>): In
 
 date.Type = TimeColumn;
 
+date.created = function created<T extends date.Options[]>(...config: T & Exact<T, date.Types>): Infer<[...T, { fallback: {}, fixed: true }], Date> {
+  return column(date.Type, { kind: Date, fallback: now, fixed: true }, ...config);
+};
+
+date.updated = function updated<T extends date.Options[]>(...config: T & Exact<T, date.Types>): Infer<[...T, { fallback: {} }], Date> {
+  return column(date.Type, { kind: Date, fallback: now, update: now }, ...config);
+};
+
 function json<T>(nullable: Nullable): T | undefined;
 function json<T>(config?: Config): T;
 function json<T>(config?: Config){
   return column<T>(Field, {
     kind: Object,
     type: "text",
-    set: (value: T) => JSON.stringify(value),
-    get: (value: string) => value ? JSON.parse(value) : undefined,
+    set: (value: T) => value == null ? null : JSON.stringify(value),
+    get: (value: string) => {
+      try {
+        return value ? JSON.parse(value) : undefined;
+      }
+      catch {
+        return undefined;
+      }
+    },
   }, config);
 }
 
+type Key<P> = string & { readonly "~key": P; readonly "~optional"?: true };
+
+class KeyField extends Field<string> {
+  absent = true;
+  primary = true;
+
+  async apply(){}
+
+  async get(value: any, from?: Record<string, any>){
+    if (!from)
+      return JSON.stringify(value);
+
+    const values = await Promise.all(this.parts!.map(part => (
+      (part.reference || part).get(from[part.column], from)
+    )));
+
+    return JSON.stringify(values);
+  }
+}
+
+function record(type: Type.Class, subject: Type, read: () => readonly unknown[]) {
+  const keys = Array.from(type.fields.keys()).filter(key => key != "id");
+  const saved = keys.map(key => [key, Object.getOwnPropertyDescriptor(subject, key)] as const);
+  const marks = new Map(keys.map(key => [key, Symbol(key)]));
+  const seen: string[] = [];
+  let output: readonly unknown[] | undefined;
+
+  for (const key of keys)
+    Object.defineProperty(subject, key, {
+      configurable: true,
+      get: () => (seen.push(key), marks.get(key))
+    });
+
+  try {
+    output = read();
+  }
+  catch {}
+  finally {
+    for (const [key, descriptor] of saved)
+      Object.defineProperty(subject, key, descriptor!);
+  }
+
+  if (!output || output.length != seen.length || output.some((value, i) => value !== marks.get(seen[i])))
+    throw new Error(`${type.name}.id must list fields to key by, like key(() => [this.a, this.b]).`);
+
+  return seen.map(key => type.fields.get(key)!);
+}
+
+type KeyType<T extends any[]> =
+  Has<T, { type: str.DataType }> extends true
+    ? Has<T, { type: "uuid" }> extends true ? Optional<string> : string
+    : Has<T, { increment: false }> extends true ? number : Optional<number>;
+
+const INTEGER = new Set(["integer", "smallint", "bigint", "serial", "smallserial", "bigserial"]);
+const NUMERIC = new Set([...INTEGER, "real", "float", "double", "numeric", "decimal"]);
+
+function key(): Optional<number>;
+function key<P extends readonly unknown[]>(read: () => readonly [...P]): Key<{ -readonly [I in keyof P]: P[I] extends Type | undefined ? NonNullable<P[I]>["id"] : P[I] }>;
+function key<T extends (str.Options | num.Options)[]>(...config: T): KeyType<T>;
+function key(...config: any[]): unknown {
+  if (typeof config[0] == "function")
+    return composite(config[0]);
+
+  const type = config.reduce((type, opt) => opt && opt.type || type, undefined);
+  const numeric = !type || NUMERIC.has(type);
+
+  return field(key => {
+    const column = configure(new (numeric ? num.Type : str.Type)(key), [
+      { kind: numeric ? Number : String, primary: true, increment: !type || INTEGER.has(type) },
+      ...config
+    ]);
+
+    if (!numeric) {
+      const { apply } = column;
+
+      column.apply = (update, from, partial) => {
+        if (!partial && from[key] === undefined)
+          if (type == "uuid")
+            from = { ...from, [key]: uuidv7() };
+          else
+            throw new Error(`Missing required field: ${key}`);
+
+        return apply.call(column, update, from, partial);
+      };
+    }
+
+    return column;
+  });
+}
+
+function uuidv7() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  let time = Date.now();
+
+  for (let i = 5; i >= 0; i--, time = Math.floor(time / 256))
+    bytes[i] = time % 256;
+
+  bytes[6] = bytes[6] & 0x0f | 0x70;
+  bytes[8] = bytes[8] & 0x3f | 0x80;
+
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function composite<P extends readonly unknown[]>(read: () => readonly [...P]) {
+  let first: Type;
+
+  return field(
+    (key, type) => {
+      let parts: Field[] | undefined;
+
+      return Object.defineProperty(new KeyField(key), "parts", {
+        get: () => parts ||= record(type, first, read)
+      });
+    },
+    (_field, subject) => {
+      first ||= subject;
+
+      return {
+        value: undefined,
+        get() {
+          const peek = !PEEK.has(subject);
+
+          if (peek)
+            PEEK.add(subject);
+
+          try {
+            return JSON.stringify(read());
+          }
+          finally {
+            if (peek)
+              PEEK.delete(subject);
+          }
+        },
+        set() {
+          throw false;
+        }
+      };
+    }
+  );
+}
+
+/** @deprecated Pass `null`, like `str(null)`. */
 const orNull = { nullable: true } as const;
 const optional = { optional: true } as const;
+const unique = { unique: true } as const;
+const index = { index: true } as const;
 
-export type { DataTypes, Exact, Has, OptionsOf };
+export type { DataTypes, Exact, Has, Key, OptionsOf };
 
 export {
-  DIRTY,
   FIELDS,
   PEEK,
   Field,
   placeholder,
+  write,
   field,
   json,
+  key,
   str,
   num,
   bool,
@@ -300,4 +481,6 @@ export {
   uuid,
   orNull,
   optional,
+  unique,
+  index,
 }

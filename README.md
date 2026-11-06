@@ -40,16 +40,18 @@ npm install @expressive/postgres @expressive/mvc @electric-sql/pglite
 ## Entities
 
 ```ts
-import { Type, bool, date, json, num, orNull, str, uuid } from '@expressive/sql';
+import { Type, bool, date, index, json, num, sql, str, unique } from '@expressive/sql';
 
 class User extends Type {
-  name = str();
-  email = str({ type: "varchar", length: 255, unique: true });
-  age = num(orNull);
+  name = str(index);
+  email = str(sql.varchar(255), unique);
+  age = num(null);
   admin = bool({ fallback: false });
-  joined = date({ fallback: "NOW" });
-  prefs = json<{ theme: string }>(orNull);
-  token = uuid(orNull, { column: "api_token" });
+  joined = date.created();
+  edited = date.updated(sql.ms);
+  seen = date(sql.ms, null);
+  prefs = json<{ theme: string }>(null);
+  token = str(sql.uuid, null, { column: "api_token" });
 }
 ```
 
@@ -59,35 +61,61 @@ class User extends Type {
 | `num()` | `number` |
 | `bool()` | `boolean` |
 | `date()` | `Date` |
-| `json<T>()` | `T`, stored as text |
-| `uuid()` | `string` |
+| `json<T>()` | `T`, stored as text; unparseable text reads `undefined` |
 
 Options, in any order:
 
-- `orNull` (or `null`) - nullable; the value is `T | undefined`.
+- `null` - nullable; the value is `T | undefined`.
 - `optional` - may be left out of an insert, for a column the database fills; on Postgres a missing column is tolerated and reads `undefined`.
+- `unique`, `index` - `sync` creates a missing index as `<table>_<column>`, or `{ index: "name" }`; on SQLite an existing single-column index on it counts.
+- `sql.*` - the datatype, see [Datatypes](#datatypes).
 - `{ column }` - column name; default is the property in snake case.
-- `{ fallback }` - column default, also optional on insert. `"NOW"` is `CURRENT_TIMESTAMP`.
-- `{ unique, type, length, precision, scale }` - see [Datatypes](#datatypes).
+- `{ fallback }` - column default, also optional on insert. `sql.now` is the database's current time in the column's storage; `"NOW"` is a deprecated alias.
+
+`date.created()` and `date.updated()` take `date()`'s options and default to `sql.now`. `created` is written on insert only - upserts leave it, and an update giving it fails to compile and throws. `updated` is set to now on every update and upsert that doesn't give it. Underneath they are `{ fixed: true }` and `{ update: sql.now }`, which any column takes; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
+
+`orNull` and `uuid()` are deprecated for `null` and `str(sql.uuid)`.
 
 The table is the class name in snake case; `static table` overrides it.
 
-Every entity has `id = num({ primary: true, increment: true })`. Redeclare it to rename the column or change its type:
+Every entity has an incrementing integer `id`. Declare it with `key` to rename the column or change its type:
 
 ```ts
-import { Type, num, str, uuid } from '@expressive/sql';
+import { Type, key, sql, str } from '@expressive/sql';
 
 class Account extends Type {
-  id = num({ column: "account_id", primary: true, increment: true });
+  id = key({ column: "account_id" }); // number, increments
   name = str();
 }
 
+class Image extends Type {
+  id = key(sql.text, { column: "name" }); // string, required on insert
+}
+
 class Session extends Type {
-  id = uuid({ primary: true });
+  id = key(sql.uuid); // string, a UUIDv7 generated on insert when absent
 }
 ```
 
-`Account["id"]` is a `number`, `Session["id"]` a `string`; `one(id)`, `update(id)` and relations follow it.
+An integer `key` increments; another numeric type does not. `Account["id"]` is a `number`, `Session["id"]` a `string`; `one(id)`, `update(id)` and relations follow it. The property stays `id`.
+
+`key` with an arrow declares a composite primary key - the fields it lists, in order, with no column of its own:
+
+```ts
+import { Type, key, one, str } from '@expressive/sql';
+
+class Membership extends Type {
+  id = key(() => [this.account, this.role]);
+  account = one(Account);
+  role = str();
+}
+
+await Membership.insert({ account: 1, role: "owner" }); // { id: '[1,"owner"]', account: 1, role: "owner" }
+
+const owner = await Membership.get([1, "owner"]);
+```
+
+The arrow lists `this.<field>` reads and nothing else; it runs lazily, so `id` stays on top. `id` is a string - the parts as JSON - typed `Key<[number, string]>`, so it compares by value; read the parts from their fields. `Key` is exported to name it. `get`, `one`, `update` and `delete` take the key or the tuple; `sync` declares `PRIMARY KEY (account_id, role)`. `id` matches or orders by its parts - other operators throw - and `one()` cannot relate to a composite-keyed class.
 
 ## Connect
 
@@ -97,7 +125,7 @@ import { SQLiteConnection } from '@expressive/sql';
 const db = await SQLiteConnection.new([User, Account, Session], "app.db");
 ```
 
-`new(types, ...)` binds each class to the connection. Awaiting it runs `sync`: missing tables are created, existing ones checked against the classes. Omit the filename for an in-memory database. `await db.close()` releases it and destroys every entity loaded through it.
+`new(types, ...)` binds each class to the connection. Awaiting it runs `sync`: missing tables are created, missing columns and indexes added, existing ones checked against the classes. A column added to a class appears on reopen, reading `undefined` or its `fallback` on old rows; one that cannot fill existing rows - primary, or `NOT NULL` without a `fallback` - is reported and nothing changes. A nullable column defaulting to now is added without the default; inserts fill it. Type and nullability drift is reported; `sync(true, true)` rebuilds it - Postgres alters the column, SQLite rebuilds the table - and refuses while a row would not fit, like a NULL under `NOT NULL`; SQLite also checks each value converts. A SQLite rebuild keeps columns not on the class, indexes and triggers, but not UNIQUE or REFERENCES on columns the class doesn't declare, and refuses while any row references a missing one. SQLite connections enforce foreign keys. `sync(false)` only verifies. `plan(force?)` returns what `sync` would do - `{ steps, problems }`, each step with its `action`, `reason` and `sql` - without doing it. A sync applies in one transaction. Omit the filename for an in-memory database. `await db.close()` releases it and destroys every entity loaded through it.
 
 ```ts
 import { PGConnection, PGLiteConnection } from '@expressive/postgres';
@@ -119,6 +147,16 @@ class Note extends Type {
 }
 ```
 
+### Command line
+
+```sh
+expressive sql check src/db.ts        # list what sync would change; exit 1 if anything would
+expressive sql sync src/db.ts         # create missing tables, columns and indexes
+expressive sql sync --force src/db.ts # also rebuild drifted columns
+```
+
+The entry is the module that creates your connections; it is imported with `sync` held back, so `await Connection.new()` resolves without touching the database, and the command plans and syncs each connection it created. A TypeScript entry needs Bun (`bunx --bun expressive ...`) or Node 22.18+. `expressive` is shared by `@expressive/*` packages: `expressive <package> ...` runs the command an installed package declares.
+
 ## Read and write
 
 ```ts
@@ -126,7 +164,7 @@ import { asc, greaterThan, isLike, lessThan } from '@expressive/sql';
 
 const gabe = await User.insert({ name: "Gabe", email: "gabe@example.com", age: 35 });
 
-await User.one(gabe.id);                       // same instance, from the identity map
+await User.one(gabe.id);                       // the row
 await User.one({ email: "gabe@example.com" }); // throws if not found
 await User.one({ name: "Nobody" }, false);     // undefined if not found
 
@@ -139,22 +177,40 @@ for await (const page of User.all(100))
   console.log(page.length);
 ```
 
-Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, and `asc` / `desc` for order. A plain value is `equal`; an array applies each.
+Reads and `insert` return plain rows: decoded values by property, a relation as its id, frozen. `insert` returns the stored row, with its `id` and database defaults. For an instance to observe or edit, take a [reference](#references).
 
 ```ts
-const ann = User.new({ name: "Ann", email: "ann@example.com" });
-
-await ann.save();
-
-ann.age = 28;
-await ann.save();
-
-await ann.update({ admin: true });
-await User.update(ann.id, { age: 29 });
-await ann.delete();
+await User.insert(row, { conflict: "update" });                     // upsert on the primary key
+await User.insert(row, { conflict: "replace" });                    // every column from row; omitted ones reset
+await User.insert(row, { conflict: "update", keep: ["createdAt"] }); // leave columns alone on conflict
+await User.insert(row, { conflict: "update", on: "email" });        // target a unique column
+await User.insert(row, { conflict: "ignore" });                     // undefined if the row exists
 ```
 
-`Type.new(values)` builds an unsaved entity; `insert(data)` is `new(data).save()`. Assigning a field marks it dirty, and `save()` writes only dirty columns - an insert when there is no `id`, an update otherwise. `update(data)` assigns, then saves. `delete()` removes the row and destroys the instance; without an `id` it throws. `entity.columns` is its row - decoded values by property, a relation as its id, never loading - in the shape `insert` takes; `entity.get()` is the full snapshot.
+A `conflict` updates the existing row with every column given, minus the target, `keep` and `date.created` columns, and returns it, settling into a loaded instance; `"replace"` sets every column but the primary key, an omitted one to its default or NULL; `"ignore"` leaves it and resolves `undefined`. Columns with an `update` value take it on conflict; a new row gets its `fallback`. `on` takes a key or an array of keys; the default is the primary key.
+
+Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, and `asc` / `desc` for order. A plain value is `equal`, `null` is `isNull`; an array applies each. `isLike` matches stored text, also on a `json()` column. `sql.now` stands for the current time in a statics write or comparison; statics read it from the app's clock, so a settled instance holds the exact value written.
+
+```ts
+await UserAsset.count({ kind: "loras", file });                   // matching rows
+await Asset.delete({ file });                                    // resolves the rows deleted
+await Session.delete({ expires: lessThan(sql.now) });
+await Image.update({ model: from }, { model: to });              // resolves the rows changed
+```
+
+A query object in place of an id writes every matching row, settling into or destroying loaded instances; an empty one throws. `count()` with no query counts the table.
+
+```ts
+const ann = await User.new({ name: "Ann", email: "ann@example.com" });
+
+await ann.set({ age: 28, admin: true });
+await ann.delete();
+
+await User.update(gabe.id, { age: 36 });
+await User.delete(gabe.id);
+```
+
+An instance is read-only: assigning a field throws. `Type.new(values)` inserts a row and returns its instance at once, like a [reference](#references) - columns suspend until the row lands, and awaiting resolves to the instance with its `id` and defaults, in the identity map. A failed insert destroys it and rejects awaits and pending reads; awaited, it stops there, otherwise mvc reports it to `catch` as `setup`. `await entity.set(patch)` writes the patch, then settles the stored values into the instance, notifying observers once, and resolves to the keys that changed; `null` clears a nullable column. Other `set` forms are Model's. `delete()` removes the row and destroys the instance. `User.update(id, data)` and `User.delete(id)` write by id, settling into or destroying a loaded instance. `entity.columns` is its row - decoded values by property, a relation as its id, never loading - in the shape `insert` takes; `entity.get()` is the full snapshot.
 
 ## References
 
@@ -166,12 +222,12 @@ user.get(({ name }) => console.log(name)); // runs once the row lands
 await user; // the entity
 ```
 
-`Type.get(id)` is synchronous: the entity from the identity map, or a placeholder registered there at once, so concurrent gets share it. A placeholder's columns suspend until the row lands - a read throws a promise, which an effect or a React component waits for. Awaiting a reference resolves to the entity. A missing row rejects awaits and pending reads with `No User found with id 1` and leaves the identity map. `get(User, id)` in a Model, or `this.get(User, id)`, resolves through the same path; `User.get()` with no id stays Model's context lookup.
+`Type.get(id)` is synchronous: the entity from the identity map, or a placeholder registered there at once, so concurrent gets share it. A placeholder's columns suspend until the row lands - a read throws a promise, which an effect or a React component waits for. Awaiting a reference resolves to the entity; `get(id)` and `Type.new` return `Type.Async<User>` - the entity, typed awaitable. A missing row rejects awaits and pending reads with `No User found with id 1` and leaves the identity map. `get(User, id)` in a Model, or `this.get(User, id)`, resolves through the same path, typed as the entity; `User.get()` with no id stays Model's context lookup.
 
 ## Relations
 
 ```ts
-import { Type, lazy, one, orNull, rows, str } from '@expressive/sql';
+import { Type, lazy, one, rows, str } from '@expressive/sql';
 
 class Author extends Type {
   name = str();
@@ -181,21 +237,21 @@ class Author extends Type {
 class Post extends Type {
   title = str();
   author = one(Author);
-  editor = one(Author, orNull, lazy, { column: "editor_id" });
+  editor = one(Author, null, lazy);
 }
 ```
 
-`one(Other)` stores `other_id` - a second relation to the same class needs its own `column` - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. Assign an entity or an id.
+`author = one(Other)` stores `author_id` - `{ column }` names another, and two fields on one column throw - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. `set`, an insert or a filter takes an entity, an id or a row.
 
 `rows(Other, key?)` is a handle on the rows pointing back - `find`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class.
 
 ```ts
-const author = await Author.insert({ name: "Gabe" });
+const author = await Author.new({ name: "Gabe" });
 const post = await author.posts.insert({ title: "Hello", editor: author });
 
-await author.posts.find();                  // [post]
-await author.posts.one({ title: "Hello" }); // post
-console.log(post.author === author);        // true
+await author.posts.find();                  // rows, equal to [post]
+await author.posts.one({ title: "Hello" }); // a row equal to post
+console.log(post.author === author.id);     // true
 ```
 
 ## Entities are Models
@@ -203,7 +259,7 @@ console.log(post.author === author);        // true
 Observe entities, render them, nest them - see [expressive-mvc](https://github.com/gabeklein/expressive-mvc).
 
 ```ts
-const user = await User.one({ email: "gabe@example.com" });
+const user = await User.get(1);
 
 user.get(({ name, age }) => {
   console.log(name, age);
@@ -213,7 +269,7 @@ user.set(key => {
   console.log("changed", key);
 });
 
-await user.update({ age: 36 });
+await user.set({ age: 36 });
 ```
 
 `get(effect)` runs now and again when a property it read changes. `set(callback)` is called for every change. Both return a function to stop.
@@ -221,7 +277,7 @@ await user.update({ age: 36 });
 A lazy relation suspends: its first read throws a promise, which an effect or a React component waits for. Await an async effect to read one once it loads.
 
 ```ts
-const [first] = await Post.find({ title: "Hello" });
+const first = await Post.get(1);
 
 first.get(({ editor }) => {
   console.log(editor?.name);
@@ -256,11 +312,14 @@ const titles = await Query(where => {
 });
 ```
 
-- Return a column for its values, an object for rows of that shape, a table for entities.
+- Return a column for its values, an object for rows of that shape, a table for its rows - frozen, a table as from `find` at any depth (`undefined` for a missing left join).
 - `where(...conditions)` groups them with `or`; a group inside a group alternates to `and`.
 - Comparisons: `equal`, `not`, `over`, `under` (`true` for or-equal), `in`.
 - A `one()` relation joins on access: inner when required, left when nullable. `where(Other)` joins another table, `where(Other, true)` left joins it.
 - `query.one()` resolves the first row, `query.one(true)` throws without one.
+- `where(table).match({ kind, file })` adds an `equal` per key.
+- `sql.now` renders as the database's current time, matching the column it meets.
+- A query is a `Promise` and runs when awaited, once per `then`.
 
 ```ts
 const promoted = await Query(where => {
@@ -308,6 +367,22 @@ console.log(String(admins));
 
 `String(query)` is the SQL the connection runs; without a connection, or on `memory()`, it lists the query's intent. A second callback argument holds math (`add`, `sub`, `mul`, `div`, `mod`, `neg`) and `bit` operators; a template string, from `where` or that helper, embeds raw SQL. `memory()` runs everything but raw SQL.
 
+## Transactions
+
+```ts
+const ann = await db.transaction(async () => {
+  const ann = await User.insert({ name: "Ann", email: "ann@example.com" });
+
+  await User.update(gabe.id, { admin: true });
+
+  return ann;
+});
+```
+
+`transaction(fn)` runs `fn` in one database transaction: it commits when `fn` resolves, to its result, and rolls back when it throws, rethrowing. Statements inside - statics, `Query`, instance writes, and effects they trigger - join it without a handle. A nested `transaction` joins the open one, so a nested failure is undone only if it reaches the outer `fn`; caught, its writes commit with the rest. Instances change as writes land; a rollback restores what they changed, destroys entities created inside, and keeps entities deleted inside, which a commit then destroys. Values read into an instance inside a rolled-back transaction stay.
+
+On SQLite and PGlite, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite in a browser. `memory()` has no transactions.
+
 ## Live rows
 
 A connection with `subscribe` keeps loaded entities current with changes made elsewhere - another process, another client, a `Query` update. Observers see them as any other change.
@@ -322,14 +397,14 @@ class Task extends Type {
 
 const client = new PGlite();
 const tasks = await PGLiteConnection.new([Task], client);
-const task = await Task.insert({ title: "Draft" });
+const task = await Task.new({ title: "Draft" });
 
 task.get(({ title }) => console.log(title));
 
 await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 ```
 
-- An update settles into the fields not changed locally: unsaved edits win, and a later `save()` writes them.
+- An update settles into the entity.
 - A delete destroys the entity.
 - An insert changes nothing loaded.
 
@@ -337,27 +412,27 @@ await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 
 ## Datatypes
 
-`type` picks the column type. A config is portable: the same class syncs on SQLite and Postgres.
+`sql.*` picks the column type; a factory takes its size. A config is portable: the same class syncs on SQLite and Postgres.
 
-| Helper | `type` | SQLite | Postgres |
+| Helper | `sql.*` | SQLite | Postgres |
 |---|---|---|---|
-| `str` | `text` (default), `varchar`, `char`, `uuid` | TEXT | TEXT, VARCHAR(n), CHAR(n), UUID |
-| `num` | `integer` (default), `smallint`, `bigint`, `real`, `float`, `double`, `numeric`, `decimal` | INTEGER, REAL, NUMERIC | the type, `(precision, scale)` where set |
-| `bool` | `boolean` (default), `integer` (1/0), `text` / `varchar` with `either` | INTEGER, TEXT | BOOLEAN, INTEGER, TEXT, VARCHAR |
-| `date` | `timestamp` (default), `date`, `time`, `integer` (unix seconds), `text` | TEXT, INTEGER | TIMESTAMP(p), DATE, TIME(p), INTEGER, TEXT |
+| `str` | `text` (default), `varchar(n)`, `char(n)`, `uuid` | TEXT | TEXT, VARCHAR(n), CHAR(n), UUID |
+| `num` | `integer` (default), `smallint`, `bigint`, `real`, `float`, `double`, `numeric(p, s)`, `decimal(p, s)` | INTEGER, REAL, NUMERIC | the type, `(precision, scale)` where set |
+| `bool` | `boolean` (default), `integer` (1/0), `text` / `varchar(n)` with `either` | INTEGER, TEXT | BOOLEAN, INTEGER, TEXT, VARCHAR |
+| `date` | `timestamp` (default), `date`, `time`, `ms` (epoch milliseconds), `seconds` or `integer` (epoch seconds), `text` | TEXT, INTEGER | TIMESTAMP(p), DATE, TIME(p), BIGINT, INTEGER, TEXT |
 | `one` | `integer` (default), `bigint` | INTEGER | INTEGER, BIGINT |
 
-Postgres only: `num({ type: "serial" })`, `timezone: true` on `timestamp` and `time`, and `date({ type: "interval", fields })` - for schema; its values do not yet round-trip.
+A datatype of another helper, like `num(sql.text)`, is a type error. `@expressive/postgres` exports `sql` with `serial`, `timestamptz`, `timetz` and `interval` - the last for schema; its values do not yet round-trip. Options a factory doesn't take, like `precision` on `timestamp`, go in an object: `date({ type: "timestamp", precision: 3 })`.
 
 Every connection validates on write: `varchar` and `char` length, integer ranges, `numeric` precision and scale.
 
 ```ts
-import { Type, bool, num, str } from '@expressive/sql';
+import { Type, bool, num, sql, str } from '@expressive/sql';
 
 class Product extends Type {
-  code = str({ type: "char", length: 3 });
-  price = num({ type: "numeric", precision: 10, scale: 2 });
-  listed = bool({ type: "text", either: ["yes", "no"] });
+  code = str(sql.char(3));
+  price = num(sql.numeric(10, 2));
+  listed = bool(sql.text, { either: ["yes", "no"] });
 }
 ```
 
@@ -385,11 +460,13 @@ A connection is a `Connection`, itself a Model. The floor every driver implement
 | Method | Does |
 |---|---|
 | `select(table, constraints, limit?, offset?)` | rows matching `[column, op, value]` tuples |
-| `insert(table, data, returns?)` | inserts a row, returning it when asked |
+| `insert(table, data, returns?, conflict?)` | inserts a row, returning it when asked; `conflict` is `{ on, update?, set? }` by column - `update` absent does nothing, otherwise those columns are overwritten from the row and `set`'s columns with its values |
 | `update(table, id, data)` | updates one row |
 | `remove(table, id)` | deletes one row |
 
-Optional capabilities: `prepare(builder)` runs a `Query` - without it `Query` and `Type.query` throw; `subscribe(listener)` reports changes for live rows; `sync(fix?)` checks or creates the schema, and runs when the connection is awaited.
+A composite `id` reaches the driver as its tuple, in the order `key` lists the parts; `fields.get("id").parts` lists them.
+
+Optional capabilities: `prepare(builder)` runs a `Query` - without it `Query` and `Type.query` throw; `subscribe(listener)` reports changes for live rows; `sync(fix?)` checks or creates the schema, and runs when the connection is awaited; `transaction(fn)` runs `fn` in one transaction. `@expressive/sql`'s `Connection` implements `transaction` over a protected `transact(fn)` - `BEGIN`, `fn`, `COMMIT` or `ROLLBACK` - and a driver calls `idle()` before each statement so it waits out another's transaction; a pooled driver overrides `lock()` and `idle()` to run transactions side by side.
 
 To write a driver, extend `Connection` from `@expressive/orm` and implement the floor - entities, relations, writes and the identity map work on that alone. For a SQL database extend `Connection` from `@expressive/sql`: it implements the floor over `Query`, leaving `prepare` (with a `Generator` subclass for the dialect) and `sync`.
 

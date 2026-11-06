@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { bool, Builder, equal, greaterThan, isIn, isLike, isNull, notEqual, notNull, asc, desc, num, str, Type } from '@expressive/orm';
 
@@ -16,6 +16,10 @@ class Recorder extends Connection {
   async sync(){
     (this as Connection).set({ ready: true });
     return this;
+  }
+
+  async plan(){
+    return { steps: [], problems: [] };
   }
 
   prepare(builder: Builder){
@@ -55,7 +59,7 @@ describe("floor", () => {
       id: desc()
     }, 10, 5);
 
-    expect(foo.columns).toEqual({ id: 1, name: "Gabe", rank: 3, active: true });
+    expect(foo).toEqual({ id: 1, name: "Gabe", rank: 3, active: true });
     expect(db.log).toEqual([[
       "SELECT `foo`.`id` AS \"id\", `foo`.`name` AS \"name\", `foo`.`rank` AS \"rank\", `foo`.`active` AS \"active\" " +
       "FROM `foo` " +
@@ -86,7 +90,7 @@ describe("floor", () => {
 
     const foo = await Foo.insert({ name: "Bob", active: false });
 
-    expect(foo.columns).toEqual({ id: 2, name: "Bob", rank: null, active: false });
+    expect(foo).toEqual({ id: 2, name: "Bob", rank: undefined, active: false });
     expect(db.log).toEqual([[
       "INSERT INTO `foo` (`name`,`active`) SELECT ?,? " +
       "RETURNING `foo`.`id` AS \"id\", `foo`.`name` AS \"name\", `foo`.`rank` AS \"rank\", `foo`.`active` AS \"active\"",
@@ -117,12 +121,8 @@ describe("floor", () => {
 
   it("will remove by id", async () => {
     db.log = [];
-    db.rows = [{ id: 3, name: "Al", rank: null, active: 1 }];
 
-    const foo = await Foo.one(3, true);
-
-    db.log = [];
-    await foo.delete();
+    await Foo.delete(3);
 
     expect(db.log).toEqual([[
       "DELETE FROM `foo` WHERE `foo`.`id` = ?",
@@ -149,5 +149,49 @@ describe("floor", () => {
 
     await expect(other.select("other.bar", [])).resolves.toEqual([]);
     expect(other.log[0][0]).toBe("SELECT `T0`.`id` AS \"id\" FROM `other`.`bar` T0");
+  })
+})
+
+describe("transaction", () => {
+  it("will throw without driver support", async () => {
+    const db = Recorder.new();
+
+    await expect(db.transaction(() => {})).rejects.toThrow("Recorder does not support transactions.");
+  })
+
+  it("will throw without AsyncLocalStorage", async () => {
+    vi.resetModules();
+    vi.doMock("node:async_hooks", () => { throw new Error("Cannot find module 'node:async_hooks'") });
+
+    const { Connection } = await import('./Connection');
+
+    class Bare extends Connection {
+      get schema(){
+        return "";
+      }
+
+      async sync(){
+        return this;
+      }
+
+      async plan(){
+        return { steps: [], problems: [] };
+      }
+
+      prepare(): never {
+        throw new Error("unused");
+      }
+
+      protected async transact<T>(fn: () => Promise<T>){
+        return fn();
+      }
+    }
+
+    const db = Bare.new();
+
+    await expect(db.transaction(() => {})).rejects.toThrow("Transactions need AsyncLocalStorage, which this runtime does not provide.");
+
+    vi.doUnmock("node:async_hooks");
+    vi.resetModules();
   })
 })

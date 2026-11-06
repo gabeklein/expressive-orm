@@ -12,8 +12,10 @@ export async function createEngine(filename: string): Promise<Engine> {
   for (const load of DRIVERS) {
     const engine = await load(filename).catch(() => null);
 
-    if (engine)
+    if (engine) {
+      await engine.exec("PRAGMA foreign_keys = ON");
       return engine;
+    }
   }
 
   throw new Error(

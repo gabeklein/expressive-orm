@@ -155,6 +155,25 @@ describe("then", () => {
     expect(sync).not.toHaveBeenCalled();
   })
 
+  it("will collect instead of sync for a tool", async () => {
+    const key = Symbol.for("@expressive/orm.collect");
+    const found = new Set();
+    const db = Store.new();
+    const sync = db.sync = vi.fn(async () => {});
+
+    Object.assign(globalThis, { [key]: found });
+
+    try {
+      await db;
+    }
+    finally {
+      delete (globalThis as Record<symbol, unknown>)[key];
+    }
+
+    expect(sync).not.toHaveBeenCalled();
+    expect(found).toEqual(new Set([db]));
+  })
+
   it("will reject when sync fails", async () => {
     const db = Store.new();
     const failed = vi.fn();
@@ -173,7 +192,7 @@ describe("identity map", () => {
 
   it("will be owned by the connection", async () => {
     const db = Store.new([User]);
-    const user = await User.insert({ name: "Gabe" });
+    const user = await User.new({ name: "Gabe" });
 
     expect(db._loaded.get(User)!.get(user.id)).toBe(user);
 
@@ -182,7 +201,7 @@ describe("identity map", () => {
 
   it("will destroy entities with the connection", async () => {
     const db = Store.new([User]);
-    const user = await User.insert({ name: "Gabe" });
+    const user = await User.new({ name: "Gabe" });
     const destroyed = vi.fn();
 
     user.get(null, destroyed);

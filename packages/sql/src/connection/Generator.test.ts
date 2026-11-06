@@ -1,7 +1,7 @@
 import { format } from 'sql-formatter';
 import { describe, expect, it } from 'vitest';
 
-import { bool, Builder, DataTable, date, num, one, Query, str, Type } from '@expressive/orm';
+import { bool, Builder, DataTable, date, now, num, one, Query, str, Type } from '@expressive/orm';
 
 import { Connection } from './Connection';
 import { Generator } from './Generator';
@@ -13,6 +13,10 @@ class TestConnection extends Connection {
 
   async sync(){
     return this;
+  }
+
+  async plan(){
+    return { steps: [], problems: [] };
   }
 
   prepare(builder: Builder){
@@ -493,6 +497,25 @@ describe("where", () => {
 
       // SQLite may not support multiple column sorting
     })  
+  })
+})
+
+describe("now", () => {
+  class Event extends Table {
+    at = date();
+  }
+
+  it("will render the current time", () => {
+    const insert = Query(where => void where(Event, { at: now }));
+    const update = Query(where => {
+      const event = where(Event);
+
+      where(event.at).under(now);
+      where(event).update({ at: now });
+    });
+
+    expect(String(insert)).toContain("CURRENT_TIMESTAMP");
+    expect(String(update).match(/CURRENT_TIMESTAMP/g)).toHaveLength(2);
   })
 })
 

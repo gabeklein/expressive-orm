@@ -3,7 +3,7 @@ import type { Rows } from '../rows';
 import type { Type } from '../Type';
 import { Builder } from './Builder';
 import { BitWise, Computed, MathOps } from './Computed';
-import { Cond, Expression, Group, QueryTemplate } from './Value';
+import { Cond, Expression, Group, type Moment, QueryTemplate } from './Value';
 
 declare const ENTITY: unique symbol;
 
@@ -36,12 +36,12 @@ declare namespace Query {
 
   type Value<V> = Field<V | undefined> | Computed<V>;
 
-  type Match<V = any> = V | Value<NonNullable<V>> | (undefined extends V ? null : never);
+  type Match<V = any> = V | Value<NonNullable<V>> | Moment<V> | (undefined extends V ? null : never);
 
   type Assigns<V> =
     [NonNullable<V>] extends [Type]
-      ? NonNullable<V> | NonNullable<V>["id"] | From<NonNullable<V>> | Value<NonNullable<V>["id"]>
-      : V | Value<NonNullable<V>>;
+      ? NonNullable<V> | Type.Columns<Extract<NonNullable<V>, Type>> | NonNullable<V>["id"] | From<NonNullable<V>> | Value<NonNullable<V>["id"]>
+      : V | Value<NonNullable<V>> | Moment<V>;
 
   type Writable<T> = Exclude<Keys<T>, "id">;
 
@@ -50,6 +50,10 @@ declare namespace Query {
     & { [K in Keys<T> as Omits<T[K]> extends true ? K : never]?: Assigns<T[K]> | (undefined extends T[K] ? null : never) };
 
   type Update<T> = {
+    [K in Writable<T>]?: Assigns<T[K]> | (undefined extends T[K] ? null : never)
+  };
+
+  type Matching<T> = {
     [K in Writable<T>]?: Assigns<T[K]> | (undefined extends T[K] ? null : never)
   };
 
@@ -97,15 +101,22 @@ declare namespace Query {
   type Returns<T> =
     T extends Field<infer V> ? V :
     T extends Computed<infer V> ? V :
-    T extends { readonly [ENTITY]: any } ? { [K in Exclude<keyof T, typeof ENTITY>]: Returns<T[K]> } :
+    T extends { readonly [ENTITY]: infer U } ? Nested<T, U> :
     T extends {} ? { [K in keyof T]: Returns<T[K]> } :
     T;
 
-  type Row<T> = T extends { readonly [ENTITY]: infer U } ? U : Returns<T>;
+  type Nested<T, U> =
+    U extends Type ? T extends From<U> ? Type.Columns<U> : Type.Columns<U> | undefined :
+    { [K in Exclude<keyof T, typeof ENTITY>]: Returns<T[K]> };
+
+  type Row<T> =
+    T extends { readonly [ENTITY]: infer U } ? U extends Type ? Type.Columns<U> : U :
+    Returns<T>;
 
   interface Verbs<T> {
     delete(): void;
     update(values: Update<T>): void;
+    match(values: Matching<T>): void;
   }
 
   interface Selects<T> extends Query<Row<T>[]> {
@@ -116,7 +127,7 @@ declare namespace Query {
   }
 }
 
-interface Query<T = any> extends PromiseLike<T> {
+interface Query<T = any> extends Promise<T> {
   toString(): string;
 
   params: unknown[];

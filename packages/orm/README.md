@@ -26,7 +26,7 @@ class Post extends Type {
   title = str();
 }
 
-const gabe = await User.insert({ name: "Gabe" });
+const gabe = await User.new({ name: "Gabe" });
 await Post.insert({ author: gabe, title: "Hello" });
 
 gabe.get(({ name }) => console.log(name));
@@ -60,7 +60,7 @@ The floor, keyed by table name and the class's primary column:
 Optional:
 
 - `prepare(builder)` - runs a `Query`; `Builder` holds its tables, joins, filters, order, limit, offset, selection and writes. Without it `Query` and `Type.query` throw.
-- `subscribe(listener)` - reports `{ table, op: "insert" | "update" | "delete", id, row? }` for changes made anywhere; returns a stop function. A loaded entity takes an update into fields not changed locally, reloading the row through `select` when `row` is absent; a delete destroys it.
+- `subscribe(listener)` - reports `{ table, op: "insert" | "update" | "delete", id, row? }` for changes made anywhere; returns a stop function. A loaded entity takes an update, reloading the row through `select` when `row` is absent; a delete destroys it.
 - `sync(fix?)` - checks the schema, creating what is missing when `fix`.
 
 Generator seams for SQL drivers: `Builder`, `Computed`, `DataField`, `DataTable`, `Parameter`, `QueryTemplate`.

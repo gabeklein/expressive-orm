@@ -39,6 +39,12 @@
       "default": "./dist/index.js"
     }
   },
+  "bin": {
+    "expressive": "./dist/bin.js"
+  },
+  "expressive": {
+    "bin": "./dist/cli.js"
+  },
   "files": [
     "dist"
   ],

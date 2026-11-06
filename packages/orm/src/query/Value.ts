@@ -3,6 +3,16 @@ import type { Builder } from './Builder';
 
 class Value {}
 
+class Now extends Value {
+  toString(){
+    return "now";
+  }
+}
+
+const now = new Now();
+
+type Moment<T> = NonNullable<T> extends Date ? Now : never;
+
 function render(value: unknown): string {
   return value instanceof Value || value instanceof Field
     ? String(value)
@@ -162,6 +172,7 @@ class QueryTemplate extends Value {
 }
 
 export {
+  now,
   render,
   Value,
   Parameter,
@@ -170,5 +181,6 @@ export {
   Cond,
   Group,
   QueryTemplate,
-  Expression
+  Expression,
+  Moment
 }

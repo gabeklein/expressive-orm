@@ -55,9 +55,49 @@ describe("schema", () => {
 
     const { schema } = TestConnection.new([ Records ]);
 
-    expect(String(schema)).toContain("created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP");
+    expect(String(schema)).toContain("created TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now'))");
   });
 });
+
+describe("ms", () => {
+  it("will store epoch milliseconds", () => {
+    const field = column(() => date({ type: "ms" }));
+    const value = new Date("2023-01-15T14:30:45.123Z");
+
+    expect(field.set(value)).toBe(value.getTime());
+    expect((field.get(value.getTime()) as Date).toISOString()).toBe(value.toISOString());
+    expect((field.get(String(value.getTime())) as Date).toISOString()).toBe(value.toISOString());
+  })
+
+  it("will store epoch seconds by name", () => {
+    const field = column(() => date({ type: "seconds" }));
+    const value = new Date("2023-01-15T14:30:45.000Z");
+
+    expect(field.set(value)).toBe(value.getTime() / 1000);
+    expect((field.get(value.getTime() / 1000) as Date).toISOString()).toBe(value.toISOString());
+  })
+
+  it("will read SQLite's own UTC text as UTC", () => {
+    const field = column(() => date());
+
+    expect((field.get("2026-11-05 07:55:04") as Date).toISOString()).toBe("2026-11-05T07:55:04.000Z");
+    expect((field.get("2026-11-05 07:55:04.250") as Date).toISOString()).toBe("2026-11-05T07:55:04.250Z");
+  })
+
+  it("will round trip through SQLite", async () => {
+    class Event extends Type {
+      at = date({ type: "ms" });
+    }
+
+    const { schema } = await TestConnection.new([Event]);
+    const at = new Date(1793845205641);
+
+    await Event.insert({ at });
+
+    expect(schema).toContain("at INTEGER NOT NULL");
+    expect((await Event.one(1)).at).toEqual(at);
+  })
+})
 
 describe("serialization", () => {
   it("will serialize and deserialize timestamp values", () => {

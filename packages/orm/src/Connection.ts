@@ -11,15 +11,29 @@ declare namespace Connection {
 
   type Ready<T extends Connection = Connection> = Omit<T, "then">;
 
+  type Key = string | number | readonly (string | number)[];
+
+  type Conflict = {
+    on: string[];
+    update?: string[];
+    set?: Record<string, unknown>;
+  };
+
+  type Journal = {
+    undo: (() => void)[];
+    done: (() => void)[];
+  };
+
   type Change = {
     table: string;
     op: "insert" | "update" | "delete";
-    id: string | number;
+    id: Key;
     row?: Record<string, unknown>;
   };
 }
 
 const synced = new WeakMap<Connection, Promise<unknown>>();
+const COLLECT = Symbol.for("@expressive/orm.collect");
 
 abstract class Connection extends Model {
   readonly using: ReadonlySet<Query.Table>;
@@ -59,9 +73,13 @@ abstract class Connection extends Model {
     onfulfilled?: (value: Connection.Ready<this>) => any,
     onrejected?: (reason: any) => any) {
 
+    const collect = (globalThis as { [COLLECT]?: Set<Connection> })[COLLECT];
     let sync = synced.get(this);
 
-    if (this.ready || !this.sync)
+    if (collect)
+      collect.add(this);
+
+    if (this.ready || !this.sync || collect)
       sync = Promise.resolve();
     else if (!sync)
       synced.set(this, sync = this.sync());
@@ -82,11 +100,17 @@ abstract class Connection extends Model {
 
   abstract select(table: string, constraints: Type.Constraint[], limit?: number, offset?: number): Promise<any[]>;
 
-  abstract insert(table: string, data: Record<string, any>, returns?: boolean): Promise<any>;
+  abstract insert(table: string, data: Record<string, any>, returns?: boolean, conflict?: Connection.Conflict): Promise<any>;
 
-  abstract update(table: string, id: string | number, data: Record<string, any>): Promise<void>;
+  abstract update(table: string, id: Connection.Key, data: Record<string, any>): Promise<void>;
 
-  abstract remove(table: string, id: string | number): Promise<void>;
+  abstract remove(table: string, id: Connection.Key): Promise<void>;
+
+  _journal(): Connection.Journal | undefined {
+    return undefined;
+  }
+
+  transaction?<T>(fn: () => T | Promise<T>): Promise<T>;
 
   prepare?(builder: Builder): Builder.Statement;
 

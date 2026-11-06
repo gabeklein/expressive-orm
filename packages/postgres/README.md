@@ -26,7 +26,7 @@ const db = await PGConnection.new([User], "postgres://localhost/app");
 - `PGLiteConnection.new(types, dataDir?, options?)` - a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`.
 - `close()` ends a pool or `PGlite` the connection created; one passed in stays open.
 
-Awaiting a connection runs `sync`: it verifies existing tables against the classes, creates missing ones, and installs the live-row triggers. `sync(false)` throws for a missing table instead. A column declared `optional` and absent from the table is tolerated and reads `undefined`.
+Awaiting a connection runs `sync`: it verifies existing tables against the classes, creates missing ones, adds missing columns with their foreign keys, and installs the live-row triggers. `sync(false)` throws for a missing table or column instead. A missing `optional` column that cannot be added is tolerated and reads `undefined`.
 
 ## Extras
 
@@ -63,7 +63,7 @@ class Task extends Type {
 const client = new PGlite();
 await PGLiteConnection.new([Task], client);
 
-const task = await Task.insert({ title: "Draft" });
+const task = await Task.new({ title: "Draft" });
 
 task.get(({ title }) => console.log(title));
 
