@@ -16,9 +16,13 @@ export class SQLiteConnection extends Connection {
   protected filename: string;
   protected engine?: Promise<Engine>;
 
-  constructor(using: Connection.Types, filename?: string) {
+  constructor(using: Connection.Types, source?: string | Engine) {
     super(using);
-    this.filename = filename || ':memory:';
+
+    if (typeof source == "object")
+      this.engine = Promise.resolve(source);
+
+    this.filename = typeof source == "string" && source || ':memory:';
   }
 
   protected db(){

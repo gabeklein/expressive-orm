@@ -9,6 +9,7 @@ import { asc, bool, Builder, date, desc, greaterThan, index, isIn, isLike, isNul
 import { spy } from '../../test.setup';
 
 import type { Connection } from '../connection/Connection';
+import { createEngine } from './engine';
 import { SQLiteConnection } from './SQLiteConnection';
 import { TestConnection } from './TestConnection';
 
@@ -2099,5 +2100,23 @@ describe("null", () => {
 
     expect(entity.n).toBeUndefined();
     await expect(NullRow.one(entity.id)).resolves.toEqual({ id: entity.id, ...empty });
+  })
+})
+
+describe("engine", () => {
+  it("will run on a given engine", async () => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    const engine = await createEngine(":memory:");
+    const all = vi.spyOn(engine, "all");
+    const conn = await SQLiteConnection.new([Foo], engine);
+
+    await Foo.insert({ name: "bar" });
+
+    await expect(Foo.find({})).resolves.toMatchObject([{ name: "bar" }]);
+    expect(all).toHaveBeenCalled();
+    await conn.close();
   })
 })
