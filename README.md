@@ -507,7 +507,7 @@ await Item.find();
 
 ## Deprecated
 
-`@expressive/sqlite` re-exports `@expressive/sql` and is removed in a later release. Install `@expressive/sql` and change the import:
+`@expressive/sqlite` is deprecated: `@expressive/sql` includes the SQLite connection. Install `@expressive/sql` and change the import:
 
 ```diff
 - import { SQLiteConnection } from '@expressive/sqlite';
