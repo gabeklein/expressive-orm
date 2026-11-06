@@ -1,0 +1,64 @@
+{
+  "name": "@expressive/mysql",
+  "version": "0.0.0",
+  "description": "MySQL and MariaDB connection for Expressive ORM.",
+  "keywords": [
+    "orm",
+    "mysql",
+    "mariadb",
+    "entity",
+    "reactive",
+    "expressive"
+  ],
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabeklein/expressive-orm.git",
+    "directory": "packages/mysql"
+  },
+  "homepage": "https://github.com/gabeklein/expressive-orm/tree/main/packages/mysql#readme",
+  "bugs": {
+    "url": "https://github.com/gabeklein/expressive-orm/issues"
+  },
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": {
+    "name": "Gabe Klein",
+    "email": "gabe@expressive.dev",
+    "url": "https://github.com/gabeklein"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "skills"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit --incremental",
+    "coverage": "vitest run --coverage",
+    "test": "bun run typecheck && bun run coverage"
+  },
+  "dependencies": {
+    "@expressive/orm": "^0.19.0",
+    "@expressive/sql": "^0.9.1",
+    "sql-formatter": "^10.7.2"
+  },
+  "devDependencies": {
+    "@expressive/mvc": "^0.94.2",
+    "mysql2": "^3.11.0",
+    "tsdown": "^0.20.1"
+  },
+  "peerDependencies": {
+    "@expressive/mvc": "^0.94.2",
+    "mysql2": "^3.0.0"
+  }
+}
