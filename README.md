@@ -35,7 +35,13 @@ npm install @expressive/postgres @expressive/mvc pg
 npm install @expressive/postgres @expressive/mvc @electric-sql/pglite
 ```
 
-`@expressive/postgres` re-exports `@expressive/sql`, which re-exports `@expressive/orm`. Import from the one package you installed.
+For MySQL 8.0.19+ or MariaDB 10.6+:
+
+```sh
+npm install @expressive/mysql @expressive/mvc mysql2
+```
+
+`@expressive/postgres` and `@expressive/mysql` re-export `@expressive/sql`, which re-exports `@expressive/orm`. Import from the one package you installed.
 
 ### Agent skills
 
@@ -152,6 +158,14 @@ const lite = await PGLiteConnection.new([Account], "./data");
 `SQLiteConnection` takes a filename, or an `Engine` in its place for a SQLite the built-in loader can't open, such as on React Native: any object with `all(sql, params)`, `get(sql, params)`, `run(sql, params)` returning `{ changes }`, `exec(sql)` and `close()`, each async. A given engine is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
 
 Two optional members cover hosts without `BEGIN` and `COMMIT` on one connection. `transaction()` returns a session - the same four statements plus `commit()` and `rollback()` - and every statement inside `transaction(fn)` runs on it. `batch(sql)` runs statements atomically, and `sync` applies through it. A rebuild in a batch needs foreign keys off, or dropping the old table would cascade; on an engine that keeps them on, it is refused.
+
+```ts
+import { MySQLConnection } from '@expressive/mysql';
+
+const my = await MySQLConnection.new([User], "mysql://root@localhost/app");
+```
+
+`MySQLConnection` takes a connection string, a `mysql2` `PoolOptions` or a `mysql2/promise` `Pool`, and works the same on MariaDB. MySQL has no `RETURNING`: an insert that returns its row re-selects it by its incrementing id or its key, so an insert across joined tables cannot return rows. A conflict matches any unique key, not only `on`; `conflict: "ignore"` is `INSERT IGNORE`. DDL commits as it runs, so a failed `sync` can leave earlier steps applied. Loaded entities are not live: MySQL has no change notifications.
 
 ### SQLite hosts
 
@@ -534,14 +548,14 @@ await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 
 A field declares a portable datatype; each connection decides how to store it. The same schema module - importing only `@expressive/orm` - binds to SQLite, D1, Postgres, `Memory` or a connection forwarding to a server, unchanged. `sql.*` is shorthand for the declaration; an object says the same: `str(sql.varchar(40))` is `str({ type: "varchar", length: 40 })`.
 
-| Helper | Datatype | SQLite | Postgres |
-|---|---|---|---|
-| `str` | `text` (default), `varchar(n)`, `char(n)`, `uuid` | TEXT | TEXT, VARCHAR(n), CHAR(n), UUID |
-| `num` | `integer` (default), `smallint`, `bigint`, `real`, `double`, `numeric(p, s)`, `decimal(p, s)` | INTEGER, REAL, NUMERIC | the type, `(precision, scale)` where set |
-| `bool` | `boolean` | INTEGER | BOOLEAN |
-| `date` | `timestamp` (default), `date`, `time`; `timezone` on `timestamp` and `time` | TEXT | TIMESTAMP(p), DATE, TIME(p), with TZ |
-| `json` | - | TEXT | TEXT |
-| `one` | the related key's | the key's | the key's |
+| Helper | Datatype | SQLite | Postgres | MySQL |
+|---|---|---|---|---|
+| `str` | `text` (default), `varchar(n)`, `char(n)`, `uuid` | TEXT | TEXT, VARCHAR(n), CHAR(n), UUID | TEXT - VARCHAR(255) when a key, unique or indexed - VARCHAR(n), CHAR(n), CHAR(36) |
+| `num` | `integer` (default), `smallint`, `bigint`, `real`, `double`, `numeric(p, s)`, `decimal(p, s)` | INTEGER, REAL, NUMERIC | the type, `(precision, scale)` where set | as Postgres |
+| `bool` | `boolean` | INTEGER | BOOLEAN | TINYINT(1) |
+| `date` | `timestamp` (default), `date`, `time`; `timezone` on `timestamp` and `time` | TEXT | TIMESTAMP(p), DATE, TIME(p), with TZ | DATETIME(p, default 3) in UTC, DATE, TIME(p) |
+| `json` | - | TEXT | TEXT | TEXT |
+| `one` | the related key's | the key's | the key's | the key's |
 
 A datatype of another helper, like `num(sql.text)`, is a type error, whatever the module imports. Options a factory doesn't take, like `precision` on `timestamp`, go in an object: `date({ type: "timestamp", precision: 3 })`. `@expressive/postgres` adds `sql.timestamptz` and `sql.timetz`.
 
