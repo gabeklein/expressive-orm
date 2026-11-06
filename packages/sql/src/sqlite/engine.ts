@@ -115,7 +115,30 @@ function asyncEngine(db: any): Engine {
   };
 }
 
-function libsqlEngine(client: any): Engine {
+export function libsqlEngine(client: any): Engine {
+  return {
+    ...libsqlStatements(client),
+    async batch(sql) {
+      await client.batch(sql, "write");
+    },
+    async close() {
+      client.close();
+    },
+    ...client.protocol !== "file" && {
+      async transaction() {
+        const tx = await client.transaction("write");
+
+        return {
+          ...libsqlStatements(tx),
+          commit: () => tx.commit(),
+          rollback: () => tx.rollback()
+        };
+      }
+    }
+  };
+}
+
+function libsqlStatements(client: any): Engine.Statements {
   const execute = (sql: string, args: any[]) => client.execute({ sql, args });
 
   return {
@@ -130,9 +153,6 @@ function libsqlEngine(client: any): Engine {
     },
     async exec(sql) {
       await client.executeMultiple(sql);
-    },
-    async close() {
-      client.close();
     }
   };
 }

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createEngine } from './engine';
+import { createEngine, libsqlEngine } from './engine';
 
 const DRIVERS = ["bun:sqlite", "node:sqlite", "better-sqlite3", "sqlite3", "@libsql/client"];
 
@@ -240,6 +240,75 @@ describe("@libsql/client", () => {
       ["executeMultiple", "SELECT 4"],
       ["close"]
     ]);
+  });
+});
+
+describe("libsqlEngine", () => {
+  class Client {
+    log: unknown[][] = [];
+
+    constructor(public protocol: string){}
+
+    async execute(statement: unknown){
+      this.log.push(["execute", statement]);
+      return { rows: [{ a: 1 }], rowsAffected: 1 };
+    }
+
+    async executeMultiple(sql: string){
+      this.log.push(["executeMultiple", sql]);
+    }
+
+    async batch(sql: string[], mode: string){
+      this.log.push(["batch", sql, mode]);
+    }
+
+    async transaction(mode: string){
+      const tx = new Client("tx");
+
+      this.log.push(["transaction", mode], tx.log);
+
+      return Object.assign(tx, {
+        commit: async () => { tx.log.push(["commit"]) },
+        rollback: async () => { tx.log.push(["rollback"]) }
+      });
+    }
+
+    close(){
+      this.log.push(["close"]);
+    }
+  }
+
+  it("will open a session on a remote client", async () => {
+    const client = new Client("https");
+    const engine = libsqlEngine(client);
+    const session = await engine.transaction!();
+
+    expect(await session.get("SELECT ?", [1])).toEqual({ a: 1 });
+    await session.exec("SELECT 2");
+    await session.commit();
+    await session.rollback();
+
+    expect(client.log).toEqual([
+      ["transaction", "write"],
+      [
+        ["execute", { sql: "SELECT ?", args: [1] }],
+        ["executeMultiple", "SELECT 2"],
+        ["commit"],
+        ["rollback"]
+      ]
+    ]);
+  });
+
+  it("will batch statements", async () => {
+    const client = new Client("wss");
+
+    await libsqlEngine(client).batch!(["SELECT 1", "SELECT 2"]);
+
+    expect(client.log).toEqual([["batch", ["SELECT 1", "SELECT 2"], "write"]]);
+  });
+
+  it("will not open a session on a file", () => {
+    expect(libsqlEngine(new Client("file")).transaction).toBeUndefined();
   });
 });
 
