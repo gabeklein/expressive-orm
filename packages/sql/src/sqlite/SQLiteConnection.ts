@@ -43,11 +43,11 @@ export class SQLiteConnection extends Connection {
       ))
       : [];
 
-    const run = async <R>(op: (engine: Engine) => Promise<R>) => {
+    const run = async <R>(op: (engine: Engine.Statements) => Promise<R>) => {
       await this.idle();
 
       try {
-        return await op(await this.db());
+        return await op(this._journal()?.session as Engine.Session || await this.db());
       }
       catch (err) {
         if(err instanceof Error)
@@ -70,18 +70,20 @@ export class SQLiteConnection extends Connection {
 
   protected async transact<T>(fn: () => Promise<T>): Promise<T> {
     const db = await this.db();
+    const session = this._journal()!.session = await db.transaction?.();
 
-    await db.exec("BEGIN");
+    if (!session)
+      await db.exec("BEGIN");
 
     try {
       const result = await fn();
 
-      await db.exec("COMMIT");
+      await (session ? session.commit() : db.exec("COMMIT"));
 
       return result;
     }
     catch (error) {
-      await db.exec("ROLLBACK");
+      await (session ? session.rollback() : db.exec("ROLLBACK"));
       throw error;
     }
   }
@@ -126,7 +128,7 @@ export class SQLiteConnection extends Connection {
       const found = await this.inspect(type, true);
 
       if (!found) {
-        steps.push({ table, action: `create table ${table}`, reason: `Table ${table} does not exist.`, sql: [this.generateTableSchema(type)] });
+        steps.push({ table, action: `create table ${table}`, reason: `Table ${table} does not exist.`, sql: [this.tableSchema(type), ...indexed(type).map(index)] });
         continue;
       }
 
@@ -183,6 +185,10 @@ export class SQLiteConnection extends Connection {
 
   protected async apply(steps: Connection.Step[]){
     const db = await this.db();
+
+    if (db.batch)
+      return db.batch(steps.flatMap(step => step.sql));
+
     const { foreign_keys } = await db.get("PRAGMA foreign_keys");
     const guard = foreign_keys && steps.some(step => step.action.startsWith("rebuild"));
 

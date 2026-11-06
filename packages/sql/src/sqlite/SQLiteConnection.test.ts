@@ -9,7 +9,7 @@ import { asc, bool, Builder, date, desc, greaterThan, index, isIn, isLike, isNul
 import { spy } from '../../test.setup';
 
 import type { Connection } from '../connection/Connection';
-import { createEngine } from './engine';
+import { createEngine, Engine } from './engine';
 import { SQLiteConnection } from './SQLiteConnection';
 import { TestConnection } from './TestConnection';
 
@@ -2117,6 +2117,43 @@ describe("engine", () => {
 
     await expect(Foo.find({})).resolves.toMatchObject([{ name: "bar" }]);
     expect(all).toHaveBeenCalled();
+    await conn.close();
+  })
+
+  it("will run on engine sessions and batches", async () => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    const base = await createEngine(":memory:");
+    const session = {
+      ...base,
+      all: vi.fn(base.all),
+      commit: vi.fn(() => base.exec("COMMIT")),
+      rollback: vi.fn(() => base.exec("ROLLBACK"))
+    };
+
+    const engine: Engine = {
+      ...base,
+      batch: vi.fn((sql: string[]) => base.exec(sql.join("\n"))),
+      transaction: async () => (await base.exec("BEGIN"), session)
+    };
+
+    const conn = await SQLiteConnection.new([Foo], engine);
+
+    expect(engine.batch).toHaveBeenCalledWith(["CREATE TABLE foo (`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, `name` TEXT NOT NULL);"]);
+
+    await conn.transaction(() => Foo.insert({ name: "a" }));
+    await expect(conn.transaction(async () => {
+      await Foo.insert({ name: "b" });
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    expect(session.all).toHaveBeenCalledTimes(2);
+    expect(session.commit).toHaveBeenCalledTimes(1);
+    expect(session.rollback).toHaveBeenCalledTimes(1);
+    await expect(Foo.find({})).resolves.toMatchObject([{ name: "a" }]);
+    expect(session.all).toHaveBeenCalledTimes(2);
     await conn.close();
   })
 })
