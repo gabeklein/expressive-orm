@@ -156,3 +156,35 @@ function libsqlStatements(client: any): Engine.Statements {
     }
   };
 }
+
+type D1Database = {
+  prepare(sql: string): { bind(...values: any[]): any };
+  exec(sql: string): Promise<unknown>;
+  batch(statements: any[]): Promise<unknown>;
+};
+
+export function d1Engine(db: D1Database): Engine {
+  const statement = (sql: string, params: any[] = []) => db.prepare(sql).bind(...params);
+
+  return {
+    async all(sql, params) {
+      return (await statement(sql, params).all()).results;
+    },
+    async get(sql, params) {
+      return await statement(sql, params).first() ?? undefined;
+    },
+    async run(sql, params) {
+      return { changes: (await statement(sql, params).run()).meta.changes };
+    },
+    async exec(sql) {
+      await db.exec(sql);
+    },
+    async batch(sql) {
+      await db.batch(sql.map(sql => db.prepare(sql)));
+    },
+    async transaction(): Promise<never> {
+      throw new Error("D1 has no interactive transactions. Use the D1 binding's batch() for atomic writes.");
+    },
+    async close() {}
+  };
+}

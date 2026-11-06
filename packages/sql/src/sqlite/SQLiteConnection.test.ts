@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { Miniflare } from 'miniflare';
 import { describe, expect, it, vi } from 'vitest';
 
 import { asc, bool, Builder, date, desc, greaterThan, index, isIn, isLike, isNull, json, key, lessThan, notIn, notNull, now, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
@@ -9,7 +10,7 @@ import { asc, bool, Builder, date, desc, greaterThan, index, isIn, isLike, isNul
 import { spy } from '../../test.setup';
 
 import type { Connection } from '../connection/Connection';
-import { createEngine, Engine } from './engine';
+import { createEngine, d1Engine, Engine } from './engine';
 import { SQLiteConnection } from './SQLiteConnection';
 import { TestConnection } from './TestConnection';
 
@@ -2155,5 +2156,87 @@ describe("engine", () => {
     await expect(Foo.find({})).resolves.toMatchObject([{ name: "a" }]);
     expect(session.all).toHaveBeenCalledTimes(2);
     await conn.close();
+  })
+})
+
+describe("d1", () => {
+  async function open(){
+    const mf = new Miniflare({
+      modules: true,
+      script: "export default { fetch: () => new Response() }",
+      d1Databases: ["DB"]
+    });
+
+    const engine = d1Engine(await mf.getD1Database("DB") as any);
+
+    class Author extends Type {
+      name = str({ index: true });
+    }
+
+    class Post extends Type {
+      author = one(Author);
+      title = str();
+    }
+
+    return { engine, Author, Post, dispose: () => mf.dispose() };
+  }
+
+  it("will sync and query", async () => {
+    const { engine, Author, Post, dispose } = await open();
+    const conn = await SQLiteConnection.new([Author, Post], engine);
+    const author = await Author.insert({ name: "Gabe" });
+
+    await Post.insert({ author, title: "Hello" });
+    await expect(Post.insert({ author: 99, title: "Orphan" })).rejects.toThrow("FOREIGN KEY constraint failed");
+    await expect(Author.find({ name: "Gabe" })).resolves.toHaveLength(1);
+    await expect(engine.all("PRAGMA index_list(author)")).resolves.toMatchObject([{ name: "author_name" }]);
+
+    await conn.close();
+    await dispose();
+  })
+
+  it("will rebuild a table in one batch", async () => {
+    const { engine, Author, Post, dispose } = await open();
+
+    await engine.exec("CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name TEXT NOT NULL)");
+    await engine.exec("CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, author_id INTEGER NOT NULL REFERENCES author(id), title INTEGER NOT NULL)");
+    await engine.exec("INSERT INTO author (name) VALUES ('Gabe')");
+    await engine.exec("INSERT INTO post (author_id, title) VALUES (1, 'Hello')");
+
+    const conn = SQLiteConnection.new([Author, Post], engine);
+
+    await conn.sync(true, true);
+    await expect(Post.find({})).resolves.toMatchObject([{ title: "Hello" }]);
+
+    await conn.close();
+    await dispose();
+  })
+
+  it("will not rebuild a referenced table", async () => {
+    const { engine, Author, Post, dispose } = await open();
+
+    await engine.exec("CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name INTEGER NOT NULL)");
+    await engine.exec("CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, author_id INTEGER NOT NULL REFERENCES author(id), title TEXT NOT NULL)");
+    await engine.exec("INSERT INTO author (name) VALUES ('Gabe')");
+    await engine.exec("INSERT INTO post (author_id, title) VALUES (1, 'Hello')");
+
+    const conn = SQLiteConnection.new([Author, Post], engine);
+
+    await expect(conn.sync(true, true)).rejects.toThrow("FOREIGN KEY constraint failed");
+    await expect(engine.all("SELECT type FROM pragma_table_info('author') WHERE name = 'name'")).resolves.toEqual([{ type: "INTEGER" }]);
+
+    await conn.close();
+    await dispose();
+  })
+
+  it("will refuse a transaction", async () => {
+    const { engine, Author, Post, dispose } = await open();
+    const conn = await SQLiteConnection.new([Author, Post], engine);
+
+    await expect(conn.transaction(() => Author.insert({ name: "Gabe" }))).rejects.toThrow("D1 has no interactive transactions.");
+    await expect(Author.find({})).resolves.toEqual([]);
+
+    await conn.close();
+    await dispose();
   })
 })
