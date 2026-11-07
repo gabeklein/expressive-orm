@@ -46,11 +46,11 @@ export class SQLiteConnection extends Connection {
       ))
       : [];
 
-    const run = async <R>(op: (engine: Engine) => Promise<R>) => {
+    const run = async <R>(op: (engine: Engine.Statements) => Promise<R>) => {
       await this.idle();
 
       try {
-        return await op(await this.db());
+        return await op(this._journal()?.session as Engine.Session || await this.db());
       }
       catch (err) {
         if(err instanceof Error)
@@ -73,18 +73,20 @@ export class SQLiteConnection extends Connection {
 
   protected async transact<T>(fn: () => Promise<T>): Promise<T> {
     const db = await this.db();
+    const session = this._journal()!.session = await db.transaction?.();
 
-    await db.exec("BEGIN");
+    if (!session)
+      await db.exec("BEGIN");
 
     try {
       const result = await fn();
 
-      await db.exec("COMMIT");
+      await (session ? session.commit() : db.exec("COMMIT"));
 
       return result;
     }
     catch (error) {
-      await db.exec("ROLLBACK");
+      await (session ? session.rollback() : db.exec("ROLLBACK")).catch(() => {});
       throw error;
     }
   }
@@ -188,6 +190,29 @@ export class SQLiteConnection extends Connection {
     const db = await this.db();
     const { foreign_keys } = await db.get("PRAGMA foreign_keys");
     const guard = foreign_keys && steps.some(step => step.action.startsWith("rebuild"));
+    const sql = steps.flatMap(step => step.sql);
+
+    if (db.batch && !guard)
+      return db.batch(sql);
+
+    if (db.batch) {
+      await db.exec("PRAGMA foreign_keys = OFF").catch(() => {});
+
+      try {
+        if ((await db.get("PRAGMA foreign_keys")).foreign_keys)
+          throw new Error("Cannot rebuild: this engine keeps foreign keys on, so dropping the table would cascade.");
+
+        const broken: { table: string }[] = await db.all("PRAGMA foreign_key_check");
+
+        if (broken.length)
+          throw new Error(dangling(broken));
+
+        return await db.batch(sql);
+      }
+      finally {
+        await db.exec("PRAGMA foreign_keys = ON").catch(() => {});
+      }
+    }
 
     if (guard)
       await db.exec("PRAGMA foreign_keys = OFF");
@@ -195,7 +220,7 @@ export class SQLiteConnection extends Connection {
     await db.exec("BEGIN");
 
     try {
-      await db.exec(steps.flatMap(step => step.sql).join("\n"));
+      await db.exec(sql.join("\n"));
 
       const broken: { table: string }[] = guard ? await db.all("PRAGMA foreign_key_check") : [];
 
