@@ -9,7 +9,7 @@ import { asc, bool, Builder, date, desc, greaterThan, index, isIn, isLike, isNul
 import { spy } from '../../test.setup';
 
 import type { Connection } from '../connection/Connection';
-import { createEngine } from './engine';
+import { createEngine, type Engine } from './engine';
 import { SQLiteConnection } from './SQLiteConnection';
 import { TestConnection } from './TestConnection';
 
@@ -2122,6 +2122,178 @@ describe("engine", () => {
     await conn.close();
 
     expect(close).not.toHaveBeenCalled();
+    await engine.close();
+  })
+
+  async function hosted(){
+    const engine: Engine = await createEngine(":memory:");
+
+    engine.batch = vi.fn(async (sql: string[]) => {
+      await engine.exec("BEGIN");
+
+      try {
+        for (const statement of sql)
+          await engine.exec(statement);
+
+        await engine.exec("COMMIT");
+      }
+      catch (error) {
+        await engine.exec("ROLLBACK");
+        throw error;
+      }
+    });
+
+    engine.transaction = vi.fn(async () => {
+      await engine.exec("BEGIN");
+
+      return {
+        all: vi.fn(engine.all),
+        get: vi.fn(engine.get),
+        run: vi.fn(engine.run),
+        exec: vi.fn(engine.exec),
+        commit: vi.fn(() => engine.exec("COMMIT")),
+        rollback: vi.fn(() => engine.exec("ROLLBACK"))
+      };
+    });
+
+    return engine;
+  }
+
+  it("will run a transaction on an engine session", async () => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    const engine = await hosted();
+    const conn = await SQLiteConnection.new([Foo], engine);
+
+    await conn.transaction(async () => {
+      await Foo.insert({ name: "kept" });
+    });
+
+    await expect(conn.transaction(async () => {
+      await Foo.insert({ name: "gone" });
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    const [first, second] = await vi.mocked(engine.transaction!).mock.results.map(result => result.value);
+    const session = await first;
+
+    expect(session.all).toHaveBeenCalledOnce();
+    expect(session.commit).toHaveBeenCalledOnce();
+    expect((await second).rollback).toHaveBeenCalledOnce();
+    await expect(Foo.find({})).resolves.toMatchObject([{ name: "kept" }]);
+
+    await conn.close();
+    await engine.close();
+  })
+
+  it("will throw the original error if rollback fails", async () => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    const engine = await createEngine(":memory:");
+    const conn = await SQLiteConnection.new([Foo], engine);
+
+    engine.transaction = async () => ({
+      ...engine,
+      commit: () => Promise.reject(new Error("commit failed")),
+      rollback: () => Promise.reject(new Error("already closed"))
+    });
+
+    await expect(conn.transaction(async () => {
+      await Foo.insert({ name: "a" });
+    })).rejects.toThrow("commit failed");
+
+    await conn.close();
+    await engine.close();
+  })
+
+  it("will sync through a batch", async () => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    const engine = await hosted();
+    const conn = await SQLiteConnection.new([Foo], engine);
+
+    expect(engine.batch).toHaveBeenCalledWith([expect.stringMatching(/^CREATE TABLE foo/)]);
+
+    await conn.close();
+    await engine.close();
+  })
+
+  it("will batch a rebuild of a referenced table", async () => {
+    class Author extends Type {
+      rank = num();
+    }
+
+    const engine = await hosted();
+
+    await engine.exec(
+      "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, rank TEXT NOT NULL);" +
+      "CREATE TABLE post (id INTEGER PRIMARY KEY, author_id INTEGER REFERENCES author (id) ON DELETE CASCADE);" +
+      "INSERT INTO author (rank) VALUES ('1');" +
+      "INSERT INTO post (author_id) VALUES (1), (1);"
+    );
+
+    const conn = SQLiteConnection.new([Author], engine);
+
+    await conn.sync(true, true);
+
+    expect(engine.batch).toHaveBeenCalledOnce();
+    expect(await engine.get("PRAGMA foreign_keys")).toEqual({ foreign_keys: 1 });
+    expect(await engine.all("SELECT id, author_id FROM post")).toEqual([{ id: 1, author_id: 1 }, { id: 2, author_id: 1 }]);
+    expect(await engine.all("PRAGMA table_info(author)")).toContainEqual(expect.objectContaining({ name: "rank", type: "INTEGER" }));
+
+    await conn.close();
+    await engine.close();
+  })
+
+  it("will not batch a rebuild over a broken reference", async () => {
+    class Author extends Type {
+      rank = num();
+    }
+
+    const engine = await hosted();
+
+    await engine.exec(
+      "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, rank TEXT NOT NULL);" +
+      "CREATE TABLE post (id INTEGER PRIMARY KEY, author_id INTEGER REFERENCES author (id));" +
+      "PRAGMA foreign_keys = OFF;" +
+      "INSERT INTO post (author_id) VALUES (9);" +
+      "PRAGMA foreign_keys = ON;"
+    );
+
+    const conn = SQLiteConnection.new([Author], engine);
+
+    await expect(conn.sync(true, true)).rejects.toThrow("Cannot rebuild: post has references to missing rows (1).");
+    expect(engine.batch).not.toHaveBeenCalled();
+
+    await conn.close();
+    await engine.close();
+  })
+
+  it("will not batch a rebuild where foreign keys stay on", async () => {
+    class Author extends Type {
+      rank = num();
+    }
+
+    const engine = await hosted();
+    const exec = engine.exec;
+
+    await exec("CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, rank TEXT NOT NULL);");
+
+    engine.exec = sql => sql.includes("foreign_keys") ? Promise.reject(new Error("not authorized")) : exec(sql);
+
+    const conn = SQLiteConnection.new([Author], engine);
+
+    await expect(conn.sync(true, true)).rejects.toThrow("Cannot rebuild: this engine keeps foreign keys on");
+    expect(engine.batch).not.toHaveBeenCalled();
+
+    await conn.close();
+    await exec("SELECT 1");
     await engine.close();
   })
 })
