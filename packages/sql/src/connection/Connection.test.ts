@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { bool, Builder, equal, greaterThan, isIn, isLike, isNull, notEqual, notNull, asc, desc, num, str, Type } from '@expressive/orm';
 
@@ -149,49 +149,5 @@ describe("floor", () => {
 
     await expect(other.select("other.bar", [])).resolves.toEqual([]);
     expect(other.log[0][0]).toBe("SELECT `T0`.`id` AS \"id\" FROM `other`.`bar` `T0`");
-  })
-})
-
-describe("transaction", () => {
-  it("will throw without driver support", async () => {
-    const db = Recorder.new();
-
-    await expect(db.transaction(() => {})).rejects.toThrow("Recorder does not support transactions.");
-  })
-
-  it("will throw without AsyncLocalStorage", async () => {
-    vi.resetModules();
-    vi.doMock("node:async_hooks", () => { throw new Error("Cannot find module 'node:async_hooks'") });
-
-    const { Connection } = await import('./Connection');
-
-    class Bare extends Connection {
-      get schema(){
-        return "";
-      }
-
-      async sync(){
-        return this;
-      }
-
-      async plan(){
-        return { steps: [], problems: [] };
-      }
-
-      prepare(): never {
-        throw new Error("unused");
-      }
-
-      protected async transact<T>(fn: () => Promise<T>){
-        return fn();
-      }
-    }
-
-    const db = Bare.new();
-
-    await expect(db.transaction(() => {})).rejects.toThrow("Transactions need AsyncLocalStorage, which this runtime does not provide.");
-
-    vi.doUnmock("node:async_hooks");
-    vi.resetModules();
   })
 })

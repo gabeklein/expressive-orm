@@ -22,6 +22,7 @@ declare namespace Connection {
   type Journal = {
     undo: (() => void)[];
     done: (() => void)[];
+    session?: unknown;
   };
 
   type Change = {
@@ -32,13 +33,33 @@ declare namespace Connection {
   };
 }
 
+type Scope = Map<Connection, Connection.Journal>;
+
 const synced = new WeakMap<Connection, Promise<unknown>>();
 const COLLECT = Symbol.for("@expressive/orm.collect");
+
+let storage: Promise<import('node:async_hooks').AsyncLocalStorage<Scope>> | undefined;
+let context: import('node:async_hooks').AsyncLocalStorage<Scope> | undefined;
+
+function hooks(name: string): Promise<typeof import('node:async_hooks')> {
+  return import(name);
+}
+
+function scope(){
+  return storage ||= hooks("node:async_hooks").then(
+    ({ AsyncLocalStorage }) => context = new AsyncLocalStorage<Scope>(),
+    () => {
+      storage = undefined;
+      throw new Error("Transactions need AsyncLocalStorage, which this runtime does not provide.");
+    }
+  );
+}
 
 abstract class Connection extends Model {
   readonly using: ReadonlySet<Query.Table>;
   readonly ready: boolean = false;
 
+  _active?: Promise<void>;
   _loaded = new Map<Type.Class, Map<unknown, Type>>();
 
   constructor(using: Connection.Types = []){
@@ -106,11 +127,59 @@ abstract class Connection extends Model {
 
   abstract remove(table: string, id: Connection.Key): Promise<void>;
 
-  _journal(): Connection.Journal | undefined {
-    return undefined;
+  _journal(){
+    return context?.getStore()?.get(this);
   }
 
-  transaction?<T>(fn: () => T | Promise<T>): Promise<T>;
+  async transaction<T>(fn: () => T | Promise<T>): Promise<T> {
+    if (!this.transact)
+      throw new Error(`${this.constructor.name} does not support transactions.`);
+
+    const storage = await scope();
+    const outer = storage.getStore();
+
+    if (outer?.has(this))
+      return fn();
+
+    const release = await this.lock();
+    const journal: Connection.Journal = { undo: [], done: [] };
+
+    try {
+      const result = await storage.run(new Map(outer).set(this, journal), () => this.transact!(async () => fn()));
+
+      journal.done.forEach(apply => apply());
+
+      return result;
+    }
+    catch (error) {
+      journal.undo.reverse().forEach(apply => apply());
+      throw error;
+    }
+    finally {
+      release();
+    }
+  }
+
+  protected transact?<T>(fn: () => Promise<T>): Promise<T>;
+
+  protected async lock(){
+    while (this._active)
+      await this._active;
+
+    let release!: () => void;
+
+    this._active = new Promise(resolve => release = resolve);
+
+    return () => {
+      this._active = undefined;
+      release();
+    };
+  }
+
+  protected async idle(){
+    while (this._active && !this._journal())
+      await this._active;
+  }
 
   prepare?(builder: Builder): Builder.Statement;
 
