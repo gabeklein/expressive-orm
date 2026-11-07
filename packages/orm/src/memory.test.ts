@@ -229,3 +229,135 @@ describe("subscribe", () => {
     ]);
   })
 })
+
+describe("transaction", () => {
+  it("will commit writes and report them after", async () => {
+    const db = memory();
+    const changes: unknown[] = [];
+
+    db.subscribe!(change => changes.push(change));
+
+    const result = await db.transaction(async () => {
+      await db.insert("user", { name: "A" });
+      await db.update("user", 1, { name: "B" });
+
+      expect(changes).toEqual([]);
+
+      return "done";
+    });
+
+    expect(result).toBe("done");
+    expect(changes).toEqual([
+      { table: "user", op: "insert", id: 1, row: { id: 1, name: "A" } },
+      { table: "user", op: "update", id: 1, row: { name: "B" } }
+    ]);
+    await expect(db.select("user", [])).resolves.toEqual([{ id: 1, name: "B" }]);
+  })
+
+  it("will roll back rows and ids", async () => {
+    const db = memory();
+    const changes: unknown[] = [];
+
+    class Post extends Type {
+      static connection = db;
+      title = str();
+    }
+
+    await db.insert("user", { name: "A" });
+    await db.insert("user", { name: "B" });
+
+    db.subscribe!(change => changes.push(change));
+
+    const failed = db.transaction(async () => {
+      await db.insert("user", { name: "C" });
+      await db.insert("post", { title: "D" });
+      await db.update("user", 1, { name: "changed" });
+      await db.remove("user", 2);
+      await Query(where => {
+        where(where(Post)).delete();
+      });
+
+      throw new Error("nope");
+    });
+
+    await expect(failed).rejects.toThrow("nope");
+    expect(changes).toEqual([]);
+    await expect(db.select("user", [])).resolves.toEqual([{ id: 1, name: "A" }, { id: 2, name: "B" }]);
+    await expect(db.select("post", [])).resolves.toEqual([]);
+    await expect(db.insert("user", { name: "E" }, true)).resolves.toEqual({ id: 3, name: "E" });
+  })
+
+  it("will join an outer transaction", async () => {
+    const db = memory();
+
+    await expect(db.transaction(async () => {
+      await db.insert("user", { name: "outer" });
+      await db.transaction(() => db.insert("user", { name: "inner" }));
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    await expect(db.select("user", [])).resolves.toEqual([]);
+  })
+
+  it("will hold other statements until it ends", async () => {
+    const db = memory();
+    const order: string[] = [];
+    let finish!: () => void;
+    const held = new Promise<void>(resolve => finish = resolve);
+
+    const failed = db.transaction(async () => {
+      await db.insert("user", { name: "inside" });
+      await held;
+      order.push("rollback");
+      throw new Error("nope");
+    });
+
+    await new Promise(resolve => setTimeout(resolve));
+
+    const outside = db.insert("user", { name: "outside" }).then(() => order.push("outside"));
+
+    await new Promise(resolve => setTimeout(resolve));
+    finish();
+
+    await expect(failed).rejects.toThrow("nope");
+    await outside;
+
+    expect(order).toEqual(["rollback", "outside"]);
+    await expect(db.select("user", [])).resolves.toEqual([{ id: 1, name: "outside" }]);
+  })
+
+  it("will run transactions one at a time", async () => {
+    const db = memory();
+    const order: string[] = [];
+
+    const run = (name: string) => db.transaction(async () => {
+      order.push(`${name} start`);
+      await new Promise(resolve => setTimeout(resolve));
+      await db.insert("user", { name });
+      order.push(`${name} end`);
+    });
+
+    await Promise.all([run("a"), run("b")]);
+
+    expect(order).toEqual(["a start", "a end", "b start", "b end"]);
+  })
+
+  it("will restore an entity rolled back", async () => {
+    const db = memory();
+
+    class Note extends Type {
+      static connection = db;
+      text = str();
+    }
+
+    const note = await Note.new({ text: "A" });
+
+    await expect(db.transaction(async () => {
+      await note.set({ text: "B" });
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    expect(note.text).toBe("A");
+    await expect(db.select("note", [])).resolves.toEqual([{ id: 1, text: "A" }]);
+  })
+})

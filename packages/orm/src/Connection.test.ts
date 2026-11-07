@@ -211,3 +211,24 @@ describe("identity map", () => {
     expect(db._loaded.size).toBe(0);
   })
 })
+
+describe("transaction", () => {
+  it("will throw without driver support", async () => {
+    const db = Store.new();
+
+    await expect(db.transaction(() => {})).rejects.toThrow("Store does not support transactions.");
+  })
+
+  it("will throw without AsyncLocalStorage", async () => {
+    vi.resetModules();
+    vi.doMock("node:async_hooks", () => { throw new Error("Cannot find module 'node:async_hooks'") });
+
+    const { memory } = await import('./memory');
+    const db = memory();
+
+    await expect(db.transaction(() => {})).rejects.toThrow("Transactions need AsyncLocalStorage, which this runtime does not provide.");
+
+    vi.doUnmock("node:async_hooks");
+    vi.resetModules();
+  })
+})
