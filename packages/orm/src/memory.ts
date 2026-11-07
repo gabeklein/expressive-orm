@@ -134,17 +134,17 @@ class Memory extends Connection {
 
   _store: evaluate.Store = {
     rows: table => this._table(table.name).rows,
-    insert: (table, row) => this._add(table.name, row, key(table.type!)),
+    insert: (table, row) => this._add(table.name, row, key(table.type)),
     update: (table, row, assign) => {
       Object.assign(row, assign);
-      this._notify(table.name, "update", identify(key(table.type!), row), assign);
+      this._notify(table.name, "update", identify(key(table.type), row), assign);
     },
     delete: (table, rows) => {
       const store = this._table(table.name);
       const removed = new Set(rows);
 
       store.rows = store.rows.filter(row => !removed.has(row));
-      rows.forEach(row => this._notify(table.name, "delete", identify(key(table.type!), row)));
+      rows.forEach(row => this._notify(table.name, "delete", identify(key(table.type), row)));
     }
   };
 

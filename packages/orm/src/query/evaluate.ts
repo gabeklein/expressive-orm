@@ -1,21 +1,20 @@
 import { Field } from '../Field';
+import type { Type } from '../Type';
 import type { Builder } from './Builder';
 import { Computed } from './Computed';
+import type { Query } from './Query';
 import { Cond, DataField, DataTable, Expression, now, Parameter, Value } from './Value';
 
 declare namespace evaluate {
   type Row = Record<string, any>;
 
-  type Result = {
-    rows?: Row[];
-    count: number;
-  };
+  type Table = Builder.ITable & { type: Query.Table };
 
   interface Store {
-    rows(table: Builder.ITable): Row[] | Promise<Row[]>;
-    insert(table: Builder.ITable, row: Row): Row | Promise<Row>;
-    update(table: Builder.ITable, row: Row, assign: Row): void | Promise<void>;
-    delete(table: Builder.ITable, rows: Row[]): void | Promise<void>;
+    rows(table: Table, where: Type.Constraint[]): Row[] | Promise<Row[]>;
+    insert(table: Table, row: Row): Row | Promise<Row>;
+    update(table: Table, row: Row, assign: Row): void | Promise<void>;
+    delete(table: Table, rows: Row[]): void | Promise<void>;
   }
 }
 
@@ -91,7 +90,7 @@ function sort<T>(items: T[], keys: [(item: T) => unknown, number][]) {
   });
 }
 
-async function evaluate(store: evaluate.Store, query: Builder, params: unknown[]): Promise<evaluate.Result> {
+async function evaluate(store: evaluate.Store, query: Builder, params: unknown[]) {
   const { tables, inserts, updates, deletes, filters, order, limit, offset = 0, returns } = query;
 
   if (query.templates.size)
@@ -122,15 +121,16 @@ async function evaluate(store: evaluate.Store, query: Builder, params: unknown[]
     return input;
   }
 
-  function test({ left, op, right }: Cond, scope: Scope): boolean {
-    const encode = (input: unknown) => (
-      input instanceof Value || input instanceof Field || input == null
-        ? value(input, scope, left)
-        : op.includes("LIKE") ? input : left.set(input)
-    );
+  function encode({ left, op }: Cond, input: unknown, scope: Scope) {
+    return input instanceof Value || input instanceof Field || input == null
+      ? value(input, scope, left)
+      : op.includes("LIKE") ? input : left.set(input);
+  }
 
+  function test(cond: Cond, scope: Scope): boolean {
+    const { left, op, right } = cond;
     const field = value(left, scope);
-    const against = Array.isArray(right) ? right.map(encode) : encode(right);
+    const against = Array.isArray(right) ? right.map(input => encode(cond, input, scope)) : encode(cond, right, scope);
 
     if (against == null)
       return op === '=' ? field == null : op === '<>' && field != null;
@@ -149,6 +149,34 @@ async function evaluate(store: evaluate.Store, query: Builder, params: unknown[]
       : children.every(child => check(child, scope, !or));
   }
 
+  function where(table: Builder.ITable){
+    const out: Type.Constraint[] = [];
+
+    if (table.optional)
+      return out;
+
+    for (const cond of filters.children) {
+      if (!(cond instanceof Cond) || cond.left.table !== table)
+        continue;
+
+      const { left, op, right } = cond;
+      const values = Array.isArray(right) ? right : [right];
+
+      if (values.some(input => input === now || input instanceof Field || input instanceof Value && !(input instanceof Parameter)))
+        continue;
+
+      const scope: Scope = new Map();
+      const against = Array.isArray(right) ? right.map(input => encode(cond, input, scope)) : encode(cond, right, scope);
+
+      if (against != null)
+        out.push([left.column, op, against]);
+      else if (op === '=' || op === '<>')
+        out.push([left.column, op === '=' ? 'IS NULL' : 'IS NOT NULL']);
+    }
+
+    return out;
+  }
+
   const joins = new Set<Cond>();
   const bound = new Set<Builder.ITable>();
   let scopes: Scope[] = [new Map()];
@@ -165,7 +193,7 @@ async function evaluate(store: evaluate.Store, query: Builder, params: unknown[]
       bound.has(left.table!) && bound.has((right as Field | DataField).table!)
     ));
 
-    const rows = source instanceof DataTable ? source.output : await store.rows(source);
+    const rows = source instanceof DataTable ? source.output : await store.rows(source as evaluate.Table, where(source));
     const next: Scope[] = [];
 
     ready.forEach(cond => joins.delete(cond));
@@ -202,23 +230,24 @@ async function evaluate(store: evaluate.Store, query: Builder, params: unknown[]
         row[field.column] = value(input, scope, field);
       });
 
-      scope.set(target, await store.insert(target, row));
+      scope.set(target, await store.insert(target as evaluate.Table, row));
     }
 
   for (const [target, data] of updates) {
-    const changed = new Set<Row>();
+    const changed = new Map<Row, Row>();
 
     for (const scope of scopes) {
-      const row = scope.get(target)!;
       const assign: Row = {};
 
       data.forEach((input, field) => {
         assign[field.column] = value(input, scope, field);
       });
 
-      await store.update(target, row, assign);
-      changed.add(row);
+      changed.set(scope.get(target)!, assign);
     }
+
+    for (const [row, assign] of changed)
+      await store.update(target as evaluate.Table, row, assign);
 
     count = changed.size;
   }
@@ -226,7 +255,7 @@ async function evaluate(store: evaluate.Store, query: Builder, params: unknown[]
   for (const target of deletes) {
     const removed = new Set(scopes.map(scope => scope.get(target)!));
 
-    await store.delete(target, [...removed]);
+    await store.delete(target as evaluate.Table, [...removed]);
     count = removed.size;
   }
 

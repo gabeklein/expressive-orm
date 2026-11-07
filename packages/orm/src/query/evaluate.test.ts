@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { Connection } from '../Connection';
-import { num, str } from '../fields';
+import { date, num, str } from '../fields';
 import { one } from '../one';
 import { Type } from '../Type';
 import { Builder } from './Builder';
 import { evaluate } from './evaluate';
 import { Query } from './Query';
+import { now } from './Value';
 
 type Row = evaluate.Row;
 
@@ -85,6 +86,84 @@ describe("custom store", () => {
     expect(db.store.rows).toHaveBeenCalledTimes(2);
   })
 
+  it("will pass a table's own conditions to the store", async () => {
+    class Note extends Type {
+      static connection = db;
+      static table = "note";
+      post_id = num();
+      text = str(null);
+      at = date(null);
+    }
+
+    db.data.note = [];
+    vi.mocked(db.store.rows).mockClear();
+
+    const query = Query((where, fn) => (min: number) => {
+      const post = where(Post);
+      const note = where(Note, true);
+
+      where(note.post_id).equal(post.views);
+      where(post.views).over(min);
+      where(post.title).in(["first", "third"]);
+      where(post.title).not(post.author.name);
+      where(post.views).under(fn.add(post.views, 100));
+      where(where(post.id).equal(1), where(post.id).equal(3));
+      where(note.text).equal(null);
+      where(note.at).under(now);
+    });
+
+    await query(0);
+
+    expect(db.store.rows).toHaveBeenCalledWith(expect.objectContaining({ name: "post" }), [
+      ["views", ">", 0],
+      ["title", "IN", ["first", "third"]]
+    ]);
+    expect(db.store.rows).toHaveBeenCalledWith(expect.objectContaining({ name: "author" }), []);
+    expect(db.store.rows).toHaveBeenCalledWith(expect.objectContaining({ name: "note" }), []);
+  })
+
+  it("will pass null conditions to the store", async () => {
+    class Tag extends Type {
+      static connection = db;
+      static table = "tag";
+      label = str(null);
+      color = str(null);
+      size = num(null);
+    }
+
+    db.data.tag = [{ id: 1, label: null, color: "red", size: null }];
+    vi.mocked(db.store.rows).mockClear();
+
+    const query = Query(where => {
+      const tag = where(Tag);
+
+      where(tag.label).equal(null);
+      where(tag.color).not(null);
+      where(tag.size).over(null as any);
+
+      return tag.id;
+    });
+
+    await expect(query).resolves.toEqual([]);
+    expect(db.store.rows).toHaveBeenCalledWith(expect.anything(), [
+      ["label", "IS NULL"],
+      ["color", "IS NOT NULL"]
+    ]);
+  })
+
+  it("will update each row once", async () => {
+    const query = Query(where => {
+      const post = where(Post);
+
+      where(post.author).update({ name: "Writer" });
+    });
+
+    vi.mocked(db.store.update).mockClear();
+
+    await expect(query).resolves.toBe(2);
+    expect(db.store.update).toHaveBeenCalledTimes(2);
+  })
+
   it("will update through the store", async () => {
     const query = Query(where => {
       const post = where(Post);
@@ -94,7 +173,7 @@ describe("custom store", () => {
     });
 
     await expect(query).resolves.toBe(2);
-    expect(db.store.update).toHaveBeenCalledTimes(2);
+    expect(db.store.update).toHaveBeenCalledTimes(4);
     expect(db.data.post.map(row => row.views)).toEqual([10, 0, 0]);
   })
 
