@@ -76,7 +76,7 @@ export class PostgresGenerator extends Generator {
 
     const output = [
       'UPDATE',
-      this.escape(main),
+      this.table(main),
       this.set(updates)
     ]
 
@@ -93,9 +93,7 @@ export class PostgresGenerator extends Generator {
 
       if (using.length)
         output.push(
-          'FROM', using.map(({ table: { alias, name} }) => {
-            return this.escape(alias ? `${name} ${alias}` : name);
-          }).join(', '),
+          'FROM', using.map(({ table }) => this.table(table)).join(', '),
           'WHERE', using.map(x => x.conditions).join(' AND ')
         );
     }

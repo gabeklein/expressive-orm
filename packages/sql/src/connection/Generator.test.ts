@@ -1398,4 +1398,48 @@ describe("generator", () => {
 
     expect(String(new Dialect(builder))).toMatchInlineSnapshot(`"WITH \`input\` AS (SELECT * FROM rows(?)) SELECT \`loose\`.\`id\` FROM \`loose\` INNER JOIN \`input\` ON \`loose\`.\`name\` = \`input\`.\`name\`"`);
   })
+
+  it("will render literals, CTEs and tables through a dialect", () => {
+    class Dialect extends Generator {
+      protected jsonTable(table: DataTable){
+        return `SELECT * FROM rows(${this.param(table)})`;
+      }
+
+      protected literal(value: unknown){
+        return `L(${super.literal(value)})`;
+      }
+
+      protected insertWith(cte: string | undefined, into: unknown[], select: unknown[]){
+        return [into, cte, select];
+      }
+
+      protected table(table: Builder.ITable){
+        return `T(${super.table(table)})`;
+      }
+    }
+
+    class Loose extends Type {
+      name = str();
+    }
+
+    let insert!: Builder;
+    let update!: Builder;
+
+    Query(function(where){
+      insert = this;
+      where(Loose, { name: "a" }, { name: "b" });
+    });
+
+    Query(function(where){
+      update = this;
+
+      const loose = where(Loose);
+
+      where(loose.name).equal("x");
+      where(loose).update({ name: "y" });
+    });
+
+    expect(String(new Dialect(insert))).toMatchInlineSnapshot(`"INSERT INTO \`loose\` (\`name\`) WITH \`input\` AS (SELECT * FROM rows(?)) SELECT \`input\`.\`name\` FROM T(\`input\`)"`);
+    expect(String(new Dialect(update))).toMatchInlineSnapshot(`"UPDATE T(\`loose\`) SET \`name\` = L('y') WHERE \`loose\`.\`name\` = L('x')"`);
+  })
 })
