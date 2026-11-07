@@ -15,10 +15,17 @@ type TableInfo = {
 export class SQLiteConnection extends Connection {
   protected filename: string;
   protected engine?: Promise<Engine>;
+  protected owned = true;
 
-  constructor(using: Connection.Types, filename?: string) {
+  constructor(using: Connection.Types, source?: string | Engine) {
     super(using);
-    this.filename = filename || ':memory:';
+
+    if (typeof source == "object") {
+      this.engine = Promise.resolve(source);
+      this.owned = false;
+    }
+
+    this.filename = typeof source == "string" && source || ':memory:';
   }
 
   protected db(){
@@ -83,7 +90,7 @@ export class SQLiteConnection extends Connection {
   }
 
   async close(){
-    if (this.engine)
+    if (this.engine && this.owned)
       await (await this.engine).close();
 
     await super.close();
