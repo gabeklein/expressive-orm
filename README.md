@@ -136,6 +136,8 @@ const lite = await PGLiteConnection.new([Account], "./data");
 
 `PGConnection` takes a connection string, a `pg` `PoolConfig` or a `Pool`. `PGLiteConnection` takes a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`. `close()` leaves a passed `Pool` or `PGlite` open.
 
+`SQLiteConnection` takes a filename, or an `Engine` in its place for a SQLite the built-in loader can't open: any object with `all(sql, params)`, `get(sql, params)`, `run(sql, params)` returning `{ changes }`, `exec(sql)` and `close()`, each async. A given engine is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
+
 Without SQL, `memory()` keeps rows in arrays - for tests and prototypes:
 
 ```ts
@@ -469,6 +471,17 @@ A composite `id` reaches the driver as its tuple, in the order `key` lists the p
 Optional capabilities: `prepare(builder)` runs a `Query` - without it `Query` and `Type.query` throw; `subscribe(listener)` reports changes for live rows; `sync(fix?)` checks or creates the schema, and runs when the connection is awaited; `transaction(fn)` runs `fn` in one transaction. `@expressive/sql`'s `Connection` implements `transaction` over a protected `transact(fn)` - `BEGIN`, `fn`, `COMMIT` or `ROLLBACK` - and a driver calls `idle()` before each statement so it waits out another's transaction; a pooled driver overrides `lock()` and `idle()` to run transactions side by side.
 
 To write a driver, extend `Connection` from `@expressive/orm` and implement the floor - entities, relations, writes and the identity map work on that alone. For a SQL database extend `Connection` from `@expressive/sql`: it implements the floor over `Query`, leaving `prepare` (with a `Generator` subclass for the dialect) and `sync`.
+
+A driver without a query language can run `Query` in JS, the way `memory()` does: `evaluate(store, builder, params)` returns `{ rows, count }`, so `prepare` is `all` resolving `rows` and `run` resolving `count`. The store reads and writes one table at a time:
+
+| Method | Does |
+|---|---|
+| `rows(table, where)` | the table's rows; `where` holds the `[column, op, value]` tuples the query puts on that table alone, for a store that can filter - returning more is fine |
+| `insert(table, row)` | adds a row, returning it as stored, key included |
+| `update(table, row, assign)` | writes `assign` to one row, once per row |
+| `delete(table, rows)` | removes rows |
+
+`table` is the query's table, with `name` and the class as `type`. The rows `rows` and `insert` return are the ones handed back to `update` and `delete`, so a store can find its record by identity. Joins, filters, ordering and computed values run over them.
 
 ```ts
 import { Connection, Type, memory, str } from '@expressive/orm';

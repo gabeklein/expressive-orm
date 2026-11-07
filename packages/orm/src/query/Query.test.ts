@@ -1606,7 +1606,7 @@ describe("template", () => {
         a: \`upper(foo.first)\`
         b: \`lower(foo.first)\`"
     `);
-    await expect(query).rejects.toThrow("Query templates are not supported by the memory driver.");
+    await expect(query).rejects.toThrow("Query templates are not supported by this connection.");
   })
 })
 
