@@ -148,7 +148,7 @@ describe("floor", () => {
     other.rows = [];
 
     await expect(other.select("other.bar", [])).resolves.toEqual([]);
-    expect(other.log[0][0]).toBe("SELECT `T0`.`id` AS \"id\" FROM `other`.`bar` T0");
+    expect(other.log[0][0]).toBe("SELECT `T0`.`id` AS \"id\" FROM `other`.`bar` `T0`");
   })
 })
 
