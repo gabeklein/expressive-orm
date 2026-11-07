@@ -1,9 +1,21 @@
-export interface Engine {
-  all(sql: string, params?: any[]): Promise<any[]>;
-  get(sql: string, params?: any[]): Promise<any>;
-  run(sql: string, params?: any[]): Promise<{ changes: number }>;
-  exec(sql: string): Promise<void>;
+export interface Engine extends Engine.Statements {
   close(): Promise<void>;
+  transaction?(): Promise<Engine.Session>;
+  batch?(sql: string[]): Promise<void>;
+}
+
+export declare namespace Engine {
+  interface Statements {
+    all(sql: string, params?: any[]): Promise<any[]>;
+    get(sql: string, params?: any[]): Promise<any>;
+    run(sql: string, params?: any[]): Promise<{ changes: number }>;
+    exec(sql: string): Promise<void>;
+  }
+
+  interface Session extends Statements {
+    commit(): Promise<void>;
+    rollback(): Promise<void>;
+  }
 }
 
 const DRIVERS = [bunSqlite, nodeSqlite, betterSqlite3, sqlite3, libsql];
