@@ -19,11 +19,12 @@ export class Generator {
 
   toString() {
     const parts = [
-      this.with(),
-      this.insert() ||
-      this.update() ||
-      this.delete() ||
-      this.select(),
+      this.insert() || [
+        this.with(),
+        this.update() ||
+        this.delete() ||
+        this.select()
+      ],
       this.where(),
       this.order(),
       this.limit(),
@@ -57,15 +58,19 @@ export class Generator {
     if (!keys.length && tables.size > 1)
       throw new Error(`Insert into ${table.name} for each joined row needs at least one value.`);
 
-    if (!keys.length)
-      return ['INSERT INTO', this.escape(table.name), 'DEFAULT VALUES'];
+    const into = ['INSERT INTO', this.escape(table.name)];
 
-    return [
-      'INSERT INTO',
-      this.escape(table.name),
-      `(${keys}) SELECT ${values}`,
+    if (!keys.length)
+      return [this.with(), into, 'DEFAULT VALUES'];
+
+    return this.insertWith(this.with(), [into, `(${keys})`], [
+      `SELECT ${values}`,
       tables.size > 1 && this.from()
-    ];
+    ]);
+  }
+
+  protected insertWith(cte: string | undefined, into: unknown[], select: unknown[]): unknown[] {
+    return [cte, into, select];
   }
 
   protected upsert(){
@@ -122,7 +127,15 @@ export class Generator {
     if(isValue(input))
       return this.reference(input);
 
-    return String(escape(input));
+    return this.literal(input);
+  }
+
+  protected literal(value: unknown){
+    return String(escape(value));
+  }
+
+  protected table({ name, alias }: Builder.ITable){
+    return this.escape(name) + (alias ? ` ${this.escape(alias)}` : "");
   }
 
   protected now(_field?: Field){
@@ -157,16 +170,15 @@ export class Generator {
       if(table === main)
         continue;
 
-      const { alias, name, optional } = table;
+      const { name, optional } = table;
 
       if(table.joins.length === 0)
         throw new Error(`Table ${name} has no joins.`);
 
       const mode = optional ? "LEFT" : "INNER";
-      const as = this.escape(name) + (alias ? ` ${this.escape(alias)}` : "");
       const conds = table.joins.map(x => this.filter(x.left, x.op, x.right));
 
-      output.push(`${mode} JOIN ${as} ON ${conds.join(' AND ')}`);
+      output.push(`${mode} JOIN ${this.table(table)} ON ${conds.join(' AND ')}`);
     }
 
     if(output.length)
@@ -182,7 +194,7 @@ export class Generator {
           value === now ? this.now(field) :
           isValue(value) ? this.reference(value) :
           value === null ? 'NULL' :
-          escape(value)
+          this.literal(value)
         }`);
 
     if(!sets.length)
@@ -204,7 +216,7 @@ export class Generator {
 
     return [
       'UPDATE',
-      this.escape(main),
+      this.table(main),
       this.joins(main),
       this.set(updates)
     ]
@@ -220,7 +232,7 @@ export class Generator {
     const { alias, name } = main;
     const target = query.tables.size > 1 && (alias || name);
 
-    return ['DELETE', target, 'FROM', this.escape(name), this.joins(main)]
+    return ['DELETE', target, 'FROM', this.table(main), this.joins(main)]
   }
 
   protected reference(from: unknown): string {
@@ -264,7 +276,7 @@ export class Generator {
     const [ main ] = this.query.tables.values();
 
     if(main)
-      return ["FROM", this.escape(main.name), main.alias]
+      return ["FROM", this.table(main)]
   }
 
   protected param(_from: Parameter){
@@ -275,7 +287,7 @@ export class Generator {
     const raw = (value: unknown) => (
       value === now ? this.now(left) :
       isValue(value) ? this.reference(value) :
-      escape(op.includes("LIKE") ? value : left.set(value))
+      this.literal(op.includes("LIKE") ? value : left.set(value))
     );
 
     if (right === null){
