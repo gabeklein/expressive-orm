@@ -41,8 +41,14 @@ class Memory extends Connection {
   }
 
   _notify(table: string, op: Connection.Change["op"], id: Connection.Key, row?: Row) {
-    for (const listener of this._listeners)
-      listener(row ? { table, op, id, row: { ...row } } : { table, op, id });
+    const change: Connection.Change = row ? { table, op, id, row: { ...row } } : { table, op, id };
+    const emit = () => this._listeners.forEach(listener => listener(change));
+    const journal = this._journal();
+
+    if (journal)
+      journal.done.push(emit);
+    else
+      emit();
   }
 
   _add(name: string, data: Row, primary = this._key(name)) {
@@ -60,6 +66,8 @@ class Memory extends Connection {
   }
 
   async select(name: string, constraints: Type.Constraint[], limit?: number, offset = 0) {
+    await this.idle();
+
     const order: [(row: Row) => unknown, number][] = [];
     let rows = this._table(name).rows;
 
@@ -82,6 +90,8 @@ class Memory extends Connection {
   }
 
   async insert(name: string, data: Row, returns?: boolean, conflict?: Connection.Conflict) {
+    await this.idle();
+
     const existing = conflict && this._table(name).rows.find(row => (
       conflict.on.every(column => row[column] === data[column])
     ));
@@ -107,6 +117,8 @@ class Memory extends Connection {
   }
 
   async update(name: string, id: Connection.Key, data: Row) {
+    await this.idle();
+
     const test = matches(this._key(name), id);
 
     for (const row of this._table(name).rows)
@@ -117,6 +129,8 @@ class Memory extends Connection {
   }
 
   async remove(name: string, id: Connection.Key) {
+    await this.idle();
+
     const test = matches(this._key(name), id);
     const into = this._table(name);
 
@@ -149,11 +163,30 @@ class Memory extends Connection {
   };
 
   prepare(query: Builder): Builder.Statement {
+    const run = async (params?: unknown[]) => {
+      await this.idle();
+      return evaluate(this._store, query, params!);
+    };
+
     return {
-      all: async (params) => (await evaluate(this._store, query, params!)).rows!,
-      run: async (params) => (await evaluate(this._store, query, params!)).count,
+      all: async (params) => (await run(params)).rows!,
+      run: async (params) => (await run(params)).count,
       toString: () => String(query)
     };
+  }
+
+  protected async transact<T>(fn: () => Promise<T>): Promise<T> {
+    const saved = new Map(Array.from(this._tables, ([name, { rows, next }]) => (
+      [name, { rows: rows.map(row => ({ ...row })), next }]
+    )));
+
+    try {
+      return await fn();
+    }
+    catch (error) {
+      this._tables = saved;
+      throw error;
+    }
   }
 }
 
