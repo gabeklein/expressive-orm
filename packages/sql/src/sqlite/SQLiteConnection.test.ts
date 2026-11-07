@@ -2111,12 +2111,17 @@ describe("engine", () => {
 
     const engine = await createEngine(":memory:");
     const all = vi.spyOn(engine, "all");
+    const close = vi.spyOn(engine, "close");
     const conn = await SQLiteConnection.new([Foo], engine);
 
     await Foo.insert({ name: "bar" });
 
     await expect(Foo.find({})).resolves.toMatchObject([{ name: "bar" }]);
     expect(all).toHaveBeenCalled();
+
     await conn.close();
+
+    expect(close).not.toHaveBeenCalled();
+    await engine.close();
   })
 })
