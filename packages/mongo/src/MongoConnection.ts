@@ -1,5 +1,5 @@
 import { Builder, Connection, evaluate, Field, Parameter, Query, Type } from '@expressive/orm';
-import { ChangeStream, ChangeStreamDocument, ClientSession, Db, MongoClient } from 'mongodb';
+import { ChangeStream, ChangeStreamDocument, ClientSession, Db, Document, MongoClient } from 'mongodb';
 
 import { Bind, compile, Plan } from './compile';
 import { constrain, identify, locate, path, toDoc, toRow } from './filter';
@@ -7,6 +7,7 @@ import { constrain, identify, locate, path, toDoc, toRow } from './filter';
 type Row = Record<string, any>;
 
 const COUNTERS = "__counters";
+const NUMERIC: Document = { _id: { $type: "number" } };
 
 class MongoConnection extends Connection {
   client: MongoClient;
@@ -14,6 +15,7 @@ class MongoConnection extends Connection {
 
   _owned: boolean;
   _streams = new Set<ChangeStream>();
+  _seeded = new Map<string, Promise<unknown>>();
 
   constructor(using: Connection.Types, client: MongoClient | string, name?: string) {
     super(using);
@@ -41,8 +43,26 @@ class MongoConnection extends Connection {
     return new Field("id");
   }
 
+  _counters() {
+    return this.db.collection<{ _id: string; seq: number }>(COUNTERS);
+  }
+
+  _seed(name: string) {
+    let seeded = this._seeded.get(name);
+
+    if (!seeded)
+      this._seeded.set(name, seeded = this._collection(name)
+        .find(NUMERIC, { projection: { _id: 1 }, sort: { _id: -1 }, limit: 1 })
+        .toArray()
+        .then(([last]) => this._bump(name, last?._id)));
+
+    return seeded;
+  }
+
   async _next(name: string) {
-    const counter = await this.db.collection<{ _id: string; seq: number }>(COUNTERS).findOneAndUpdate(
+    await this._seed(name);
+
+    const counter = await this._counters().findOneAndUpdate(
       { _id: name },
       { $inc: { seq: 1 } },
       { upsert: true, returnDocument: "after" }
@@ -53,7 +73,7 @@ class MongoConnection extends Connection {
 
   async _bump(name: string, id: unknown) {
     if (typeof id == "number")
-      await this.db.collection<{ _id: string; seq: number }>(COUNTERS).updateOne(
+      await this._counters().updateOne(
         { _id: name },
         { $max: { seq: id } },
         { upsert: true }
@@ -93,7 +113,7 @@ class MongoConnection extends Connection {
   async insert(name: string, data: Row, returns?: boolean, conflict?: Connection.Conflict): Promise<any> {
     const key = this._key(name);
 
-    if (!conflict) {
+    if (!conflict || conflict.on.some(column => data[column] === undefined)) {
       const row = await this._add(name, data, key);
 
       return returns ? row : undefined;
@@ -101,27 +121,31 @@ class MongoConnection extends Connection {
 
     const collection = this._collection(name);
     const options = this._options();
+    const filter = Object.fromEntries(conflict.on.map(column => [path(key, column), data[column]]));
 
-    if (conflict.update) {
+    const update = async () => {
       const assign: Row = { ...conflict.set };
 
-      for (const column of conflict.update)
+      for (const column of conflict.update!)
         assign[column] = data[column] ?? null;
 
       if (!key.parts)
         delete assign[key.column];
 
-      const filter = Object.fromEntries(conflict.on.map(column => [path(key, column), data[column]]));
-      const updated = conflict.on.every(column => data[column] !== undefined)
-        && await collection.findOneAndUpdate(filter, { $set: assign }, { ...options, returnDocument: "after" });
+      const updated = await collection.findOneAndUpdate(filter, { $set: assign }, { ...options, returnDocument: "after" });
 
-      if (updated)
-        return returns ? toRow(key, updated) : undefined;
+      return updated && (returns ? toRow(key, updated) : undefined);
+    };
+
+    if (conflict.update) {
+      const updated = await update();
+
+      if (updated !== null)
+        return updated;
     }
 
     const row = await this._identify(name, data, key);
     const doc = toDoc(key, row);
-    const filter = Object.fromEntries(conflict.on.map(column => [path(key, column), row[column]]));
 
     for (const field in filter)
       delete doc[field];
@@ -133,7 +157,7 @@ class MongoConnection extends Connection {
     );
 
     if (result.lastErrorObject?.updatedExisting)
-      return conflict.update ? this.insert(name, data, returns, conflict) : undefined;
+      return conflict.update ? update() : undefined;
 
     return returns ? row : undefined;
   }
@@ -294,6 +318,7 @@ class MongoConnection extends Connection {
     const ids = new WeakMap<Row, unknown>();
     const options = this._options();
     const key = (table: evaluate.Table) => table.type.fields.get("id")!;
+    const id = (primary: Field, row: Row) => primary.parts ? ids.get(row) : row[primary.column];
 
     return {
       rows: async (table, where) => {
@@ -312,14 +337,16 @@ class MongoConnection extends Connection {
         const primary = key(table);
 
         if (primary.parts)
-          await this._collection(table.name).updateOne({ _id: ids.get(row) as any }, { $set: assign }, options);
+          await this._collection(table.name).updateOne({ _id: id(primary, row) as any }, { $set: assign }, options);
         else
-          await this.update(table.name, row[primary.column], assign);
+          await this.update(table.name, id(primary, row), assign);
 
         Object.assign(row, assign);
       },
       delete: async (table, rows) => {
-        await this._collection(table.name).deleteMany({ _id: { $in: rows.map(row => ids.get(row) as any) } }, options);
+        const primary = key(table);
+
+        await this._collection(table.name).deleteMany({ _id: { $in: rows.map(row => id(primary, row) as any) } }, options);
       }
     };
   }

@@ -32,6 +32,9 @@ function operator(op: string, value: unknown): Document {
   if (op == "IS NOT NULL" || value == null && (op == "<>" || op == "!="))
     return { $ne: null };
 
+  if (value == null && COMPARE[op])
+    return { $in: [] };
+
   const compare = COMPARE[op];
 
   if (!compare)

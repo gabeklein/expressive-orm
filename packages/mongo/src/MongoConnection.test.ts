@@ -57,6 +57,14 @@ describe("insert", () => {
     await expect(db.insert("user", {}, true)).resolves.toEqual({ id: 6 });
   })
 
+  it("will continue after existing ids", async () => {
+    const db = connect();
+
+    await db.db.collection("user").insertMany([{ _id: 3 as any }, { _id: "x" as any }]);
+
+    await expect(db.insert("user", {}, true)).resolves.toEqual({ id: 4 });
+  })
+
   it("will ignore a conflict", async () => {
     const db = connect();
 
@@ -77,6 +85,31 @@ describe("insert", () => {
 
     await expect(db.insert("user", { name: "B", age: 3 }, true, { on: ["name"], update: ["age"], set: { seen: true } }))
       .resolves.toEqual({ id: 2, name: "B", age: 3 });
+  })
+
+  it("will insert when a conflict column is missing", async () => {
+    const db = connect();
+
+    await db.insert("user", { age: 1 });
+
+    await expect(db.insert("user", { age: 2 }, true, { on: ["name"], update: ["age"] })).resolves.toEqual({ id: 2, age: 2 });
+    await expect(db.insert("user", { age: 3 }, false, { on: ["name"] })).resolves.toBeUndefined();
+    await expect(db.select("user", [])).resolves.toEqual([{ id: 1, age: 1 }, { id: 2, age: 2 }, { id: 3, age: 3 }]);
+  })
+
+  it("will update when an upsert loses a race", async () => {
+    const db = connect();
+    const collection = db.db.collection("user");
+    const findOneAndUpdate = collection.findOneAndUpdate.bind(collection);
+
+    vi.spyOn(db, "_collection").mockReturnValue(collection);
+    vi.spyOn(collection, "findOneAndUpdate").mockImplementationOnce(async (...args: any[]) => {
+      await db.db.collection("user").insertOne({ _id: 9 as any, name: "A", age: 1 });
+      return (findOneAndUpdate as any)(...args);
+    });
+
+    await expect(db.insert("user", { name: "A", age: 2 }, true, { on: ["name"], update: ["age"] }))
+      .resolves.toEqual({ id: 9, name: "A", age: 2 });
   })
 })
 
@@ -111,6 +144,11 @@ describe("select", () => {
   it("will match LIKE", async () => {
     await expect(ids(["name", "LIKE", "A%"])).resolves.toEqual([2]);
     await expect(ids(["name", "LIKE", "_ob"])).resolves.toEqual([3]);
+  })
+
+  it("will not match a comparison with null", async () => {
+    await expect(ids(["name", "LIKE", null])).resolves.toEqual([]);
+    await expect(ids(["age", ">=", null])).resolves.toEqual([]);
   })
 
   it("will sort, limit and offset", async () => {
@@ -408,6 +446,36 @@ describe("query", () => {
     expect(String(query)).toMatch(/^evaluate\n/);
     await expect(query).resolves.toEqual([10, 1]);
   })
+
+  it("will order nulls first like evaluate", async () => {
+    await ready;
+
+    for (const dir of ["asc", "desc"] as const) {
+      const pushed = Query(where => {
+        const post = where(Post);
+
+        where(post.editor.name)[dir]();
+        where(post.views)[dir]();
+
+        return post.id;
+      });
+
+      const evaluated = Query((where, fn) => {
+        const post = where(Post);
+
+        where(post.editor.name)[dir]();
+        where(post.views)[dir]();
+
+        return fn.add(post.id, 0);
+      });
+
+      const expected = dir == "asc" ? [3, 1, 2] : [2, 1, 3];
+
+      expect(String(evaluated)).toMatch(/^evaluate\n/);
+      await expect(pushed).resolves.toEqual(expected);
+      await expect(evaluated).resolves.toEqual(expected);
+    }
+  })
 })
 
 describe("query writes", () => {
@@ -475,6 +543,22 @@ describe("query writes", () => {
 
     expect(String(remove)).toMatch(/^evaluate\n/);
     await expect(remove).resolves.toBe(1);
+  })
+
+  it("will delete a row after changing its id", async () => {
+    const [{ id }] = await seed(Item, { name: "f", count: 1 });
+
+    const query = Query(where => {
+      const item = where(Item);
+
+      where(item.id).equal(id);
+      where(item).update({ id: 100 } as any);
+      where(item).delete();
+    });
+
+    expect(String(query)).toMatch(/^evaluate\n/);
+    await expect(query).resolves.toBe(1);
+    await expect(Item.connection.select("item", [["id", "IN", [id, 100]]])).resolves.toEqual([]);
   })
 })
 
