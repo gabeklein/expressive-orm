@@ -4,10 +4,26 @@ import type { Builder } from './query/Builder';
 import { evaluate, match, NULL, sort } from './query/evaluate';
 import type { Query } from './query/Query';
 import type { Type } from './Type';
+import { browser, disk } from './persist';
 
 type Row = evaluate.Row;
 
-type Table = { rows: Row[], next: number };
+type Table = memory.Table;
+
+declare namespace memory {
+  type Table = { rows: Row[], next: number };
+
+  type Snapshot = Record<string, Table>;
+
+  interface Adapter {
+    load(): Snapshot | undefined | Promise<Snapshot | undefined>;
+    save(changes: Snapshot): void | Promise<void>;
+  }
+
+  type Options = {
+    persist?: Adapter;
+  };
+}
 
 function key(type: Query.Table) {
   return type.fields.get("id")!;
@@ -22,6 +38,10 @@ function matches(primary: Field, id: unknown) {
 class Memory extends Connection {
   _tables = new Map<string, Table>();
   _listeners = new Set<(change: Connection.Change) => void>();
+  _persist?: memory.Adapter;
+  _ready?: Promise<void>;
+  _saving?: Promise<void>;
+  _dirty = new Set<string>();
 
   _table(name: string) {
     let table = this._tables.get(name);
@@ -40,9 +60,83 @@ class Memory extends Connection {
     return new Field("id");
   }
 
+  async _load(adapter: memory.Adapter) {
+    const snapshot = await adapter.load();
+
+    for (const name in snapshot)
+      this._tables.set(name, snapshot[name]);
+
+    this._persist = adapter;
+  }
+
+  _flush() {
+    return this._saving ||= this._write();
+  }
+
+  async _write() {
+    try {
+      while (this._dirty.size) {
+        await new Promise(resolve => setTimeout(resolve));
+
+        const release = await this.lock();
+        const changes: memory.Snapshot = {};
+
+        for (const name of this._dirty) {
+          const { rows, next } = this._table(name);
+          changes[name] = { rows: rows.map(row => ({ ...row })), next };
+        }
+
+        this._dirty.clear();
+        release();
+
+        try {
+          await this._persist!.save(changes);
+        }
+        catch (error) {
+          for (const name in changes)
+            this._dirty.add(name);
+
+          throw error;
+        }
+      }
+    }
+    finally {
+      this._saving = undefined;
+    }
+  }
+
+  async close() {
+    if (this._persist && this._journal())
+      throw new Error("Cannot close a connection inside its own transaction.");
+
+    try {
+      await this._ready?.catch(() => {});
+
+      if (this._persist) {
+        (await this.lock())();
+        await this._flush();
+      }
+    }
+    finally {
+      await super.close();
+    }
+  }
+
+  protected async idle() {
+    await this._ready;
+    await super.idle();
+  }
+
   _notify(table: string, op: Connection.Change["op"], id: Connection.Key, row?: Row) {
     const change: Connection.Change = row ? { table, op, id, row: { ...row } } : { table, op, id };
-    const emit = () => this._listeners.forEach(listener => listener(change));
+    const emit = () => {
+      if (this._persist) {
+        this._dirty.add(table);
+        this._flush().catch(() => {});
+      }
+
+      this._listeners.forEach(listener => listener(change));
+    };
     const journal = this._journal();
 
     if (journal)
@@ -176,6 +270,8 @@ class Memory extends Connection {
   }
 
   protected async transact<T>(fn: () => Promise<T>): Promise<T> {
+    await this._ready;
+
     const saved = new Map(Array.from(this._tables, ([name, { rows, next }]) => (
       [name, { rows: rows.map(row => ({ ...row })), next }]
     )));
@@ -202,8 +298,18 @@ class Memory extends Connection {
  *   name = str();
  * }
  */
-function memory(): Connection {
-  return Memory.new();
+function memory(options: memory.Options = {}): Connection {
+  const db = Memory.new();
+
+  if (options.persist) {
+    db._ready = db._load(options.persist);
+    db._ready.catch(() => {});
+  }
+
+  return db;
 }
+
+memory.indexedDB = browser;
+memory.file = disk;
 
 export { memory };
