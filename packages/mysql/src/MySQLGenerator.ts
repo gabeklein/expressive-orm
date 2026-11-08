@@ -1,4 +1,4 @@
-import { Builder, Computed, DataField, DataTable, Field, now as NOW, Parameter, QueryTemplate } from '@expressive/orm';
+import { Builder, DataTable, Field, Parameter } from '@expressive/orm';
 import { Generator } from '@expressive/sql';
 
 export function now(field?: Field){
@@ -25,16 +25,6 @@ export function escape(value: unknown){
     : value;
 }
 
-function isValue(input: unknown){
-  return (
-    input instanceof Field ||
-    input instanceof Parameter ||
-    input instanceof DataField ||
-    input instanceof QueryTemplate ||
-    input instanceof Computed
-  );
-}
-
 export class MySQLGenerator extends Generator {
   placed: Parameter[] = [];
 
@@ -42,11 +32,8 @@ export class MySQLGenerator extends Generator {
     return now(field);
   }
 
-  protected value(input: unknown, field?: Field){
-    if (input !== NOW && !isValue(input))
-      return String(escape(input));
-
-    return super.value(input, field);
+  protected literal(value: unknown){
+    return String(escape(value));
   }
 
   protected param(from: Parameter){
@@ -67,19 +54,16 @@ export class MySQLGenerator extends Generator {
     return `SELECT * FROM JSON_TABLE(${param}, '$[*]' COLUMNS (${columns.join(', ')})) AS \`rows\``;
   }
 
-  protected with(){
-    if (!this.query.inserts.size)
-      return super.with();
-  }
-
   protected insert(){
     const { inserts, tables } = this.query;
 
     if (!inserts.size)
       return false;
 
+    if (tables.size > 1)
+      return super.insert();
+
     const [[table, data]] = inserts;
-    const cte = tables.size > 1 && super.with();
     const keys: string[] = [];
     const values: string[] = [];
 
@@ -88,18 +72,19 @@ export class MySQLGenerator extends Generator {
       values.push(this.value(value, field));
     }
 
-    const into = [
-      this.query.conflict && !this.query.conflict.update ? 'INSERT IGNORE INTO' : 'INSERT INTO',
-      this.escape(table.name)
-    ];
+    return [this.into(table), `(${keys.join(', ')}) VALUES (${values.join(', ')})`];
+  }
 
-    if (tables.size <= 1)
-      return [...into, `(${keys.join(', ')}) VALUES (${values.join(', ')})`];
+  protected insertWith(cte: string | undefined, [, keys]: unknown[], select: unknown[]){
+    const [[table]] = this.query.inserts;
 
-    if (!keys.length)
-      throw new Error(`Insert into ${table.name} for each joined row needs at least one value.`);
+    return [this.into(table), keys, cte, select];
+  }
 
-    return [...into, `(${keys.join(', ')})`, cte, `SELECT ${values.join(', ')}`, this.from()];
+  private into(table: Builder.ITable){
+    const { conflict } = this.query;
+
+    return [conflict && !conflict.update ? 'INSERT IGNORE INTO' : 'INSERT INTO', this.escape(table.name)];
   }
 
   protected upsert(){
@@ -177,46 +162,6 @@ export class MySQLGenerator extends Generator {
     const targets = Array.from(query.deletes, ({ alias, name }) => this.escape(alias || name));
 
     return ['DELETE', targets.join(', '), 'FROM', this.table(first), this.joins(first)];
-  }
-
-  protected from(){
-    const [main] = this.query.tables.values();
-
-    if (main)
-      return ['FROM', this.table(main)];
-  }
-
-  protected filter(left: Field, op: string, right: unknown){
-    const raw = (value: unknown) => (
-      value === NOW ? this.now(left) :
-      isValue(value) ? this.reference(value) :
-      escape(op.includes("LIKE") ? value : left.set(value))
-    );
-
-    if (right === null){
-      if (op == '=')
-        op = 'IS';
-      else if (op == '<>' || op == '!=')
-        op = 'IS NOT';
-      else
-        throw new Error('Cannot compare NULL with ' + op);
-
-      right = 'NULL';
-    }
-    else if (right instanceof Array){
-      if (!right.length)
-        return op == 'NOT IN' ? '1 = 1' : '1 = 0';
-
-      right = `(${right.map(raw).join(', ')})`;
-    }
-    else
-      right = raw(right);
-
-    return `${this.reference(left)} ${op} ${right}`;
-  }
-
-  protected table({ name, alias }: Builder.ITable){
-    return this.escape(name) + (alias ? ` ${this.escape(alias)}` : "");
   }
 
   reselect(){
