@@ -1,21 +1,12 @@
-import { AsyncLocalStorage } from 'node:async_hooks';
-
 import { Builder, Connection, evaluate, Field, Parameter, Query, Type } from '@expressive/orm';
 import { ChangeStream, ChangeStreamDocument, ClientSession, Db, MongoClient } from 'mongodb';
 
-import { Bind, compile, Plan, prefilter } from './compile';
+import { Bind, compile, Plan } from './compile';
 import { constrain, identify, locate, path, toDoc, toRow } from './filter';
-
-declare namespace MongoConnection {
-  type Transaction = Connection.Journal & {
-    session: ClientSession;
-  };
-}
 
 type Row = Record<string, any>;
 
 const COUNTERS = "__counters";
-const context = new AsyncLocalStorage<Map<MongoConnection, MongoConnection.Transaction>>();
 
 class MongoConnection extends Connection {
   client: MongoClient;
@@ -32,12 +23,8 @@ class MongoConnection extends Connection {
     this.db = this.client.db(name);
   }
 
-  _journal() {
-    return context.getStore()?.get(this);
-  }
-
   _options() {
-    const session = this._journal()?.session;
+    const session = this._journal()?.session as ClientSession | undefined;
 
     return session ? { session } : {};
   }
@@ -178,22 +165,17 @@ class MongoConnection extends Connection {
     await this._collection(name).deleteMany(locate(this._key(name), id), this._options());
   }
 
-  async transaction<T>(fn: () => T | Promise<T>): Promise<T> {
-    const outer = context.getStore();
-
-    if (outer?.has(this))
-      return fn();
-
+  protected async transact<T>(fn: () => Promise<T>): Promise<T> {
     const session = this.client.startSession();
-    const journal: MongoConnection.Transaction = { undo: [], done: [], session };
+
+    this._journal()!.session = session;
 
     try {
       session.startTransaction();
 
-      const result = await context.run(new Map(outer).set(this, journal), async () => fn());
+      const result = await fn();
 
       await session.commitTransaction();
-      journal.done.forEach(apply => apply());
 
       return result;
     }
@@ -201,7 +183,6 @@ class MongoConnection extends Connection {
       if (session.inTransaction())
         await session.abortTransaction();
 
-      journal.undo.reverse().forEach(apply => apply());
       throw error;
     }
     finally {
@@ -309,15 +290,15 @@ class MongoConnection extends Connection {
     await super.close();
   }
 
-  _store(builder: Builder, bind: Bind): evaluate.Store {
+  _store(): evaluate.Store {
     const ids = new WeakMap<Row, unknown>();
     const options = this._options();
-    const key = (table: Builder.ITable) => table.type!.fields.get("id")!;
+    const key = (table: evaluate.Table) => table.type.fields.get("id")!;
 
     return {
-      rows: async table => {
+      rows: async (table, where) => {
         const primary = key(table);
-        const docs = await this._collection(table.name).find(prefilter(builder, table)(bind), options).toArray();
+        const docs = await this._collection(table.name).find(constrain(primary, where).filter, options).toArray();
 
         return docs.map(doc => {
           const row = toRow(primary, doc);
@@ -349,8 +330,8 @@ class MongoConnection extends Connection {
 
     if (!plan)
       return {
-        all: async params => (await evaluate(this._store(builder, bind(params)), builder, params!)).rows!,
-        run: async params => (await evaluate(this._store(builder, bind(params)), builder, params!)).count,
+        all: async params => (await evaluate(this._store(), builder, params!)).rows!,
+        run: async params => (await evaluate(this._store(), builder, params!)).count,
         toString: () => `evaluate\n${builder}`
       };
 

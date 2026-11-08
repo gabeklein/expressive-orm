@@ -249,20 +249,5 @@ function plan(builder: Builder): Plan {
   };
 }
 
-function prefilter(builder: Builder, table: Builder.ITable): (bind: Bind) => Document {
-  const parts: ((bind: Bind) => Document)[] = [];
-
-  if (!table.optional && table.type)
-    for (const child of builder.filters.children as Set<Cond | Group>)
-      if (!("children" in child) && child.left.table === table) {
-        const part = attempt(() => condition(child, field => path(key(table), field.column)));
-
-        if (part)
-          parts.push(part);
-      }
-
-  return bind => parts.length ? { $and: parts.map(part => part(bind)) } : {};
-}
-
-export { compile, prefilter };
+export { compile };
 export type { Bind, Plan };
