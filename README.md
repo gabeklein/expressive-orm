@@ -202,6 +202,25 @@ class Note extends Type {
 }
 ```
 
+### Persisted memory
+
+`memory({ persist })` keeps the same arrays and query engine, and saves them through an adapter - for casual and local-first apps:
+
+```ts
+import { Type, memory, str } from '@expressive/sql';
+
+class Note extends Type {
+  static connection = memory({ persist: memory.indexedDB("notes") });
+  text = str();
+}
+```
+
+`memory.indexedDB(name)` stores each table as one record in the browser's IndexedDB database `name`. `memory.file(path)` stores every table in one JSON file on Node or Bun, writing a `path.tmp` beside it and renaming it over, so a crash never leaves a half-written file; the directory must exist. The connection loads on creation and every statement waits for it. Writes mark their table; changed tables save together once per tick, one save at a time, ids continuing where they left off. A transaction saves once it commits, and a rollback saves nothing. `close()` waits for an open transaction and the last save, and throws if that save failed; a failed save otherwise retries on the next write. If loading fails, every statement rejects with its error, and `close()` still closes.
+
+An adapter is `{ load, save }`: `load()` returns `{ [table]: { rows, next } }` or nothing, `save(changes)` receives the changed tables as copies.
+
+Each connection holds its own copy. Two tabs or processes on the same store don't see each other's writes, and the last to save a table wins it - inserts from both can share an id. Open one connection per store.
+
 ### Command line
 
 ```sh
