@@ -131,7 +131,7 @@ export class SQLiteConnection extends Connection {
       const found = await this.inspect(type, true);
 
       if (!found) {
-        steps.push({ table, action: `create table ${table}`, reason: `Table ${table} does not exist.`, sql: [this.generateTableSchema(type)] });
+        steps.push({ table, action: `create table ${table}`, reason: `Table ${table} does not exist.`, sql: [this.tableSchema(type), ...indexed(type).map(index)] });
         continue;
       }
 

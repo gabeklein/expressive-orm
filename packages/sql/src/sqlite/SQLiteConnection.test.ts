@@ -2212,13 +2212,16 @@ describe("engine", () => {
 
   it("will sync through a batch", async () => {
     class Foo extends Type {
-      name = str();
+      name = str({ index: true });
     }
 
     const engine = await hosted();
     const conn = await SQLiteConnection.new([Foo], engine);
 
-    expect(engine.batch).toHaveBeenCalledWith([expect.stringMatching(/^CREATE TABLE foo/)]);
+    expect(engine.batch).toHaveBeenCalledWith([
+      expect.stringMatching(/^CREATE TABLE foo \(.*\);$/),
+      "CREATE INDEX IF NOT EXISTS `foo_name` ON foo (`name`);"
+    ]);
 
     await conn.close();
     await engine.close();
