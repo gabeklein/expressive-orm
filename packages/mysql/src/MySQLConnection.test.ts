@@ -370,6 +370,8 @@ describe("inspect", () => {
   it("will report columns it cannot add", async () => {
     class Item extends Type {
       code = str();
+      tag = str({ unique: true, fallback: "a" });
+      note = str({ nullable: true, fallback: null });
     }
 
     const db = MySQLConnection.new([Item], fake(info([
@@ -377,7 +379,13 @@ describe("inspect", () => {
     ])).pool);
 
     await expect(db.verify()).rejects.toThrow('Column "code" does not exist in table item');
-    await expect(db.plan()).resolves.toMatchObject({ problems: ['Column "code" in table item is NOT NULL without a default and cannot be added to existing rows.'] });
+    await expect(db.plan()).resolves.toMatchObject({
+      problems: [
+        'Column "code" in table item is NOT NULL without a default and cannot be added to existing rows.',
+        'Column "tag" in table item is UNIQUE with a default and cannot be added to existing rows.'
+      ],
+      steps: [{ sql: ["ALTER TABLE `item` ADD COLUMN `note` TEXT DEFAULT (NULL);"] }]
+    });
     await db.close();
   })
 
