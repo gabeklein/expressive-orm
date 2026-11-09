@@ -2,7 +2,10 @@
 
 ## pr.yml (pull requests -> main)
 
-Blocking: `bun run test` and `bun run build`. The frozen-lockfile install in
+Blocking: `bun run test`, `bun run build` and `skills-check.ts`, which
+parses each package skill's frontmatter, requires `skills` in `files` and every
+direct `@expressive/*` dependency in the `skills` field, and resolves links
+between skills as installed. The frozen-lockfile install in
 the `setup` action doubles as the internal-dependency desync guard - a
 workspace version that falls outside a sibling's range cannot reach main.
 
