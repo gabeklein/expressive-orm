@@ -37,6 +37,26 @@ npm install @expressive/postgres @expressive/mvc @electric-sql/pglite
 
 `@expressive/postgres` re-exports `@expressive/sql`, which re-exports `@expressive/orm`. Import from the one package you installed.
 
+### Agent skills
+
+Each package ships a skill for coding agents, versioned with the package - `expressive-orm`, `expressive-sql` and `expressive-postgres`. Link the installed packages' skills into your project with the [`skills`](https://github.com/vercel-labs/skills) CLI:
+
+```sh
+npm install -D skills
+npx skills experimental_sync -y
+```
+
+`@expressive/sql` and `@expressive/postgres` declare the skills of the packages they build on, so sync installs those too. Run it from `prepare` so the skills follow every install and upgrade, and ignore the links it creates:
+
+```json
+"scripts": { "prepare": "skills experimental_sync -y" }
+```
+
+```text
+.agents/skills/expressive-*
+.claude/skills/expressive-*
+```
+
 ## Entities
 
 ```ts

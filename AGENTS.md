@@ -14,6 +14,7 @@ Monorepo: bun workspaces + changesets. Install, scripts and builds run under bun
 packages/orm      - Entities, fields, relations, Connection (driver base and identity map), memory driver, Query (@expressive/orm)
 packages/sql      - SQL generator and connection base, datatype vocabulary, SQLite driver with runtime-selected engine (@expressive/sql)
 packages/postgres - Postgres and PGLite driver (@expressive/postgres)
+packages/*/skills - Each package's agent skill, shipped in the package
 ```
 
 ## Commands
@@ -47,6 +48,7 @@ Naming: positive `it('will create instance')`, negative `it('will not trigger up
 - Driver-agnostic logic belongs in `packages/orm`. SQL strings belong in `sql` or a driver, never in `orm`.
 - Update tests alongside behavioural or type changes - tests must fail without the change.
 - A user-facing change updates the root README (and a package README it touches); every sample there runs against the built dists.
+- A user-facing change also updates that package's agent skill (`packages/<pkg>/skills/expressive-<pkg>/SKILL.md`), written for an agent using the package and checked against the source. Skills link siblings as installed side by side (`../expressive-<pkg>/`), but only their own package's dependencies and peers; any other skill is named in plain text. A direct `@expressive/*` dependency goes in the package's `skills` field (`npm:@expressive/<pkg>`) so `skills sync` installs it; a peer is listed by the consumer. Descriptions use a dash, never an unquoted `: `. `bun .github/scripts/skills-check.ts` enforces these.
 - Merged code carries essentially no comments. Strip explanatory comments before committing; keep one only where the code would otherwise be misread.
 - **Ask before adding public surface.** No new exported functions, classes, types, fields, statics or contract methods without confirming first. Prefer reshaping existing surface.
 - Keep `@expressive/mvc` as a peer; take its released version, never a link. A seam missing in mvc lands on `expressive-mvc` `main` as its own PR.
