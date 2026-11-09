@@ -54,6 +54,50 @@ Two optional members, for hosts without `BEGIN` and `COMMIT` on one connection:
 - `transaction()` - resolves a session, the four statements plus `commit()` and `rollback()`. Every statement inside `db.transaction(fn)` runs on it.
 - `batch(sql: string[])` - runs statements atomically; `sync` applies through it. A table rebuild in a batch needs foreign keys off, or dropping the old table cascades; an engine that keeps them on refuses it.
 
+### SQLite hosts
+
+`d1Engine`, `libsqlEngine` and `expoEngine` make an `Engine` of a client you already have. Each is used as is, and `close()` leaves the client open.
+
+On Cloudflare Workers, open the connection once, from the first request's D1 binding - calling `new` per request throws, since entities already have a connection:
+
+```ts
+import { SQLiteConnection, d1Engine } from '@expressive/sql';
+
+let db: SQLiteConnection | undefined;
+
+export default {
+  async fetch(request: Request, env: { DB: D1Database }) {
+    await (db ??= SQLiteConnection.new([User], d1Engine(env.DB)));
+
+    return Response.json(await User.find({}));
+  }
+};
+```
+
+D1 applies `sync` as one batch but has no interactive transactions - `transaction` throws. It keeps foreign keys on, so `sync(true, true)` refuses to rebuild a table; creating tables, columns and indexes works.
+
+```ts
+import { createClient } from '@libsql/client';
+import { SQLiteConnection, libsqlEngine } from '@expressive/sql';
+
+const turso = await SQLiteConnection.new([User], libsqlEngine(createClient({ url, authToken })));
+```
+
+libSQL - Turso or a local `file:` client - runs each `transaction` on a libSQL transaction of its own and `sync` as one batch. `PRAGMA foreign_keys` is per connection, so on a pooled or remote client it can't be relied on across statements.
+
+```ts
+import { openDatabaseAsync } from 'expo-sqlite';
+import { SQLiteConnection, expoEngine } from '@expressive/sql';
+
+const file = await openDatabaseAsync("app.db");
+
+await file.execAsync("PRAGMA foreign_keys = ON");
+
+const app = await SQLiteConnection.new([User], expoEngine(file));
+```
+
+expo-sqlite leaves foreign keys off until asked. React Native has no `AsyncLocalStorage`, so `transaction` throws there.
+
 ## Sync
 
 Awaiting a connection runs `sync`:
