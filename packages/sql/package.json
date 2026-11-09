@@ -46,7 +46,11 @@
     "bin": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "skills"
+  ],
+  "skills": [
+    "npm:@expressive/orm"
   ],
   "scripts": {
     "build": "tsdown",
