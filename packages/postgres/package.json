@@ -40,7 +40,12 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "skills"
+  ],
+  "skills": [
+    "npm:@expressive/orm",
+    "npm:@expressive/sql"
   ],
   "scripts": {
     "build": "tsdown",

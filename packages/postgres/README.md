@@ -1,6 +1,6 @@
 # @expressive/postgres
 
-Postgres and PGLite connections for Expressive ORM, with live rows over LISTEN/NOTIFY. Re-exports [`@expressive/sql`](https://github.com/gabeklein/expressive-orm/tree/main/packages/sql), so entities, field helpers and `Query` come from this one import. Full guide: [README](https://github.com/gabeklein/expressive-orm#readme).
+Postgres and PGLite connections for Expressive ORM, with live rows over LISTEN/NOTIFY. Re-exports [`@expressive/sql`](https://github.com/gabeklein/expressive-orm/tree/main/packages/sql), so entities, field helpers and `Query` come from this one import. Full guide: [README](https://github.com/gabeklein/expressive-orm#readme). Agent skill: [skills/expressive-postgres](skills/expressive-postgres/SKILL.md), shipped in the package with `expressive-orm`'s and `expressive-sql`'s declared.
 
 ```sh
 npm install @expressive/postgres @expressive/mvc pg
