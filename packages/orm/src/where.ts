@@ -1,3 +1,4 @@
+/** A filter operator and its value, from `equal`, `isIn` and the other operator helpers. */
 class Where {
   skip?: boolean;
 
