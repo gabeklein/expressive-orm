@@ -104,6 +104,9 @@ declare namespace one {
 
   /** One option of `one()` - `null`, `lazy`, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, OneToOneField>;
+
+  /** Column class behind `one()` - a package replaces it to add datatypes. */
+  let Type: typeof OneToOneField;
 }
 
 /**
@@ -215,7 +218,6 @@ function one<T extends Type, C extends one.Options[]>(from: Type.Class<T>, ...co
   );
 }
 
-/** Column class behind `one()` - a package replaces it to add datatypes. */
 one.Type = OneToOneField;
 
 /** Modifier for `one()` - load the related entity on first read, not with its parent. */

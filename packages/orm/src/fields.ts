@@ -153,6 +153,9 @@ declare namespace str {
 
   /** One option of `str()` - `null`, a modifier, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, StringColumn>;
+
+  /** Column class behind `str()` - a package replaces it to add datatypes. */
+  let Type: typeof StringColumn;
 }
 
 /**
@@ -169,7 +172,6 @@ function str<T extends str.Options[]>(...config: T & Exact<T, str.Types>): Infer
   return column(str.Type, { kind: String }, ...config);
 }
 
-/** Column class behind `str()` - a package replaces it to add datatypes. */
 str.Type = StringColumn;
 
 /**
@@ -223,6 +225,9 @@ declare namespace num {
 
   /** One option of `num()` - `null`, a modifier, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, NumericColumn>;
+
+  /** Column class behind `num()` - a package replaces it to add datatypes. */
+  let Type: typeof NumericColumn;
 }
 
 /**
@@ -234,7 +239,6 @@ function num<T extends num.Options[]>(...config: T & Exact<T, num.Types>): Infer
   return column(num.Type, { kind: Number }, ...config);
 }
 
-/** Column class behind `num()` - a package replaces it to add datatypes. */
 num.Type = NumericColumn;
 
 class BooleanColumn extends Field<boolean> {
@@ -276,6 +280,9 @@ declare namespace bool {
 
   /** One option of `bool()` - `null`, a modifier, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, BooleanColumn>;
+
+  /** Column class behind `bool()` - a package replaces it to add datatypes. */
+  let Type: typeof BooleanColumn;
 }
 
 /**
@@ -287,7 +294,6 @@ function bool<T extends bool.Options[]>(...config: T & Exact<T, bool.Types>): In
   return column(bool.Type, { kind: Boolean }, ...config);
 }
 
-/** Column class behind `bool()` - a package replaces it to add datatypes. */
 bool.Type = BooleanColumn;
 
 class TimeColumn extends Field<Date> {
@@ -335,6 +341,19 @@ declare namespace date {
 
   /** One option of `date()` - `null`, a modifier, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, TimeColumn>;
+
+  /** Column class behind `date()` - a package replaces it to add datatypes. */
+  let Type: typeof TimeColumn;
+
+  /**
+   * A Date column set to now on insert and never updated - `{ fallback: now, fixed: true }`.
+   *
+   * Upserts leave it. An update giving it fails to compile and throws.
+   */
+  let created: <T extends Options[]>(...config: T & Exact<T, Types>) => Infer<[...T, { fallback: {}, fixed: true }], Date>;
+
+  /** A Date column set to now on insert and on every update or upsert not giving it - `{ fallback: now, update: now }`. */
+  let updated: <T extends Options[]>(...config: T & Exact<T, Types>) => Infer<[...T, { fallback: {} }], Date>;
 }
 
 /**
@@ -346,22 +365,12 @@ function date<T extends date.Options[]>(...config: T & Exact<T, date.Types>): In
   return column(date.Type, { kind: Date }, ...config);
 }
 
-/** Column class behind `date()` - a package replaces it to add datatypes. */
 date.Type = TimeColumn;
 
-/**
- * A Date column set to now on insert and never updated - `{ fallback: now, fixed: true }`.
- *
- * Upserts leave it. An update giving it fails to compile and throws.
- */
-date.created = function created<T extends date.Options[]>(...config: T & Exact<T, date.Types>): Infer<[...T, { fallback: {}, fixed: true }], Date> {
-  return column(date.Type, { kind: Date, fallback: now, fixed: true }, ...config);
-};
-
-/** A Date column set to now on insert and on every update or upsert not giving it - `{ fallback: now, update: now }`. */
-date.updated = function updated<T extends date.Options[]>(...config: T & Exact<T, date.Types>): Infer<[...T, { fallback: {} }], Date> {
-  return column(date.Type, { kind: Date, fallback: now, update: now }, ...config);
-};
+Object.assign(date, {
+  created: (...config: date.Options[]) => column(date.Type, { kind: Date, fallback: now, fixed: true }, ...config),
+  updated: (...config: date.Options[]) => column(date.Type, { kind: Date, fallback: now, update: now }, ...config)
+});
 
 /** A nullable JSON column - reads `T | undefined`. */
 function json<T>(nullable: Nullable): T | undefined;
