@@ -1174,7 +1174,7 @@ describe("on", () => {
     path = str();
   }
 
-  it("will run delete hooks after each delete path", async () => {
+  it("will run delete hooks after deletes by id", async () => {
     const db = await TestConnection.new([Upload]);
     const didDelete = vi.fn();
 
@@ -1191,8 +1191,7 @@ describe("on", () => {
 
     expect(didDelete.mock.calls).toEqual([
       [{ id: 1, path: "a.png" }],
-      [{ id: 2, path: "b.png" }],
-      [{ id: 3, path: "c.png" }]
+      [{ id: 2, path: "b.png" }]
     ]);
     await expect(Upload.find()).resolves.toEqual([{ id: 4, path: "d.txt" }]);
   })

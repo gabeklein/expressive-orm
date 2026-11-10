@@ -40,10 +40,11 @@ declare namespace Connection {
   /** Host-side effects for a class's rows - registered with `on`. */
   interface Hooks<T extends Type = Type> {
     /**
-     * Runs after a row is deleted, receiving it as `find` resolves it.
+     * Runs after a row is deleted by id, receiving it as `find` resolves it - best effort.
      *
-     * Covers instance `delete()`, static `delete` by id or filter, and `remove` called directly.
-     * Inside a transaction it runs after commit, never after a rollback. A rejection rejects the delete or the transaction, which stays committed.
+     * Covers instance `delete()`, static `delete(id)` and `remove` called directly; a delete by filter skips it.
+     * Awaited before the delete resolves - inside a transaction, after commit and before `transaction` resolves, never after a rollback.
+     * A throw or rejection is logged with `console.error`, never rejecting the delete.
      */
     delete?(row: Columns<T>): void | Promise<void>;
   }
@@ -191,7 +192,7 @@ abstract class Connection extends Model {
    * Register host-side effects for a class's rows on this connection, returning a remover.
    *
    * Effects run only where the class is bound to this connection - a client binding the same class elsewhere never runs them.
-   * Each registration runs; with any registered, a delete selects its rows first.
+   * Each registration runs; with any registered, a delete by id selects its row first.
    *
    * @example
    * db.on(Upload, {
@@ -224,32 +225,32 @@ abstract class Connection extends Model {
             return remove.call(this, table, id);
 
           const [{ type }] = hooked;
-          const rows = await this.select(table, match(type.fields.get("id")!, id), 1);
+          const [raw] = await this.select(table, match(type.fields.get("id")!, id), 1);
+          const journal = this._journal();
 
           await remove.call(this, table, id);
-          await this._deleted(table, rows);
+
+          if (!raw)
+            return;
+
+          const run = () => Promise.all(Array.from(hooked, async ({ type, hooks }) => {
+            try {
+              await hooks.delete?.(await row(type.fields, raw) as Columns<Type>);
+            }
+            catch (error) {
+              console.error(error);
+            }
+          }));
+
+          if (journal)
+            journal.done.push(run);
+          else
+            await run();
         }
       });
     }
 
     return () => set.delete(entry);
-  }
-
-  _deleted(table: string, rows: Record<string, any>[]) {
-    const hooked = this._hooks.get(table);
-    const journal = this._journal();
-
-    if (!hooked?.size || !rows.length)
-      return;
-
-    const run = () => Promise.all(Array.from(hooked, ({ type, hooks }) => hooks.delete && Promise.all(
-      rows.map(async raw => hooks.delete!(await row(type.fields, raw) as Columns<Type>))
-    )));
-
-    if (journal)
-      journal.done.push(run);
-    else
-      return run();
   }
 
   /**

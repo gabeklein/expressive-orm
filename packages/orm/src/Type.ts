@@ -1012,12 +1012,10 @@ async function updateWhere(type: typeof Type, where: Type.Query<any>, data: Type
 }
 
 async function deleteWhere(type: typeof Type, where: Type.Query<any>){
-  const { connection, fields, loaded, ref } = type;
+  const { fields, loaded } = type;
   const constraints = await conditions(type, where);
-  const affected = loaded.size || connection._hooks.get(ref)?.size ? await select(type, constraints) : [];
+  const affected = loaded.size ? await select(type, constraints) : [];
   const count = await matching(type, constraints, verbs => verbs.delete());
-
-  await connection._deleted(ref, affected);
 
   for (const raw of affected) {
     const key = slot((await row(fields, raw)).id);

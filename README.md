@@ -459,7 +459,7 @@ db.on(Upload, {
 });
 ```
 
-`connection.on(Type, hooks)` registers effects on the host that owns the connection, and returns a function that removes them. `delete(row)` runs after a row of `Type` is deleted - by `entity.delete()`, `Type.delete(id)`, `Type.delete(where)` or a direct `remove(table, id)` - receiving the row as `find` returns it. Classes bound to another connection, such as a browser client sharing them, never run it. Every registration runs, and a handler is awaited: its rejection rejects the delete. With a hook registered, a delete selects its rows first; without one, it does not. Inside a `transaction` handlers wait for the commit, after the connection is released, and never run on rollback; a rejection then rejects `transaction`, which has already committed. A raw `Query` delete does not run them.
+`connection.on(Type, hooks)` registers best-effort effects on the host that owns the connection, and returns a function that removes them. `delete(row)` runs after a row of `Type` is deleted by id - `entity.delete()`, `Type.delete(id)`, or `remove(table, id)` called directly, as a remote client does - receiving the row as `find` returns it. A delete by filter, a `Query` delete or a database cascade does not run it. Classes bound to another connection, such as a browser client sharing them, never run it. Every registration runs. Handlers are awaited before the delete resolves; a throw or rejection is logged with `console.error` and never fails the delete. With a hook registered, a delete by id selects its row first; without one, it does not. Inside a `transaction` handlers run after the commit, once the connection is released, and before `transaction` resolves; they never run on rollback.
 
 ## Live rows
 

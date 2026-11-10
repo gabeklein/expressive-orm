@@ -269,7 +269,7 @@ Commits when `fn` resolves, rolls back and rethrows when it throws. Every statem
 db.on(Upload, { async delete(row){ await bucket.delete(row.path) } });   // returns a remover
 ```
 
-`connection.on(Type, { delete })` runs host-side effects after a row is deleted - instance `delete()`, static `delete(id)` or `delete(where)`, or `remove(table, id)` called directly. The row arrives as `find` returns it. It lives on the connection, so a client binding the same classes to another connection never runs it - prefer it over `onDelete` for side effects that must follow every delete. Handlers are awaited and a rejection rejects the delete; in a `transaction` they run after commit, never on rollback. A delete selects its rows first only while a hook is registered. A raw `Query` delete skips them.
+`connection.on(Type, { delete })` runs best-effort host-side effects after a row is deleted by id - instance `delete()`, static `delete(id)`, or `remove(table, id)` called directly, as a remote client does. The row arrives as `find` returns it. It lives on the connection, so a client binding the same classes to another connection never runs it - prefer it over `onDelete` for effects that must follow an instance delete wherever it was called. A delete by filter, a `Query` delete or a cascade skips it. Handlers are awaited before the delete resolves; a throw is logged with `console.error`, never failing the delete. In a `transaction` they run after commit and before it resolves, never on rollback. A delete by id selects its row first only while a hook is registered.
 
 ## Live rows
 

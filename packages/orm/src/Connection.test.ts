@@ -291,17 +291,19 @@ describe("on", () => {
     expect(didDelete).toHaveBeenCalledWith({ id: 1, path: "a.png" });
   })
 
-  it("will run for each row deleted by filter", async () => {
+  it("will not run or select for a delete by filter", async () => {
     const { db, Upload } = setup();
     const didDelete = vi.fn();
 
     await seed(Upload, "a.png", "b.png", "c.txt");
     db.on(Upload, { delete: didDelete });
 
+    void db.select;
+    const select = vi.spyOn(db, "select");
+
     expect(await Upload.delete({ path: isLike("%.png") })).toBe(2);
-    expect(didDelete).toHaveBeenCalledTimes(2);
-    expect(didDelete).toHaveBeenCalledWith({ id: 1, path: "a.png" });
-    expect(didDelete).toHaveBeenCalledWith({ id: 2, path: "b.png" });
+    expect(didDelete).not.toHaveBeenCalled();
+    expect(select).not.toHaveBeenCalled();
   })
 
   it("will pass relations as ids", async () => {
@@ -401,19 +403,27 @@ describe("on", () => {
     db.on(Upload, { delete: didDelete });
 
     await Upload.delete(1);
-    await Upload.delete({ path: "none" });
 
     expect(didDelete).not.toHaveBeenCalled();
   })
 
-  it("will reject the delete when a handler throws", async () => {
+  it("will log and not reject when a handler throws", async () => {
     const { db, Upload } = setup();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const after = vi.fn();
+    const thrown = new Error("nope");
 
     await seed(Upload, "a.png");
-    db.on(Upload, { delete(){ throw new Error("nope") } });
+    db.on(Upload, { delete(){ throw thrown } });
+    db.on(Upload, { delete: after });
 
-    await expect(Upload.delete(1)).rejects.toThrow("nope");
+    await expect(Upload.delete(1)).resolves.toBeUndefined();
+
+    expect(error).toHaveBeenCalledWith(thrown);
+    expect(after).toHaveBeenCalled();
     expect(await Upload.count()).toBe(0);
+
+    error.mockRestore();
   })
 
   it("will run after commit", async () => {
@@ -425,7 +435,7 @@ describe("on", () => {
 
     await db.transaction(async () => {
       await Upload.delete(1);
-      await Upload.delete({ path: "b.png" });
+      await (await Upload.get(2)).delete();
       expect(didDelete).not.toHaveBeenCalled();
     });
 
@@ -454,7 +464,8 @@ describe("on", () => {
     await seed(Upload, "a.png", "a.png.thumb");
     db.on(Upload, {
       async delete({ path }){
-        await Upload.delete({ path: `${path}.thumb` });
+        const [thumb] = await Upload.find({ path: `${path}.thumb` });
+        await Upload.delete(thumb.id);
       }
     });
 
@@ -463,14 +474,27 @@ describe("on", () => {
     expect(await Upload.count()).toBe(0);
   })
 
-  it("will reject a committed transaction when a handler throws", async () => {
+  it("will await handlers and not reject a transaction", async () => {
     const { db, Upload } = setup();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const done = vi.fn();
 
     await seed(Upload, "a.png");
-    db.on(Upload, { async delete(){ throw new Error("nope") } });
+    db.on(Upload, {
+      async delete(){
+        await new Promise(resolve => setTimeout(resolve, 1));
+        done();
+        throw new Error("nope");
+      }
+    });
 
-    await expect(db.transaction(() => Upload.delete(1))).rejects.toThrow("nope");
+    await expect(db.transaction(() => Upload.delete(1))).resolves.toBeUndefined();
+
+    expect(done).toHaveBeenCalled();
+    expect(error).toHaveBeenCalledTimes(1);
     expect(await Upload.count()).toBe(0);
+
+    error.mockRestore();
   })
 
   it("will not run for another connection", async () => {
