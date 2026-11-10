@@ -6,6 +6,7 @@ export { Field, json, key, str, num, bool, date, uuid, orNull, optional, unique,
 export * from './where';
 export { one, lazy } from './one';
 export { rows } from './rows';
+export type { Rows } from './rows';
 export { memory } from './memory';
 export { Query } from './query/Query';
 export { Builder } from './query/Builder';

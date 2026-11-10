@@ -397,6 +397,16 @@ abstract class Type extends Model {
 
   /** Schema qualifying the table, as `schema.table`. */
   static schema?: string;
+  /**
+   * Values every row of this class holds - merged into inserts and into every query filter.
+   *
+   * Scopes a subclass to part of a shared table; give it the parent's `table`.
+   * By-id calls (`get`, `update(id)`, `delete(id)`) are not scoped. `Insert` still types the fields as required.
+   *
+   * @example
+   * static table = "user";
+   * static subset = { role: "admin" };
+   */
   static subset?: Record<string, unknown>;
   /**
    * The connection this class reads and writes through.

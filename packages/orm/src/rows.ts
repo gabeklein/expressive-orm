@@ -8,6 +8,7 @@ type Related<T> = {
   [K in Exclude<keyof T, keyof Type>]-?: T[K] extends Type | undefined ? K : never;
 }[Exclude<keyof T, keyof Type>];
 
+/** A `rows()` field - `find`, `one` and `insert` scoped to the entity, `insert` filling the relation. */
 interface Rows<T extends Type, K extends keyof T> {
   find(where?: Type.Query<T>, limit?: number, offset?: number): Promise<Type.Columns<T>[]>;
   one(where?: Type.Query<T>, expect?: true): Promise<Type.Columns<T>>;
