@@ -5,7 +5,7 @@ description: Postgres and PGlite for Expressive ORM (@expressive/postgres) - PGC
 
 # @expressive/postgres
 
-Postgres and PGlite connections for Expressive ORM, with live rows over LISTEN/NOTIFY. Re-exports `@expressive/sql`, which re-exports `@expressive/orm` - import everything from `@expressive/postgres`. Entities, `Query` and transactions are in [expressive-orm](../expressive-orm/SKILL.md); datatypes, `sync` and the CLI in [expressive-sql](../expressive-sql/SKILL.md).
+Postgres and PGlite connections for Expressive ORM, with live rows over LISTEN/NOTIFY. Re-exports `@expressive/sql`, which re-exports `@expressive/orm` - import everything from `@expressive/postgres`. Entities, `Query` and transactions are in `expressive-orm`; datatypes, `sync` and the CLI in `expressive-sql`.
 
 ```bash
 npm install @expressive/postgres @expressive/mvc pg

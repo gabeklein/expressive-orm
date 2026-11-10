@@ -5,7 +5,7 @@ description: Expressive ORM core (@expressive/orm) - entities as @expressive/mvc
 
 # Expressive ORM
 
-An entity is a class extending `Type`, which extends `@expressive/mvc` `Model` - one class is the schema, the domain model and an observable object. Model behaviour (observation, context, lifecycle) is in [expressive-mvc](../expressive-mvc/SKILL.md).
+An entity is a class extending `Type`, which extends `@expressive/mvc` `Model` - one class is the schema, the domain model and an observable object. Model behaviour (observation, context, lifecycle) is in `expressive-mvc`.
 
 `@expressive/orm` has no SQL. Apps install `@expressive/sql` (SQLite, skill `expressive-sql`) or `@expressive/postgres` (skill `expressive-postgres`); each re-exports this package. Import everything from the one package installed. Install `@expressive/orm` directly only to write a driver or run without SQL.
 
