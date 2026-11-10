@@ -294,6 +294,12 @@ describe("d1", () => {
     expect(await engine.get("PRAGMA foreign_keys")).toEqual({ foreign_keys: 1 });
   });
 
+  it("will exec a statement over lines", async () => {
+    await engine.exec("CREATE TABLE multi (\n  id INTEGER PRIMARY KEY\n)");
+
+    expect(await engine.all("SELECT name FROM pragma_table_info('multi')")).toEqual([{ name: "id" }]);
+  });
+
   it("will throw on transaction", async () => {
     await expect(engine.transaction!()).rejects.toThrow("D1 has no interactive transactions.");
   });

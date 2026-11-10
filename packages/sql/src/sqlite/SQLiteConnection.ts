@@ -3,7 +3,7 @@ import { Builder } from '@expressive/orm/driver';
 import { Connection } from '../connection/Connection';
 import { format } from 'sql-formatter';
 
-import { createEngine, type D1Database, Engine, host, type LibSQLClient } from './engine';
+import { createEngine, type D1Database, Engine, host, type LibSQLClient, migrations } from './engine';
 import { now as current, SQLiteGenerator } from './SQLiteGenerator';
 
 type TableInfo = {
@@ -50,6 +50,10 @@ export class SQLiteConnection extends Connection {
     return this.engine ??= createEngine(this.filename);
   }
 
+  protected async statements(): Promise<Engine.Statements> {
+    return this._journal()?.session as Engine.Session || this.db();
+  }
+
   /** `CREATE TABLE` and `CREATE INDEX` statements for the bound classes, formatted. */
   get schema() {
     return pretty(this.generateSchema(this.using));
@@ -74,7 +78,7 @@ export class SQLiteConnection extends Connection {
       await this.idle();
 
       try {
-        return await op(this._journal()?.session as Engine.Session || await this.db());
+        return await op(await this.statements());
       }
       catch (err) {
         if(err instanceof Error)
@@ -225,9 +229,21 @@ export class SQLiteConnection extends Connection {
 
   protected async apply(steps: Connection.Step[]){
     const db = await this.db();
-    const { foreign_keys } = await db.get("PRAGMA foreign_keys");
-    const guard = foreign_keys && steps.some(step => step.action.startsWith("rebuild"));
+    const rebuilds = steps.some(step => step.action.startsWith("rebuild"));
     const sql = steps.flatMap(step => step.sql);
+    const migrate = migrations.get(db);
+
+    if (migrate && rebuilds) {
+      const broken: { table: string }[] = await db.all("PRAGMA foreign_key_check");
+
+      if (broken.length)
+        throw new Error(dangling(broken));
+
+      return void await migrate(sql);
+    }
+
+    const { foreign_keys } = await db.get("PRAGMA foreign_keys");
+    const guard = foreign_keys && rebuilds;
 
     if (db.batch && !guard)
       return db.batch(sql);
@@ -292,7 +308,7 @@ export class SQLiteConnection extends Connection {
 
   protected async inspect(type: Query.Table, planning = false){
     const { table } = type;
-    const db = await this.db();
+    const db = await this.statements();
 
     const tableExists = await db.get(
       `SELECT name FROM sqlite_master WHERE type='table' AND name=?`, [table]);
@@ -328,7 +344,7 @@ export class SQLiteConnection extends Connection {
   }
 
   protected async unindexed(type: Query.Table){
-    const db = await this.db();
+    const db = await this.statements();
     const covered = new Set<string>();
 
     for (const { name } of await db.all(`PRAGMA index_list(${type.table})`)) {
@@ -342,7 +358,7 @@ export class SQLiteConnection extends Connection {
   }
 
   protected async misfit(type: Query.Table, fields: Field[], columns: TableInfo[]){
-    const db = await this.db();
+    const db = await this.statements();
     const { table } = type;
     const problems: string[] = [];
 
@@ -373,7 +389,7 @@ export class SQLiteConnection extends Connection {
   }
 
   protected async rebuild(type: Query.Table, fields: Field[], columns: TableInfo[]){
-    const db = await this.db();
+    const db = await this.statements();
     const { table } = type;
     const temp = `${table}__rebuild`;
     const own = Array.from(type.fields.values()).filter(field => !field.parts);
@@ -419,7 +435,7 @@ export class SQLiteConnection extends Connection {
     if (reference.parent!.connection !== this)
       return [`Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`];
 
-    const db = await this.db();
+    const db = await this.statements();
 
     const foreignTableExists = await db.get(
       `SELECT name FROM sqlite_master WHERE type='table' AND name=?`, [foreignTable]);

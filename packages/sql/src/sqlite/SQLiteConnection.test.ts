@@ -2351,7 +2351,7 @@ describe("d1", () => {
     const { DB, engine, Author, Post, dispose } = await open();
 
     await engine.exec("CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name INTEGER NOT NULL)");
-    await engine.exec("CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, author_id INTEGER NOT NULL REFERENCES author(id) ON DELETE CASCADE, title TEXT NOT NULL)");
+    await engine.exec("CREATE TABLE post (\n  id INTEGER NOT NULL PRIMARY KEY,\n  author_id INTEGER NOT NULL REFERENCES author(id) ON DELETE CASCADE,\n  title TEXT NOT NULL\n)");
     await engine.exec("INSERT INTO author (name) VALUES ('Gabe')");
     await engine.exec("INSERT INTO post (author_id, title) VALUES (1, 'Hello')");
 
@@ -2420,6 +2420,58 @@ describe.each([
     })).rejects.toThrow("nope");
 
     await expect(Author.find({})).resolves.toMatchObject([{ name: "kept" }]);
+
+    await conn.close();
+    client.close();
+  })
+
+  it("will inspect inside a transaction", async () => {
+    const { client, Author, Post } = open();
+    const conn = await SQLiteConnection.new([Author, Post], client);
+
+    await expect(conn.transaction(() => conn.valid(Post))).resolves.toEqual([]);
+
+    await conn.close();
+    client.close();
+  })
+
+  it("will rebuild a table through migrate", async () => {
+    const { client, engine, Author, Post } = open();
+    const migrate = vi.spyOn(client, "migrate");
+
+    await engine.batch!([
+      "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name INTEGER NOT NULL)",
+      "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, author_id INTEGER NOT NULL REFERENCES author(id) ON DELETE CASCADE, title TEXT NOT NULL)",
+      "INSERT INTO author (name) VALUES (1)",
+      "INSERT INTO post (author_id, title) VALUES (1, 'Hello')"
+    ]);
+
+    const conn = SQLiteConnection.new([Author, Post], client);
+
+    await conn.sync(true, true);
+
+    expect(migrate).toHaveBeenCalledOnce();
+    await expect(engine.all("SELECT type FROM pragma_table_info('author') WHERE name = 'name'")).resolves.toEqual([{ type: "TEXT" }]);
+    await expect(engine.all("SELECT title FROM post")).resolves.toEqual([{ title: "Hello" }]);
+    await expect(engine.get("PRAGMA foreign_keys")).resolves.toEqual({ foreign_keys: 1 });
+
+    await conn.close();
+    client.close();
+  })
+
+  it("will not rebuild over dangling references", async () => {
+    const { client, engine, Author, Post } = open();
+
+    await engine.exec("PRAGMA foreign_keys = OFF");
+    await engine.batch!([
+      "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name INTEGER NOT NULL)",
+      "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, author_id INTEGER NOT NULL REFERENCES author(id) ON DELETE CASCADE, title TEXT NOT NULL)",
+      "INSERT INTO post (author_id, title) VALUES (9, 'Orphan')"
+    ]);
+
+    const conn = SQLiteConnection.new([Author, Post], client);
+
+    await expect(conn.sync(true, true)).rejects.toThrow("Cannot rebuild: post has references to missing rows (1).");
 
     await conn.close();
     client.close();

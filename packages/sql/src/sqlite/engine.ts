@@ -147,9 +147,12 @@ export function host(source: Engine | D1Database | LibSQLClient): Engine {
   return "all" in source ? source : "execute" in source ? libsqlEngine(source) : d1Engine(source);
 }
 
+export const migrations = new WeakMap<Engine, (sql: string[]) => Promise<unknown>>();
+
 /** A libSQL client from `@libsql/client` 0.18 or later - local, Turso or any libSQL server. */
 export interface LibSQLClient extends LibSQLStatements {
   batch(sql: string[], mode: "write"): Promise<unknown>;
+  migrate(sql: string[]): Promise<unknown>;
   transaction(mode: "write"): Promise<LibSQLStatements & { commit(): Promise<void>; rollback(): Promise<void> }>;
   close(): void;
 }
@@ -160,7 +163,7 @@ interface LibSQLStatements {
 }
 
 function libsqlEngine(client: LibSQLClient): Engine {
-  return {
+  const engine: Engine = {
     ...libsqlStatements(client),
     async batch(sql) {
       await client.batch(sql, "write");
@@ -178,6 +181,10 @@ function libsqlEngine(client: LibSQLClient): Engine {
       client.close();
     }
   };
+
+  migrations.set(engine, sql => client.migrate(sql));
+
+  return engine;
 }
 
 function libsqlStatements(client: LibSQLStatements): Engine.Statements {
@@ -227,7 +234,7 @@ function d1Engine(db: D1Database): Engine {
       return { changes: (await statement(sql, params).run()).meta.changes };
     },
     async exec(sql) {
-      await db.exec(sql);
+      await db.prepare(sql).run();
     },
     async batch(sql) {
       await db.batch(sql.map(sql => db.prepare(sql)));
