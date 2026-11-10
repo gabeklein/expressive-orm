@@ -5,7 +5,7 @@ description: Expressive ORM on SQL (@expressive/sql) - SQLiteConnection with a b
 
 # @expressive/sql
 
-Expressive ORM on SQL, with embedded SQLite. Re-exports `@expressive/orm` - entities, fields, relations, `Query` and transactions are in [expressive-orm](../expressive-orm/SKILL.md). Apps import everything from `@expressive/sql`; driver seams come from `@expressive/orm/driver`.
+Expressive ORM on SQL, with embedded SQLite. Re-exports `@expressive/orm` - entities, fields, relations, `Query` and transactions are in `expressive-orm`. Apps import everything from `@expressive/sql`; driver seams come from `@expressive/orm/driver`.
 
 ```bash
 npm install @expressive/sql @expressive/mvc

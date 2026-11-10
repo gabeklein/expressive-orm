@@ -39,26 +39,14 @@ npm install @expressive/postgres @expressive/mvc @electric-sql/pglite
 
 ### Agent skills
 
-Each package ships a skill for coding agents, versioned with the package - `expressive-orm`, `expressive-sql` and `expressive-postgres`. Link the installed packages' skills into your project with the [`skills`](https://github.com/vercel-labs/skills) CLI:
+Each package ships a skill for coding agents, versioned with the package - `expressive-orm`, `expressive-sql` and `expressive-postgres`, at `node_modules/@expressive/<pkg>/skills/`. Point your agent at them with a line in `AGENTS.md` (or `CLAUDE.md`):
 
-```sh
-npm install -D skills
-npx skills experimental_sync -y
+```md
+Before working with an `@expressive/*` package, read its skill at
+`node_modules/@expressive/<pkg>/skills/expressive-<pkg>/SKILL.md`.
 ```
 
-`@expressive/sql` and `@expressive/postgres` declare the skills of the packages they build on, so sync installs those too. Run it from `prepare` so the skills follow every install and upgrade. Under `CI` or `GITHUB_ACTIONS` the CLI defaults to `--frozen-lockfile` and exits 1 without a current `skills-lock.json`, so turn that off:
-
-```json
-"scripts": { "prepare": "skills experimental_sync -y --no-frozen-lockfile" }
-```
-
-Ignore the lockfile and the links sync creates. Which link folders appear depends on the agents it detects - `.agents/skills/expressive-*`, plus each agent's own, such as `.claude/skills/expressive-*`:
-
-```text
-skills-lock.json
-.agents/skills/expressive-*
-.claude/skills/expressive-*
-```
+Or install the same instruction as a skill - `npx skills add gabeklein/expressive`. The docs an agent reads then match the installed version, with nothing to re-run after an upgrade.
 
 ## Entities
 

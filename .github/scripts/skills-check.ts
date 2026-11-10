@@ -5,13 +5,9 @@ import { dirname, join, normalize } from 'path';
 const problems: string[] = [];
 const skills = new Map<string, string>();
 const owner = new Map<string, string>();
-const reach = new Map<string, Set<string>>();
 
 const slug = (heading: string) =>
   heading.toLowerCase().replace(/[^\w\s-]/g, '').trim().replace(/\s/g, '-');
-
-const scoped = (deps?: Record<string, string>) =>
-  Object.keys(deps ?? {}).filter((dep) => dep.startsWith('@expressive/'));
 
 for await (const manifest of new Glob('packages/*/package.json').scan('.')) {
   const pkg = await Bun.file(manifest).json();
@@ -40,21 +36,8 @@ for await (const manifest of new Glob('packages/*/package.json').scan('.')) {
   if (!pkg.files?.includes('skills'))
     problems.push(`${pkg.name} does not list "skills" in its package.json files, so the skill is not packed`);
 
-  const direct = scoped(pkg.dependencies);
-  const expected = direct.map((dep) => `npm:${dep}`);
-  const listed: unknown[] = pkg.skills ?? [];
-
-  for (const entry of expected)
-    if (!listed.includes(entry))
-      problems.push(`${pkg.name} depends on ${entry.slice(4)} - list "${entry}" in its package.json skills, or skills experimental_sync will not install that skill`);
-
-  for (const entry of listed)
-    if (!expected.includes(entry as string))
-      problems.push(`${pkg.name} lists ${JSON.stringify(entry)} in skills - list exactly "npm:<dep>" for each direct @expressive/* dependency, and no peers`);
-
   skills.set(name, dirname(path));
   owner.set(name, dir);
-  reach.set(name, new Set([name, ...[...direct, ...scoped(pkg.peerDependencies)].map((dep) => dep.replace('@expressive/', 'expressive-'))]));
 }
 
 if (!skills.size)
@@ -77,26 +60,37 @@ for (const [from, dir] of skills)
     const text = await Bun.file(path).text();
     const at = (index: number) => `${path}:${text.slice(0, index).split('\n').length}`;
 
+    const has = async (file: string, anchor?: string) =>
+      anchor ? [...(await Bun.file(file).text()).matchAll(/^#{1,6}\s+(.+?)\s*$/gm)].some(([, heading]) => slug(heading) === anchor) : true;
+
     for (const match of text.matchAll(/\]\((\.{0,2}[^)\s:#]*\.md)(?:#([^)\s]+))?\)/g)) {
       const [, target, anchor] = match;
       const [skill, ...rest] = normalize(join(from, dirname(file), target)).split('/');
+      const linked = join(dir, ...rest);
 
-      if (!reach.get(from)!.has(skill)) {
-        problems.push(`${at(match.index)}  links ${target}, but ${from} does not depend on that package - name the skill in plain text`);
+      if (skill !== from)
+        problems.push(`${at(match.index)}  links ${target} outside its own skill - name it in plain text, as \`${[skill, ...rest].join('/')}\``);
+      else if (!existsSync(linked))
+        problems.push(`${at(match.index)}  links ${target}, which does not exist`);
+      else if (!(await has(linked, anchor)))
+        problems.push(`${at(match.index)}  links ${target}#${anchor}, but that file has no such heading`);
+    }
+
+    for (const match of text.matchAll(/`(expressive-[a-z]+)\/([^`\s#]+\.md)(?:#([^`\s]+))?`/g)) {
+      const [, skill, rest, anchor] = match;
+      const base = skills.get(skill) ?? installed(from, skill);
+
+      if (!base) {
+        problems.push(`${at(match.index)}  names ${skill}/${rest}, but no ${skill} skill is here or installed`);
         continue;
       }
 
-      const base = skills.get(skill) ?? installed(from, skill);
+      const named = join(base, rest);
 
-      if (!base)
-        continue;
-
-      const linked = Bun.file(join(base, ...rest));
-
-      if (!(await linked.exists()))
-        problems.push(`${at(match.index)}  links ${target}, which is not in the ${skill} skill`);
-      else if (anchor && ![...(await linked.text()).matchAll(/^#{1,6}\s+(.+?)\s*$/gm)].some(([, heading]) => slug(heading) === anchor))
-        problems.push(`${at(match.index)}  links ${target}#${anchor}, but that file has no such heading`);
+      if (!existsSync(named))
+        problems.push(`${at(match.index)}  names ${skill}/${rest}, which is not in the ${skill} skill`);
+      else if (!(await has(named, anchor)))
+        problems.push(`${at(match.index)}  names ${skill}/${rest}#${anchor}, but that file has no such heading`);
     }
   }
 
