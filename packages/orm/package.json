@@ -1,6 +1,6 @@
 {
   "name": "@expressive/orm",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "Entities on @expressive/mvc Model: driver contract, Query builder and an in-memory driver.",
   "keywords": [
     "orm",
@@ -36,6 +36,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./driver": {
+      "types": "./dist/driver.d.ts",
+      "default": "./dist/driver.js"
     }
   },
   "files": [
@@ -49,7 +53,7 @@
     "test": "bun run typecheck && bun run coverage"
   },
   "devDependencies": {
-    "@expressive/mvc": "^0.94.0",
+    "@expressive/mvc": "^0.94.2",
     "tsdown": "^0.20.1"
   },
   "peerDependencies": {

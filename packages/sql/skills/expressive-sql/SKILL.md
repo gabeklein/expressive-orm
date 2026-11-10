@@ -5,7 +5,7 @@ description: Expressive ORM on SQL (@expressive/sql) - SQLiteConnection with a b
 
 # @expressive/sql
 
-Expressive ORM on SQL, with embedded SQLite. Re-exports `@expressive/orm` - entities, fields, relations, `Query` and transactions are in [expressive-orm](../expressive-orm/SKILL.md). Import everything from `@expressive/sql`.
+Expressive ORM on SQL, with embedded SQLite. Re-exports `@expressive/orm` - entities, fields, relations, `Query` and transactions are in `expressive-orm`. Apps import everything from `@expressive/sql`; driver seams come from `@expressive/orm/driver`.
 
 ```bash
 npm install @expressive/sql @expressive/mvc
@@ -27,7 +27,9 @@ const db = await SQLiteConnection.new([User], "app.db");   // omit the filename 
 await db.close();
 ```
 
-Connections enforce foreign keys. SQLite has no live rows - neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
+Connections enforce foreign keys. SQLite has no live rows.
+
+`sync` covers the classes passed to `new`. `static connection = db` binds another class without syncing it. `db.schema` is the DDL.
 
 ### Engine
 
@@ -54,50 +56,6 @@ Two optional members, for hosts without `BEGIN` and `COMMIT` on one connection:
 - `transaction()` - resolves a session, the four statements plus `commit()` and `rollback()`. Every statement inside `db.transaction(fn)` runs on it.
 - `batch(sql: string[])` - runs statements atomically; `sync` applies through it. A table rebuild in a batch needs foreign keys off, or dropping the old table cascades; an engine that keeps them on refuses it.
 
-### SQLite hosts
-
-`d1Engine`, `libsqlEngine` and `expoEngine` make an `Engine` of a client you already have. Each is used as is, and `close()` leaves the client open.
-
-On Cloudflare Workers, open the connection once, from the first request's D1 binding - calling `new` per request throws, since entities already have a connection:
-
-```ts
-import { SQLiteConnection, d1Engine } from '@expressive/sql';
-
-let db: SQLiteConnection | undefined;
-
-export default {
-  async fetch(request: Request, env: { DB: D1Database }) {
-    await (db ??= SQLiteConnection.new([User], d1Engine(env.DB)));
-
-    return Response.json(await User.find({}));
-  }
-};
-```
-
-D1 applies `sync` as one batch but has no interactive transactions - `transaction` throws. It keeps foreign keys on, so `sync(true, true)` refuses to rebuild a table; creating tables, columns and indexes works.
-
-```ts
-import { createClient } from '@libsql/client';
-import { SQLiteConnection, libsqlEngine } from '@expressive/sql';
-
-const turso = await SQLiteConnection.new([User], libsqlEngine(createClient({ url, authToken })));
-```
-
-libSQL - Turso or a local `file:` client - runs each `transaction` on a libSQL transaction of its own and `sync` as one batch. `PRAGMA foreign_keys` is per connection, so on a pooled or remote client it can't be relied on across statements.
-
-```ts
-import { openDatabaseAsync } from 'expo-sqlite';
-import { SQLiteConnection, expoEngine } from '@expressive/sql';
-
-const file = await openDatabaseAsync("app.db");
-
-await file.execAsync("PRAGMA foreign_keys = ON");
-
-const app = await SQLiteConnection.new([User], expoEngine(file));
-```
-
-expo-sqlite leaves foreign keys off until asked. React Native has no `AsyncLocalStorage`, so `transaction` throws there.
-
 ## Sync
 
 Awaiting a connection runs `sync`:
@@ -105,6 +63,8 @@ Awaiting a connection runs `sync`:
 - Missing tables are created, missing columns and indexes added, existing ones checked against the classes.
 - A new column reads `undefined` or its `fallback` on old rows. One that cannot fill existing rows - primary, `UNIQUE`, `NOT NULL` without a `fallback` or defaulting to now - is reported and nothing changes. A nullable column defaulting to now is added without the default; inserts fill it.
 - Type and nullability drift is reported. `sync(true, true)` rebuilds the table, refusing while a row would not fit or a value would not convert. A rebuild keeps columns not on the class, indexes and triggers, but not UNIQUE or REFERENCES on columns the class doesn't declare, and refuses while any row references a missing one.
+- `static schema` is reported - SQLite has none.
+- A relation column missing while `<table>_id` exists is reported, not added - set `{ column: "<table>_id" }` to keep the old one.
 - `sync(false)` only verifies. `plan(force?)` returns `{ steps, problems }` - each step with `action`, `reason` and `sql` - without doing it. A sync applies in one transaction.
 
 ### Command line
@@ -142,10 +102,11 @@ class Product extends Type {
 }
 ```
 
+- `num()` is a 32-bit integer - a fraction or a value outside 32-bit range throws on write. `sql.bigint` for large integers, `sql.real` or `sql.numeric(p, s)` for fractions.
 - A datatype of another helper, like `num(sql.text)`, is a type error.
 - Options a factory doesn't take go in an object - `date({ type: "timestamp", precision: 3 })`.
 - `sql.now` is the database's current time in the column's storage - as a `fallback`, in a statics write or comparison (`lessThan(sql.now)`), or in a `Query`. Statics read it from the app's clock. `"NOW"` is a deprecated alias.
-- Every connection validates on write - `varchar` and `char` length, integer ranges, `numeric` precision and scale.
+- Writes are validated - `varchar` and `char` length, integer ranges, `numeric` precision and scale. Importing `@expressive/sql` turns this on for every connection, `memory()` included.
 
 Add a datatype by augmenting the helper's `Types`:
 
@@ -170,9 +131,6 @@ class Device extends Type {
 
 `Connection` from `@expressive/sql` implements orm's floor over `Query`. A dialect extends it and supplies `schema`, `prepare(builder)` (rendering with a `Generator` subclass), `sync(fix?, force?)` and `plan(force?)`; a protected `transact(fn)` enables `transaction(fn)`.
 
-`Generator` renders a `Query` builder as SQL; `String(generator)` is the statement. A dialect overrides its protected hooks, among them:
+`Generator` renders a `Query` builder as SQL; `String(generator)` is the statement. A dialect overrides its protected hooks - `literal`, `insertWith`, `table`, `now` and `param` among them, each documented on `Generator`.
 
-- `literal(value)` - every literal in values, `SET` and `WHERE`.
-- `insertWith(cte, into, select)` - places a data CTE in an insert.
-- `table(table)` - a table with its alias, for `FROM`, joins, `UPDATE` and `DELETE`.
-- `now(field)`, `param(parameter)` - the current time and a placeholder.
+The builder and its values - `Builder`, `DataTable`, `DataField`, `Parameter`, `Computed`, `QueryTemplate`, `Where` - import from `@expressive/orm/driver`, not `@expressive/sql`. A dialect package therefore lists `@expressive/orm` as a direct dependency, at the range `@expressive/sql` depends on.

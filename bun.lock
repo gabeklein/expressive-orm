@@ -16,9 +16,9 @@
     },
     "packages/orm": {
       "name": "@expressive/orm",
-      "version": "0.13.0",
+      "version": "0.14.0",
       "devDependencies": {
-        "@expressive/mvc": "^0.94.0",
+        "@expressive/mvc": "^0.94.2",
         "tsdown": "^0.20.1",
       },
       "peerDependencies": {
@@ -27,15 +27,15 @@
     },
     "packages/postgres": {
       "name": "@expressive/postgres",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "dependencies": {
-        "@expressive/orm": "^0.12.1",
-        "@expressive/sql": "^0.4.4",
+        "@expressive/orm": "^0.13.0",
+        "@expressive/sql": "^0.5.0",
         "sql-formatter": "^10.7.2",
       },
       "devDependencies": {
         "@electric-sql/pglite": "^0.2.16",
-        "@expressive/mvc": "^0.94.0",
+        "@expressive/mvc": "^0.94.2",
         "@types/pg": "^8.11.11",
         "pg": "^8.14.0",
         "tsdown": "^0.20.1",
@@ -52,16 +52,16 @@
     },
     "packages/sql": {
       "name": "@expressive/sql",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "bin": {
         "expressive": "./dist/bin.js",
       },
       "dependencies": {
-        "@expressive/orm": "^0.13.0",
+        "@expressive/orm": "^0.14.0",
         "sql-formatter": "^10.7.2",
       },
       "devDependencies": {
-        "@expressive/mvc": "^0.94.0",
+        "@expressive/mvc": "^0.94.2",
         "miniflare": "^4.20260730.0",
         "tsdown": "^0.20.1",
       },
@@ -169,7 +169,7 @@
 
     "@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w=="],
 
-    "@expressive/mvc": ["@expressive/mvc@0.94.0", "", {}, "sha512-7w9akm+yqHFr0ZagBzIkH3OP0dCV2QhZxQjMNjKcMdTzHG0IckHQl4NrZ5/xgkrANwa3ctVBSDsibOzFt2Em4w=="],
+    "@expressive/mvc": ["@expressive/mvc@0.94.2", "", {}, "sha512-IFI1qrG9O+jUnLopAPJEFJGqmBJWZinxxWjp81D5pXZUnyxK1P+tQzk8UgkP0l+UsOEY9mejSRUOeiVgmASMAQ=="],
 
     "@expressive/orm": ["@expressive/orm@workspace:packages/orm"],
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { bool, Builder, equal, greaterThan, isIn, isLike, isNull, notEqual, notNull, asc, desc, num, str, Type } from '@expressive/orm';
+import { bool, equal, greaterThan, isIn, isLike, isNull, notEqual, notNull, asc, desc, num, str, Type } from '@expressive/orm';
+import { Builder } from '@expressive/orm/driver';
 
 import { Connection } from './Connection';
 import { Generator } from './Generator';

@@ -30,6 +30,7 @@ declare module '@expressive/orm' {
   }
 }
 
+/** Column class behind `bool()` on SQL - `boolean`, `integer`, or `text` / `varchar` with `either`. */
 export class BooleanColumn extends bool.Type {
   type: bool.DataType = "boolean";
 

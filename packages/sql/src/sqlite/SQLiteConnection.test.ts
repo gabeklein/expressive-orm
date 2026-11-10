@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { Miniflare } from 'miniflare';
 import { describe, expect, it, vi } from 'vitest';
 
-import { asc, bool, Builder, date, desc, greaterThan, index, isIn, isLike, isNull, json, key, lessThan, notIn, notNull, now, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
+import { asc, bool, date, desc, greaterThan, index, isIn, isLike, isNull, json, key, lessThan, notIn, notNull, now, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
+import { Builder } from '@expressive/orm/driver';
 
 import { spy } from '../../test.setup';
 

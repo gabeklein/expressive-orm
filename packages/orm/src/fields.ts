@@ -141,20 +141,44 @@ class StringColumn extends Field<string> {
 }
 
 declare namespace str {
+  /**
+   * Datatypes `str()` accepts, by name - augment to add one.
+   *
+   * `default` is the datatype used when none is given, and types a plain options object.
+   */
   interface Types {}
 
+  /** Name of a registered `str()` datatype. */
   type DataType = DataTypes<Types>;
 
+  /** One option of `str()` - `null`, a modifier, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, StringColumn>;
+
+  /** Column class behind `str()` - a package replaces it to add datatypes. */
+  let Type: typeof StringColumn;
 }
 
+/**
+ * A string column.
+ *
+ * Options in any order - `null` for nullable, `optional`, `unique`, `index`, a datatype from the driver package, or an object of column options.
+ * Required on insert unless nullable or defaulted. A write throws for a non-string or one over `length`.
+ *
+ * @example
+ * name = str(index);
+ * bio = str(null, { column: "about" });
+ */
 function str<T extends str.Options[]>(...config: T & Exact<T, str.Types>): Infer<T, string> {
   return column(str.Type, { kind: String }, ...config);
 }
 
 str.Type = StringColumn;
 
-/** @deprecated Use `key(sql.uuid)` for an id, or `str(sql.uuid)` for a column. */
+/**
+ * A string column.
+ *
+ * @deprecated Use `key(sql.uuid)` for an id, or `str(sql.uuid)` for a column.
+ */
 function uuid<T extends str.Options[]>(...config: T & Exact<T, str.Types>): Infer<T, string> {
   return column(str.Type, { kind: String }, ...config);
 }
@@ -189,13 +213,28 @@ class NumericColumn extends Field<number> {
 }
 
 declare namespace num {
+  /**
+   * Datatypes `num()` accepts, by name - augment to add one.
+   *
+   * `default` is the datatype used when none is given, and types a plain options object.
+   */
   interface Types {}
 
+  /** Name of a registered `num()` datatype. */
   type DataType = DataTypes<Types>;
 
+  /** One option of `num()` - `null`, a modifier, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, NumericColumn>;
+
+  /** Column class behind `num()` - a package replaces it to add datatypes. */
+  let Type: typeof NumericColumn;
 }
 
+/**
+ * A number column - options as `str()`.
+ *
+ * A write throws for a non-number or `NaN`. The driver package sets the default datatype - with `@expressive/sql`, a 32-bit integer.
+ */
 function num<T extends num.Options[]>(...config: T & Exact<T, num.Types>): Infer<T, number> {
   return column(num.Type, { kind: Number }, ...config);
 }
@@ -229,13 +268,28 @@ class BooleanColumn extends Field<boolean> {
 }
 
 declare namespace bool {
+  /**
+   * Datatypes `bool()` accepts, by name - augment to add one.
+   *
+   * `default` is the datatype used when none is given, and types a plain options object.
+   */
   interface Types {}
 
+  /** Name of a registered `bool()` datatype. */
   type DataType = DataTypes<Types>;
 
+  /** One option of `bool()` - `null`, a modifier, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, BooleanColumn>;
+
+  /** Column class behind `bool()` - a package replaces it to add datatypes. */
+  let Type: typeof BooleanColumn;
 }
 
+/**
+ * A boolean column - options as `str()`.
+ *
+ * `{ either: [yes, no] }` stores those two values in place of true and false.
+ */
 function bool<T extends bool.Options[]>(...config: T & Exact<T, bool.Types>): Infer<T, boolean> {
   return column(bool.Type, { kind: Boolean }, ...config);
 }
@@ -275,28 +329,63 @@ class TimeColumn extends Field<Date> {
 }
 
 declare namespace date {
+  /**
+   * Datatypes `date()` accepts, by name - augment to add one.
+   *
+   * `default` is the datatype used when none is given, and types a plain options object.
+   */
   interface Types {}
 
+  /** Name of a registered `date()` datatype. */
   type DataType = DataTypes<Types>;
 
+  /** One option of `date()` - `null`, a modifier, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, TimeColumn>;
+
+  /** Column class behind `date()` - a package replaces it to add datatypes. */
+  let Type: typeof TimeColumn;
+
+  /**
+   * A Date column set to now on insert and never updated - `{ fallback: now, fixed: true }`.
+   *
+   * Upserts leave it. An update giving it fails to compile and throws.
+   */
+  let created: <T extends Options[]>(...config: T & Exact<T, Types>) => Infer<[...T, { fallback: {}, fixed: true }], Date>;
+
+  /**
+   * A Date column set to now on insert and on every update or upsert not giving it.
+   *
+   * Underneath, `{ fallback: now, update: now }`.
+   */
+  let updated: <T extends Options[]>(...config: T & Exact<T, Types>) => Infer<[...T, { fallback: {} }], Date>;
 }
 
+/**
+ * A Date column - options as `str()`.
+ *
+ * A write takes a Date, a date string or epoch milliseconds, and throws for anything unparseable. `0` and `""` count as no value.
+ */
 function date<T extends date.Options[]>(...config: T & Exact<T, date.Types>): Infer<T, Date> {
   return column(date.Type, { kind: Date }, ...config);
 }
 
 date.Type = TimeColumn;
 
-date.created = function created<T extends date.Options[]>(...config: T & Exact<T, date.Types>): Infer<[...T, { fallback: {}, fixed: true }], Date> {
-  return column(date.Type, { kind: Date, fallback: now, fixed: true }, ...config);
-};
+Object.assign(date, {
+  created: (...config: date.Options[]) => column(date.Type, { kind: Date, fallback: now, fixed: true }, ...config),
+  updated: (...config: date.Options[]) => column(date.Type, { kind: Date, fallback: now, update: now }, ...config)
+});
 
-date.updated = function updated<T extends date.Options[]>(...config: T & Exact<T, date.Types>): Infer<[...T, { fallback: {} }], Date> {
-  return column(date.Type, { kind: Date, fallback: now, update: now }, ...config);
-};
-
+/** A nullable JSON column - reads `T | undefined`. */
 function json<T>(nullable: Nullable): T | undefined;
+/**
+ * A column holding `T` as JSON text.
+ *
+ * Takes one option, unlike the other helpers. Text that fails to parse reads `undefined`. `isLike` matches the stored text.
+ *
+ * @example
+ * prefs = json<{ theme: string }>();
+ */
 function json<T>(config?: Config): T;
 function json<T>(config?: Config){
   return column<T>(Field, {
@@ -314,6 +403,7 @@ function json<T>(config?: Config){
   }, config);
 }
 
+/** A composite key's `id` - its parts as a JSON string, branded with their types. */
 type Key<P> = string & { readonly "~key": P; readonly "~optional"?: true };
 
 class KeyField extends Field<string> {
@@ -370,8 +460,29 @@ type KeyType<T extends any[]> =
 const INTEGER = new Set(["integer", "smallint", "bigint", "serial", "smallserial", "bigserial"]);
 const NUMERIC = new Set([...INTEGER, "real", "float", "double", "numeric", "decimal"]);
 
+/** An incrementing integer `id` - what every entity has by default. */
 function key(): Optional<number>;
+/**
+ * A composite `id` over the fields the arrow lists.
+ *
+ * The arrow reads `this.<field>` only and runs lazily, so `id` can stay on top. `id` has no column and reads as the parts in a JSON string.
+ * Statics take that string or the tuple. It matches and orders by its parts - other operators throw. `one()` cannot relate to the class.
+ *
+ * @example
+ * id = key(() => [this.account, this.role]);
+ * account = one(Account);
+ * role = str();
+ */
 function key<P extends readonly unknown[]>(read: () => readonly [...P]): Key<{ -readonly [I in keyof P]: P[I] extends Type | undefined ? NonNullable<P[I]>["id"] : P[I] }>;
+/**
+ * An `id` of the given datatype and options.
+ *
+ * An integer type increments; another numeric type does not. A string type is required on insert, except `uuid`, which generates a UUIDv7 when absent.
+ * `{ column }` renames the column; the property stays `id`.
+ *
+ * @example
+ * id = key(sql.uuid);
+ */
 function key<T extends (str.Options | num.Options)[]>(...config: T): KeyType<T>;
 function key(...config: any[]): unknown {
   if (typeof config[0] == "function")
@@ -457,10 +568,17 @@ function composite<P extends readonly unknown[]>(read: () => readonly [...P]) {
   );
 }
 
-/** @deprecated Pass `null`, like `str(null)`. */
+/**
+ * Modifier - the column is nullable.
+ *
+ * @deprecated Pass `null`, like `str(null)`.
+ */
 const orNull = { nullable: true } as const;
+/** Modifier - the column may be left out of an insert, for a value the database fills. */
 const optional = { optional: true } as const;
+/** Modifier - the column is `UNIQUE`. */
 const unique = { unique: true } as const;
+/** Modifier - `sync` creates an index named `<table>_<column>`. `{ index: "name" }` names it. */
 const index = { index: true } as const;
 
 export type { DataTypes, Exact, Has, Key, OptionsOf };

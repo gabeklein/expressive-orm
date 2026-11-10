@@ -1,4 +1,5 @@
-import { Builder, Field, now, Query } from '@expressive/orm';
+import { Field, now, Query } from '@expressive/orm';
+import { Builder } from '@expressive/orm/driver';
 import { Connection } from '../connection/Connection';
 import { format } from 'sql-formatter';
 
@@ -12,11 +13,25 @@ type TableInfo = {
   dflt_value: any
 };
 
+/**
+ * A connection to SQLite - a file, in memory, or a given `Engine`.
+ *
+ * The built-in loader takes the first of `bun:sqlite`, `node:sqlite`, `better-sqlite3`, `sqlite3`, `@libsql/client`, with foreign keys on.
+ * Awaiting it runs `sync`. No live rows.
+ *
+ * @example
+ * const db = await SQLiteConnection.new([User, Post], "app.db");
+ */
 export class SQLiteConnection extends Connection {
   protected filename: string;
   protected engine?: Promise<Engine>;
   protected owned = true;
 
+  /**
+   * Bind `using` to a SQLite database. Construct with `SQLiteConnection.new`.
+   *
+   * Without `source`, the database is in memory.
+   */
   constructor(using: Connection.Types, source?: string | Engine) {
     super(using);
 
@@ -32,10 +47,16 @@ export class SQLiteConnection extends Connection {
     return this.engine ??= createEngine(this.filename);
   }
 
+  /** `CREATE TABLE` and `CREATE INDEX` statements for the bound classes, formatted. */
   get schema() {
     return pretty(this.generateSchema(this.using));
   }
 
+  /**
+   * Compile a builder to SQLite SQL.
+   *
+   * A failure when run rethrows as `Error running SQL: <message>` with the statement.
+   */
   prepare(builder: Builder){
     const sql = String(new SQLiteGenerator(builder));
     const string = (x?: unknown[]) => x
@@ -91,6 +112,7 @@ export class SQLiteConnection extends Connection {
     }
   }
 
+  /** Close the database when this connection opened it, then release the connection. */
   async close(){
     if (this.engine && this.owned)
       await (await this.engine).close();
@@ -98,6 +120,13 @@ export class SQLiteConnection extends Connection {
     await super.close();
   }
 
+  /**
+   * Bring the database in line with the bound classes, then mark the connection ready.
+   *
+   * Creates missing tables and adds missing columns and indexes, in one transaction. Throws for any problem `plan` reports, changing nothing.
+   * `fix` false only verifies - anything missing throws too. `force` rebuilds a table whose column type or nullability drifted.
+   * Throws when the connection is already ready.
+   */
   async sync(fix = true, force = false){
     if (this.ready)
       throw new Error("Connection is already active.");
@@ -116,6 +145,11 @@ export class SQLiteConnection extends Connection {
     return this;
   }
 
+  /**
+   * List what `sync` would do, without doing it.
+   *
+   * `problems` are what it cannot fix - drift without `force`, a column SQLite cannot add, a missing referenced table, `static schema`.
+   */
   async plan(force = false): Promise<Connection.Plan> {
     const steps: Connection.Step[] = [];
     const problems: string[] = [];

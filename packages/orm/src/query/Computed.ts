@@ -8,14 +8,27 @@ function op(operator: string, rank: number) {
   return (left: unknown, right?: unknown) => new Computed<any>(operator, left, right, rank);
 }
 
+/**
+ * Arithmetic over columns and values, from a `Query` function's second argument.
+ *
+ * A missing operand yields a missing result.
+ */
 interface MathOps {
+  /** `left + right`. */
   add(left: Numeric, right: Numeric): Computed<number>;
+  /** `left + right` with a string operand - the result follows the database's `+`. */
   add(left: ANumeric, right: ANumeric): Computed<string | number>;
+  /** `left - right`. */
   sub(left: Numeric, right: Numeric): Computed<number>;
+  /** `left * right`. */
   mul(left: Numeric, right: Numeric): Computed<number>;
+  /** `left / right`. */
   div(left: Numeric, right: Numeric): Computed<number>;
+  /** `left % right`. */
   mod(left: Numeric, right: Numeric): Computed<number>;
+  /** `-value`. */
   neg(value: Numeric): Computed<number>;
+  /** `+value`. */
   pos(value: Numeric): Computed<number>;
 }
 
@@ -29,6 +42,7 @@ const MathOps: MathOps = {
   pos: op('+', 7),
 }
 
+/** Bitwise operators over columns and values - `bit` on a `Query` function's second argument. */
 interface BitWise {
   not(value: Numeric): Computed<number>;
   and(left: Numeric, right: Numeric): Computed<number>;
@@ -47,6 +61,7 @@ const BitWise: BitWise = {
   xor: op('^', 1),
 }
 
+/** An arithmetic or bitwise expression over columns and values, from a `Query` function's math helpers. */
 class Computed<T> extends Value {
   declare readonly returns?: T;
 

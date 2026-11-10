@@ -4,6 +4,7 @@ import { Query } from './Query';
 import { Cond, DataField, DataTable, Expression, Group, Parameter, QueryTemplate, render, Value } from './Value';
 
 declare namespace Builder {
+  /** A table in a query - an entity class's, or in-memory data. */
   interface ITable {
     toString(): string;
     name: string;
@@ -15,11 +16,16 @@ declare namespace Builder {
     type?: Query.Table;
   }
 
+  /** Column assignments of an insert or update, by field. */
   type Insert = Map<Field, unknown>;
 
+  /** A compiled query. */
   interface Statement {
+    /** Run, resolving rows keyed by selection alias. */
     all(params?: unknown[]): Promise<any[]>;
+    /** Run, resolving the rows affected - for a query with no selection or write, the count. */
     run(params?: unknown[]): Promise<number>;
+    /** The statement as text. */
     toString(): string;
   }
 }
@@ -28,14 +34,24 @@ const { assign, create, defineProperty, freeze, getOwnPropertyNames, values } = 
 
 const NESTED = new WeakMap<Builder, Map<string, Builder.ITable>>();
 
+/**
+ * What a `Query` function builds - tables, joins, filters, writes and the selection.
+ *
+ * A driver's `prepare(builder)` compiles it. `String(builder)` outlines it. A `Query` function runs with it as `this`.
+ */
 class Builder {
+  /** Connection of the first table added; every other table must share it. */
   connection?: Type.Connection;
 
+  /** Parameters in binding order. */
   params = [] as Parameter[];
 
+  /** Top-level conditions, joined with AND. */
   filters = new Group();
+  /** Work deferred until `commit`. */
   pending = new Set<() => void>();
   order = new Map<Field, "asc" | "desc">();
+  /** Tables by the column proxy handed to the query function. */
   tables = new Map<{}, Builder.ITable>();
   templates = new Set<QueryTemplate>();
 
@@ -43,12 +59,24 @@ class Builder {
   updates = new Map<Builder.ITable, Builder.Insert>();
   inserts = new Map<Builder.ITable, Builder.Insert>();
 
+  /**
+   * Upsert target of an insert.
+   *
+   * `on` identifies the row, `update` copies from the insert, `set` assigns values.
+   */
   conflict?: { on: Field[]; update?: Field[]; set: Builder.Insert };
+  /** The selection - columns by alias, or one value. Unset for a write or count. */
   returns?: Map<string, unknown> | Field | Value;
+  /** The table selected whole, when the function returned a table. */
   entity?: Builder.ITable;
   limit?: number;
   offset?: number;
 
+  /**
+   * Compile through the connection into a function of the template's arguments.
+   *
+   * The function makes a runnable query.
+   */
   prepare(): Query.TemplateSelects<any, any> | Query.Template<any> {
     const { connection } = this;
     const statement = connection?.prepare ? connection.prepare(this) : unsupported(this);
@@ -95,6 +123,7 @@ class Builder {
     });
   }
 
+  /** Run deferred work and record the query function's return value as the selection. */
   commit(returns: unknown){
     this.pending.forEach(fn => fn());
 
@@ -146,6 +175,7 @@ class Builder {
     }
   }
 
+  /** Create `args` parameter placeholders for a template. */
   inject(args: number){
     return Array.from({ length: args }, (_, i) => {
       const p = new Parameter(i);
@@ -219,6 +249,11 @@ class Builder {
     return local;
   }
 
+  /**
+   * Add an entity class as a table, returning its column proxy.
+   *
+   * `arg2` true left joins; an object inserts.
+   */
   use(type: Query.Table, arg2?: boolean | {}, ...rest: {}[]): {} {
     if (!this.connection)
       this.connection = type.connection;
@@ -298,6 +333,7 @@ class Builder {
       into.set(field, value);
   }
 
+  /** Encode a value for a column, passing columns and expressions through. Throws when it does not fit. */
   digest(value: unknown, field: Field){
     if (value instanceof Field || value instanceof Value)
       return value;
@@ -324,6 +360,11 @@ class Builder {
     }
   }
 
+  /**
+   * Add a condition - a join when `right` is a column, else a filter.
+   *
+   * Throws for `null` against a non-nullable column.
+   */
   where(left: Field, op: string, right: unknown){
     if (typeof right == "function")
       right = right();
@@ -350,14 +391,17 @@ class Builder {
     return this.filters.add(left, op, right);
   }
 
+  /** Add in-memory rows as a table. */
   with<T extends Record<string, any>>(data: Iterable<T>){
     return new DataTable(this, data).proxy;
   }
 
+  /** Resolve the bound values for a run from the template's arguments. */
   accept(args: unknown[]){
     return this.params.map(p => p.toParam(args));
   }
 
+  /** Decode a raw result row into the selection's shape, frozen. */
   async parse(raw: Record<string, any>): Promise<unknown> {
     const { returns, entity } = this;
 
@@ -416,6 +460,7 @@ class Builder {
     return decode(returns, values(raw)[0], raw);
   }
 
+  /** An outline of the query, for a connection without SQL. */
   toString(){
     const { tables, inserts, updates, deletes, filters, order, limit, offset, returns, entity } = this;
     const lines: string[] = [];

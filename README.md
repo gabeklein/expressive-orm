@@ -39,23 +39,14 @@ npm install @expressive/postgres @expressive/mvc @electric-sql/pglite
 
 ### Agent skills
 
-Each package ships a skill for coding agents, versioned with the package - `expressive-orm`, `expressive-sql` and `expressive-postgres`. Link the installed packages' skills into your project with the [`skills`](https://github.com/vercel-labs/skills) CLI:
+Each package ships a skill for coding agents, versioned with the package - `expressive-orm`, `expressive-sql` and `expressive-postgres`, at `node_modules/@expressive/<pkg>/skills/`. Point your agent at them with a line in `AGENTS.md` (or `CLAUDE.md`):
 
-```sh
-npm install -D skills
-npx skills experimental_sync -y
+```md
+Before working with an `@expressive/*` package, read its skill at
+`node_modules/@expressive/<pkg>/skills/expressive-<pkg>/SKILL.md`.
 ```
 
-`@expressive/sql` and `@expressive/postgres` declare the skills of the packages they build on, so sync installs those too. Run it from `prepare` so the skills follow every install and upgrade, and ignore the links it creates:
-
-```json
-"scripts": { "prepare": "skills experimental_sync -y" }
-```
-
-```text
-.agents/skills/expressive-*
-.claude/skills/expressive-*
-```
+Or install the same instruction as a skill - `npx skills add gabeklein/expressive`. The docs an agent reads then match the installed version, with nothing to re-run after an upgrade.
 
 ## Entities
 
@@ -170,49 +161,6 @@ class Note extends Type {
   text = str();
 }
 ```
-
-### SQLite hosts
-
-`d1Engine`, `libsqlEngine` and `expoEngine` make an `Engine` of a client you already have. On Cloudflare Workers, open the connection once, from the first request's D1 binding:
-
-```ts
-import { SQLiteConnection, d1Engine } from '@expressive/sql';
-
-let db: SQLiteConnection | undefined;
-
-export default {
-  async fetch(request: Request, env: { DB: D1Database }) {
-    await (db ??= SQLiteConnection.new([User], d1Engine(env.DB)));
-
-    return Response.json(await User.find({}));
-  }
-};
-```
-
-D1 applies `sync` as one batch but has no interactive transactions: `transaction` throws. It keeps foreign keys on, so `sync(true, true)` refuses to rebuild a table.
-
-```ts
-import { createClient } from '@libsql/client';
-import { SQLiteConnection, libsqlEngine } from '@expressive/sql';
-
-const client = createClient({ url: process.env.TURSO_URL!, authToken: process.env.TURSO_TOKEN });
-const turso = await SQLiteConnection.new([User], libsqlEngine(client));
-```
-
-A remote libSQL client, such as Turso, runs each `transaction` on a libSQL transaction of its own and `sync` as one batch.
-
-```ts
-import { openDatabaseAsync } from 'expo-sqlite';
-import { SQLiteConnection, expoEngine } from '@expressive/sql';
-
-const file = await openDatabaseAsync("app.db");
-
-await file.execAsync("PRAGMA foreign_keys = ON");
-
-const app = await SQLiteConnection.new([User], expoEngine(file));
-```
-
-expo-sqlite leaves foreign keys off until asked. Like any given engine, each is used as is, and `close()` leaves the client open.
 
 ### Command line
 
@@ -448,7 +396,7 @@ const ann = await db.transaction(async () => {
 
 `transaction(fn)` runs `fn` in one database transaction: it commits when `fn` resolves, to its result, and rolls back when it throws, rethrowing. Statements inside - statics, `Query`, instance writes, and effects they trigger - join it without a handle. A nested `transaction` joins the open one, so a nested failure is undone only if it reaches the outer `fn`; caught, its writes commit with the rest. Instances change as writes land; a rollback restores what they changed, destroys entities created inside, and keeps entities deleted inside, which a commit then destroys. Values read into an instance inside a rolled-back transaction stay.
 
-On SQLite, PGlite and `memory()`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `memory()` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite or `memory()` in a browser, or React Native.
+On SQLite, PGlite and `memory()`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `memory()` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite or `memory()` in a browser.
 
 ## Live rows
 
@@ -536,6 +484,8 @@ A composite `id` reaches the driver as its tuple, in the order `key` lists the p
 Optional capabilities: `prepare(builder)` runs a `Query` - without it `Query` and `Type.query` throw; `subscribe(listener)` reports changes for live rows; `sync(fix?)` checks or creates the schema, and runs when the connection is awaited; a protected `transact(fn)` runs `fn` in one transaction - `BEGIN`, `fn`, `COMMIT` or `ROLLBACK` on SQL - and enables `transaction(fn)`. `Connection` implements `transaction` over it: it takes the connection's lock, scopes the transaction with `AsyncLocalStorage` so statements inside join it, and keeps the journal that restores instances on rollback; `_journal()` returns it, and a driver may keep its own handle on its `session`. A driver calls `idle()` before each statement so it waits out another's transaction; a pooled driver overrides `lock()` and `idle()` to run transactions side by side.
 
 To write a driver, extend `Connection` from `@expressive/orm` and implement the floor - entities, relations, writes and the identity map work on that alone. For a SQL database extend `Connection` from `@expressive/sql`: it implements the floor over `Query`, leaving `prepare` (with a `Generator` subclass for the dialect) and `sync`.
+
+Driver seams - `Builder`, `evaluate`, `Where` and a SQL generator's values - import from `@expressive/orm/driver`.
 
 A driver without a query language can run `Query` in JS, the way `memory()` does: `evaluate(store, builder, params)` returns `{ rows, count }`, so `prepare` is `all` resolving `rows` and `run` resolving `count`. The store reads and writes one table at a time:
 
