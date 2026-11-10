@@ -2694,3 +2694,176 @@ describe("journal", () => {
     expect(Pick.loaded.has('[1,"b"]')).toBe(false);
   })
 })
+
+describe("load", () => {
+  function setup(){
+    class User extends Type {
+      static connection = memory();
+      name = str();
+      age = num(orNull);
+    }
+
+    return User;
+  }
+
+  async function seed(User: ReturnType<typeof setup>, ...names: string[]){
+    for (const name of names)
+      await User.insert({ name });
+  }
+
+  it("will resolve entities in one select", async () => {
+    const User = setup();
+    await seed(User, "Gabe", "Ann", "Bob");
+
+    const select = spy(User.connection, "select");
+    const users = await User.load();
+
+    expect(select).toHaveBeenCalledTimes(1);
+    expect(users.map(user => user.name)).toEqual(["Bob", "Ann", "Gabe"]);
+    expect(users[0]).toBeInstanceOf(User);
+    expect(User.get(3)).toBe(users[0]);
+    expect(select).toHaveBeenCalledTimes(1);
+  })
+
+  it("will filter as find does", async () => {
+    const User = setup();
+    await seed(User, "Gabe", "Ann", "Bob");
+
+    const users = await User.load({ name: [notEqual("Ann"), asc()] });
+
+    expect(users.map(user => user.name)).toEqual(["Bob", "Gabe"]);
+  })
+
+  it("will page with limit and offset", async () => {
+    const User = setup();
+    await seed(User, "A", "B", "C", "D");
+
+    expect((await User.load(undefined, 2)).map(user => user.name)).toEqual(["D", "C"]);
+    expect((await User.load(undefined, 2, 2)).map(user => user.name)).toEqual(["B", "A"]);
+    expect(await User.load(undefined, undefined, 4)).toEqual([]);
+  })
+
+  it("will return a loaded entity", async () => {
+    const User = setup();
+    await seed(User, "Gabe");
+
+    const gabe = await User.get(1);
+    const [loaded] = await User.load();
+
+    expect(loaded).toBe(gabe);
+  })
+
+  it("will settle fresh values into a loaded entity", async () => {
+    const User = setup();
+    await seed(User, "Gabe");
+
+    const gabe = await User.get(1);
+
+    await User.connection.update("user", 1, { name: "Gabriel", age: 30 });
+    expect(gabe.name).toBe("Gabe");
+
+    await User.load();
+
+    expect(gabe.name).toBe("Gabriel");
+    expect(gabe.age).toBe(30);
+  })
+
+  it("will scope to subset", async () => {
+    class Person extends Type {
+      static connection = memory();
+      static table = "person";
+      name = str();
+      role = str();
+    }
+
+    class Admin extends Person {
+      static subset = { role: "admin" };
+    }
+
+    await Person.insert({ name: "Gabe", role: "admin" });
+    await Person.insert({ name: "Ann", role: "user" });
+
+    const admins = await Admin.load();
+
+    expect(admins.map(admin => admin.name)).toEqual(["Gabe"]);
+    expect(admins[0]).toBeInstanceOf(Admin);
+  })
+
+  it("will set and delete loaded entities", async () => {
+    const User = setup();
+    await seed(User, "Gabe", "Ann");
+
+    const [ann, gabe] = await User.load();
+
+    await ann.set({ age: 28 });
+    expect(await User.one(2)).toMatchObject({ name: "Ann", age: 28 });
+
+    await gabe.delete();
+    expect(await User.count()).toBe(1);
+    expect(User.loaded.has(1)).toBe(false);
+  })
+
+  it("will call an overridden delete", async () => {
+    const didDelete = vi.fn();
+
+    class Post extends Type {
+      static connection = memory();
+      title = str();
+
+      async delete(){
+        didDelete(this.title);
+        await super.delete();
+      }
+    }
+
+    await Post.insert({ title: "Hello" });
+
+    const [post] = await Post.load();
+
+    await post.delete();
+
+    expect(didDelete).toHaveBeenCalledWith("Hello");
+    expect(await Post.count()).toBe(0);
+  })
+
+  it("will load composite keys", async () => {
+    class Owner extends Type {
+      static connection = memory();
+      name = str();
+    }
+
+    class Tag extends Type {
+      static connection = Owner.connection;
+      id = key(() => [this.owner, this.kind]);
+      owner = one(Owner);
+      kind = str();
+    }
+
+    await Owner.insert({ name: "Gabe" });
+    await Tag.insert({ owner: 1, kind: "a" });
+    await Tag.insert({ owner: 1, kind: "b" });
+
+    const tag = await Tag.get([1, "a"]);
+    const tags = await Tag.load({ kind: asc() });
+
+    expect(tags[0]).toBe(tag);
+    expect(tags[1].id).toBe('[1,"b"]');
+    expect(Tag.get([1, "b"])).toBe(tags[1]);
+  })
+
+  it("will restore a loaded entity on rollback", async () => {
+    const User = setup();
+    await seed(User, "Gabe");
+
+    const gabe = await User.get(1);
+
+    await expect(User.connection.transaction(async () => {
+      await User.connection.update("user", 1, { name: "Gabriel" });
+      await User.load();
+      expect(gabe.name).toBe("Gabriel");
+      throw new Error("rollback");
+    })).rejects.toThrow("rollback");
+
+    expect(gabe.name).toBe("Gabe");
+  })
+})

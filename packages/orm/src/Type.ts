@@ -711,6 +711,41 @@ abstract class Type extends Model {
   }
 
   /**
+   * Find live entities matching a filter - one select for the whole call.
+   *
+   * Filters and orders as `find` does. A loaded entity settles its fetched row and is returned as is; others are created and loaded.
+   * Omit `limit` for every match.
+   *
+   * @example
+   * const posts = await Post.load({ author: user }, 20);
+   * await posts[0].set({ title: "Hello" });
+   */
+  static async load<T extends Type>(
+    this: Type.Class<T>,
+    where?: Type.Query<T>,
+    limit?: number,
+    offset?: number
+  ): Promise<T[]> {
+    const rows = await select(this, where, limit, offset);
+
+    return Promise.all(rows.map(async raw => {
+      const values = await decode(this, raw);
+      const { loaded } = this;
+      const key = slot(values.id);
+      let entity = loaded.get(key) as T | undefined;
+
+      if (entity) {
+        track(entity, values);
+        settle(entity, values);
+      }
+      else
+        loaded.set(key, entity = write(() => (Model.new as Function).call(this, values) as T));
+
+      return entity;
+    }));
+  }
+
+  /**
    * Iterate rows matching a filter, a page at a time.
    *
    * One select per page, by offset.

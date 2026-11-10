@@ -56,6 +56,18 @@ describe("rows", () => {
     expect(page.map(p => p.bio)).toEqual(["Writer"]);
   });
 
+  it("will load related entities", async () => {
+    await ready;
+    const gabe = await User.get(1);
+    const profiles = await gabe.profiles.load();
+    const [writer] = await gabe.profiles.load({ bio: "Writer", user: 2 });
+
+    expect(profiles.map(p => p.bio)).toEqual(["Writer", "Dev"]);
+    expect(profiles[0]).toBeInstanceOf(Profile);
+    expect(writer).toBe(profiles[0]);
+    expect(await gabe.profiles.load(undefined, 1, 1)).toEqual([profiles[1]]);
+  });
+
   it("will get one related row", async () => {
     await ready;
     const alice = await User.get(2);
