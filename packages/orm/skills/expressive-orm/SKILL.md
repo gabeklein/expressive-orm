@@ -152,6 +152,12 @@ user.get(({ name }) => console.log(name));   // runs once the row lands
 await user;                                  // the entity
 ```
 
+```ts
+const users = await User.load({ admin: true }, 20);   // entities, one select
+```
+
+`Type.load(where?, limit?, offset?)` - `find`'s filter and order, resolving entities. A loaded entity settles the fetched row and is returned itself; others join the identity map. Prefer it over `find` plus `get(id)` per row.
+
 `Type.get(id)` is synchronous and goes through the identity map - concurrent gets share one instance. A placeholder's columns suspend (a read throws a promise; an effect or a React component waits). It and `Type.new` return `Type.Async<T>`. A missing row rejects with `No User found with id 1`. In a Model, `get(User, id)` or `this.get(User, id)` resolves the same way. `User.get()` with no id stays Model's context lookup.
 
 ## Relations
@@ -174,7 +180,7 @@ await author.posts.one({ title: "Hello" });
 ```
 
 - `one(Other)` stores `<field>_id` (`{ column }` renames; two fields on one column throw) and loads the related entity with its parent - with `lazy`, on first read, suspending. Related entities are references, shared and never owned. A write takes an entity, an id or an object - with `id` it is used by it, without one it is inserted as a new related row. A filter takes the same; an object without `id` matches by its fields. `{ onDelete: "CASCADE", onUpdate: "RESTRICT" }` set the foreign key's actions.
-- `rows(Other, key?)` - `find`, `one`, `insert` with the foreign key applied. `key` only when `Other` relates to this class more than once.
+- `rows(Other, key?)` - `find`, `load`, `one`, `insert` with the foreign key applied. `key` only when `Other` relates to this class more than once.
 
 ## Observe
 
@@ -256,6 +262,14 @@ const ann = await db.transaction(async () => {
 ```
 
 Commits when `fn` resolves, rolls back and rethrows when it throws. Every statement inside - statics, `Query`, instance writes, effects they trigger - joins without a handle. A nested `transaction` joins the open one. Rollback restores what instances changed, destroys entities created inside, keeps entities deleted inside. Other statements on the connection wait until it ends, except on a pooled driver. Needs `AsyncLocalStorage` (Bun, Node, Deno, Workers with `nodejs_compat`); throws without it.
+
+## Hooks
+
+```ts
+db.on(Upload, { async delete(row){ await bucket.delete(row.path) } });   // returns a remover
+```
+
+`connection.on(Type, { delete })` runs host-side effects after a row is deleted - instance `delete()`, static `delete(id)` or `delete(where)`, or `remove(table, id)` called directly. The row arrives as `find` returns it. It lives on the connection, so a client binding the same classes to another connection never runs it - prefer it over `onDelete` for side effects that must follow every delete. Handlers are awaited and a rejection rejects the delete; in a `transaction` they run after commit, never on rollback. A delete selects its rows first only while a hook is registered. A raw `Query` delete skips them.
 
 ## Live rows
 
