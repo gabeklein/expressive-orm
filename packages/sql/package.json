@@ -46,7 +46,8 @@
     "bin": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "skills"
   ],
   "scripts": {
     "build": "tsdown",
@@ -59,7 +60,7 @@
     "sql-formatter": "^10.7.2"
   },
   "devDependencies": {
-    "@expressive/mvc": "^0.94.0",
+    "@expressive/mvc": "^0.94.2",
     "tsdown": "^0.20.1"
   },
   "peerDependencies": {

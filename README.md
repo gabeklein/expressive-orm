@@ -37,6 +37,17 @@ npm install @expressive/postgres @expressive/mvc @electric-sql/pglite
 
 `@expressive/postgres` re-exports `@expressive/sql`, which re-exports `@expressive/orm`. Import from the one package you installed.
 
+### Agent skills
+
+Each package ships a skill for coding agents, versioned with the package - `expressive-orm`, `expressive-sql` and `expressive-postgres`, at `node_modules/@expressive/<pkg>/skills/`. Point your agent at them with a line in `AGENTS.md` (or `CLAUDE.md`):
+
+```md
+Before working with an `@expressive/*` package, read its skill at
+`node_modules/@expressive/<pkg>/skills/expressive-<pkg>/SKILL.md`.
+```
+
+Or install the same instruction as a skill - `npx skills add gabeklein/expressive`. The docs an agent reads then match the installed version, with nothing to re-run after an upgrade.
+
 ## Entities
 
 ```ts

@@ -1,6 +1,6 @@
 # @expressive/sql
 
-Entities on [`@expressive/mvc`](https://github.com/gabeklein/expressive-mvc) Model, stored in SQLite with nothing else installed. Re-exports [`@expressive/orm`](https://github.com/gabeklein/expressive-orm/tree/main/packages/orm): entities, field helpers, `Query` and a connection come from this one import. Full guide: [README](https://github.com/gabeklein/expressive-orm#readme).
+Entities on [`@expressive/mvc`](https://github.com/gabeklein/expressive-mvc) Model, stored in SQLite with nothing else installed. Re-exports [`@expressive/orm`](https://github.com/gabeklein/expressive-orm/tree/main/packages/orm): entities, field helpers, `Query` and a connection come from this one import. Full guide: [README](https://github.com/gabeklein/expressive-orm#readme). Agent skill: [skills/expressive-sql](skills/expressive-sql/SKILL.md), shipped in the package with `expressive-orm`'s declared.
 
 ```sh
 npm install @expressive/sql @expressive/mvc

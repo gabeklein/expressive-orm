@@ -26,6 +26,10 @@ jobs:
         if: success() || steps.typecheck.outcome == 'failure'
         run: bun run coverage
 
+      - name: Skills
+        if: success() || steps.typecheck.outcome == 'failure'
+        run: bun .github/scripts/skills-check.ts
+
       - run: bun run build
 
       - name: Changeset status

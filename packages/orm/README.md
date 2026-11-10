@@ -2,7 +2,7 @@
 
 The core of Expressive ORM: entities on [`@expressive/mvc`](https://github.com/gabeklein/expressive-mvc) Model, the driver contract, `Query` and an in-memory driver. No SQL.
 
-Install [`@expressive/sql`](https://github.com/gabeklein/expressive-orm/tree/main/packages/sql) instead - it depends on and re-exports this package and adds SQLite. Install this one directly when writing a driver or running without SQL. Full guide: [README](https://github.com/gabeklein/expressive-orm#readme).
+Install [`@expressive/sql`](https://github.com/gabeklein/expressive-orm/tree/main/packages/sql) instead - it depends on and re-exports this package and adds SQLite. Install this one directly when writing a driver or running without SQL. Full guide: [README](https://github.com/gabeklein/expressive-orm#readme). Agent skill: [skills/expressive-orm](skills/expressive-orm/SKILL.md), shipped in the package.
 
 ```sh
 npm install @expressive/orm @expressive/mvc
