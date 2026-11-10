@@ -25,7 +25,7 @@ An entity is a class extending `Type`, which extends [`@expressive/mvc`](https:/
 npm install @expressive/sql @expressive/mvc
 ```
 
-SQLite is built into Bun and Node 24. Elsewhere add one of `better-sqlite3`, `sqlite3` or `@libsql/client`; the first found is used.
+SQLite is built into Bun and Node 24. Elsewhere add one of `better-sqlite3`, `sqlite3` or `@libsql/client` (0.18 or later); the first found is used.
 
 For Postgres:
 
@@ -150,6 +150,46 @@ const lite = await PGLiteConnection.new([Account], "./data");
 `SQLiteConnection` takes a filename, or an `Engine` in its place for a SQLite the built-in loader can't open: any object with `all(sql, params)`, `get(sql, params)`, `run(sql, params)` returning `{ changes }`, `exec(sql)` and `close()`, each async. A given engine is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
 
 Two optional members cover hosts without `BEGIN` and `COMMIT` on one connection. `transaction()` returns a session - the same four statements plus `commit()` and `rollback()` - and every statement inside `transaction(fn)` runs on it. `batch(sql)` runs statements atomically, and `sync` applies through it. A rebuild in a batch needs foreign keys off, or dropping the old table would cascade; on an engine that keeps them on, it is refused.
+
+### SQLite hosts
+
+In place of the filename, `SQLiteConnection` also takes a Cloudflare D1 binding, a libSQL client or a libSQL address, told apart by shape. A given binding or client is used as is, and `close()` leaves it open.
+
+On Workers, open the connection once, from the first request's binding, and drop it when `sync` fails so the next request retries:
+
+```ts
+import { SQLiteConnection } from '@expressive/sql';
+
+let ready: Promise<unknown> | undefined;
+
+function open(DB: D1Database){
+  const db = SQLiteConnection.new([User], DB);
+
+  return Promise.resolve(db).catch(async error => {
+    ready = undefined;
+    await db.close();
+    throw error;
+  });
+}
+
+export default {
+  async fetch(request: Request, env: { DB: D1Database }) {
+    await (ready ??= open(env.DB));
+
+    return Response.json(await User.find({}));
+  }
+};
+```
+
+`sync` costs a few D1 round trips per table on each cold start, and applies as one batch. D1 has no interactive transactions - `transaction` throws. It keeps foreign keys on, so `sync(true, true)` refuses to rebuild a table.
+
+```ts
+const turso = await SQLiteConnection.new([User], `libsql://app-org.turso.io?authToken=${process.env.TURSO_TOKEN}`);
+```
+
+An address starting `libsql:`, `https:`, `http:`, `ws:` or `wss:` opens a `@libsql/client` (0.18 or later), which reads the token from `?authToken=`. The address form loads `@libsql/client` at runtime, which a bundle such as a Worker's does not include - there, pass a client from `createClient` instead. An `undefined` or empty source opens in memory, so check an address read from the environment before passing it.
+
+Every libSQL client runs each `transaction` on a libSQL write transaction (`BEGIN IMMEDIATE`) holding the connection's lock, so transactions run one at a time across the app. `sync` applies as one batch; a table rebuild runs through the client's `migrate`, which turns foreign keys off for it alone. Local libSQL enforces foreign keys by default; `PRAGMA foreign_keys` is per connection, so a remote client gets the server's setting.
 
 Without SQL, `memory()` keeps rows in arrays - for tests and prototypes:
 
@@ -396,7 +436,7 @@ const ann = await db.transaction(async () => {
 
 `transaction(fn)` runs `fn` in one database transaction: it commits when `fn` resolves, to its result, and rolls back when it throws, rethrowing. Statements inside - statics, `Query`, instance writes, and effects they trigger - join it without a handle. A nested `transaction` joins the open one, so a nested failure is undone only if it reaches the outer `fn`; caught, its writes commit with the rest. Instances change as writes land; a rollback restores what they changed, destroys entities created inside, and keeps entities deleted inside, which a commit then destroys. Values read into an instance inside a rolled-back transaction stay.
 
-On SQLite, PGlite and `memory()`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `memory()` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite or `memory()` in a browser.
+On SQLite, PGlite and `memory()`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `memory()` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite or `memory()` in a browser. D1 refuses `transaction`.
 
 ## Live rows
 

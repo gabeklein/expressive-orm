@@ -43,7 +43,12 @@ export declare namespace Engine {
 
 const DRIVERS = [bunSqlite, nodeSqlite, betterSqlite3, sqlite3, libsql];
 
+const REMOTE = /^(libsql|https?|wss?):\/\//;
+
 export async function createEngine(filename: string): Promise<Engine> {
+  if (REMOTE.test(filename))
+    return libsql(filename, filename);
+
   for (const load of DRIVERS) {
     const engine = await load(filename).catch(() => null);
 
@@ -90,9 +95,8 @@ async function sqlite3(file: string): Promise<Engine | null> {
   return asyncEngine(new Database(file));
 }
 
-async function libsql(file: string): Promise<Engine | null> {
+async function libsql(file: string, url = file === ":memory:" ? file : `file:${file}`): Promise<Engine> {
   const { createClient } = await optional("@libsql/client");
-  const url = file === ":memory:" ? ":memory:" : `file:${file}`;
 
   return libsqlEngine(createClient({ url }));
 }
@@ -138,7 +142,62 @@ function asyncEngine(db: any): Engine {
   };
 }
 
-function libsqlEngine(client: any): Engine {
+export function host(source: Engine | D1Database | LibSQLClient): Engine {
+  const has = (key: string) => source && typeof source == "object" && key in source;
+
+  if (has("all"))
+    return source as Engine;
+
+  if (has("execute"))
+    return libsqlEngine(source as LibSQLClient);
+
+  if (has("prepare") && has("batch"))
+    return d1Engine(source as D1Database);
+
+  throw new TypeError("Unknown SQLite source. Pass a filename, a libSQL address, a D1 binding, a libSQL client or an Engine.");
+}
+
+export const migrations = new WeakMap<Engine, (sql: string[]) => Promise<unknown>>();
+
+/** A libSQL client from `@libsql/client` 0.18 or later - local, Turso or any libSQL server. */
+export interface LibSQLClient extends LibSQLStatements {
+  batch(sql: string[], mode: "write"): Promise<unknown>;
+  migrate(sql: string[]): Promise<unknown>;
+  transaction(mode: "write"): Promise<LibSQLStatements & { commit(): Promise<void>; rollback(): Promise<void> }>;
+  close(): void;
+}
+
+interface LibSQLStatements {
+  execute(statement: { sql: string, args: any[] }): Promise<{ rows: any[], rowsAffected: number }>;
+  executeMultiple(sql: string): Promise<void>;
+}
+
+function libsqlEngine(client: LibSQLClient): Engine {
+  const engine: Engine = {
+    ...libsqlStatements(client),
+    async batch(sql) {
+      await client.batch(sql, "write");
+    },
+    async transaction() {
+      const tx = await client.transaction("write");
+
+      return {
+        ...libsqlStatements(tx),
+        commit: () => tx.commit(),
+        rollback: () => tx.rollback()
+      };
+    },
+    async close() {
+      client.close();
+    }
+  };
+
+  migrations.set(engine, sql => client.migrate(sql));
+
+  return engine;
+}
+
+function libsqlStatements(client: LibSQLStatements): Engine.Statements {
   const execute = (sql: string, args: any[]) => client.execute({ sql, args });
 
   return {
@@ -153,9 +212,45 @@ function libsqlEngine(client: any): Engine {
     },
     async exec(sql) {
       await client.executeMultiple(sql);
-    },
-    async close() {
-      client.close();
     }
+  };
+}
+
+/** A Cloudflare D1 binding, such as a Worker's `env.DB`. */
+export interface D1Database {
+  prepare(sql: string): D1Statement;
+  batch(statements: D1Statement[]): Promise<unknown>;
+}
+
+interface D1Statement {
+  bind(...values: any[]): D1Statement;
+  all(): Promise<{ results: any[] }>;
+  first(): Promise<any>;
+  run(): Promise<{ meta: { changes: number } }>;
+}
+
+function d1Engine(db: D1Database): Engine {
+  const statement = (sql: string, params: any[] = []) => db.prepare(sql).bind(...params);
+
+  return {
+    async all(sql, params) {
+      return (await statement(sql, params).all()).results;
+    },
+    async get(sql, params) {
+      return await statement(sql, params).first() ?? undefined;
+    },
+    async run(sql, params) {
+      return { changes: (await statement(sql, params).run()).meta.changes };
+    },
+    async exec(sql) {
+      await db.prepare(sql).run();
+    },
+    async batch(sql) {
+      await db.batch(sql.map(sql => db.prepare(sql)));
+    },
+    async transaction(): Promise<never> {
+      throw new Error("D1 has no interactive transactions.");
+    },
+    async close() {}
   };
 }

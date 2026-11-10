@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Miniflare } from 'miniflare';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { createEngine } from './engine';
+import { createEngine, host } from './engine';
 
 const DRIVERS = ["bun:sqlite", "node:sqlite", "better-sqlite3", "sqlite3", "@libsql/client"];
 
@@ -219,6 +220,13 @@ describe("@libsql/client", () => {
     expect(client.url).toBe("file:test.db");
   });
 
+  it("will open a remote address first", async () => {
+    const { client } = await load("libsql://db.example.test?authToken=token");
+
+    expect(client.url).toBe("libsql://db.example.test?authToken=token");
+    expect(client.log).toEqual([]);
+  });
+
   it("will run statements", async () => {
     const { engine, client } = await load(":memory:");
 
@@ -241,6 +249,68 @@ describe("@libsql/client", () => {
       ["close"]
     ]);
   });
+});
+
+describe("d1", () => {
+  const mf = new Miniflare({
+    modules: true,
+    script: "export default { fetch: () => new Response() }",
+    d1Databases: ["DB"]
+  });
+
+  let engine: ReturnType<typeof host>;
+
+  beforeAll(async () => {
+    engine = host(await mf.getD1Database("DB"));
+  });
+
+  afterAll(() => mf.dispose());
+
+  it("will run statements", async () => {
+    await engine.exec("CREATE TABLE foo (id INTEGER PRIMARY KEY, name TEXT)");
+
+    expect(await engine.run("INSERT INTO foo (name) VALUES (?)", ["a"])).toEqual({ changes: 1 });
+    expect(await engine.run("INSERT INTO foo (name) VALUES ('b')")).toEqual({ changes: 1 });
+    expect(await engine.get("SELECT name FROM foo WHERE id = ?", [2])).toEqual({ name: "b" });
+    expect(await engine.get("SELECT name FROM foo WHERE id = 3")).toBeUndefined();
+    expect(await engine.all("SELECT name FROM foo WHERE id > ?", [0])).toEqual([{ name: "a" }, { name: "b" }]);
+    expect(await engine.all("SELECT id FROM foo")).toEqual([{ id: 1 }, { id: 2 }]);
+
+    await engine.close();
+  });
+
+  it("will batch atomically", async () => {
+    await engine.exec("CREATE TABLE bar (id INTEGER PRIMARY KEY)");
+    await expect(engine.batch!(["INSERT INTO bar VALUES (1)", "INSERT INTO nope VALUES (1)"])).rejects.toThrow("no such table: nope");
+
+    expect(await engine.all("SELECT * FROM bar")).toEqual([]);
+
+    await engine.batch!(["INSERT INTO bar VALUES (1)", "INSERT INTO bar VALUES (2)"]);
+
+    expect(await engine.all("SELECT * FROM bar")).toEqual([{ id: 1 }, { id: 2 }]);
+  });
+
+  it("will enforce foreign keys", async () => {
+    expect(await engine.get("PRAGMA foreign_keys")).toEqual({ foreign_keys: 1 });
+  });
+
+  it("will exec a statement over lines", async () => {
+    await engine.exec("CREATE TABLE multi (\n  id INTEGER PRIMARY KEY\n)");
+
+    expect(await engine.all("SELECT name FROM pragma_table_info('multi')")).toEqual([{ name: "id" }]);
+  });
+
+  it("will throw on transaction", async () => {
+    await expect(engine.transaction!()).rejects.toThrow("D1 has no interactive transactions.");
+  });
+});
+
+it("will use an engine as given", async () => {
+  const engine = await createEngine(":memory:");
+
+  expect(host(engine)).toBe(engine);
+
+  await engine.close();
 });
 
 it("will throw if no driver is available", async () => {

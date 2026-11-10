@@ -2,7 +2,9 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, expect, it, vi } from 'vitest';
+import { createClient } from '@libsql/client';
+import { Miniflare } from 'miniflare';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { asc, bool, date, desc, greaterThan, index, isIn, isLike, isNull, json, key, lessThan, notIn, notNull, now, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
 import { Builder } from '@expressive/orm/driver';
@@ -10,7 +12,7 @@ import { Builder } from '@expressive/orm/driver';
 import { spy } from '../../test.setup';
 
 import type { Connection } from '../connection/Connection';
-import { createEngine, type Engine } from './engine';
+import { createEngine, host, type Engine } from './engine';
 import { SQLiteConnection } from './SQLiteConnection';
 import { TestConnection } from './TestConnection';
 
@@ -2126,6 +2128,45 @@ describe("engine", () => {
     await engine.close();
   })
 
+  it("will not type an unknown source", async () => {
+    // @ts-expect-error
+    const conn = SQLiteConnection.new([], { execute: () => {} });
+
+    await conn.close();
+  })
+
+  it.each([
+    ["an unknown object", {}],
+    ["null", null]
+  ])("will throw on sync for %s", async (_, source) => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    const conn = SQLiteConnection.new([Foo], source as Engine);
+
+    await expect(conn).rejects.toThrow("Unknown SQLite source. Pass a filename, a libSQL address, a D1 binding, a libSQL client or an Engine.");
+    await conn.close();
+
+    expect(Foo.hasOwnProperty("connection")).toBe(false);
+  })
+
+  it("will unbind on close when the engine failed to open", async () => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    vi.doMock("@libsql/client", () => { throw new Error("Cannot find module '@libsql/client'") });
+
+    const conn = SQLiteConnection.new([Foo], "libsql://db.example.test");
+
+    await expect(conn).rejects.toThrow();
+    await conn.close();
+    vi.doUnmock("@libsql/client");
+
+    expect(Foo.hasOwnProperty("connection")).toBe(false);
+  })
+
   async function hosted(){
     const engine: Engine = await createEngine(":memory:");
 
@@ -2213,13 +2254,16 @@ describe("engine", () => {
 
   it("will sync through a batch", async () => {
     class Foo extends Type {
-      name = str();
+      name = str({ index: true });
     }
 
     const engine = await hosted();
     const conn = await SQLiteConnection.new([Foo], engine);
 
-    expect(engine.batch).toHaveBeenCalledWith([expect.stringMatching(/^CREATE TABLE foo/)]);
+    expect(engine.batch).toHaveBeenCalledWith([
+      expect.stringMatching(/^CREATE TABLE foo \(.*\);$/),
+      "CREATE INDEX IF NOT EXISTS `foo_name` ON foo (`name`);"
+    ]);
 
     await conn.close();
     await engine.close();
@@ -2296,5 +2340,205 @@ describe("engine", () => {
     await conn.close();
     await exec("SELECT 1");
     await engine.close();
+  })
+})
+
+describe("d1", () => {
+  async function open(){
+    const mf = new Miniflare({
+      modules: true,
+      script: "export default { fetch: () => new Response() }",
+      d1Databases: ["DB"]
+    });
+
+    const DB = await mf.getD1Database("DB");
+
+    class Author extends Type {
+      name = str({ index: true });
+    }
+
+    class Post extends Type {
+      author = one(Author);
+      title = str();
+    }
+
+    return { DB, engine: host(DB), Author, Post, dispose: () => mf.dispose() };
+  }
+
+  it("will sync and query", async () => {
+    const { DB, engine, Author, Post, dispose } = await open();
+    const conn = await SQLiteConnection.new([Author, Post], DB);
+    const author = await Author.insert({ name: "Gabe" });
+
+    await Post.insert({ author, title: "Hello" });
+    await expect(Post.insert({ author: 99, title: "Orphan" })).rejects.toThrow("FOREIGN KEY constraint failed");
+    await expect(Author.find({ name: "Gabe" })).resolves.toHaveLength(1);
+    await expect(engine.all("PRAGMA index_list(author)")).resolves.toMatchObject([{ name: "author_name" }]);
+
+    await conn.close();
+    await dispose();
+  })
+
+  it("will not rebuild a table", async () => {
+    const { DB, engine, Author, Post, dispose } = await open();
+
+    await engine.exec("CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name INTEGER NOT NULL)");
+    await engine.exec("CREATE TABLE post (\n  id INTEGER NOT NULL PRIMARY KEY,\n  author_id INTEGER NOT NULL REFERENCES author(id) ON DELETE CASCADE,\n  title TEXT NOT NULL\n)");
+    await engine.exec("INSERT INTO author (name) VALUES ('Gabe')");
+    await engine.exec("INSERT INTO post (author_id, title) VALUES (1, 'Hello')");
+
+    const conn = SQLiteConnection.new([Author, Post], DB);
+
+    await expect(conn.sync(true, true)).rejects.toThrow("Cannot rebuild: this engine keeps foreign keys on");
+    await expect(engine.all("SELECT type FROM pragma_table_info('author') WHERE name = 'name'")).resolves.toEqual([{ type: "INTEGER" }]);
+    await expect(engine.all("SELECT title FROM post")).resolves.toEqual([{ title: "Hello" }]);
+
+    await conn.close();
+    await dispose();
+  })
+
+  it("will refuse a transaction", async () => {
+    const { DB, Author, Post, dispose } = await open();
+    const conn = await SQLiteConnection.new([Author, Post], DB);
+
+    await expect(conn.transaction(() => Author.insert({ name: "Gabe" }))).rejects.toThrow("D1 has no interactive transactions.");
+    await expect(Author.find({})).resolves.toEqual([]);
+
+    await conn.close();
+    await dispose();
+  })
+})
+
+const dirs: string[] = [];
+
+describe.each([
+  ["memory", () => ":memory:"],
+  ["file", () => `file:${join(dirs[dirs.push(mkdtempSync(join(tmpdir(), "libsql-"))) - 1], "test.db")}`]
+])("libsql %s", (_, url) => {
+  afterAll(() => {
+    for (const dir of dirs.splice(0))
+      rmSync(dir, { recursive: true });
+  });
+
+  function open(){
+    const client = createClient({ url: url() });
+
+    class Author extends Type {
+      name = str({ index: true });
+    }
+
+    class Post extends Type {
+      author = one(Author, { onDelete: "cascade" });
+      title = str();
+    }
+
+    return { client, engine: host(client), Author, Post };
+  }
+
+  it("will sync each statement", async () => {
+    const { client, engine, Author, Post } = open();
+    const conn = await SQLiteConnection.new([Author, Post], client);
+    const author = await Author.insert({ name: "Gabe" });
+
+    await Post.insert({ author, title: "Hello" });
+    await expect(Author.find({ name: "Gabe" })).resolves.toHaveLength(1);
+    await expect(engine.all("PRAGMA index_list(author)")).resolves.toMatchObject([{ name: "author_name" }]);
+
+    await conn.close();
+    client.close();
+  })
+
+  it("will commit and roll back", async () => {
+    const { client, Author, Post } = open();
+    const conn = await SQLiteConnection.new([Author, Post], client);
+
+    await conn.transaction(() => Author.insert({ name: "kept" }));
+    await expect(conn.transaction(async () => {
+      await Author.insert({ name: "gone" });
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    await expect(Author.find({})).resolves.toMatchObject([{ name: "kept" }]);
+
+    await conn.close();
+    client.close();
+  })
+
+  it("will inspect inside a transaction", async () => {
+    const { client, Author, Post } = open();
+    const conn = await SQLiteConnection.new([Author, Post], client);
+
+    await expect(conn.transaction(() => conn.valid(Post))).resolves.toEqual([]);
+
+    await conn.close();
+    client.close();
+  })
+
+  it("will inspect after a transaction elsewhere", async () => {
+    const { client, Author, Post } = open();
+    const conn = await SQLiteConnection.new([Author, Post], client);
+    let release!: () => void;
+    let started!: () => void;
+    const holding = new Promise<void>(resolve => release = resolve);
+    const opened = new Promise<void>(resolve => started = resolve);
+
+    const tx = conn.transaction(async () => {
+      started();
+      await holding;
+    });
+
+    await opened;
+
+    const checked = conn.valid(Post);
+
+    release();
+
+    await tx;
+    await expect(checked).resolves.toEqual([]);
+
+    await conn.close();
+    client.close();
+  })
+
+  it("will rebuild a table through migrate", async () => {
+    const { client, engine, Author, Post } = open();
+    const migrate = vi.spyOn(client, "migrate");
+
+    await engine.batch!([
+      "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name INTEGER NOT NULL)",
+      "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, author_id INTEGER NOT NULL REFERENCES author(id) ON DELETE CASCADE, title TEXT NOT NULL)",
+      "INSERT INTO author (name) VALUES (1)",
+      "INSERT INTO post (author_id, title) VALUES (1, 'Hello')"
+    ]);
+
+    const conn = SQLiteConnection.new([Author, Post], client);
+
+    await conn.sync(true, true);
+
+    expect(migrate).toHaveBeenCalledOnce();
+    await expect(engine.all("SELECT type FROM pragma_table_info('author') WHERE name = 'name'")).resolves.toEqual([{ type: "TEXT" }]);
+    await expect(engine.all("SELECT title FROM post")).resolves.toEqual([{ title: "Hello" }]);
+    await expect(engine.get("PRAGMA foreign_keys")).resolves.toEqual({ foreign_keys: 1 });
+
+    await conn.close();
+    client.close();
+  })
+
+  it("will not rebuild over dangling references", async () => {
+    const { client, engine, Author, Post } = open();
+
+    await engine.exec("PRAGMA foreign_keys = OFF");
+    await engine.batch!([
+      "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name INTEGER NOT NULL)",
+      "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, author_id INTEGER NOT NULL REFERENCES author(id) ON DELETE CASCADE, title TEXT NOT NULL)",
+      "INSERT INTO post (author_id, title) VALUES (9, 'Orphan')"
+    ]);
+
+    const conn = SQLiteConnection.new([Author, Post], client);
+
+    await expect(conn.sync(true, true)).rejects.toThrow("Cannot rebuild: post has references to missing rows (1).");
+
+    await conn.close();
+    client.close();
   })
 })
