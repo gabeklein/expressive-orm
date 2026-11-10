@@ -1169,6 +1169,59 @@ describe("transaction", () => {
   })
 })
 
+describe("on", () => {
+  class Upload extends Type {
+    path = str();
+  }
+
+  it("will run delete hooks after each delete path", async () => {
+    const db = await TestConnection.new([Upload]);
+    const didDelete = vi.fn();
+
+    for (const path of ["a.png", "b.png", "c.png", "d.txt"])
+      await Upload.insert({ path });
+
+    db.on(Upload, { delete: didDelete });
+
+    const [loaded] = await Upload.load({ id: 1 });
+
+    await loaded.delete();
+    await Upload.delete(2);
+    await Upload.delete({ path: "c.png" });
+
+    expect(didDelete.mock.calls).toEqual([
+      [{ id: 1, path: "a.png" }],
+      [{ id: 2, path: "b.png" }],
+      [{ id: 3, path: "c.png" }]
+    ]);
+    await expect(Upload.find()).resolves.toEqual([{ id: 4, path: "d.txt" }]);
+  })
+
+  it("will run delete hooks after commit only", async () => {
+    const db = await TestConnection.new([Upload]);
+    const didDelete = vi.fn();
+
+    await Upload.insert({ path: "a.png" });
+    await Upload.insert({ path: "b.png" });
+    db.on(Upload, { delete: didDelete });
+
+    await expect(db.transaction(async () => {
+      await Upload.delete(1);
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    expect(didDelete).not.toHaveBeenCalled();
+
+    await db.transaction(async () => {
+      await Upload.delete(2);
+      expect(didDelete).not.toHaveBeenCalled();
+    });
+
+    expect(didDelete).toHaveBeenCalledWith({ id: 2, path: "b.png" });
+    await expect(Upload.find()).resolves.toEqual([{ id: 1, path: "a.png" }]);
+  })
+})
+
 describe("sync", () => {
   it("will reopen a file", async () => {
     const dir = mkdtempSync(join(tmpdir(), "expressive-sql-"));

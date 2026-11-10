@@ -2,7 +2,8 @@ import { Model } from '@expressive/mvc';
 
 import type { Builder } from './query/Builder';
 import type { Query } from './query/Query';
-import type { Type } from './Type';
+import { match, row } from './Field';
+import type { Columns, Type } from './Type';
 
 declare namespace Connection {
   /** Entity classes to bind - an array, or an object of them. */
@@ -30,10 +31,21 @@ declare namespace Connection {
   interface Journal {
     /** Restore entities - run in reverse on rollback. */
     undo: (() => void)[];
-    /** Deferred effects - run on commit. */
-    done: (() => void)[];
+    /** Deferred effects - run on commit. The transaction awaits any they return, after releasing the connection. */
+    done: (() => unknown)[];
     /** The driver's own handle for the transaction's statements. */
     session?: unknown;
+  }
+
+  /** Host-side effects for a class's rows - registered with `on`. */
+  interface Hooks<T extends Type = Type> {
+    /**
+     * Runs after a row is deleted, receiving it as `find` resolves it.
+     *
+     * Covers instance `delete()`, static `delete` by id or filter, and `remove` called directly.
+     * Inside a transaction it runs after commit, never after a rollback. A rejection rejects the delete or the transaction, which stays committed.
+     */
+    delete?(row: Columns<T>): void | Promise<void>;
   }
 
   /** A row change reported to `subscribe`'s listener. */
@@ -50,6 +62,7 @@ declare namespace Connection {
 type Scope = Map<Connection, Connection.Journal>;
 
 const synced = new WeakMap<Connection, Promise<unknown>>();
+const HOOKED = new WeakSet<Connection>();
 const COLLECT = Symbol.for("@expressive/orm.collect");
 
 let storage: Promise<import('node:async_hooks').AsyncLocalStorage<Scope>> | undefined;
@@ -83,6 +96,7 @@ abstract class Connection extends Model {
 
   _active?: Promise<void>;
   _loaded = new Map<Type.Class, Map<unknown, Type>>();
+  _hooks = new Map<string, Set<{ type: Type.Class; hooks: Connection.Hooks<any> }>>();
 
   /**
    * Binds each class to this connection.
@@ -174,6 +188,71 @@ abstract class Connection extends Model {
   }
 
   /**
+   * Register host-side effects for a class's rows on this connection, returning a remover.
+   *
+   * Effects run only where the class is bound to this connection - a client binding the same class elsewhere never runs them.
+   * Each registration runs; with any registered, a delete selects its rows first.
+   *
+   * @example
+   * db.on(Upload, {
+   *   async delete(row){
+   *     await bucket.delete(row.path);
+   *   }
+   * });
+   */
+  on<T extends Type>(type: Type.Class<T>, hooks: Connection.Hooks<T>): () => boolean {
+    const { ref } = type;
+    const entry = { type, hooks };
+    let set = this._hooks.get(ref);
+
+    if (!set)
+      this._hooks.set(ref, set = new Set());
+
+    set.add(entry);
+
+    if (!HOOKED.has(this)) {
+      HOOKED.add(this);
+
+      const remove = this.remove;
+
+      Object.defineProperty(this, "remove", {
+        configurable: true,
+        value: async (table: string, id: Connection.Key) => {
+          const hooked = this._hooks.get(table);
+
+          if (!hooked?.size)
+            return remove.call(this, table, id);
+
+          const [{ type }] = hooked;
+          const rows = await this.select(table, match(type.fields.get("id")!, id), 1);
+
+          await remove.call(this, table, id);
+          await this._deleted(table, rows);
+        }
+      });
+    }
+
+    return () => set.delete(entry);
+  }
+
+  _deleted(table: string, rows: Record<string, any>[]) {
+    const hooked = this._hooks.get(table);
+    const journal = this._journal();
+
+    if (!hooked?.size || !rows.length)
+      return;
+
+    const run = () => Promise.all(Array.from(hooked, ({ type, hooks }) => hooks.delete && Promise.all(
+      rows.map(async raw => hooks.delete!(await row(type.fields, raw) as Columns<Type>))
+    )));
+
+    if (journal)
+      journal.done.push(run);
+    else
+      return run();
+  }
+
+  /**
    * Run `fn` in a transaction - commit when it resolves, roll back and rethrow when it throws.
    *
    * Every statement inside joins without a handle - statics, `Query`, instance writes. A nested call joins the open one.
@@ -199,13 +278,12 @@ abstract class Connection extends Model {
 
     const release = await this.lock();
     const journal: Connection.Journal = { undo: [], done: [] };
+    let result: T;
+    let effects: unknown[];
 
     try {
-      const result = await storage.run(new Map(outer).set(this, journal), () => this.transact!(async () => fn()));
-
-      journal.done.forEach(apply => apply());
-
-      return result;
+      result = await storage.run(new Map(outer).set(this, journal), () => this.transact!(async () => fn()));
+      effects = journal.done.map(apply => apply());
     }
     catch (error) {
       journal.undo.reverse().forEach(apply => apply());
@@ -214,6 +292,10 @@ abstract class Connection extends Model {
     finally {
       release();
     }
+
+    await Promise.all(effects);
+
+    return result;
   }
 
   /**

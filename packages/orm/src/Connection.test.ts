@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Connection } from './Connection';
 import { str } from './fields';
+import { one } from './one';
+import { isLike } from './where';
 import { memory } from './memory';
 import { Type } from './Type';
 
@@ -230,5 +232,263 @@ describe("transaction", () => {
 
     vi.doUnmock("node:async_hooks");
     vi.resetModules();
+  })
+})
+
+describe("on", () => {
+  function setup(){
+    const db = memory();
+
+    class Upload extends Type {
+      static connection = db;
+      path = str();
+    }
+
+    return { db, Upload };
+  }
+
+  async function seed(Upload: ReturnType<typeof setup>["Upload"], ...paths: string[]){
+    for (const path of paths)
+      await Upload.insert({ path });
+  }
+
+  it("will run after instance delete", async () => {
+    const { db, Upload } = setup();
+    const didDelete = vi.fn();
+
+    await seed(Upload, "a.png");
+    db.on(Upload, { delete: didDelete });
+
+    const upload = await Upload.get(1);
+
+    await upload.delete();
+
+    expect(didDelete).toHaveBeenCalledTimes(1);
+    expect(didDelete).toHaveBeenCalledWith({ id: 1, path: "a.png" });
+  })
+
+  it("will run after static delete by id", async () => {
+    const { db, Upload } = setup();
+    const didDelete = vi.fn();
+
+    await seed(Upload, "a.png", "b.png");
+    db.on(Upload, { delete: didDelete });
+
+    await Upload.delete(2);
+
+    expect(didDelete).toHaveBeenCalledWith({ id: 2, path: "b.png" });
+  })
+
+  it("will run after remove called directly", async () => {
+    const { db, Upload } = setup();
+    const didDelete = vi.fn();
+
+    await seed(Upload, "a.png");
+    db.on(Upload, { delete: didDelete });
+
+    await db.remove("upload", 1);
+
+    expect(didDelete).toHaveBeenCalledWith({ id: 1, path: "a.png" });
+  })
+
+  it("will run for each row deleted by filter", async () => {
+    const { db, Upload } = setup();
+    const didDelete = vi.fn();
+
+    await seed(Upload, "a.png", "b.png", "c.txt");
+    db.on(Upload, { delete: didDelete });
+
+    expect(await Upload.delete({ path: isLike("%.png") })).toBe(2);
+    expect(didDelete).toHaveBeenCalledTimes(2);
+    expect(didDelete).toHaveBeenCalledWith({ id: 1, path: "a.png" });
+    expect(didDelete).toHaveBeenCalledWith({ id: 2, path: "b.png" });
+  })
+
+  it("will pass relations as ids", async () => {
+    const db = memory();
+    const didDelete = vi.fn();
+
+    class User extends Type {
+      static connection = db;
+      name = str();
+    }
+
+    class File extends Type {
+      static connection = db;
+      owner = one(User);
+    }
+
+    await User.insert({ name: "Gabe" });
+    await File.insert({ owner: 1 });
+    db.on(File, { delete: didDelete });
+
+    await File.delete(1);
+
+    expect(didDelete).toHaveBeenCalledWith({ id: 1, owner: 1 });
+  })
+
+  it("will await the handler", async () => {
+    const { db, Upload } = setup();
+    const done = vi.fn();
+
+    await seed(Upload, "a.png");
+    db.on(Upload, {
+      async delete(){
+        await new Promise(resolve => setTimeout(resolve, 1));
+        done();
+      }
+    });
+
+    await Upload.delete(1);
+
+    expect(done).toHaveBeenCalled();
+  })
+
+  it("will run every registration", async () => {
+    const { db, Upload } = setup();
+    const first = vi.fn();
+    const second = vi.fn();
+
+    await seed(Upload, "a.png");
+    db.on(Upload, { delete: first });
+    db.on(Upload, { delete: second });
+    db.on(Upload, {});
+
+    await Upload.delete(1);
+
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(1);
+  })
+
+  it("will stop when removed", async () => {
+    const { db, Upload } = setup();
+    const didDelete = vi.fn();
+
+    await seed(Upload, "a.png", "b.png");
+
+    const release = db.on(Upload, { delete: didDelete });
+
+    expect(release()).toBe(true);
+
+    void db.select;
+    const select = vi.spyOn(db, "select");
+
+    await Upload.delete(1);
+    await Upload.delete({ path: "b.png" });
+
+    expect(didDelete).not.toHaveBeenCalled();
+    expect(select).not.toHaveBeenCalled();
+  })
+
+  it("will not select without a hook", async () => {
+    const { db, Upload } = setup();
+
+    await seed(Upload, "a.png", "b.png");
+
+    void db.select;
+    const select = vi.spyOn(db, "select");
+
+    await Upload.delete(1);
+    await Upload.delete({ path: "b.png" });
+
+    expect(select).not.toHaveBeenCalled();
+  })
+
+  it("will not run for a missing row", async () => {
+    const { db, Upload } = setup();
+    const didDelete = vi.fn();
+
+    db.on(Upload, { delete: didDelete });
+
+    await Upload.delete(1);
+    await Upload.delete({ path: "none" });
+
+    expect(didDelete).not.toHaveBeenCalled();
+  })
+
+  it("will reject the delete when a handler throws", async () => {
+    const { db, Upload } = setup();
+
+    await seed(Upload, "a.png");
+    db.on(Upload, { delete(){ throw new Error("nope") } });
+
+    await expect(Upload.delete(1)).rejects.toThrow("nope");
+    expect(await Upload.count()).toBe(0);
+  })
+
+  it("will run after commit", async () => {
+    const { db, Upload } = setup();
+    const didDelete = vi.fn();
+
+    await seed(Upload, "a.png", "b.png");
+    db.on(Upload, { delete: didDelete });
+
+    await db.transaction(async () => {
+      await Upload.delete(1);
+      await Upload.delete({ path: "b.png" });
+      expect(didDelete).not.toHaveBeenCalled();
+    });
+
+    expect(didDelete).toHaveBeenCalledTimes(2);
+  })
+
+  it("will not run after rollback", async () => {
+    const { db, Upload } = setup();
+    const didDelete = vi.fn();
+
+    await seed(Upload, "a.png");
+    db.on(Upload, { delete: didDelete });
+
+    await expect(db.transaction(async () => {
+      await Upload.delete(1);
+      throw new Error("rollback");
+    })).rejects.toThrow("rollback");
+
+    expect(didDelete).not.toHaveBeenCalled();
+    expect(await Upload.count()).toBe(1);
+  })
+
+  it("will use the connection after commit", async () => {
+    const { db, Upload } = setup();
+
+    await seed(Upload, "a.png", "a.png.thumb");
+    db.on(Upload, {
+      async delete({ path }){
+        await Upload.delete({ path: `${path}.thumb` });
+      }
+    });
+
+    await db.transaction(() => Upload.delete(1));
+
+    expect(await Upload.count()).toBe(0);
+  })
+
+  it("will reject a committed transaction when a handler throws", async () => {
+    const { db, Upload } = setup();
+
+    await seed(Upload, "a.png");
+    db.on(Upload, { async delete(){ throw new Error("nope") } });
+
+    await expect(db.transaction(() => Upload.delete(1))).rejects.toThrow("nope");
+    expect(await Upload.count()).toBe(0);
+  })
+
+  it("will not run for another connection", async () => {
+    const { db, Upload } = setup();
+    const other = memory();
+    const didDelete = vi.fn();
+
+    class Shared extends Type {
+      static connection = other;
+      static table = "upload";
+      path = str();
+    }
+
+    await Shared.insert({ path: "a.png" });
+    db.on(Upload, { delete: didDelete });
+
+    await Shared.delete(1);
+
+    expect(didDelete).not.toHaveBeenCalled();
   })
 })
