@@ -55,7 +55,7 @@ Naming: positive `it('will create instance')`, negative `it('will not trigger up
   - Then a blank line and the contract: defaults, constraints, failure modes - one fact per sentence. No meta-framing or intensifiers; a dash over a connective phrase.
   - `@example` only where usage isn't obvious from the signature: the common case, 2-8 lines. `bun .github/scripts/example-check.ts` typechecks every one - statements run in a method body, fields and methods in a class body, on a subclass of `Type`; free names are placeholders.
   - `@param` only when name and type don't say it; no `@returns` that restates the type. Each overload gets its own block.
-  - Put a block directly above its declaration - the bundler attaches it to the next one.
+  - Put a block directly above its declaration - the bundler attaches it to the next one. Document members on an `interface`, not a type-literal alias or an inferred object: the bundler prints those members' blocks as trailing comments. `bun .github/scripts/dts-check.ts` fails on any block the built `.d.ts` leaves unattached.
 - **Ask before adding public surface.** No new exported functions, classes, types, fields, statics or contract methods without confirming first. Prefer reshaping existing surface.
 - Keep `@expressive/mvc` as a peer; take its released version, never a link. A seam missing in mvc lands on `expressive-mvc` `main` as its own PR.
 
