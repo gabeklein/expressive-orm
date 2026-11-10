@@ -1,17 +1,32 @@
+/**
+ * A SQLite host - what `SQLiteConnection` runs statements on.
+ *
+ * Pass one in place of a filename for a SQLite the built-in loader cannot open.
+ * It is used as given - foreign keys are not switched on, and the connection's `close()` leaves it open.
+ */
 export interface Engine extends Engine.Statements {
+  /** Release the database. Called only on an engine the connection opened. */
   close(): Promise<void>;
+  /** Open a transaction on its own session. Without it the connection issues `BEGIN`, `COMMIT` and `ROLLBACK` through `exec`. */
   transaction?(): Promise<Engine.Session>;
+  /** Run statements atomically. `sync` applies through it when present; a table rebuild then needs foreign keys off. */
   batch?(sql: string[]): Promise<void>;
 }
 
 export declare namespace Engine {
+  /** Statement methods an engine and a session share. Parameters are positional. */
   interface Statements {
+    /** Run a statement, resolving every row. */
     all(sql: string, params?: any[]): Promise<any[]>;
+    /** Run a statement, resolving the first row. */
     get(sql: string, params?: any[]): Promise<any>;
+    /** Run a statement, resolving how many rows changed. */
     run(sql: string, params?: any[]): Promise<{ changes: number }>;
+    /** Run one or more statements without parameters. */
     exec(sql: string): Promise<void>;
   }
 
+  /** A transaction's own handle - statements inside `db.transaction(fn)` run on it. */
   interface Session extends Statements {
     commit(): Promise<void>;
     rollback(): Promise<void>;

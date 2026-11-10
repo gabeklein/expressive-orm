@@ -14,6 +14,11 @@ function isValue(input: unknown){
   );
 }
 
+/**
+ * Renders a `Query` builder as one SQL statement - `String(generator)`.
+ *
+ * A dialect subclasses it and overrides the protected hooks. Literals render inline, escaped; parameters bind.
+ */
 export class Generator {
   constructor(public query: Builder){}
 
@@ -35,10 +40,12 @@ export class Generator {
     return parts.flat(Infinity).filter(Boolean).join(' ');
   }
 
+  /** Quote an identifier, each dotted part on its own. */
   escape(name: unknown){
     return String(name).split('.').map(x => `\`${x}\``).join('.');
   }
 
+  /** `INSERT INTO`, or `false` when the query inserts nothing. */
   protected insert() {
     const { inserts, tables } = this.query;
 
@@ -69,10 +76,12 @@ export class Generator {
     ]);
   }
 
+  /** Order an insert's data CTE, target and select - for a dialect placing `WITH` elsewhere. */
   protected insertWith(cte: string | undefined, into: unknown[], select: unknown[]): unknown[] {
     return [cte, into, select];
   }
 
+  /** `ON CONFLICT` clause of an upsert. */
   protected upsert(){
     const { conflict } = this.query;
 
@@ -95,6 +104,7 @@ export class Generator {
     return [on, 'DO UPDATE SET', set.join(', ')];
   }
 
+  /** `RETURNING` clause of an insert that selects. */
   protected returning(){
     const { inserts, returns } = this.query;
 
@@ -108,6 +118,7 @@ export class Generator {
     );
   }
 
+  /** `WITH` clause over the query's data tables. */
   protected with(){
     const cte = [] as string[];
 
@@ -120,6 +131,7 @@ export class Generator {
       return 'WITH ' + cte.join();
   }
 
+  /** A value - `now`, a reference, or a literal. */
   protected value(input: unknown, field?: Field){
     if(input === now)
       return this.now(field);
@@ -130,22 +142,27 @@ export class Generator {
     return this.literal(input);
   }
 
+  /** A literal - every literal in values, `SET` and `WHERE` passes through it. */
   protected literal(value: unknown){
     return String(escape(value));
   }
 
+  /** A table with its alias - for `FROM`, joins, `UPDATE` and `DELETE`. */
   protected table({ name, alias }: Builder.ITable){
     return this.escape(name) + (alias ? ` ${this.escape(alias)}` : "");
   }
 
+  /** The current time - `CURRENT_TIMESTAMP`; a dialect renders it per `field`'s storage. */
   protected now(_field?: Field){
     return "CURRENT_TIMESTAMP";
   }
 
+  /** Select a data table's rows out of its bound parameter. The base throws - a dialect implements it. */
   protected jsonTable(_table: DataTable): string {
     throw new Error("Not implemented.");
   }
 
+  /** An arithmetic expression, parenthesized by operator rank. */
   protected computed(from: Computed<unknown>): string {
     const { left, operator, right, rank } = from;
     const side = (input: unknown, tight: boolean) => {
@@ -163,6 +180,7 @@ export class Generator {
     return `${side(left, false)} ${operator} ${side(right, true)}`;
   }
 
+  /** `JOIN` clauses for every table but `main`. Throws for a table without a join condition. */
   protected joins(main: Builder.ITable){
     const output: string[] = [];
 
@@ -185,6 +203,7 @@ export class Generator {
       return output.join(' ');
   }
 
+  /** `SET` clause of an update. Throws without values. */
   protected set(updates: Map<Builder.ITable, Builder.Insert>){
     const sets: string[] = [];
 
@@ -203,6 +222,7 @@ export class Generator {
     return `SET ${sets}`;
   }
 
+  /** `UPDATE` head. Throws when the query updates more than one table. */
   protected update(){
     const { updates } = this.query;
 
@@ -222,6 +242,7 @@ export class Generator {
     ]
   }
 
+  /** `DELETE FROM` head. */
   protected delete(){
     const { query } = this;
     const [ main ] = query.deletes;
@@ -235,6 +256,7 @@ export class Generator {
     return ['DELETE', target, 'FROM', this.table(main), this.joins(main)]
   }
 
+  /** A column, parameter, data column, raw template or expression. */
   protected reference(from: unknown): string {
     if(from instanceof DataField)
       return this.escape(from.table.name + '.' + from.column);
@@ -253,6 +275,7 @@ export class Generator {
     return this.escape(table!.alias || table!.name) + "." + this.escape(column);
   }
 
+  /** `SELECT` head with joins - `COUNT(*)` when the query selects nothing. */
   protected select(){
     const { returns, tables } = this.query;
     const [ main ] = tables.values();
@@ -272,6 +295,7 @@ export class Generator {
     ]
   }
 
+  /** `FROM` clause of the main table. */
   protected from(){
     const [ main ] = this.query.tables.values();
 
@@ -279,10 +303,12 @@ export class Generator {
       return ["FROM", this.table(main)]
   }
 
+  /** A parameter placeholder. */
   protected param(_from: Parameter){
     return "?";
   }
 
+  /** One condition. `null` renders `IS` / `IS NOT`; an empty list a constant. */
   protected filter(left: Field, op: string, right: unknown){
     const raw = (value: unknown) => (
       value === now ? this.now(left) :
@@ -312,6 +338,7 @@ export class Generator {
     return `${this.reference(left)} ${op} ${right}`;
   }
 
+  /** `WHERE` clause - top level joined with AND, alternating with OR by depth. */
   protected where() {
     const { filters } = this.query;
 
@@ -334,6 +361,7 @@ export class Generator {
     return ['WHERE', combine(filters)];
   }
 
+  /** `ORDER BY` clause. */
   protected order(){
     const { order } = this.query;
 
@@ -342,6 +370,7 @@ export class Generator {
         Array.from(order, ([x, y]) => `${this.reference(x)} ${y}`);
   }
 
+  /** `LIMIT` and `OFFSET` clauses. */
   protected limit(){
     const { limit, offset } = this.query;
 

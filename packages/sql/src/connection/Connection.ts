@@ -17,18 +17,26 @@ declare namespace Connection {
 
   type Key = Base.Key;
 
+  /** An open transaction's journal. */
   type Transaction = Base.Journal;
 
+  /** One change `sync` would make. */
   type Step = {
     table: string;
+    /** Column the step adds or indexes. Absent for a table step. */
     column?: string;
+    /** What it does, like `create table user`. */
     action: string;
+    /** The mismatch it resolves - what `sync(false)` reports. */
     reason: string;
+    /** Statements applying it. */
     sql: string[];
   };
 
+  /** What `sync` would do, and what stops it. */
   type Plan = {
     steps: Step[];
+    /** Mismatches `sync` cannot fix. Any makes it throw. */
     problems: string[];
   };
 }
@@ -37,13 +45,28 @@ function ref({ schema, table }: Query.Table){
   return schema ? `${schema}.${table}` : table;
 }
 
+/**
+ * Base class of a SQL driver - implements orm's `select`, `insert`, `update` and `remove` as queries through `prepare`.
+ *
+ * A dialect supplies `schema`, `prepare`, `sync` and `plan`, and `transact` to enable `transaction`.
+ * Each statement throws when no bound or loaded class owns its table.
+ */
 abstract class Connection extends Base {
+  /** DDL creating every bound class's table and indexes. */
   abstract get schema(): string;
 
+  /**
+   * Bring the database in line with the bound classes, then mark the connection ready.
+   *
+   * Creates missing tables, columns and indexes. `fix` false changes nothing and throws for anything missing.
+   * `force` also converts columns whose type or nullability drifted. Throws for any problem `plan` reports.
+   */
   abstract sync(fix?: boolean, force?: boolean): Promise<this>;
 
+  /** List what `sync` would change, and what it could not, without applying anything. */
   abstract plan(force?: boolean): Promise<Connection.Plan>;
 
+  /** Compile a `Query` builder to a statement in this dialect. */
   abstract prepare(builder: Builder): Builder.Statement;
 
   async select(table: string, constraints: Type.Constraint[], limit?: number, offset?: number){
