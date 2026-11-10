@@ -12,6 +12,7 @@ function op(operator: string, rank: number) {
 interface MathOps {
   /** `left + right`. */
   add(left: Numeric, right: Numeric): Computed<number>;
+  /** `left + right` with a string operand - the result follows the database's `+`. */
   add(left: ANumeric, right: ANumeric): Computed<string | number>;
   /** `left - right`. */
   sub(left: Numeric, right: Numeric): Computed<number>;
