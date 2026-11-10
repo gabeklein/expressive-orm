@@ -5,7 +5,7 @@ description: Expressive ORM core (@expressive/orm) - entities as @expressive/mvc
 
 # Expressive ORM
 
-An entity is a class extending `Type`, which extends `@expressive/mvc` `Model` - one class is the schema, the domain model and an observable object. Model behaviour (observation, context, lifecycle) is in `expressive-mvc`.
+An entity is a class extending `Type`, which extends `@expressive/mvc` `Model`. Model behaviour (observation, context, lifecycle) is in `expressive-mvc`.
 
 `@expressive/orm` has no SQL. Apps install `@expressive/sql` (SQLite, skill `expressive-sql`) or `@expressive/postgres` (skill `expressive-postgres`); each re-exports this package. Import everything from the one package installed. Install `@expressive/orm` directly only to write a driver or run without SQL.
 
@@ -30,7 +30,7 @@ class User extends Type {
 }
 ```
 
-Helpers: `str()` string, `num()` number, `bool()` boolean, `date()` Date, `json<T>()` T stored as text (unparseable text reads `undefined`). Options, any order:
+Helpers: `str()` string, `num()` number, `bool()` boolean, `date()` Date. Options, any order:
 
 - `null` - nullable, value `T | undefined`.
 - `optional` - may be left out of an insert, for a column the database fills.
@@ -39,9 +39,11 @@ Helpers: `str()` string, `num()` number, `bool()` boolean, `date()` Date, `json<
 - `{ fallback }` - column default, also optional on insert. `sql.now` (from `@expressive/sql`) is the database's current time.
 - A datatype (`sql.varchar(255)`, `sql.uuid`, `sql.ms`) - `@expressive/sql`'s vocabulary, see `expressive-sql`.
 
-`date.created()` is written on insert only - upserts leave it, an update giving it fails to compile and throws. `date.updated()` is set to now on every update and upsert that doesn't give it. Underneath: `{ fixed: true }` and `{ update: sql.now }`, which any column takes; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
+`json<T>()` holds T as text and takes one option - `json<T>(null)` or `json<T>({ column })`. Unparseable text reads `undefined`.
 
-Table is the class name in snake case; `static table` overrides. `orNull` and `uuid()` are deprecated for `null` and `str(sql.uuid)`.
+`date.created()` is written on insert only - upserts leave it, an update giving it fails to compile and throws. `date.updated()` is set to now on every update and upsert that doesn't give it. Underneath: `{ fallback: sql.now, fixed: true }` and `{ fallback: sql.now, update: sql.now }`. Any column takes `fixed` and `update`; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
+
+Table is the class name in snake case; `static table` overrides, `static schema` qualifies it. `static subset = { role: "admin" }` scopes a subclass to part of a shared table (give it the parent's `table`): merged into inserts and every query filter. Reads by id (`get(id)`, `one(id)`) are scoped; `update(id)`, `delete(id)` and instance `set`/`delete` are not. `orNull` and `uuid()` are deprecated for `null` and `str(sql.uuid)`.
 
 ### Keys
 
@@ -67,7 +69,7 @@ class Membership extends Type {
 }
 ```
 
-An integer `key` increments; another numeric type does not. `one(id)`, `update(id)` and relations follow the key's type. A composite key lists `this.<field>` reads only, runs lazily, has no column; `id` is the parts as a JSON string typed `Key<[number, string]>` (exported). `get`, `one`, `update`, `delete` take the key or the tuple. `id` matches or orders by its parts - other operators throw - and `one()` cannot relate to a composite-keyed class.
+An integer `key` increments; another numeric type does not. `User.one(id)`, `User.update(id)` and relations follow the key's type. A composite key lists `this.<field>` reads only, runs lazily, has no column; `id` is the parts as a JSON string typed `Key<[number, string]>` (exported). `get`, `one`, `update`, `delete` take the key or the tuple. `id` matches or orders by its parts - other operators throw - and `one()` cannot relate to a composite-keyed class.
 
 ## Connect
 
@@ -113,6 +115,10 @@ Reads and `insert` return plain rows - frozen, decoded by property, a relation a
 
 Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, `asc` / `desc`. A plain value is `equal`, `null` is `isNull`, an array applies each. `isLike` also matches a `json()` column's text.
 
+`find()` and `one()` with no filter order by `id` descending - `one()` is the newest row. A filter drops that order; add `asc()` / `desc()`. `undefined`, as a value or an operator's argument, drops its condition.
+
+On `memory()`, `isLike` is case-sensitive (SQLite's is ASCII case-insensitive) and `notIn([])` skips rows without a value (SQL matches every row).
+
 ```ts
 await User.insert(row, { conflict: "update" });                      // upsert on the primary key
 await User.insert(row, { conflict: "update", on: "email", keep: ["joined"] });
@@ -135,6 +141,7 @@ await ann.delete();
 - `Type.new(values)` returns the instance at once; columns suspend until the row lands. A failed insert destroys it and rejects awaits.
 - `User.update(id, ...)` / `User.delete(id)` and query writes settle into or destroy loaded instances.
 - `entity.columns` is its row in the shape `insert` takes, never loading; `entity.get()` is the full snapshot.
+- A protected `onDelete()` runs before `entity.delete()` removes the row; a throw cancels it. The static `delete` skips it.
 
 ## References
 
@@ -166,7 +173,7 @@ await author.posts.find();
 await author.posts.one({ title: "Hello" });
 ```
 
-- `one(Other)` stores `<field>_id` (`{ column }` renames; two fields on one column throw) and loads the related entity with its parent - with `lazy`, on first read, suspending. Related entities are references, shared and never owned. `set`, insert or a filter takes an entity, an id or a row.
+- `one(Other)` stores `<field>_id` (`{ column }` renames; two fields on one column throw) and loads the related entity with its parent - with `lazy`, on first read, suspending. Related entities are references, shared and never owned. A write takes an entity, an id or an object - with `id` it is used by it, without one it is inserted as a new related row. A filter takes the same; an object without `id` matches by its fields. `{ onDelete: "CASCADE", onUpdate: "RESTRICT" }` set the foreign key's actions.
 - `rows(Other, key?)` - `find`, `one`, `insert` with the foreign key applied. `key` only when `Other` relates to this class more than once.
 
 ## Observe
@@ -180,6 +187,18 @@ const editor = await post.get(async ($) => $.editor);  // awaits a lazy relation
 ```
 
 Both return a stop function.
+
+## Errors
+
+| Message | Cause |
+|---|---|
+| `User.name is read-only; use set().` | assigned a field |
+| `User is not loaded yet.` | `set` or `delete` on a reference before its row lands |
+| `User 1 was deleted.` | `set` or `delete` after the row went |
+| `Missing required field: name` | insert without a required column |
+| `created is fixed and can't be updated.` | an update gave a fixed column |
+| `User needs a condition to write by query.` | `update({}, …)` or `delete({})` |
+| `No database connection. …` | class not bound, or its connection closed |
 
 ## Query
 
@@ -218,10 +237,12 @@ const admins = User.query((user, where) => { where(user.admin).equal(true) });
 - Return a column for its values, an object for rows of that shape, a table for its rows - frozen.
 - `where(a, b)` groups conditions with `or`; a group inside a group alternates to `and`.
 - Comparisons - `equal`, `not`, `over`, `under` (`true` for or-equal), `in`. `where(table).match({ ... })` adds an `equal` per key.
-- A `one()` relation joins on access - inner when required, left when nullable. `where(Other)` joins, `where(Other, true)` left joins.
+- A `one()` relation joins on access - inner when required, left when nullable. `where(Other)` adds a table and needs a condition against another table's column - `where(other.email).equal(user.email)` - else on SQL the query throws `Table other has no joins.` `where(Other, true)` left joins.
+- `where(Class, a, b)` inserts several rows. `where(rows)` uses an array of objects as a table, to join against or insert from - add it after the entity tables.
+- A template's arguments are placeholders - compare with them, don't branch on them.
 - `query.one()` resolves the first row, `query.one(true)` throws without one.
-- A write resolves the rows affected. A query runs when awaited, once per `then`.
-- A second callback argument holds math (`add`, `sub`, `mul`, `div`, `mod`, `neg`) and `bit`; a template string embeds raw SQL (not on `memory()`).
+- A write resolves the rows affected. A query returning nothing and writing nothing resolves the count. A query runs when awaited, once per `then`.
+- A second callback argument holds math (`add`, `sub`, `mul`, `div`, `mod`, `neg`, `pos`) and `bit`; a template string embeds raw SQL (not on `memory()`).
 - `String(query)` is the SQL, or the query's intent without one.
 
 ## Transactions
@@ -242,18 +263,9 @@ A connection with `subscribe` keeps loaded entities current with changes made el
 
 ## Drivers
 
-`Connection` (an abstract Model) - the floor, keyed by table name and primary column:
+`Connection` (an abstract Model) - the floor is `select`, `insert`, `update` and `remove`, keyed by table name and primary column; each is documented on `Connection`. A composite `id` arrives as its tuple, in `key` order. Optional: `prepare(builder)` runs `Query` (without it `Query` and `Type.query` throw); `subscribe(listener)` reports `{ table, op, id, row? }` and returns a stop function; `sync(fix?)` checks or creates the schema; protected `transact(fn)` enables `transaction(fn)`. `Connection` holds the lock and journal: call `idle()` before each statement; a pooled driver overrides `lock()` and `idle()`.
 
-| Method | Does |
-|---|---|
-| `select(table, constraints, limit?, offset?)` | rows matching `[column, op, value]` tuples |
-| `insert(table, data, returns?, conflict?)` | inserts, returning the row when asked; `conflict` is `{ on, update?, set? }` |
-| `update(table, id, data)` | updates one row |
-| `remove(table, id)` | deletes one row |
-
-A composite `id` arrives as its tuple, in `key` order. Optional: `prepare(builder)` runs `Query` (without it `Query` and `Type.query` throw); `subscribe(listener)` reports `{ table, op, id, row? }` and returns a stop function; `sync(fix?)` checks or creates the schema; protected `transact(fn)` enables `transaction(fn)`. `Connection` holds the lock and journal: call `idle()` before each statement; a pooled driver overrides `lock()` and `idle()`.
-
-For a SQL database extend `@expressive/sql`'s `Connection` instead (see `expressive-sql`). Without a query language, `evaluate(store, builder, params)` runs `Query` in JS, returning `{ rows, count }`; the store implements `rows(table, where)`, `insert(table, row)`, `update(table, row, assign)`, `delete(table, rows)`.
+For a SQL database extend `@expressive/sql`'s `Connection` instead (see `expressive-sql`). Without a query language, `evaluate(store, builder, params)` runs `Query` in JS against an `evaluate.Store`, returning `{ rows, count }`.
 
 ```ts
 import { Connection, memory } from '@expressive/orm';

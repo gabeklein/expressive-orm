@@ -96,13 +96,33 @@ export function getRelated<T extends Type.Class>(Class: T, type: Type.Class) {
 }
 
 declare namespace one {
+  /** Datatypes `one()` accepts for its key column, by name - augment to add one. */
   interface Types {}
 
+  /** Name of a registered `one()` datatype. */
   type DataType = DataTypes<Types>;
 
+  /** One option of `one()` - `null`, `lazy`, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, OneToOneField>;
+
+  /** Column class behind `one()` - a package replaces it to add datatypes. */
+  let Type: typeof OneToOneField;
 }
 
+/**
+ * A relation to one entity of another class, stored as its id.
+ *
+ * The column is `<property>_id` unless `{ column }` is given. `null` makes it nullable.
+ * On an instance it reads the related entity, loaded with its parent - with `lazy`, on first read, suspending. In a row it reads the id.
+ * In a `Query` it is the related table, joined - inner when required, left when nullable.
+ * A write takes an entity, an id, or an object - with an `id` it is used by it, without one it is inserted as a new related row.
+ * A filter takes the same; an object without `id` matches by its fields.
+ * `{ onDelete, onUpdate }` set the foreign key's actions. The target cannot have a composite key.
+ *
+ * @example
+ * author = one(User);
+ * editor = one(User, null, lazy);
+ */
 function one<T extends Type, C extends one.Options[]>(from: Type.Class<T>, ...config: C & Exact<C, one.Types>){
   return field<Has<C, Nullable> extends true ? T | undefined : T, OneToOneField<T>>(
     (key, parent) => {
@@ -200,6 +220,7 @@ function one<T extends Type, C extends one.Options[]>(from: Type.Class<T>, ...co
 
 one.Type = OneToOneField;
 
+/** Modifier for `one()` - load the related entity on first read, not with its parent. */
 const lazy = { lazy: true };
 
 export { one, lazy };

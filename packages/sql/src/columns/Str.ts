@@ -30,6 +30,7 @@ declare module '@expressive/orm' {
   }
 }
 
+/** Column class behind `str()` on SQL - `text`, `varchar`, `char` or `uuid`. */
 export class StringColumn extends str.Type {
   type: str.DataType = "text";
 

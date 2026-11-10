@@ -18,6 +18,7 @@ declare module '@expressive/orm' {
   }
 }
 
+/** Column class behind `one()` on SQL - an `integer` or `bigint` foreign key. */
 export class ForeignColumn<T extends Type = Type> extends one.Type<T> {
   type: one.DataType = "integer";
 }
