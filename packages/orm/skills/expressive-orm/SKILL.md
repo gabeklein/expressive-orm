@@ -266,11 +266,16 @@ Commits when `fn` resolves, rolls back and rethrows when it throws. Every statem
 ## Hooks
 
 ```ts
-db.on(Upload, { async delete(row){ await bucket.delete(row.path) } });   // returns a remover
+db.before(Upload, { delete(row){ if (row.locked) throw new Error("locked") } });   // a gate; returns a remover
+db.after(Upload, { async delete(row){ await bucket.delete(row.path) } });         // best effort; returns a remover
 ```
 
-`connection.on(Type, { delete })` runs best-effort host-side effects after a row is deleted by id - instance `delete()`, static `delete(id)`, or `remove(table, id)` called directly, as a remote client does. The row arrives as `find` returns it. It lives on the connection, so a client binding the same classes to another connection never runs it - prefer it over `onDelete` for effects that must follow an instance delete wherever it was called. A delete by filter, a `Query` delete or a cascade skips it. Handlers are awaited before the delete resolves; a throw is logged with `console.error`, never failing the delete. In a `transaction` they run after commit and before it resolves, never on rollback. A delete by id selects its row first only while a hook is registered.
+`connection.before(Type, { delete })` and `connection.after(Type, { delete })` run host-side handlers for deletes by id - instance `delete()`, static `delete(id)`, or `remove(table, id)` called directly, as a remote client does. The row arrives as `find` returns it. They live on the connection, so a client binding the same classes to another connection never runs them - prefer them over `onDelete` for rules and effects that must follow an instance delete wherever it was called. A delete by filter, a `Query` delete or a cascade skips both; so does a missing row. A delete by id selects its row once, and only while either phase has a handler for the table.
 
+- `before` runs in order before the row is removed, inside the transaction if any. A throw cancels: the row stays, `after` is skipped, the error reaches the caller.
+- `after` runs once the row is gone and is awaited before the delete resolves; a throw is logged with `console.error`, never failing the delete. In a `transaction` it runs after commit and before `transaction` resolves, never on rollback.
+
+## Live rows
 ## Live rows
 
 A connection with `subscribe` keeps loaded entities current with changes made elsewhere: an update settles in, a delete destroys, an insert changes nothing loaded. `memory()` reports every write; Postgres uses LISTEN/NOTIFY; SQLite has none.

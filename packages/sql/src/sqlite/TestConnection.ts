@@ -14,7 +14,7 @@ afterEach(() => Promise.all(Array.from(reset, close => {
 export class TestConnection extends SQLiteConnection {
   constructor(
     using: Connection.Types,
-    private after?: () => Promise<void>){
+    private seed?: () => Promise<void>){
 
     super(using);
 
@@ -29,8 +29,8 @@ export class TestConnection extends SQLiteConnection {
   async sync(fix?: boolean){
     const self = await super.sync(fix);
 
-    if (this.after)
-      await this.after();
+    if (this.seed)
+      await this.seed();
 
     return self;
   }

@@ -37,8 +37,20 @@ declare namespace Connection {
     session?: unknown;
   }
 
-  /** Host-side effects for a class's rows - registered with `on`. */
-  interface Hooks<T extends Type = Type> {
+  /** Host-side gates for a class's rows - registered with `before`. */
+  interface Before<T extends Type = Type> {
+    /**
+     * Runs before a row is deleted by id, receiving it as `find` resolves it - a throw cancels the delete.
+     *
+     * Covers instance `delete()`, static `delete(id)` and `remove` called directly; a delete by filter skips it.
+     * Runs inside the transaction when there is one. A missing row skips it.
+     * A throw or rejection propagates to the caller; the row stays and no `after` handler runs.
+     */
+    delete?(row: Columns<T>): void | Promise<void>;
+  }
+
+  /** Host-side effects for a class's rows - registered with `after`. */
+  interface After<T extends Type = Type> {
     /**
      * Runs after a row is deleted by id, receiving it as `find` resolves it - best effort.
      *
@@ -61,6 +73,9 @@ declare namespace Connection {
 }
 
 type Scope = Map<Connection, Connection.Journal>;
+
+type Hook<H> = { type: Type.Class; hooks: H };
+type Hooks = { before: Set<Hook<Connection.Before<any>>>; after: Set<Hook<Connection.After<any>>> };
 
 const synced = new WeakMap<Connection, Promise<unknown>>();
 const HOOKED = new WeakSet<Connection>();
@@ -97,7 +112,7 @@ abstract class Connection extends Model {
 
   _active?: Promise<void>;
   _loaded = new Map<Type.Class, Map<unknown, Type>>();
-  _hooks = new Map<string, Set<{ type: Type.Class; hooks: Connection.Hooks<any> }>>();
+  _hooks = new Map<string, Hooks>();
 
   /**
    * Binds each class to this connection.
@@ -189,25 +204,49 @@ abstract class Connection extends Model {
   }
 
   /**
-   * Register host-side effects for a class's rows on this connection, returning a remover.
+   * Gate changes to a class's rows on this connection, returning a remover.
    *
-   * Effects run only where the class is bound to this connection - a client binding the same class elsewhere never runs them.
+   * Runs only where the class is bound to this connection - a client binding the same class elsewhere never runs it.
+   * Each registration runs, in order; with any registered, a delete by id selects its row first.
+   *
+   * @example
+   * db.before(Upload, {
+   *   delete(row){
+   *     if (row.locked)
+   *       throw new Error("Upload is locked.");
+   *   }
+   * });
+   */
+  before<T extends Type>(type: Type.Class<T>, hooks: Connection.Before<T>): () => boolean {
+    return this._hook(type, "before", hooks);
+  }
+
+  /**
+   * Run host-side effects after changes to a class's rows on this connection, returning a remover.
+   *
+   * Runs only where the class is bound to this connection - a client binding the same class elsewhere never runs it.
    * Each registration runs; with any registered, a delete by id selects its row first.
    *
    * @example
-   * db.on(Upload, {
+   * db.after(Upload, {
    *   async delete(row){
    *     await bucket.delete(row.path);
    *   }
    * });
    */
-  on<T extends Type>(type: Type.Class<T>, hooks: Connection.Hooks<T>): () => boolean {
+  after<T extends Type>(type: Type.Class<T>, hooks: Connection.After<T>): () => boolean {
+    return this._hook(type, "after", hooks);
+  }
+
+  _hook(type: Type.Class, phase: keyof Hooks, hooks: object){
     const { ref } = type;
     const entry = { type, hooks };
-    let set = this._hooks.get(ref);
+    let table = this._hooks.get(ref);
 
-    if (!set)
-      this._hooks.set(ref, set = new Set());
+    if (!table)
+      this._hooks.set(ref, table = { before: new Set(), after: new Set() });
+
+    const set = table[phase];
 
     set.add(entry);
 
@@ -220,12 +259,20 @@ abstract class Connection extends Model {
         configurable: true,
         value: async (table: string, id: Connection.Key) => {
           const hooked = this._hooks.get(table);
+          const [first] = hooked ? [...hooked.before, ...hooked.after] : [];
 
-          if (!hooked?.size)
+          if (!first)
             return remove.call(this, table, id);
 
-          const [{ type }] = hooked;
-          const [raw] = await this.select(table, match(type.fields.get("id")!, id), 1);
+          const { before, after } = hooked!;
+          const [raw] = await this.select(table, match(first.type.fields.get("id")!, id), 1);
+          const decode = (type: Type.Class) => row(type.fields, raw) as Promise<Columns<Type>>;
+
+          if (raw)
+            for (const { type, hooks } of before)
+              if (hooks.delete)
+                await hooks.delete(await decode(type));
+
           const journal = this._journal();
 
           await remove.call(this, table, id);
@@ -233,9 +280,9 @@ abstract class Connection extends Model {
           if (!raw)
             return;
 
-          const run = () => Promise.all(Array.from(hooked, async ({ type, hooks }) => {
+          const run = () => Promise.all(Array.from(after, async ({ type, hooks }) => {
             try {
-              await hooks.delete?.(await row(type.fields, raw) as Columns<Type>);
+              await hooks.delete?.(await decode(type));
             }
             catch (error) {
               console.error(error);
@@ -250,7 +297,7 @@ abstract class Connection extends Model {
       });
     }
 
-    return () => set.delete(entry);
+    return () => set.delete(entry as any);
   }
 
   /**

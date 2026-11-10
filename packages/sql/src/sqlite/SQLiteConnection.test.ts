@@ -1169,55 +1169,77 @@ describe("transaction", () => {
   })
 })
 
-describe("on", () => {
+describe("hooks", () => {
   class Upload extends Type {
     path = str();
   }
 
-  it("will run delete hooks after deletes by id", async () => {
+  it("will gate and follow deletes by id", async () => {
     const db = await TestConnection.new([Upload]);
-    const didDelete = vi.fn();
+    const calls: unknown[] = [];
 
-    for (const path of ["a.png", "b.png", "c.png", "d.txt"])
+    for (const path of ["a.png", "b.png", "locked.png", "d.txt"])
       await Upload.insert({ path });
 
-    db.on(Upload, { delete: didDelete });
+    db.before(Upload, {
+      delete(row){
+        calls.push(["before", row]);
+
+        if (row.path == "locked.png")
+          throw new Error("locked");
+      }
+    });
+
+    db.after(Upload, { delete: row => { calls.push(["after", row]) } });
 
     const [loaded] = await Upload.load({ id: 1 });
 
     await loaded.delete();
     await Upload.delete(2);
-    await Upload.delete({ path: "c.png" });
+    await expect(Upload.delete(3)).rejects.toThrow("locked");
+    await Upload.delete({ path: "d.txt" });
 
-    expect(didDelete.mock.calls).toEqual([
-      [{ id: 1, path: "a.png" }],
-      [{ id: 2, path: "b.png" }]
+    expect(calls).toEqual([
+      ["before", { id: 1, path: "a.png" }],
+      ["after", { id: 1, path: "a.png" }],
+      ["before", { id: 2, path: "b.png" }],
+      ["after", { id: 2, path: "b.png" }],
+      ["before", { id: 3, path: "locked.png" }]
     ]);
-    await expect(Upload.find()).resolves.toEqual([{ id: 4, path: "d.txt" }]);
+    await expect(Upload.find()).resolves.toEqual([{ id: 3, path: "locked.png" }]);
   })
 
-  it("will run delete hooks after commit only", async () => {
+  it("will roll back when a gate throws, and follow only a commit", async () => {
     const db = await TestConnection.new([Upload]);
     const didDelete = vi.fn();
 
     await Upload.insert({ path: "a.png" });
-    await Upload.insert({ path: "b.png" });
-    db.on(Upload, { delete: didDelete });
+    await Upload.insert({ path: "locked.png" });
+
+    db.before(Upload, {
+      delete(row){
+        if (row.path == "locked.png")
+          throw new Error("locked");
+      }
+    });
+
+    db.after(Upload, { delete: didDelete });
 
     await expect(db.transaction(async () => {
       await Upload.delete(1);
-      throw new Error("nope");
-    })).rejects.toThrow("nope");
+      await Upload.delete(2);
+    })).rejects.toThrow("locked");
 
     expect(didDelete).not.toHaveBeenCalled();
+    await expect(Upload.count()).resolves.toBe(2);
 
     await db.transaction(async () => {
-      await Upload.delete(2);
+      await Upload.delete(1);
       expect(didDelete).not.toHaveBeenCalled();
     });
 
-    expect(didDelete).toHaveBeenCalledWith({ id: 2, path: "b.png" });
-    await expect(Upload.find()).resolves.toEqual([{ id: 1, path: "a.png" }]);
+    expect(didDelete).toHaveBeenCalledWith({ id: 1, path: "a.png" });
+    await expect(Upload.find()).resolves.toEqual([{ id: 2, path: "locked.png" }]);
   })
 })
 

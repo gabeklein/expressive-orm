@@ -452,15 +452,27 @@ On SQLite, PGlite and `memory()`, other statements on the connection wait until 
 ```ts
 const db = await SQLiteConnection.new([User, Upload], "app.db");
 
-db.on(Upload, {
+db.before(Upload, {
+  delete(upload){
+    if (upload.locked)
+      throw new Error("Upload is locked.");
+  }
+});
+
+db.after(Upload, {
   async delete(upload){
     await bucket.delete(upload.path);
   }
 });
 ```
 
-`connection.on(Type, hooks)` registers best-effort effects on the host that owns the connection, and returns a function that removes them. `delete(row)` runs after a row of `Type` is deleted by id - `entity.delete()`, `Type.delete(id)`, or `remove(table, id)` called directly, as a remote client does - receiving the row as `find` returns it. A delete by filter, a `Query` delete or a database cascade does not run it. Classes bound to another connection, such as a browser client sharing them, never run it. Every registration runs. Handlers are awaited before the delete resolves; a throw or rejection is logged with `console.error` and never fails the delete. With a hook registered, a delete by id selects its row first; without one, it does not. Inside a `transaction` handlers run after the commit, once the connection is released, and before `transaction` resolves; they never run on rollback.
+`connection.before(Type, hooks)` and `connection.after(Type, hooks)` register handlers on the host that owns the connection, and each returns a function that removes them. Classes bound to another connection, such as a browser client sharing them, never run them. Both see deletes by id - `entity.delete()`, `Type.delete(id)`, or `remove(table, id)` called directly, as a remote client does - and receive the row as `find` returns it. A delete by filter, a `Query` delete or a database cascade runs neither. With a handler registered for the table, a delete by id selects its row once for both phases; without one, it does not. A missing row runs neither.
 
+`before` is a gate: its handlers run in order before the row is removed, inside the `transaction` when there is one. A throw or rejection cancels the delete - the row stays, no `after` handler runs, and the error reaches the caller.
+
+`after` is best effort: every handler runs after the row is removed and is awaited before the delete resolves. A throw or rejection is logged with `console.error` and never fails the delete. Inside a `transaction` they run after the commit, once the connection is released, and before `transaction` resolves; they never run on rollback.
+
+## Live rows
 ## Live rows
 
 A connection with `subscribe` keeps loaded entities current with changes made elsewhere - another process, another client, a `Query` update. Observers see them as any other change.
