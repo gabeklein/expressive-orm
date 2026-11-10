@@ -190,6 +190,18 @@ class Memory extends Connection {
   }
 }
 
+/**
+ * An in-memory connection - rows in arrays, for tests and prototypes.
+ *
+ * Runs `Query` except raw SQL templates, supports `transaction`, and reports every write to live rows.
+ * `isLike` is case-sensitive, unlike SQLite's.
+ *
+ * @example
+ * class User extends Type {
+ *   static connection = memory();
+ *   name = str();
+ * }
+ */
 function memory(): Connection {
   return Memory.new();
 }
