@@ -49,9 +49,6 @@
     "dist",
     "skills"
   ],
-  "skills": [
-    "npm:@expressive/orm"
-  ],
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit --incremental",
