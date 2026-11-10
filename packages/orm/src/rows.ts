@@ -15,6 +15,15 @@ interface Rows<T extends Type, K extends keyof T> {
   insert(data: Omit<Type.Insert<T>, K> & Partial<Type.Insert<T>>): Promise<Type.Columns<T>>;
 }
 
+/**
+ * The rows of another class that relate to this entity - `find`, `one` and `insert` scoped to it.
+ *
+ * Finds the `one()` on `Class` pointing here; name it with `field` when there is more than one.
+ * Not a column - nothing loads until a method is called. `find()` and `one()` without a filter take the newest first.
+ *
+ * @example
+ * posts = rows(Post);
+ */
 function rows<T extends Type, K extends keyof T = Related<T>>(Class: Type.Class<T>, field?: K){
   return def((key, subject: Type) => {
     let handle: Rows<T, K> | undefined;
