@@ -461,7 +461,7 @@ function key(): Optional<number>;
 /**
  * A composite `id` over the fields the arrow lists.
  *
- * The arrow reads `this.<field>` only and runs lazily, so declare `id` above them. `id` has no column and reads as the parts in a JSON string.
+ * The arrow reads `this.<field>` only and runs lazily, so `id` can stay on top. `id` has no column and reads as the parts in a JSON string.
  * Statics take that string or the tuple. It matches and orders by its parts - other operators throw. `one()` cannot relate to the class.
  *
  * @example
