@@ -46,13 +46,16 @@ npm install -D skills
 npx skills experimental_sync -y
 ```
 
-`@expressive/sql` and `@expressive/postgres` declare the skills of the packages they build on, so sync installs those too. Run it from `prepare` so the skills follow every install and upgrade, and ignore the links it creates:
+`@expressive/sql` and `@expressive/postgres` declare the skills of the packages they build on, so sync installs those too. Run it from `prepare` so the skills follow every install and upgrade. Under `CI` or `GITHUB_ACTIONS` the CLI defaults to `--frozen-lockfile` and exits 1 without a current `skills-lock.json`, so turn that off:
 
 ```json
-"scripts": { "prepare": "skills experimental_sync -y" }
+"scripts": { "prepare": "skills experimental_sync -y --no-frozen-lockfile" }
 ```
 
+Ignore the lockfile and the links sync creates. Which link folders appear depends on the agents it detects - `.agents/skills/expressive-*`, plus each agent's own, such as `.claude/skills/expressive-*`:
+
 ```text
+skills-lock.json
 .agents/skills/expressive-*
 .claude/skills/expressive-*
 ```
