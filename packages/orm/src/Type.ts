@@ -26,6 +26,7 @@ type Fields<T extends Type> = Exclude<keyof T, Exclude<keyof Type, "id"> | Class
 
 type Column<T> = T extends Type ? T["id"] : T;
 
+/** A row as statics resolve it - frozen, decoded by property, a relation as its id. */
 type Columns<T extends Type> = Pick<T, "id"> & {
   [K in Exclude<keyof T, keyof Type> as (
     T[K] extends Type.Class | Rows<any, any> | ((...args: any[]) => any) ? never : K
@@ -36,6 +37,11 @@ type Clears<T> = undefined extends T ? null : never;
 
 type Inserts<T> = T extends Type ? T | T["id"] | Type.Insert<T> : T | Moment<T>;
 
+/**
+ * Values for `insert` and `Type.new`.
+ *
+ * Nullable, defaulted and generated columns are optional. A relation takes an entity, an id, or values to insert as a new related row.
+ */
 type Insert<T extends Type> = {
   [K in Fields<T> as (Omits<T[K]> extends true ? never : K)]: Inserts<T[K]> | Clears<T[K]>;
 } & {
@@ -44,17 +50,28 @@ type Insert<T extends Type> = {
 
 type Matches<T> = (T extends Type ? T | T["id"] | Type.Compat<T> : T | Moment<T>) | Clears<T>;
 
+/** A primary key - the `id`, or for a composite key the tuple of its parts. */
 type Id<T extends Type> = T["id"] | (T["id"] extends Key<infer P> ? Readonly<P> : never);
 
+/** What an `insert` does when the row exists. */
 type Conflict<T extends Type> = {
+  /** `"update"` writes the columns given; `"replace"` every column, omitted ones reset; `"ignore"` leaves the row. */
   conflict: "update" | "replace" | "ignore";
+  /** Properties identifying the existing row. Defaults to the primary key. */
   on?: Fields<T> | Fields<T>[];
+  /** Properties an update or replace leaves as stored. */
   keep?: Fields<T>[];
 };
 
 declare namespace Type {
+  /** An entity class - a `Type` subclass with its statics. */
   type Class<T extends Type = Type> = (abstract new (...args: any[]) => T) & typeof Type;
 
+  /**
+   * An entity still loading - await it for the entity once its row lands.
+   *
+   * Returned by `Type.get(id)` and `Type.new(values)`. Rejects when the row is missing or the insert fails. Awaiting it removes `then`, so the entity does not resolve again.
+   */
   type Async<T> = T & {
     then<A = T, B = never>(
       onfulfilled?: ((value: T) => A | PromiseLike<A>) | null,
@@ -62,20 +79,34 @@ declare namespace Type {
     ): Promise<A | B>;
   };
 
+  /** The entity of a class; any other type passes through. */
   type Instance<T> = T extends Class<infer U> ? U : T;
 
+  /** A filter value - a plain value (equal), an operator, or an array applying each. */
   type Conds<T> = Where | T | Conds<T>[]
 
+  /**
+   * A filter by property - for `find`, `one`, `count`, `all` and writes by query.
+   *
+   * `null` matches a missing value. `undefined` drops the condition.
+   * A relation takes an entity, an id, or an object of the related fields to match.
+   */
   type Query<T extends {}> = {
     [K in keyof T]?: Conds<Matches<T[K]>>;
   };
 
+  /**
+   * A condition or ordering at the driver - `[column, op, value?]`.
+   *
+   * `op` is a comparison, `IS NULL`, `IS NOT NULL`, `asc` or `desc`.
+   */
   type Constraint = [
     field: string,
     op: string,
     value?: any
   ]
 
+  /** A connection once awaited - `Connection` without `then`. */
   type Connection = import('./Connection').Connection.Ready;
 
   export {
@@ -269,13 +300,31 @@ function awaitable<T extends Type>(entity: T): Type.Async<T> {
   return entity as Type.Async<T>;
 }
 
+/**
+ * Base class of an entity - a Model whose fields are columns and whose statics query its table.
+ *
+ * Statics resolve plain frozen rows. Instances are read-only references from `get(id)`, `new(values)` or a relation; write with `await entity.set(patch)`.
+ * The table is the class name in snake case unless `static table` is set.
+ *
+ * @example
+ * class User extends Type {
+ *   name = str();
+ *   email = str(unique);
+ * }
+ */
 abstract class Type extends Model {
+  /** Primary key - an incrementing integer unless redeclared with `key()`. */
   id: Optional<string | number> = num({ primary: true, increment: true });
 
   static get loaded(){
     return register(this);
   }
 
+  /**
+   * This entity's row - frozen, by property, a relation as its id.
+   *
+   * Reads a relation's id without loading it. Assigning throws.
+   */
   get columns(): Type.Columns<this> {
     const columns: Record<string, unknown> = {};
     const { fields } = this.constructor as typeof Type;
@@ -297,9 +346,19 @@ abstract class Type extends Model {
     throw new Error(`${this}.columns is read-only.`);
   }
 
+  /** Runs before `delete()` removes the row - a throw cancels it. Not called by the static `delete`. */
   protected async onDelete?(): Promise<void>;
 
   set(): Model.Updated<this>;
+  /**
+   * Write a patch to the row, then settle it into this entity.
+   *
+   * Resolves the keys that changed. `null` clears a nullable column. Columns with an `update` option are written too.
+   * Rejects for a fixed column, a deleted entity, or one still loading. Inside a transaction a rollback restores the entity.
+   *
+   * @example
+   * await user.set({ age: 28 });
+   */
   set(patch: Type.Update<this>): Model.Updated<this>;
   set(callback: Model.OnEvent<this>): () => boolean;
   set(key: Model.Event<this>): Model.Updated<this>;
@@ -318,6 +377,11 @@ abstract class Type extends Model {
     }) as unknown as Model.Updated<this>;
   }
 
+  /**
+   * Delete this entity's row, then destroy the entity.
+   *
+   * Calls `onDelete` first. Inside a transaction the entity is destroyed on commit. Rejects when already deleted or still loading.
+   */
   async delete() {
     exists(this);
 
@@ -331,8 +395,15 @@ abstract class Type extends Model {
     retire(this, slot(this.id));
   }
 
+  /** Schema qualifying the table, as `schema.table`. */
   static schema?: string;
   static subset?: Record<string, unknown>;
+  /**
+   * The connection this class reads and writes through.
+   *
+   * Set by `Connection.new([...])`, or assigned: `static connection = memory()`. A class binds to one connection - a second throws.
+   * Unset, every statement rejects with `No database connection`.
+   */
   static get connection(): Type.Connection {
     return DETACHED ||= NotReady.new();
   }
@@ -341,6 +412,7 @@ abstract class Type extends Model {
     Object.defineProperty(this, 'connection', { value, writable: true, configurable: true });
   }
 
+  /** Table name - the class name in snake case unless assigned. */
   static get table(): string {
     return underscore(this.name);
   }
@@ -365,8 +437,22 @@ abstract class Type extends Model {
     return fields;
   }
 
+  /** Model's context lookup - the instance of this class in context; throws when there is none. */
   static get<T extends Type>(this: Model.Extends<T>): T;
+  /** Model's context lookup - `undefined` when there is none. */
   static get<T extends Type>(this: Model.Extends<T>, required: false): T | undefined;
+  /**
+   * Reference an entity by id - synchronous, through the identity map.
+   *
+   * Returns the loaded entity, or a placeholder whose columns suspend until its row lands. Concurrent calls share one instance.
+   * Await it for the loaded entity. A missing row rejects with `No <Class> found with id <id>`.
+   * A composite key takes its tuple or its `id` string.
+   *
+   * @example
+   * const user = User.get(1);
+   * user.get(({ name }) => console.log(name));
+   * await user;
+   */
   static get<T extends Type>(this: Model.Extends<T>, id: Type.Id<T>): Type.Async<T>;
   static get<T extends Type>(this: Model.Extends<T>, id?: Type.Id<T> | false): T | undefined {
     if (typeof id != "number" && typeof id != "string" && !Array.isArray(id))
@@ -375,6 +461,11 @@ abstract class Type extends Model {
     return Context.get(this, () => reference(this as unknown as Type.Class<T>, id));
   }
 
+  /**
+   * Encode property values as a row keyed by column.
+   *
+   * Validates and fills fallbacks. `partial` encodes only the keys given plus `update` values, for an update.
+   */
   protected static async prepare<T extends Type>(
     this: Type.Class<T>,
     data: Update<T>,
@@ -388,6 +479,16 @@ abstract class Type extends Model {
     return row;
   }
 
+  /**
+   * Insert a row and return its entity at once.
+   *
+   * Columns suspend until the row lands; await it for the entity with `id` and defaults. A failed insert destroys it and rejects.
+   * Inside a transaction a rollback destroys it. For the row alone use `insert`.
+   *
+   * @example
+   * const ann = await User.new({ name: "Ann" });
+   * await ann.set({ age: 28 });
+   */
   static new<T extends Model>(this: Model.Type<T>, values: T extends Type ? Type.Insert<T> : never): Type.Async<T> {
     const type = this as unknown as typeof Type;
 
@@ -411,7 +512,18 @@ abstract class Type extends Model {
     }) as T & Type));
   }
 
+  /**
+   * Update one row by id.
+   *
+   * Settles the change into its loaded entity. Columns with an `update` option are written too. Throws for a fixed column.
+   * A missing row is not an error.
+   */
   static async update<T extends Type>(this: Type.Class<T>, id: Type.Id<T>, data: Type.Update<T>): Promise<void>;
+  /**
+   * Update every row matching a filter, resolving how many changed.
+   *
+   * Throws on an empty filter or a fixed column. Loaded entities among them settle the change.
+   */
   static async update<T extends Type>(this: Type.Class<T>, where: Type.Query<T>, data: Type.Update<T>): Promise<number>;
   static async update<T extends Type>(this: Type.Class<T>, id: Type.Id<T> | Type.Query<T>, data: Type.Update<T>): Promise<void | number> {
     if (isQuery(id))
@@ -433,8 +545,21 @@ abstract class Type extends Model {
     }
   }
 
+  /** Insert a row unless one exists - resolves the stored row, `undefined` when the existing one is left. */
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options: Type.Conflict<T> & { conflict: "ignore" }): Promise<Type.Columns<T> | undefined>;
+  /**
+   * Insert a row, resolving it as stored - `id`, defaults and generated values included.
+   *
+   * With `conflict: "update"` an existing row takes the columns given; with `"replace"` every column, omitted ones reset.
+   * Fixed and `keep` columns stay; columns with an `update` option take that value. `on` names the properties identifying the row.
+   * The change settles into a loaded entity.
+   *
+   * @example
+   * await User.insert({ name: "Ann", email: "ann@example.com" });
+   * await User.insert(row, { conflict: "update", on: "email" });
+   */
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options?: Type.Conflict<T> & { conflict: "update" | "replace" }): Promise<Type.Columns<T>>;
+  /** Insert with a conflict mode chosen at runtime - `undefined` when `"ignore"` leaves an existing row. */
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options: Type.Conflict<T>): Promise<Type.Columns<T> | undefined>;
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options?: Type.Conflict<T>){
     const { connection, fields, loaded, ref, subset } = this;
@@ -462,7 +587,13 @@ abstract class Type extends Model {
     return columns;
   }
 
+  /** Delete one row by id, destroying its loaded entity. A missing row is not an error; `onDelete` does not run. */
   static async delete<T extends Type>(this: Type.Class<T>, id: Type.Id<T>): Promise<void>;
+  /**
+   * Delete every row matching a filter, resolving how many.
+   *
+   * Throws on an empty filter. Loaded entities among them are destroyed; `onDelete` does not run.
+   */
   static async delete<T extends Type>(this: Type.Class<T>, where: Type.Query<T>): Promise<number>;
   static async delete<T extends Type>(this: Type.Class<T>, id: Type.Id<T> | Type.Query<T>): Promise<void | number> {
     if (isQuery(id))
@@ -479,11 +610,18 @@ abstract class Type extends Model {
       retire(entity, key);
   }
 
+  /** Count rows matching a filter - the whole table when omitted. */
   static async count<T extends Type>(this: Type.Class<T>, where: Type.Query<T> = {}): Promise<number> {
     return matching(this, await conditions(this, where, true));
   }
 
+  /** Find one row by id or filter - `undefined` when `expect` is false and none matches. */
   static async one<T extends Type>(this: Type.Class<T>, where: Type.Id<T> | Type.Query<T> | undefined, expect: boolean): Promise<Type.Columns<T> | undefined>;
+  /**
+   * Find one row by id or filter; throws when none matches.
+   *
+   * Without an argument, the row with the highest id.
+   */
   static async one<T extends Type>(this: Type.Class<T>, where?: Type.Id<T> | Type.Query<T>, expect?: true): Promise<Type.Columns<T>>;
   static async one<T extends Type>(this: Type.Class<T>, where?: Type.Id<T> | Type.Query<T>, expect?: boolean){
     if (where != null && (typeof where != "object" || Array.isArray(where)))
@@ -497,10 +635,22 @@ abstract class Type extends Model {
     return row;
   }
 
+  /**
+   * A `Query` over this table selecting what the callback returns.
+   *
+   * `self` is the table's columns; `where` is the `Query` function.
+   *
+   * @example
+   * const names = await User.query((user, where) => {
+   *   where(user.admin).equal(true);
+   *   return user.name;
+   * });
+   */
   static query<T extends Type, R extends {}>(
     this: Type.Class<T>,
     where: (self: Query.From<T>, where: Query.Where) => R
   ): Query.Selects<R>;
+  /** A `Query` over this table selecting its rows - the callback only adds conditions. */
   static query<T extends Type>(
     this: Type.Class<T>,
     where?: (self: Query.From<T>, where: Query.Where) => void
@@ -512,6 +662,7 @@ abstract class Type extends Model {
     });
   }
 
+  /** Select and decode rows - the path under `find`, `one` and `all`. */
   protected static async fetch<T extends Type>(
     this: Type.Class<T>,
     from?: Type.Constraint[] | Type.Query<T>,
@@ -522,6 +673,14 @@ abstract class Type extends Model {
     return Promise.all(rows.map(raw => row(this.fields, raw) as Promise<Type.Columns<T>>));
   }
 
+  /**
+   * Find rows matching a filter.
+   *
+   * Called without a filter, ordered by id descending; a filter drops that order. Order by a property with `asc()` / `desc()`.
+   *
+   * @example
+   * await User.find({ name: [isLike("G%"), asc()], age: greaterThan(17) }, 10);
+   */
   static async find<T extends Type>(
     this: Type.Class<T>,
     where?: Type.Query<T>,
@@ -531,6 +690,15 @@ abstract class Type extends Model {
     return this.fetch(where, limit, offset);
   }
 
+  /**
+   * Iterate rows matching a filter, a page at a time.
+   *
+   * One select per page, by offset.
+   *
+   * @example
+   * for await (const page of User.all(100))
+   *   page.forEach(send);
+   */
   static async *all<T extends Type>(
     this: Type.Class<T>,
     pageSize: number,
