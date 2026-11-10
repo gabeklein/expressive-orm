@@ -1,6 +1,6 @@
 ---
 name: expressive-sql
-description: Expressive ORM on SQL (@expressive/sql) - SQLiteConnection with a built-in or custom Engine, sync and plan, the expressive sql CLI, the sql.* datatype vocabulary and validation, and the SQL Connection and Generator base for dialects. Use when connecting entities to SQLite, choosing column datatypes, syncing or checking a schema, plugging in a SQLite host, or writing a SQL driver.
+description: Expressive ORM on SQL (@expressive/sql) - SQLiteConnection with a built-in or custom Engine, sync and plan, the expressive sql CLI, the sql.* datatype vocabulary and validation, and the SQL Connection and Generator base for dialects. Use when connecting entities to SQLite, Cloudflare D1 or libSQL and Turso, choosing column datatypes, syncing or checking a schema, plugging in a SQLite host, or writing a SQL driver.
 ---
 
 # @expressive/sql
@@ -11,7 +11,7 @@ Expressive ORM on SQL, with embedded SQLite. Re-exports `@expressive/orm` - enti
 npm install @expressive/sql @expressive/mvc
 ```
 
-SQLite is built into Bun (`bun:sqlite`) and Node 24 (`node:sqlite`). Elsewhere add one of `better-sqlite3`, `sqlite3` or `@libsql/client`; the first found is used. For Postgres and live rows install `@expressive/postgres` (skill `expressive-postgres`), which re-exports this package.
+SQLite is built into Bun (`bun:sqlite`) and Node 24 (`node:sqlite`). Elsewhere add one of `better-sqlite3`, `sqlite3` or `@libsql/client` (0.18 or later); the first found is used. For Postgres and live rows install `@expressive/postgres` (skill `expressive-postgres`), which re-exports this package.
 
 ## Connect
 
@@ -55,6 +55,37 @@ Two optional members, for hosts without `BEGIN` and `COMMIT` on one connection:
 
 - `transaction()` - resolves a session, the four statements plus `commit()` and `rollback()`. Every statement inside `db.transaction(fn)` runs on it.
 - `batch(sql: string[])` - runs statements atomically; `sync` applies through it. A table rebuild in a batch needs foreign keys off, or dropping the old table cascades; an engine that keeps them on refuses it.
+
+### Hosts
+
+In place of the filename, `new` also takes a D1 binding, a libSQL `Client` or a libSQL address, told apart by shape. A given binding or client is used as is; `close()` leaves it open.
+
+On Workers, open once from the first request's binding, and drop it when `sync` fails - a second `new` while entities hold a connection throws:
+
+```ts
+let ready: Promise<unknown> | undefined;
+
+function open(DB: D1Database){
+  const db = SQLiteConnection.new([User], DB);
+
+  return Promise.resolve(db).catch(async error => {
+    ready = undefined;
+    await db.close();
+    throw error;
+  });
+}
+
+export default {
+  async fetch(request: Request, env: { DB: D1Database }) {
+    await (ready ??= open(env.DB));
+    return Response.json(await User.find({}));
+  }
+};
+```
+
+- D1 - `sync` applies as one batch, a few round trips per table each cold start. `transaction` throws. Foreign keys stay on, so `sync(true, true)` refuses a rebuild.
+- libSQL address - `libsql:`, `https:`, `http:`, `ws:` or `wss:` opens `@libsql/client` 0.18+; token as `?authToken=`. Loaded at runtime, so under a bundler (Workers) pass a `createClient` client instead.
+- Every libSQL client - each `transaction` is a libSQL write transaction (`BEGIN IMMEDIATE`) holding the connection's lock, so transactions run one at a time app-wide. `sync` is one batch; a rebuild runs through `client.migrate`, foreign keys off for it alone. Local libSQL enforces foreign keys by default; remote gets the server's setting.
 
 ## Sync
 
