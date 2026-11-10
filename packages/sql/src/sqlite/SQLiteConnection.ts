@@ -50,7 +50,9 @@ export class SQLiteConnection extends Connection {
     return this.engine ??= createEngine(this.filename);
   }
 
-  protected async statements(): Promise<Engine.Statements> {
+  async #statements(): Promise<Engine.Statements> {
+    await this.idle();
+
     return this._journal()?.session as Engine.Session || this.db();
   }
 
@@ -75,10 +77,8 @@ export class SQLiteConnection extends Connection {
       : [];
 
     const run = async <R>(op: (engine: Engine.Statements) => Promise<R>) => {
-      await this.idle();
-
       try {
-        return await op(await this.statements());
+        return await op(await this.#statements());
       }
       catch (err) {
         if(err instanceof Error)
@@ -236,16 +236,11 @@ export class SQLiteConnection extends Connection {
     const migrate = migrations.get(db);
 
     if (migrate && rebuilds) {
-      const broken: { table: string }[] = await db.all("PRAGMA foreign_key_check");
-
-      if (broken.length)
-        throw new Error(dangling(broken));
-
+      await intact(db);
       return void await migrate(sql);
     }
 
-    const { foreign_keys } = await db.get("PRAGMA foreign_keys");
-    const guard = foreign_keys && rebuilds;
+    const guard = rebuilds && (await db.get("PRAGMA foreign_keys"))?.foreign_keys;
 
     if (db.batch && !guard)
       return db.batch(sql);
@@ -257,10 +252,7 @@ export class SQLiteConnection extends Connection {
         if ((await db.get("PRAGMA foreign_keys")).foreign_keys)
           throw new Error("Cannot rebuild: this engine keeps foreign keys on, so dropping the table would cascade.");
 
-        const broken: { table: string }[] = await db.all("PRAGMA foreign_key_check");
-
-        if (broken.length)
-          throw new Error(dangling(broken));
+        await intact(db);
 
         return await db.batch(sql);
       }
@@ -277,10 +269,8 @@ export class SQLiteConnection extends Connection {
     try {
       await db.exec(sql.join("\n"));
 
-      const broken: { table: string }[] = guard ? await db.all("PRAGMA foreign_key_check") : [];
-
-      if (broken.length)
-        throw new Error(dangling(broken));
+      if (guard)
+        await intact(db);
 
       await db.exec("COMMIT");
     }
@@ -310,7 +300,7 @@ export class SQLiteConnection extends Connection {
 
   protected async inspect(type: Query.Table, planning = false){
     const { table } = type;
-    const db = await this.statements();
+    const db = await this.#statements();
 
     const tableExists = await db.get(
       `SELECT name FROM sqlite_master WHERE type='table' AND name=?`, [table]);
@@ -346,7 +336,7 @@ export class SQLiteConnection extends Connection {
   }
 
   protected async unindexed(type: Query.Table){
-    const db = await this.statements();
+    const db = await this.#statements();
     const covered = new Set<string>();
 
     for (const { name } of await db.all(`PRAGMA index_list(${type.table})`)) {
@@ -360,7 +350,7 @@ export class SQLiteConnection extends Connection {
   }
 
   protected async misfit(type: Query.Table, fields: Field[], columns: TableInfo[]){
-    const db = await this.statements();
+    const db = await this.#statements();
     const { table } = type;
     const problems: string[] = [];
 
@@ -391,7 +381,7 @@ export class SQLiteConnection extends Connection {
   }
 
   protected async rebuild(type: Query.Table, fields: Field[], columns: TableInfo[]){
-    const db = await this.statements();
+    const db = await this.#statements();
     const { table } = type;
     const temp = `${table}__rebuild`;
     const own = Array.from(type.fields.values()).filter(field => !field.parts);
@@ -437,7 +427,7 @@ export class SQLiteConnection extends Connection {
     if (reference.parent!.connection !== this)
       return [`Foreign key ${foreignTable}.${foreignKey} cannot be checked by another connection`];
 
-    const db = await this.statements();
+    const db = await this.#statements();
 
     const foreignTableExists = await db.get(
       `SELECT name FROM sqlite_master WHERE type='table' AND name=?`, [foreignTable]);
@@ -482,10 +472,14 @@ function indexed(type: Query.Table){
   return Array.from(type.fields.values()).filter(field => field.index && !field.primary && !field.unique);
 }
 
-function dangling(rows: { table: string }[]){
-  const tables = [...new Set(rows.map(row => row.table))].join(", ");
+async function intact(db: Engine.Statements){
+  const broken: { table: string }[] = await db.all("PRAGMA foreign_key_check");
 
-  return `Cannot rebuild: ${tables} has references to missing rows (${rows.length}).`;
+  if (broken.length) {
+    const tables = [...new Set(broken.map(row => row.table))].join(", ");
+
+    throw new Error(`Cannot rebuild: ${tables} has references to missing rows (${broken.length}).`);
+  }
 }
 
 function indexName(field: Field){

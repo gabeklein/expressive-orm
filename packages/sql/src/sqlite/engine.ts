@@ -47,7 +47,7 @@ const REMOTE = /^(libsql|https?|wss?):\/\//;
 
 export async function createEngine(filename: string): Promise<Engine> {
   if (REMOTE.test(filename))
-    return libsql(filename);
+    return libsql(filename, filename);
 
   for (const load of DRIVERS) {
     const engine = await load(filename).catch(() => null);
@@ -95,9 +95,8 @@ async function sqlite3(file: string): Promise<Engine | null> {
   return asyncEngine(new Database(file));
 }
 
-async function libsql(file: string): Promise<Engine> {
+async function libsql(file: string, url = file === ":memory:" ? file : `file:${file}`): Promise<Engine> {
   const { createClient } = await optional("@libsql/client");
-  const url = file === ":memory:" || REMOTE.test(file) ? file : `file:${file}`;
 
   return libsqlEngine(createClient({ url }));
 }

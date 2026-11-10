@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { createClient } from '@libsql/client';
 import { Miniflare } from 'miniflare';
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { asc, bool, date, desc, greaterThan, index, isIn, isLike, isNull, json, key, lessThan, notIn, notNull, now, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
 import { Builder } from '@expressive/orm/driver';
@@ -2409,10 +2409,17 @@ describe("d1", () => {
   })
 })
 
+const dirs: string[] = [];
+
 describe.each([
   ["memory", () => ":memory:"],
-  ["file", () => `file:${join(mkdtempSync(join(tmpdir(), "libsql-")), "test.db")}`]
+  ["file", () => `file:${join(dirs[dirs.push(mkdtempSync(join(tmpdir(), "libsql-"))) - 1], "test.db")}`]
 ])("libsql %s", (_, url) => {
+  afterAll(() => {
+    for (const dir of dirs.splice(0))
+      rmSync(dir, { recursive: true });
+  });
+
   function open(){
     const client = createClient({ url: url() });
 
@@ -2462,6 +2469,32 @@ describe.each([
     const conn = await SQLiteConnection.new([Author, Post], client);
 
     await expect(conn.transaction(() => conn.valid(Post))).resolves.toEqual([]);
+
+    await conn.close();
+    client.close();
+  })
+
+  it("will inspect after a transaction elsewhere", async () => {
+    const { client, Author, Post } = open();
+    const conn = await SQLiteConnection.new([Author, Post], client);
+    let release!: () => void;
+    let started!: () => void;
+    const holding = new Promise<void>(resolve => release = resolve);
+    const opened = new Promise<void>(resolve => started = resolve);
+
+    const tx = conn.transaction(async () => {
+      started();
+      await holding;
+    });
+
+    await opened;
+
+    const checked = conn.valid(Post);
+
+    release();
+
+    await tx;
+    await expect(checked).resolves.toEqual([]);
 
     await conn.close();
     client.close();
