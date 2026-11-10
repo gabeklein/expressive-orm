@@ -6,14 +6,21 @@ import type { Query } from './Query';
 import { Cond, DataField, DataTable, Expression, now, Parameter, Value } from './Value';
 
 declare namespace evaluate {
+  /** A stored row, by column. */
   type Row = Record<string, any>;
 
+  /** A query table backed by an entity class. */
   type Table = Builder.ITable & { type: Query.Table };
 
+  /** What `evaluate` needs from a store. */
   interface Store {
+    /** Rows of a table. `where` lists conditions the store may apply early; `evaluate` filters again. */
     rows(table: Table, where: Type.Constraint[]): Row[] | Promise<Row[]>;
+    /** Insert a row, resolving it as stored. */
     insert(table: Table, row: Row): Row | Promise<Row>;
+    /** Assign columns on a row `rows` returned. */
     update(table: Table, row: Row, assign: Row): void | Promise<void>;
+    /** Delete rows `rows` returned. */
     delete(table: Table, rows: Row[]): void | Promise<void>;
   }
 }
@@ -90,6 +97,12 @@ function sort<T>(items: T[], keys: [(item: T) => unknown, number][]) {
   });
 }
 
+/**
+ * Run a `Query` builder in JS against a store - for a driver without a query language.
+ *
+ * Joins, filters, orders and limits in memory, then applies writes through the store.
+ * Resolves `{ rows, count }` - `rows` when the query selects. Throws for raw SQL templates.
+ */
 async function evaluate(store: evaluate.Store, query: Builder, params: unknown[]) {
   const { tables, inserts, updates, deletes, filters, order, limit, offset = 0, returns } = query;
 

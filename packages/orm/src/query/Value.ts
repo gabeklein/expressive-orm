@@ -9,6 +9,11 @@ class Now extends Value {
   }
 }
 
+/**
+ * The current time - as a `fallback`, an `update` value, a written value or a comparison.
+ *
+ * Statics take it from the app's clock. A `Query` and a schema default render it in the database.
+ */
 const now = new Now();
 
 type Moment<T> = NonNullable<T> extends Date ? Now : never;
