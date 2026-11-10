@@ -187,7 +187,7 @@ export default {
 const turso = await SQLiteConnection.new([User], `libsql://app-org.turso.io?authToken=${process.env.TURSO_TOKEN}`);
 ```
 
-An address starting `libsql:`, `https:`, `http:`, `ws:` or `wss:` opens a `@libsql/client` (0.18 or later), which reads the token from `?authToken=`. The address form loads `@libsql/client` at runtime, which a bundle such as a Worker's does not include - there, pass a client from `createClient` instead.
+An address starting `libsql:`, `https:`, `http:`, `ws:` or `wss:` opens a `@libsql/client` (0.18 or later), which reads the token from `?authToken=`. The address form loads `@libsql/client` at runtime, which a bundle such as a Worker's does not include - there, pass a client from `createClient` instead. An `undefined` or empty source opens in memory, so check an address read from the environment before passing it.
 
 Every libSQL client runs each `transaction` on a libSQL write transaction (`BEGIN IMMEDIATE`) holding the connection's lock, so transactions run one at a time across the app. `sync` applies as one batch; a table rebuild runs through the client's `migrate`, which turns foreign keys off for it alone. Local libSQL enforces foreign keys by default; `PRAGMA foreign_keys` is per connection, so a remote client gets the server's setting.
 
