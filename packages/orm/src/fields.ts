@@ -380,7 +380,7 @@ function json<T>(nullable: Nullable): T | undefined;
  * Takes one option, unlike the other helpers. Text that fails to parse reads `undefined`. `isLike` matches the stored text.
  *
  * @example
- * prefs = json<{ theme: string }>(null);
+ * prefs = json<{ theme: string }>();
  */
 function json<T>(config?: Config): T;
 function json<T>(config?: Config){
