@@ -84,7 +84,11 @@ abstract class Connection extends Model {
   _active?: Promise<void>;
   _loaded = new Map<Type.Class, Map<unknown, Type>>();
 
-  /** Binds each class to this connection. Throws when a class already has one. Construct with `Connection.new`. */
+  /**
+   * Binds each class to this connection.
+   *
+   * Throws when a class already has one. Construct with `Connection.new`.
+   */
   constructor(using: Connection.Types = []){
     super();
 
@@ -114,7 +118,11 @@ abstract class Connection extends Model {
     return Model.new.apply(this as any, args as any) as T;
   }
 
-  /** Lets the connection be awaited - runs `sync` once when the driver has one, then resolves the connection. */
+  /**
+   * Lets the connection be awaited - runs `sync` once, then resolves the connection.
+   *
+   * `sync` runs only when the driver has one.
+   */
   async then(
     onfulfilled?: (value: Connection.Ready<this>) => any,
     onrejected?: (reason: any) => any) {
@@ -208,10 +216,18 @@ abstract class Connection extends Model {
     }
   }
 
-  /** Driver hook - run `fn` inside one transaction: begin, `fn`, then commit or roll back. Defining it enables `transaction`. */
+  /**
+   * Driver hook - run `fn` inside one transaction: begin, `fn`, then commit or roll back.
+   *
+   * Defining it enables `transaction`.
+   */
   protected transact?<T>(fn: () => Promise<T>): Promise<T>;
 
-  /** Take the connection for a transaction, resolving a release function. Waits out the open one. A pooled driver overrides it. */
+  /**
+   * Take the connection for a transaction, resolving a release function.
+   *
+   * Waits out the open one. A pooled driver overrides it.
+   */
   protected async lock(){
     while (this._active)
       await this._active;
@@ -226,7 +242,11 @@ abstract class Connection extends Model {
     };
   }
 
-  /** Wait until no other transaction holds the connection - call before each statement. Returns at once inside the open one. */
+  /**
+   * Wait until no other transaction holds the connection - call before each statement.
+   *
+   * Returns at once inside the open one.
+   */
   protected async idle(){
     while (this._active && !this._journal())
       await this._active;
@@ -235,10 +255,18 @@ abstract class Connection extends Model {
   /** Compile a `Query` builder into a statement. Without it a `Query` rejects when run. */
   prepare?(builder: Builder): Builder.Statement;
 
-  /** Report row changes so loaded entities follow them. Returns a stop function. Called when the first class loads. */
+  /**
+   * Report row changes so loaded entities follow them. Returns a stop function.
+   *
+   * Called when the first class loads.
+   */
   subscribe?(listener: (change: Connection.Change) => void): () => void;
 
-  /** Check the schema against the bound classes, creating what is missing unless `fix` is false. Runs when first awaited. */
+  /**
+   * Check the schema against the bound classes, creating what is missing unless `fix` is false.
+   *
+   * Runs when first awaited.
+   */
   sync?(fix?: boolean): Promise<unknown>;
 }
 

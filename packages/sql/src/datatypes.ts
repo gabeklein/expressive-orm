@@ -7,7 +7,11 @@ interface Datatypes {
   readonly text: { readonly type: "text" };
   /** `str` - a UUID. As `key(sql.uuid)`, a UUIDv7 is generated on insert when absent. */
   readonly uuid: { readonly type: "uuid" };
-  /** `num`, `one` (default) - 32-bit integer; on `num` a fraction or a value out of range throws on write. `bool` - 1 or 0. `date` - epoch seconds. */
+  /**
+   * 32-bit integer - for `num`, `one` (default), `bool` and `date`.
+   *
+   * On `num` a fraction or a value out of range throws on write. `bool` stores 1 or 0; `date`, epoch seconds.
+   */
   readonly integer: { readonly type: "integer" };
   /** `num` - 16-bit integer; a fraction or a value out of range throws on write. */
   readonly smallint: { readonly type: "smallint" };
@@ -35,7 +39,11 @@ interface Datatypes {
   readonly varchar: <N extends number>(length: N) => { readonly type: "varchar"; readonly length: N };
   /** `str` - fixed-length text; longer than `length` throws on write. */
   readonly char: <N extends number>(length: N) => { readonly type: "char"; readonly length: N };
-  /** `num` - exact decimal of `precision` digits, `scale` (default 0) after the point. A value past either throws on write. */
+  /**
+   * `num` - exact decimal of `precision` digits, `scale` (default 0) after the point.
+   *
+   * A value past either throws on write.
+   */
   readonly numeric: (precision: number, scale?: number) => { readonly type: "numeric"; readonly precision: number; readonly scale: number };
   /** `num` - exact decimal, as `numeric`. */
   readonly decimal: (precision: number, scale?: number) => { readonly type: "decimal"; readonly precision: number; readonly scale: number };

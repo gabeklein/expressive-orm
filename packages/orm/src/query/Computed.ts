@@ -8,7 +8,11 @@ function op(operator: string, rank: number) {
   return (left: unknown, right?: unknown) => new Computed<any>(operator, left, right, rank);
 }
 
-/** Arithmetic over columns and values, from a `Query` function's second argument. A missing operand yields a missing result. */
+/**
+ * Arithmetic over columns and values, from a `Query` function's second argument.
+ *
+ * A missing operand yields a missing result.
+ */
 interface MathOps {
   /** `left + right`. */
   add(left: Numeric, right: Numeric): Computed<number>;

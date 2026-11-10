@@ -46,7 +46,9 @@ function ref({ schema, table }: Query.Table){
 }
 
 /**
- * Base class of a SQL driver - implements orm's `select`, `insert`, `update` and `remove` as queries through `prepare`.
+ * Base class of a SQL driver - implements orm's floor as queries through `prepare`.
+ *
+ * The floor is `select`, `insert`, `update` and `remove`.
  *
  * A dialect supplies `schema`, `prepare`, `sync` and `plan`, and `transact` to enable `transaction`.
  * Each statement throws when no bound or loaded class owns its table.

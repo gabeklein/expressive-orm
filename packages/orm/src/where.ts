@@ -7,7 +7,11 @@ class Where {
   }
 }
 
-/** Match values equal to `value`. Given `undefined`, the condition is dropped - true of every operator taking a value. */
+/**
+ * Match values equal to `value`.
+ *
+ * Given `undefined`, the condition is dropped - true of every operator taking a value.
+ */
 const equal = (value: any) => new Where('=', value);
 /** Match values greater than `value`. */
 const greaterThan = (value: any) => new Where('>', value);
@@ -35,7 +39,11 @@ const asc = () => new Where('asc');
 const desc = () => new Where('desc');
 /** Match any of `values`. An empty list matches nothing. */
 const isIn = (values: any[]) => new Where('IN', values);
-/** Match none of `values`. An empty list matches every row on SQL; on `memory()`, every row with a value. */
+/**
+ * Match none of `values`.
+ *
+ * An empty list matches every row on SQL; on `memory()`, every row with a value.
+ */
 const notIn = (values: any[]) => new Where('NOT IN', values);
 
 export {

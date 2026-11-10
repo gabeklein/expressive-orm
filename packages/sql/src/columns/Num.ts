@@ -58,7 +58,11 @@ const RANGE: Record<string, [number, number]> = {
   bigint: [-Infinity, Infinity]
 };
 
-/** Column class behind `num()` on SQL - checks integer ranges and `numeric` precision and scale on write. */
+/**
+ * Column class behind `num()` on SQL.
+ *
+ * Checks integer ranges and `numeric` precision and scale on write.
+ */
 export class NumericColumn extends num.Type {
   type: num.DataType = "integer";
 

@@ -352,7 +352,11 @@ declare namespace date {
    */
   let created: <T extends Options[]>(...config: T & Exact<T, Types>) => Infer<[...T, { fallback: {}, fixed: true }], Date>;
 
-  /** A Date column set to now on insert and on every update or upsert not giving it - `{ fallback: now, update: now }`. */
+  /**
+   * A Date column set to now on insert and on every update or upsert not giving it.
+   *
+   * Underneath, `{ fallback: now, update: now }`.
+   */
   let updated: <T extends Options[]>(...config: T & Exact<T, Types>) => Infer<[...T, { fallback: {} }], Date>;
 }
 

@@ -55,7 +55,11 @@ type Id<T extends Type> = T["id"] | (T["id"] extends Key<infer P> ? Readonly<P> 
 
 /** What an `insert` does when the row exists. */
 interface Conflict<T extends Type> {
-  /** `"update"` writes the columns given; `"replace"` every column, omitted ones reset; `"ignore"` leaves the row. */
+  /**
+   * What happens to the existing row.
+   *
+   * `"update"` writes the columns given; `"replace"` every column, omitted ones reset; `"ignore"` leaves the row.
+   */
   conflict: "update" | "replace" | "ignore";
   /** Properties identifying the existing row. Defaults to the primary key. */
   on?: Fields<T> | Fields<T>[];
@@ -599,7 +603,11 @@ abstract class Type extends Model {
     return columns;
   }
 
-  /** Delete one row by id, destroying its loaded entity. A missing row is not an error; `onDelete` does not run. */
+  /**
+   * Delete one row by id, destroying its loaded entity.
+   *
+   * A missing row is not an error; `onDelete` does not run.
+   */
   static async delete<T extends Type>(this: Type.Class<T>, id: Type.Id<T>): Promise<void>;
   /**
    * Delete every row matching a filter, resolving how many.

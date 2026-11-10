@@ -51,7 +51,11 @@ export class Field<T = unknown> {
   primary = false;
   /** Has no column of its own - a composite key. */
   absent = false;
-  /** Written by an insert that gives no value, and the column default in schema. `now` for the current time. */
+  /**
+   * Written by an insert that gives no value, and the column default in schema.
+   *
+   * `now` for the current time.
+   */
   fallback?: unknown;
   /** Written on insert only - an update giving it throws, an upsert leaves it. */
   fixed = false;
@@ -82,7 +86,11 @@ export class Field<T = unknown> {
   /** Called when the property is first read in a `Query` - a relation joins its table here. */
   use?(query: Builder): unknown;
 
-  /** Encode a value for storage, throwing when it does not fit. `compare` is set when encoding for a filter. */
+  /**
+   * Encode a value for storage, throwing when it does not fit.
+   *
+   * `compare` is set when encoding for a filter.
+   */
   set(this: Field, value: any, compare?: boolean): Async<string | number | boolean | null | undefined> {
     return value;
   }

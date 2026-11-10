@@ -43,7 +43,11 @@ declare module '@expressive/orm' {
   }
 }
 
-/** Column class behind `date()` on SQL - a Date as `timestamp`, `date`, `time`, `ms`, `seconds`, `integer` or `text`. */
+/**
+ * Column class behind `date()` on SQL.
+ *
+ * Stores a Date as `timestamp`, `date`, `time`, `ms`, `seconds`, `integer` or `text`.
+ */
 export class TimeColumn extends date.Type {
   type: date.DataType = "timestamp";
 

@@ -51,7 +51,11 @@ export class SQLiteConnection extends Connection {
     return pretty(this.generateSchema(this.using));
   }
 
-  /** Compile a builder to SQLite SQL. A failure when run rethrows as `Error running SQL: <message>` with the statement. */
+  /**
+   * Compile a builder to SQLite SQL.
+   *
+   * A failure when run rethrows as `Error running SQL: <message>` with the statement.
+   */
   prepare(builder: Builder){
     const sql = String(new SQLiteGenerator(builder));
     const string = (x?: unknown[]) => x

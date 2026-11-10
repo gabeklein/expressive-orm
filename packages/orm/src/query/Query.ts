@@ -39,7 +39,11 @@ declare namespace Query {
 
   type Value<V> = Field<V | undefined> | Computed<V>;
 
-  /** A value to compare against - a literal, a column, an expression, `now`, or `null` for a nullable column. */
+  /**
+   * A value to compare against - a literal, a column, an expression or `now`.
+   *
+   * `null` is accepted for a nullable column.
+   */
   type Match<V = any> = V | Value<NonNullable<V>> | Moment<V> | (undefined extends V ? null : never);
 
   type Assigns<V> =
@@ -70,7 +74,11 @@ declare namespace Query {
     bit: BitWise;
   }
 
-  /** A `Query` function's first argument - adds tables, conditions, writes and limits by what it is given. */
+  /**
+   * A `Query` function's first argument - adds tables, conditions, writes and limits.
+   *
+   * What a call does depends on what it is given.
+   */
   interface Where {
     /** Limit the rows selected. */
     (limit: number): void;
@@ -80,7 +88,11 @@ declare namespace Query {
     (...orWhere: Expression[]): Group;
     /** Left join a table - a row is kept when nothing matches. */
     <T>(entity: Table<T>, optional: true): Join<T>;
-    /** Add a table, returning its columns. On SQL each table after the first needs a condition against another's column. */
+    /**
+     * Add a table, returning its columns.
+     *
+     * On SQL each table after the first needs a condition against another's column.
+     */
     <T>(entity: Table<T>): From<T>;
     /** Insert rows into a table. A value may be another table's column, inserting once per matched row. */
     <T>(entity: Table<T>, ...inserts: Insert<T>[]): From<T>;
@@ -168,7 +180,9 @@ interface Query<T = any> extends Promise<T> {
 }
 
 /**
- * Build a query template - a function of parameters, compiled once, selecting what the inner function returns.
+ * Build a query template - a function of parameters, compiled once.
+ *
+ * It selects what the inner function returns.
  *
  * Inside it the arguments are placeholders - compare with them, don't branch on them.
  *
@@ -188,7 +202,9 @@ function Query<T extends {}, A extends unknown[]>(from: Query.Factory<T, A>): Qu
 function Query<A extends unknown[]>(from: Query.Factory<void, A>): Query.Template<A>;
 
 /**
- * Build a select - `where(Class)` adds a table, `where(column)` a condition, the return value is the selection.
+ * Build a select, selecting what the function returns.
+ *
+ * `where(Class)` adds a table, `where(column)` a condition.
  *
  * Return a column for its values, an object for rows of that shape, a table for its rows. Rows are frozen.
  * Runs when awaited, once per `then`.

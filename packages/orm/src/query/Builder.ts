@@ -59,7 +59,11 @@ class Builder {
   updates = new Map<Builder.ITable, Builder.Insert>();
   inserts = new Map<Builder.ITable, Builder.Insert>();
 
-  /** Upsert target of an insert - `on` identifies the row, `update` copies from the insert, `set` assigns values. */
+  /**
+   * Upsert target of an insert.
+   *
+   * `on` identifies the row, `update` copies from the insert, `set` assigns values.
+   */
   conflict?: { on: Field[]; update?: Field[]; set: Builder.Insert };
   /** The selection - columns by alias, or one value. Unset for a write or count. */
   returns?: Map<string, unknown> | Field | Value;
@@ -68,7 +72,11 @@ class Builder {
   limit?: number;
   offset?: number;
 
-  /** Compile through the connection into a function of the template's arguments that makes a runnable query. */
+  /**
+   * Compile through the connection into a function of the template's arguments.
+   *
+   * The function makes a runnable query.
+   */
   prepare(): Query.TemplateSelects<any, any> | Query.Template<any> {
     const { connection } = this;
     const statement = connection?.prepare ? connection.prepare(this) : unsupported(this);
@@ -241,7 +249,11 @@ class Builder {
     return local;
   }
 
-  /** Add an entity class as a table, returning its column proxy. `arg2` true left joins; an object inserts. */
+  /**
+   * Add an entity class as a table, returning its column proxy.
+   *
+   * `arg2` true left joins; an object inserts.
+   */
   use(type: Query.Table, arg2?: boolean | {}, ...rest: {}[]): {} {
     if (!this.connection)
       this.connection = type.connection;
@@ -348,7 +360,11 @@ class Builder {
     }
   }
 
-  /** Add a condition - a join when `right` is a column, else a filter. Throws for `null` against a non-nullable column. */
+  /**
+   * Add a condition - a join when `right` is a column, else a filter.
+   *
+   * Throws for `null` against a non-nullable column.
+   */
   where(left: Field, op: string, right: unknown){
     if (typeof right == "function")
       right = right();

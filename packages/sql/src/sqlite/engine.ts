@@ -7,9 +7,17 @@
 export interface Engine extends Engine.Statements {
   /** Release the database. Called only on an engine the connection opened. */
   close(): Promise<void>;
-  /** Open a transaction on its own session. Without it the connection issues `BEGIN`, `COMMIT` and `ROLLBACK` through `exec`. */
+  /**
+   * Open a transaction on its own session.
+   *
+   * Without it the connection issues `BEGIN`, `COMMIT` and `ROLLBACK` through `exec`.
+   */
   transaction?(): Promise<Engine.Session>;
-  /** Run statements atomically. `sync` applies through it when present; a table rebuild then needs foreign keys off. */
+  /**
+   * Run statements atomically.
+   *
+   * `sync` applies through it when present; a table rebuild then needs foreign keys off.
+   */
   batch?(sql: string[]): Promise<void>;
 }
 
