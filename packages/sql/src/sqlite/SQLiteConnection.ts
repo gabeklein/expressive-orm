@@ -29,7 +29,7 @@ export class SQLiteConnection extends Connection {
   /**
    * Bind `using` to a SQLite database. Construct with `SQLiteConnection.new`.
    *
-   * @param source A filename or an `Engine`. Omitted, an in-memory database.
+   * Without `source`, the database is in memory.
    */
   constructor(using: Connection.Types, source?: string | Engine) {
     super(using);
