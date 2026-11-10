@@ -497,6 +497,8 @@ Optional capabilities: `prepare(builder)` runs a `Query` - without it `Query` an
 
 To write a driver, extend `Connection` from `@expressive/orm` and implement the floor - entities, relations, writes and the identity map work on that alone. For a SQL database extend `Connection` from `@expressive/sql`: it implements the floor over `Query`, leaving `prepare` (with a `Generator` subclass for the dialect) and `sync`.
 
+Driver seams - `Builder`, `evaluate`, `Where` and a SQL generator's values - import from `@expressive/orm/driver`.
+
 A driver without a query language can run `Query` in JS, the way `memory()` does: `evaluate(store, builder, params)` returns `{ rows, count }`, so `prepare` is `all` resolving `rows` and `run` resolving `count`. The store reads and writes one table at a time:
 
 | Method | Does |

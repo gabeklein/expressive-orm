@@ -4,7 +4,8 @@ import '../columns/One';
 import '../columns/Str';
 import '../columns/Time';
 
-import { Builder, Connection as Base, Field, Parameter, Query, Type } from '@expressive/orm';
+import { Connection as Base, Field, Query, Type } from '@expressive/orm';
+import { Builder, Parameter } from '@expressive/orm/driver';
 
 declare namespace Connection {
   type Types = Base.Types;

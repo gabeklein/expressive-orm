@@ -1,4 +1,5 @@
-import { DataTable, Field, Parameter } from '@expressive/orm';
+import { Field } from '@expressive/orm';
+import { DataTable, Parameter } from '@expressive/orm/driver';
 import { Generator } from '@expressive/sql';
 
 export function now(field?: Field){

@@ -267,6 +267,8 @@ A connection with `subscribe` keeps loaded entities current with changes made el
 
 For a SQL database extend `@expressive/sql`'s `Connection` instead (see `expressive-sql`). Without a query language, `evaluate(store, builder, params)` runs `Query` in JS against an `evaluate.Store`, returning `{ rows, count }`.
 
+Driver seams import from `@expressive/orm/driver` - `Builder`, `evaluate`, `Where`, and the values a SQL generator renders (`Computed`, `DataField`, `DataTable`, `Parameter`, `QueryTemplate`). App code never needs them.
+
 ```ts
 import { Connection, memory } from '@expressive/orm';
 

@@ -63,4 +63,4 @@ Optional:
 - `subscribe(listener)` - reports `{ table, op: "insert" | "update" | "delete", id, row? }` for changes made anywhere; returns a stop function. A loaded entity takes an update, reloading the row through `select` when `row` is absent; a delete destroys it.
 - `sync(fix?)` - checks the schema, creating what is missing when `fix`.
 
-Generator seams for SQL drivers: `Builder`, `Computed`, `DataField`, `DataTable`, `Parameter`, `QueryTemplate`.
+Driver seams come from `@expressive/orm/driver`: `Builder`, `evaluate`, `Where`, and for SQL generators `Computed`, `DataField`, `DataTable`, `Parameter` and `QueryTemplate`.

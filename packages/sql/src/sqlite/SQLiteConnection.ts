@@ -1,4 +1,5 @@
-import { Builder, Field, now, Query } from '@expressive/orm';
+import { Field, now, Query } from '@expressive/orm';
+import { Builder } from '@expressive/orm/driver';
 import { Connection } from '../connection/Connection';
 import { format } from 'sql-formatter';
 
