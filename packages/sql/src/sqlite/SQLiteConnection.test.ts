@@ -2128,11 +2128,43 @@ describe("engine", () => {
     await engine.close();
   })
 
-  it("will not accept an unknown source", async () => {
+  it("will not type an unknown source", async () => {
     // @ts-expect-error
     const conn = SQLiteConnection.new([], { execute: () => {} });
 
     await conn.close();
+  })
+
+  it.each([
+    ["an unknown object", {}],
+    ["null", null]
+  ])("will throw on sync for %s", async (_, source) => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    const conn = SQLiteConnection.new([Foo], source as Engine);
+
+    await expect(conn).rejects.toThrow("Unknown SQLite source. Pass a filename, a libSQL address, a D1 binding, a libSQL client or an Engine.");
+    await conn.close();
+
+    expect(Foo.hasOwnProperty("connection")).toBe(false);
+  })
+
+  it("will unbind on close when the engine failed to open", async () => {
+    class Foo extends Type {
+      name = str();
+    }
+
+    vi.doMock("@libsql/client", () => { throw new Error("Cannot find module '@libsql/client'") });
+
+    const conn = SQLiteConnection.new([Foo], "libsql://db.example.test");
+
+    await expect(conn).rejects.toThrow();
+    await conn.close();
+    vi.doUnmock("@libsql/client");
+
+    expect(Foo.hasOwnProperty("connection")).toBe(false);
   })
 
   async function hosted(){

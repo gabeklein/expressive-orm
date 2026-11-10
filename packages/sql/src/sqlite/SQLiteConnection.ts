@@ -39,7 +39,7 @@ export class SQLiteConnection extends Connection {
     super(using);
 
     if (typeof source == "object") {
-      this.engine = Promise.resolve(host(source));
+      (this.engine = Promise.resolve(source).then(host)).catch(() => {});
       this.owned = false;
     }
 
@@ -121,8 +121,10 @@ export class SQLiteConnection extends Connection {
 
   /** Close the database when this connection opened it, then release the connection. */
   async close(){
-    if (this.engine && this.owned)
-      await (await this.engine).close();
+    const engine = await this.engine?.catch(() => undefined);
+
+    if (engine && this.owned)
+      await engine.close();
 
     await super.close();
   }

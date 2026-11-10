@@ -144,7 +144,18 @@ function asyncEngine(db: any): Engine {
 }
 
 export function host(source: Engine | D1Database | LibSQLClient): Engine {
-  return "all" in source ? source : "execute" in source ? libsqlEngine(source) : d1Engine(source);
+  const has = (key: string) => source && typeof source == "object" && key in source;
+
+  if (has("all"))
+    return source as Engine;
+
+  if (has("execute"))
+    return libsqlEngine(source as LibSQLClient);
+
+  if (has("prepare") && has("batch"))
+    return d1Engine(source as D1Database);
+
+  throw new TypeError("Unknown SQLite source. Pass a filename, a libSQL address, a D1 binding, a libSQL client or an Engine.");
 }
 
 export const migrations = new WeakMap<Engine, (sql: string[]) => Promise<unknown>>();
@@ -210,7 +221,6 @@ function libsqlStatements(client: LibSQLStatements): Engine.Statements {
 export interface D1Database {
   prepare(sql: string): D1Statement;
   batch(statements: D1Statement[]): Promise<unknown>;
-  exec(sql: string): Promise<unknown>;
 }
 
 interface D1Statement {
