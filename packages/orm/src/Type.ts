@@ -54,14 +54,14 @@ type Matches<T> = (T extends Type ? T | T["id"] | Type.Compat<T> : T | Moment<T>
 type Id<T extends Type> = T["id"] | (T["id"] extends Key<infer P> ? Readonly<P> : never);
 
 /** What an `insert` does when the row exists. */
-type Conflict<T extends Type> = {
+interface Conflict<T extends Type> {
   /** `"update"` writes the columns given; `"replace"` every column, omitted ones reset; `"ignore"` leaves the row. */
   conflict: "update" | "replace" | "ignore";
   /** Properties identifying the existing row. Defaults to the primary key. */
   on?: Fields<T> | Fields<T>[];
   /** Properties an update or replace leaves as stored. */
   keep?: Fields<T>[];
-};
+}
 
 declare namespace Type {
   /** An entity class - a `Type` subclass with its statics. */

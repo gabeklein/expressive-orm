@@ -21,7 +21,7 @@ declare namespace Connection {
   type Transaction = Base.Journal;
 
   /** One change `sync` would make. */
-  type Step = {
+  interface Step {
     table: string;
     /** Column the step adds or indexes. Absent for a table step. */
     column?: string;
@@ -31,14 +31,14 @@ declare namespace Connection {
     reason: string;
     /** Statements applying it. */
     sql: string[];
-  };
+  }
 
   /** What `sync` would do, and what stops it. */
-  type Plan = {
+  interface Plan {
     steps: Step[];
     /** Mismatches `sync` cannot fix. Any makes it throw. */
     problems: string[];
-  };
+  }
 }
 
 function ref({ schema, table }: Query.Table){

@@ -17,34 +17,34 @@ declare namespace Connection {
   type Key = string | number | readonly (string | number)[];
 
   /** How an insert handles an existing row, by column. */
-  type Conflict = {
+  interface Conflict {
     /** Columns identifying the existing row. */
     on: string[];
     /** Columns to overwrite from the insert. Absent, the existing row is left. */
     update?: string[];
     /** Values written on conflict, whatever the insert holds. */
     set?: Record<string, unknown>;
-  };
+  }
 
   /** An open transaction's record on a connection. */
-  type Journal = {
+  interface Journal {
     /** Restore entities - run in reverse on rollback. */
     undo: (() => void)[];
     /** Deferred effects - run on commit. */
     done: (() => void)[];
     /** The driver's own handle for the transaction's statements. */
     session?: unknown;
-  };
+  }
 
   /** A row change reported to `subscribe`'s listener. */
-  type Change = {
+  interface Change {
     /** Table as the connection addresses it, schema included. */
     table: string;
     op: "insert" | "update" | "delete";
     id: Key;
     /** Changed values by column. Absent, a loaded entity selects its row again. */
     row?: Record<string, unknown>;
-  };
+  }
 }
 
 type Scope = Map<Connection, Connection.Journal>;

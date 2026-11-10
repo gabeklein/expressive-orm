@@ -71,7 +71,7 @@ declare namespace Query {
   }
 
   /** A `Query` function's first argument - adds tables, conditions, writes and limits by what it is given. */
-  type Where = {
+  interface Where {
     /** Limit the rows selected. */
     (limit: number): void;
     /** Embed raw SQL as a value. Not supported by `memory()`. */
@@ -95,7 +95,7 @@ declare namespace Query {
   }
 
   /** Comparisons on a column. Each returns its condition, to group with `where(a, b)`. */
-  type Compare<V> = {
+  interface Compare<V> {
     /** Equal to `value`; `null` matches a missing value on a nullable column. */
     equal(value: Match<V>): Expression;
     /** Not equal to `value`; `null` matches any present value. */
