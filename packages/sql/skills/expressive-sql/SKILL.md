@@ -5,7 +5,7 @@ description: Expressive ORM on SQL (@expressive/sql) - SQLiteConnection with a b
 
 # @expressive/sql
 
-Expressive ORM on SQL, with embedded SQLite. Re-exports `@expressive/orm` - entities, fields, relations, `Query` and transactions are in [expressive-orm](../expressive-orm/SKILL.md). Import everything from `@expressive/sql`.
+Expressive ORM on SQL, with embedded SQLite. Re-exports `@expressive/orm` - entities, fields, relations, `Query` and transactions are in [expressive-orm](../expressive-orm/SKILL.md). Apps import everything from `@expressive/sql`; driver seams come from `@expressive/orm/driver`.
 
 ```bash
 npm install @expressive/sql @expressive/mvc
@@ -132,3 +132,5 @@ class Device extends Type {
 `Connection` from `@expressive/sql` implements orm's floor over `Query`. A dialect extends it and supplies `schema`, `prepare(builder)` (rendering with a `Generator` subclass), `sync(fix?, force?)` and `plan(force?)`; a protected `transact(fn)` enables `transaction(fn)`.
 
 `Generator` renders a `Query` builder as SQL; `String(generator)` is the statement. A dialect overrides its protected hooks - `literal`, `insertWith`, `table`, `now` and `param` among them, each documented on `Generator`.
+
+The builder and its values - `Builder`, `DataTable`, `DataField`, `Parameter`, `Computed`, `QueryTemplate`, `Where` - import from `@expressive/orm/driver`, not `@expressive/sql`. A dialect package therefore lists `@expressive/orm` as a direct dependency, at the range `@expressive/sql` depends on.
