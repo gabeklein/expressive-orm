@@ -32,6 +32,9 @@ jobs:
 
       - run: bun run build
 
+      - name: Examples
+        run: bun .github/scripts/example-check.ts
+
       - name: Changeset status
         continue-on-error: true
         run: bunx changeset status --since origin/${{ github.base_ref }}

@@ -5,7 +5,8 @@
 Blocking: `bun run test`, `bun run build` and `skills-check.ts`, which
 parses each package skill's frontmatter, requires `skills` in `files` and every
 direct `@expressive/*` dependency in the `skills` field, and resolves links
-between skills as installed. The frozen-lockfile install in
+between skills as installed, and `example-check.ts`, which typechecks every
+JSDoc `@example` against its package's source. The frozen-lockfile install in
 the `setup` action doubles as the internal-dependency desync guard - a
 workspace version that falls outside a sibling's range cannot reach main.
 
