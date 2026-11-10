@@ -3,7 +3,7 @@ import { Builder } from '@expressive/orm/driver';
 import { Connection } from '../connection/Connection';
 import { format } from 'sql-formatter';
 
-import { createEngine, Engine } from './engine';
+import { createEngine, type D1Database, Engine, host, type LibSQLClient } from './engine';
 import { now as current, SQLiteGenerator } from './SQLiteGenerator';
 
 type TableInfo = {
@@ -14,7 +14,7 @@ type TableInfo = {
 };
 
 /**
- * A connection to SQLite - a file, in memory, or a given `Engine`.
+ * A connection to SQLite - a file, in memory, a libSQL address, a D1 binding, a libSQL client or a given `Engine`.
  *
  * The built-in loader takes the first of `bun:sqlite`, `node:sqlite`, `better-sqlite3`, `sqlite3`, `@libsql/client`, with foreign keys on.
  * Awaiting it runs `sync`. No live rows.
@@ -30,13 +30,16 @@ export class SQLiteConnection extends Connection {
   /**
    * Bind `using` to a SQLite database. Construct with `SQLiteConnection.new`.
    *
-   * Without `source`, the database is in memory.
+   * Without `source`, the database is in memory. A filename opens through the built-in loader.
+   * A `libsql:`, `https:`, `http:`, `ws:` or `wss:` address opens a `@libsql/client` 0.18 or later - pass a token as `?authToken=`.
+   * A D1 binding, a libSQL client or an `Engine` is used as given - foreign keys are not switched on, and `close()` leaves it open.
+   * D1 refuses `transaction`. libSQL runs each `transaction` on a libSQL write transaction, one at a time.
    */
-  constructor(using: Connection.Types, source?: string | Engine) {
+  constructor(using: Connection.Types, source?: string | Engine | D1Database | LibSQLClient) {
     super(using);
 
     if (typeof source == "object") {
-      this.engine = Promise.resolve(source);
+      this.engine = Promise.resolve(host(source));
       this.owned = false;
     }
 

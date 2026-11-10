@@ -61,12 +61,13 @@
   },
   "devDependencies": {
     "@expressive/mvc": "^0.94.2",
+    "@libsql/client": "^0.18.0",
     "miniflare": "^4.20260730.0",
     "tsdown": "^0.20.1"
   },
   "peerDependencies": {
     "@expressive/mvc": "^0.94.0",
-    "@libsql/client": ">=0.5.0",
+    "@libsql/client": ">=0.18.0",
     "better-sqlite3": ">=11.0.0",
     "sqlite3": ">=5.0.0"
   },

@@ -1,7 +1,7 @@
 import { Miniflare } from 'miniflare';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { createEngine, d1Engine, libsqlEngine } from './engine';
+import { createEngine, host } from './engine';
 
 const DRIVERS = ["bun:sqlite", "node:sqlite", "better-sqlite3", "sqlite3", "@libsql/client"];
 
@@ -220,6 +220,13 @@ describe("@libsql/client", () => {
     expect(client.url).toBe("file:test.db");
   });
 
+  it("will open a remote address first", async () => {
+    const { client } = await load("libsql://db.example.test?authToken=token");
+
+    expect(client.url).toBe("libsql://db.example.test?authToken=token");
+    expect(client.log).toEqual([]);
+  });
+
   it("will run statements", async () => {
     const { engine, client } = await load(":memory:");
 
@@ -244,82 +251,17 @@ describe("@libsql/client", () => {
   });
 });
 
-describe("libsqlEngine", () => {
-  class Client {
-    log: unknown[][] = [];
-
-    constructor(public protocol: string){}
-
-    async execute(statement: unknown){
-      this.log.push(["execute", statement]);
-      return { rows: [{ a: 1 }], rowsAffected: 1 };
-    }
-
-    async executeMultiple(sql: string){
-      this.log.push(["executeMultiple", sql]);
-    }
-
-    async batch(sql: string[], mode: string){
-      this.log.push(["batch", sql, mode]);
-    }
-
-    async transaction(mode: string){
-      const tx = new Client("tx");
-
-      this.log.push(["transaction", mode], tx.log);
-
-      return Object.assign(tx, {
-        commit: async () => { tx.log.push(["commit"]) },
-        rollback: async () => { tx.log.push(["rollback"]) }
-      });
-    }
-
-    close(){
-      this.log.push(["close"]);
-    }
-  }
-
-  it("will open a session", async () => {
-    const client = new Client("file");
-    const engine = libsqlEngine(client);
-    const session = await engine.transaction!();
-
-    expect(await session.get("SELECT ?", [1])).toEqual({ a: 1 });
-    await session.exec("SELECT 2");
-    await session.commit();
-    await session.rollback();
-
-    expect(client.log).toEqual([
-      ["transaction", "write"],
-      [
-        ["execute", { sql: "SELECT ?", args: [1] }],
-        ["executeMultiple", "SELECT 2"],
-        ["commit"],
-        ["rollback"]
-      ]
-    ]);
-  });
-
-  it("will batch statements", async () => {
-    const client = new Client("wss");
-
-    await libsqlEngine(client).batch!(["SELECT 1", "SELECT 2"]);
-
-    expect(client.log).toEqual([["batch", ["SELECT 1", "SELECT 2"], "write"]]);
-  });
-});
-
-describe("d1Engine", () => {
+describe("d1", () => {
   const mf = new Miniflare({
     modules: true,
     script: "export default { fetch: () => new Response() }",
     d1Databases: ["DB"]
   });
 
-  let engine: ReturnType<typeof d1Engine>;
+  let engine: ReturnType<typeof host>;
 
   beforeAll(async () => {
-    engine = d1Engine(await mf.getD1Database("DB") as any);
+    engine = host(await mf.getD1Database("DB"));
   });
 
   afterAll(() => mf.dispose());
@@ -355,6 +297,14 @@ describe("d1Engine", () => {
   it("will throw on transaction", async () => {
     await expect(engine.transaction!()).rejects.toThrow("D1 has no interactive transactions.");
   });
+});
+
+it("will use an engine as given", async () => {
+  const engine = await createEngine(":memory:");
+
+  expect(host(engine)).toBe(engine);
+
+  await engine.close();
 });
 
 it("will throw if no driver is available", async () => {

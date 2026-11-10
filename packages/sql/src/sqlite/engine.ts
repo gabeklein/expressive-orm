@@ -43,7 +43,12 @@ export declare namespace Engine {
 
 const DRIVERS = [bunSqlite, nodeSqlite, betterSqlite3, sqlite3, libsql];
 
+const REMOTE = /^(libsql|https?|wss?):\/\//;
+
 export async function createEngine(filename: string): Promise<Engine> {
+  if (REMOTE.test(filename))
+    return libsql(filename);
+
   for (const load of DRIVERS) {
     const engine = await load(filename).catch(() => null);
 
@@ -90,9 +95,9 @@ async function sqlite3(file: string): Promise<Engine | null> {
   return asyncEngine(new Database(file));
 }
 
-async function libsql(file: string): Promise<Engine | null> {
+async function libsql(file: string): Promise<Engine> {
   const { createClient } = await optional("@libsql/client");
-  const url = file === ":memory:" ? ":memory:" : `file:${file}`;
+  const url = file === ":memory:" || REMOTE.test(file) ? file : `file:${file}`;
 
   return libsqlEngine(createClient({ url }));
 }
@@ -138,7 +143,23 @@ function asyncEngine(db: any): Engine {
   };
 }
 
-export function libsqlEngine(client: any): Engine {
+export function host(source: Engine | D1Database | LibSQLClient): Engine {
+  return "all" in source ? source : "execute" in source ? libsqlEngine(source) : d1Engine(source);
+}
+
+/** A libSQL client from `@libsql/client` 0.18 or later - local, Turso or any libSQL server. */
+export interface LibSQLClient extends LibSQLStatements {
+  batch(sql: string[], mode: "write"): Promise<unknown>;
+  transaction(mode: "write"): Promise<LibSQLStatements & { commit(): Promise<void>; rollback(): Promise<void> }>;
+  close(): void;
+}
+
+interface LibSQLStatements {
+  execute(statement: { sql: string, args: any[] }): Promise<{ rows: any[], rowsAffected: number }>;
+  executeMultiple(sql: string): Promise<void>;
+}
+
+function libsqlEngine(client: LibSQLClient): Engine {
   return {
     ...libsqlStatements(client),
     async batch(sql) {
@@ -159,7 +180,7 @@ export function libsqlEngine(client: any): Engine {
   };
 }
 
-function libsqlStatements(client: any): Engine.Statements {
+function libsqlStatements(client: LibSQLStatements): Engine.Statements {
   const execute = (sql: string, args: any[]) => client.execute({ sql, args });
 
   return {
@@ -178,13 +199,21 @@ function libsqlStatements(client: any): Engine.Statements {
   };
 }
 
-type D1Database = {
-  prepare(sql: string): { bind(...values: any[]): any };
+/** A Cloudflare D1 binding, such as a Worker's `env.DB`. */
+export interface D1Database {
+  prepare(sql: string): D1Statement;
+  batch(statements: D1Statement[]): Promise<unknown>;
   exec(sql: string): Promise<unknown>;
-  batch(statements: any[]): Promise<unknown>;
-};
+}
 
-export function d1Engine(db: D1Database): Engine {
+interface D1Statement {
+  bind(...values: any[]): D1Statement;
+  all(): Promise<{ results: any[] }>;
+  first(): Promise<any>;
+  run(): Promise<{ meta: { changes: number } }>;
+}
+
+function d1Engine(db: D1Database): Engine {
   const statement = (sql: string, params: any[] = []) => db.prepare(sql).bind(...params);
 
   return {
@@ -204,7 +233,7 @@ export function d1Engine(db: D1Database): Engine {
       await db.batch(sql.map(sql => db.prepare(sql)));
     },
     async transaction(): Promise<never> {
-      throw new Error("D1 has no interactive transactions. Use the D1 binding's batch() for atomic writes.");
+      throw new Error("D1 has no interactive transactions.");
     },
     async close() {}
   };
