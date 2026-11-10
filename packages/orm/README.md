@@ -61,6 +61,6 @@ Optional:
 
 - `prepare(builder)` - runs a `Query`; `Builder` holds its tables, joins, filters, order, limit, offset, selection and writes. Without it `Query` and `Type.query` throw.
 - `subscribe(listener)` - reports `{ table, op: "insert" | "update" | "delete", id, row? }` for changes made anywhere; returns a stop function. A loaded entity takes an update, reloading the row through `select` when `row` is absent; a delete destroys it.
-- `sync(fix?)` - checks the schema, creating what is missing when `fix`.
+- `sync(fix?)` - checks the schema, creating what is missing unless `fix` is `false`. Runs when the connection is awaited.
 
 Driver seams come from `@expressive/orm/driver`: `Builder`, `evaluate`, `Where`, and for SQL generators `Computed`, `DataField`, `DataTable`, `Parameter` and `QueryTemplate`.
