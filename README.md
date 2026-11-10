@@ -147,7 +147,7 @@ const lite = await PGLiteConnection.new([Account], "./data");
 
 `PGConnection` takes a connection string, a `pg` `PoolConfig` or a `Pool`. `PGLiteConnection` takes a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`. `close()` leaves a passed `Pool` or `PGlite` open.
 
-`SQLiteConnection` takes a filename, or an `Engine` in its place for a SQLite the built-in loader can't open: any object with `all(sql, params)`, `get(sql, params)`, `run(sql, params)` returning `{ changes }`, `exec(sql)` and `close()`, each async. A given engine is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
+`SQLiteConnection` takes a filename, or an `Engine` in its place for a SQLite the built-in loader can't open, such as on React Native: any object with `all(sql, params)`, `get(sql, params)`, `run(sql, params)` returning `{ changes }`, `exec(sql)` and `close()`, each async. A given engine is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
 
 Two optional members cover hosts without `BEGIN` and `COMMIT` on one connection. `transaction()` returns a session - the same four statements plus `commit()` and `rollback()` - and every statement inside `transaction(fn)` runs on it. `batch(sql)` runs statements atomically, and `sync` applies through it. A rebuild in a batch needs foreign keys off, or dropping the old table would cascade; on an engine that keeps them on, it is refused.
 
