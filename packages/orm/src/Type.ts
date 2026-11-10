@@ -401,7 +401,8 @@ abstract class Type extends Model {
    * Values every row of this class holds - merged into inserts and into every query filter.
    *
    * Scopes a subclass to part of a shared table; give it the parent's `table`.
-   * By-id calls (`get`, `update(id)`, `delete(id)`) are not scoped. `Insert` still types the fields as required.
+   * Reads by id (`get(id)`, `one(id)`) are scoped; writes by id (`update(id)`, `delete(id)`) and instance writes (`set`, `delete`) are not.
+   * `Insert` still types the fields as required.
    *
    * @example
    * static table = "user";
