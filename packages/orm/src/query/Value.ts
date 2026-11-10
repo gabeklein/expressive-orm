@@ -24,6 +24,7 @@ function render(value: unknown): string {
     : String(JSON.stringify(value));
 }
 
+/** A query template's argument, resolved from the arguments when run. */
 class Parameter extends Value {
   constructor(public index = -1){
     super();
@@ -42,6 +43,7 @@ class Parameter extends Value {
   }
 }
 
+/** A column of a `DataTable`, rendering as `<table>.<column>`. */
 class DataField extends Value {
   field?: Field;
 
@@ -60,6 +62,7 @@ class DataField extends Value {
   }
 }
 
+/** In-memory rows used as a table in a query - what `where(rows)` adds, to join against or insert from. */
 class DataTable<T extends Record<string, unknown> = any>
   extends Parameter implements Builder.ITable {
 
@@ -165,6 +168,7 @@ class Group {
   }
 }
 
+/** Raw SQL embedded as a value - what `where("...")` returns. */
 class QueryTemplate extends Value {
   constructor(public from: string, parent: Builder){
     super();

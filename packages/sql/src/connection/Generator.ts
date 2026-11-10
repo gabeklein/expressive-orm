@@ -1,4 +1,5 @@
-import { Builder, Computed, DataField, DataTable, Field, now, Parameter, QueryTemplate } from '@expressive/orm';
+import { Field, now } from '@expressive/orm';
+import { Builder, Computed, DataField, DataTable, Parameter, QueryTemplate } from '@expressive/orm/driver';
 
 import { escape } from '../utils';
 

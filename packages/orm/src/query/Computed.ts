@@ -61,6 +61,7 @@ const BitWise: BitWise = {
   xor: op('^', 1),
 }
 
+/** An arithmetic or bitwise expression over columns and values, from a `Query` function's math helpers. */
 class Computed<T> extends Value {
   declare readonly returns?: T;
 

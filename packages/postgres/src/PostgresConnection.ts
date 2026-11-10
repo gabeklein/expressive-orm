@@ -1,6 +1,7 @@
 import './columns';
 
-import { Builder, Field, now, Query, Type } from '@expressive/orm';
+import { Field, now, Query, Type } from '@expressive/orm';
+import { Builder } from '@expressive/orm/driver';
 import { Connection } from '@expressive/sql';
 import { format } from 'sql-formatter';
 

@@ -1,7 +1,8 @@
 import { format } from 'sql-formatter';
 import { describe, expect, it } from 'vitest';
 
-import { bool, Builder, DataTable, date, now, num, one, Query, str, Type } from '@expressive/orm';
+import { bool, date, now, num, one, Query, str, Type } from '@expressive/orm';
+import { Builder, DataTable } from '@expressive/orm/driver';
 
 import { Connection } from './Connection';
 import { Generator } from './Generator';
