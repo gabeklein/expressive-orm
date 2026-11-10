@@ -412,7 +412,8 @@ abstract class Type extends Model {
   /**
    * The connection this class reads and writes through.
    *
-   * Set by `Connection.new([...])`, or assigned: `static connection = memory()`. A class binds to one connection - a second throws.
+   * Set by `Connection.new([...])`, or assigned: `static connection = memory()`.
+   * A class binds to one connection through `Connection.new([...])` - a second throws.
    * Unset, every statement rejects with `No database connection`.
    */
   static get connection(): Type.Connection {
