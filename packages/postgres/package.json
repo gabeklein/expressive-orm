@@ -60,7 +60,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.16",
-    "@expressive/mvc": "^0.94.0",
+    "@expressive/mvc": "^0.94.2",
     "@types/pg": "^8.11.11",
     "pg": "^8.14.0",
     "tsdown": "^0.20.1"
