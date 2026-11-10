@@ -2,13 +2,20 @@
 
 ## pr.yml (pull requests -> main)
 
-Blocking: `bun run test`, `bun run build` and `skills-check.ts`, which
-parses each package skill's frontmatter, requires `skills` in `files` and every
-direct `@expressive/*` dependency in the `skills` field, and resolves links
-between skills as installed, and `example-check.ts`, which typechecks every
-JSDoc `@example` against its package's source. The frozen-lockfile install in
-the `setup` action doubles as the internal-dependency desync guard - a
-workspace version that falls outside a sibling's range cannot reach main.
+Blocking:
+
+- `bun run test` and `bun run build`.
+- `skills-check.ts` - each published package ships its skill with valid
+  frontmatter, packs `skills`, and lists exactly its direct `@expressive/*`
+  dependencies in the `skills` field; links between skills resolve as installed.
+- `example-check.ts` - every JSDoc `@example` typechecks against its package's
+  source.
+- `dts-check.ts` - every JSDoc block in the built `.d.ts` attaches to a
+  declaration, so it shows on hover.
+
+The frozen-lockfile install in the `setup` action doubles as the
+internal-dependency desync guard - a workspace version outside a sibling's range
+cannot reach main.
 
 Non-blocking signals: `changeset status` (a preview of which packages would
 bump) and `npm publish --dry-run` pack validation for the publishable packages.
