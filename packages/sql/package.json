@@ -1,6 +1,6 @@
 {
   "name": "@expressive/sql",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Expressive ORM on SQL: entities, Query and an embedded SQLite store from one import.",
   "keywords": [
     "orm",
