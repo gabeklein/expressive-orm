@@ -194,6 +194,24 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 # @expressive/orm
 
+## 0.14.0
+
+### Minor Changes
+
+- [#34](https://github.com/gabeklein/expressive-orm/pull/34) [`7603ed0`](https://github.com/gabeklein/expressive-orm/commit/7603ed0b12d4305c34adc1cca5b0126dcdde01ee) **`evaluate(store, builder, params)` runs a query in JS over any row store.** The memory driver's evaluator is now exported from `@expressive/orm/driver`, so a driver without a query language implements `evaluate.Store` (`rows`, `insert`, `update`, `delete` per table) and gets joins, filters, ordering, computed values and writes from `prepare`. `rows` receives the conditions the query puts on that table alone, for a store that can filter. A query update now writes each row once, however many joined rows match it.
+
+- [#47](https://github.com/gabeklein/expressive-orm/pull/47) [`9cf9cde`](https://github.com/gabeklein/expressive-orm/commit/9cf9cde5a0b5e74c8f514e44ee68a88d7cb63f03) Driver seams move to `@expressive/orm/driver`: `Builder`, `Where`, `Computed`, `DataField`, `DataTable`, `Parameter` and `QueryTemplate`. The root entry - and `@expressive/sql`'s, which re-exports it - keeps the app API. `Where` stays on the root as a type. A driver imports these, and `evaluate`, from `@expressive/orm/driver`.
+
+- [#41](https://github.com/gabeklein/expressive-orm/pull/41) [`4f3e23c`](https://github.com/gabeklein/expressive-orm/commit/4f3e23c9e75cd4f9dc65e7ebda02577829e4d0d1) **`memory()` runs transactions, and every driver gets them from `@expressive/orm`.** `transaction(fn)`, the connection lock (`lock()`, `idle()`) and the journal that restores instances move from `@expressive/sql`'s `Connection` to `@expressive/orm`'s, over a protected `transact(fn)` hook, so a driver without SQL implements `transact` and nothing else. On `memory()` a rollback restores every table and the next id, subscribers hear of changes once a transaction commits, and statements from outside an open transaction wait for it. Like the SQL drivers, it needs `AsyncLocalStorage` and throws without it.
+
+### Patch Changes
+
+- [#46](https://github.com/gabeklein/expressive-orm/pull/46) [`acd61f1`](https://github.com/gabeklein/expressive-orm/commit/acd61f112e38d330fe7c990e974bf6595a59699a) Document the public API in JSDoc, so hovers and completions carry each symbol's contract, and correct the agent skills against the source: `json()` takes one option, relation writes insert an object without `id`, `where(Other)` needs a join condition on SQL, `num()` is a 32-bit integer on SQL, default ordering of `find()` and `one()`, and an error table.
+
+- [#44](https://github.com/gabeklein/expressive-orm/pull/44) [`567a398`](https://github.com/gabeklein/expressive-orm/commit/567a3982aeea543aeadec8d9529b836187671330) Ship each package's agent skill in the package, at `skills/expressive-<pkg>/SKILL.md`, so the docs an agent reads match the installed version. Agents read them from `node_modules/@expressive/<pkg>/skills/` - point one there with a line in `AGENTS.md`, or `npx skills add gabeklein/expressive`.
+
+- [#46](https://github.com/gabeklein/expressive-orm/pull/46) [`acd61f1`](https://github.com/gabeklein/expressive-orm/commit/acd61f112e38d330fe7c990e974bf6595a59699a) `Rows`, the type of a `rows()` field, is exported. `static subset` is documented: it scopes a class to part of a shared table.
+
 ## 0.13.0
 
 ### Minor Changes

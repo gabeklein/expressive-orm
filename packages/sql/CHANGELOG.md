@@ -1,5 +1,27 @@
 # @expressive/sql
 
+## 0.6.0
+
+### Minor Changes
+
+- [#40](https://github.com/gabeklein/expressive-orm/pull/40) [`1d1dbb5`](https://github.com/gabeklein/expressive-orm/commit/1d1dbb55f3b0cccb2049d41035aa31f7772ed65e) **`Generator` exposes protected hooks for dialects.** `literal(value)` renders every literal in values, `SET` and `WHERE`; `insertWith(cte, into, select)` places a data CTE in an insert; `table(table)` renders a table with its alias for `FROM`, joins, `UPDATE` and `DELETE`. A schema-qualified table's alias is now quoted everywhere, fixing Postgres queries and updates that aliased one.
+
+- [#47](https://github.com/gabeklein/expressive-orm/pull/47) [`9cf9cde`](https://github.com/gabeklein/expressive-orm/commit/9cf9cde5a0b5e74c8f514e44ee68a88d7cb63f03) Driver seams move to `@expressive/orm/driver`: `Builder`, `Where`, `Computed`, `DataField`, `DataTable`, `Parameter` and `QueryTemplate`. The root entry - and `@expressive/sql`'s, which re-exports it - keeps the app API. `Where` stays on the root as a type. A driver imports these, and `evaluate`, from `@expressive/orm/driver`.
+
+- [#41](https://github.com/gabeklein/expressive-orm/pull/41) [`4f3e23c`](https://github.com/gabeklein/expressive-orm/commit/4f3e23c9e75cd4f9dc65e7ebda02577829e4d0d1) **`memory()` runs transactions, and every driver gets them from `@expressive/orm`.** `transaction(fn)`, the connection lock (`lock()`, `idle()`) and the journal that restores instances move from `@expressive/sql`'s `Connection` to `@expressive/orm`'s, over a protected `transact(fn)` hook, so a driver without SQL implements `transact` and nothing else. On `memory()` a rollback restores every table and the next id, subscribers hear of changes once a transaction commits, and statements from outside an open transaction wait for it. Like the SQL drivers, it needs `AsyncLocalStorage` and throws without it.
+
+- [#39](https://github.com/gabeklein/expressive-orm/pull/39) [`0c5d036`](https://github.com/gabeklein/expressive-orm/commit/0c5d03630311ccbcbfa29515537577ad509ecaac) **SQLite engines can bring their own transactions and batches.** An `Engine` may implement `transaction()`, returning a session whose statements, `commit` and `rollback` back `transaction(fn)`, and `batch(sql)`, through which `sync` applies atomically. A batched rebuild turns foreign keys off around it and is refused where the engine keeps them on. A failed rollback no longer hides the error that caused it.
+
+- [#34](https://github.com/gabeklein/expressive-orm/pull/34) [`7603ed0`](https://github.com/gabeklein/expressive-orm/commit/7603ed0b12d4305c34adc1cca5b0126dcdde01ee) **`SQLiteConnection` takes an engine.** `new SQLiteConnection(types, engine)` runs on any object implementing the exported `Engine` type (`all`, `get`, `run`, `exec`, `close`), for a SQLite the built-in loader can't open. A filename still selects the built-in engine. A given engine is used as is and left open by `close()`.
+
+### Patch Changes
+
+- [#46](https://github.com/gabeklein/expressive-orm/pull/46) [`acd61f1`](https://github.com/gabeklein/expressive-orm/commit/acd61f112e38d330fe7c990e974bf6595a59699a) Document the public API in JSDoc, so hovers and completions carry each symbol's contract, and correct the agent skills against the source: `json()` takes one option, relation writes insert an object without `id`, `where(Other)` needs a join condition on SQL, `num()` is a 32-bit integer on SQL, default ordering of `find()` and `one()`, and an error table.
+
+- [#44](https://github.com/gabeklein/expressive-orm/pull/44) [`567a398`](https://github.com/gabeklein/expressive-orm/commit/567a3982aeea543aeadec8d9529b836187671330) Ship each package's agent skill in the package, at `skills/expressive-<pkg>/SKILL.md`, so the docs an agent reads match the installed version. Agents read them from `node_modules/@expressive/<pkg>/skills/` - point one there with a line in `AGENTS.md`, or `npx skills add gabeklein/expressive`.
+- Updated dependencies [[`7603ed0`](https://github.com/gabeklein/expressive-orm/commit/7603ed0b12d4305c34adc1cca5b0126dcdde01ee), [`acd61f1`](https://github.com/gabeklein/expressive-orm/commit/acd61f112e38d330fe7c990e974bf6595a59699a), [`9cf9cde`](https://github.com/gabeklein/expressive-orm/commit/9cf9cde5a0b5e74c8f514e44ee68a88d7cb63f03), [`4f3e23c`](https://github.com/gabeklein/expressive-orm/commit/4f3e23c9e75cd4f9dc65e7ebda02577829e4d0d1), [`567a398`](https://github.com/gabeklein/expressive-orm/commit/567a3982aeea543aeadec8d9529b836187671330), [`acd61f1`](https://github.com/gabeklein/expressive-orm/commit/acd61f112e38d330fe7c990e974bf6595a59699a)]:
+  - @expressive/orm@0.14.0
+
 ## 0.5.0
 
 ### Minor Changes

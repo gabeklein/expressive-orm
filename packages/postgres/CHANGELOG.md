@@ -1,5 +1,20 @@
 # @expressive/postgres
 
+## 0.6.0
+
+### Minor Changes
+
+- [#47](https://github.com/gabeklein/expressive-orm/pull/47) [`9cf9cde`](https://github.com/gabeklein/expressive-orm/commit/9cf9cde5a0b5e74c8f514e44ee68a88d7cb63f03) Driver seams move to `@expressive/orm/driver`: `Builder`, `Where`, `Computed`, `DataField`, `DataTable`, `Parameter` and `QueryTemplate`. The root entry - and `@expressive/sql`'s, which re-exports it - keeps the app API. `Where` stays on the root as a type. A driver imports these, and `evaluate`, from `@expressive/orm/driver`.
+
+### Patch Changes
+
+- [#40](https://github.com/gabeklein/expressive-orm/pull/40) [`1d1dbb5`](https://github.com/gabeklein/expressive-orm/commit/1d1dbb55f3b0cccb2049d41035aa31f7772ed65e) **`Generator` exposes protected hooks for dialects.** `literal(value)` renders every literal in values, `SET` and `WHERE`; `insertWith(cte, into, select)` places a data CTE in an insert; `table(table)` renders a table with its alias for `FROM`, joins, `UPDATE` and `DELETE`. A schema-qualified table's alias is now quoted everywhere, fixing Postgres queries and updates that aliased one.
+
+- [#44](https://github.com/gabeklein/expressive-orm/pull/44) [`567a398`](https://github.com/gabeklein/expressive-orm/commit/567a3982aeea543aeadec8d9529b836187671330) Ship each package's agent skill in the package, at `skills/expressive-<pkg>/SKILL.md`, so the docs an agent reads match the installed version. Agents read them from `node_modules/@expressive/<pkg>/skills/` - point one there with a line in `AGENTS.md`, or `npx skills add gabeklein/expressive`.
+- Updated dependencies [[`7603ed0`](https://github.com/gabeklein/expressive-orm/commit/7603ed0b12d4305c34adc1cca5b0126dcdde01ee), [`1d1dbb5`](https://github.com/gabeklein/expressive-orm/commit/1d1dbb55f3b0cccb2049d41035aa31f7772ed65e), [`acd61f1`](https://github.com/gabeklein/expressive-orm/commit/acd61f112e38d330fe7c990e974bf6595a59699a), [`9cf9cde`](https://github.com/gabeklein/expressive-orm/commit/9cf9cde5a0b5e74c8f514e44ee68a88d7cb63f03), [`4f3e23c`](https://github.com/gabeklein/expressive-orm/commit/4f3e23c9e75cd4f9dc65e7ebda02577829e4d0d1), [`567a398`](https://github.com/gabeklein/expressive-orm/commit/567a3982aeea543aeadec8d9529b836187671330), [`acd61f1`](https://github.com/gabeklein/expressive-orm/commit/acd61f112e38d330fe7c990e974bf6595a59699a), [`0c5d036`](https://github.com/gabeklein/expressive-orm/commit/0c5d03630311ccbcbfa29515537577ad509ecaac), [`7603ed0`](https://github.com/gabeklein/expressive-orm/commit/7603ed0b12d4305c34adc1cca5b0126dcdde01ee)]:
+  - @expressive/orm@0.14.0
+  - @expressive/sql@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes
