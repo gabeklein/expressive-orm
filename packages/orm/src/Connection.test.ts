@@ -223,12 +223,15 @@ describe("transaction", () => {
     vi.resetModules();
     vi.spyOn(process, "getBuiltinModule" as any).mockReturnValue(undefined);
 
-    const { memory } = await import('./memory');
-    const db = memory();
+    try {
+      const { memory } = await import('./memory');
+      const db = memory();
 
-    await expect(db.transaction(() => {})).rejects.toThrow("Transactions need AsyncLocalStorage, which this runtime does not provide.");
-
-    vi.restoreAllMocks();
-    vi.resetModules();
+      await expect(db.transaction(() => {})).rejects.toThrow("Transactions need AsyncLocalStorage from process.getBuiltinModule, which this runtime does not provide.");
+    }
+    finally {
+      vi.restoreAllMocks();
+      vi.resetModules();
+    }
   })
 })

@@ -55,13 +55,16 @@ const COLLECT = Symbol.for("@expressive/orm.collect");
 let context: import('node:async_hooks').AsyncLocalStorage<Scope> | undefined;
 
 function scope(){
+  if (context)
+    return context;
+
   const hooks: typeof import('node:async_hooks') | undefined =
     (globalThis as any).process?.getBuiltinModule?.("node:async_hooks");
 
   if (!hooks)
-    throw new Error("Transactions need AsyncLocalStorage, which this runtime does not provide.");
+    throw new Error("Transactions need AsyncLocalStorage from process.getBuiltinModule, which this runtime does not provide.");
 
-  return context ||= new hooks.AsyncLocalStorage<Scope>();
+  return context = new hooks.AsyncLocalStorage<Scope>();
 }
 
 /**
