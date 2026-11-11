@@ -142,4 +142,16 @@ describe("file", () => {
 
     await expect(db.select("user", [])).rejects.toThrow(SyntaxError);
   })
+  it("will throw without node:fs", async () => {
+    vi.spyOn(process, "getBuiltinModule" as any).mockReturnValue(undefined);
+
+    try {
+      const db = memory({ persist: memory.file(join(dir, "db.json")) });
+
+      await expect(db.select("user", [])).rejects.toThrow("memory.file needs node:fs from process.getBuiltinModule, which this runtime does not provide.");
+    }
+    finally {
+      vi.restoreAllMocks();
+    }
+  })
 })

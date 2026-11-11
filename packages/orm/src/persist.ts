@@ -71,8 +71,13 @@ function browser(name: string): memory.Adapter {
   };
 }
 
-function fs(name: string): Promise<typeof import('node:fs/promises')> {
-  return import(name);
+function fs(): typeof import('node:fs/promises') {
+  const fs = (globalThis as any).process?.getBuiltinModule?.("node:fs/promises");
+
+  if (!fs)
+    throw new Error("memory.file needs node:fs from process.getBuiltinModule, which this runtime does not provide.");
+
+  return fs;
 }
 
 function disk(path: string): memory.Adapter {
@@ -80,7 +85,7 @@ function disk(path: string): memory.Adapter {
 
   return {
     async load() {
-      const { readFile } = await fs("node:fs/promises");
+      const { readFile } = fs();
 
       try {
         return data = JSON.parse(await readFile(path, "utf8"));
@@ -93,7 +98,7 @@ function disk(path: string): memory.Adapter {
       }
     },
     async save(changes) {
-      const { writeFile, rename } = await fs("node:fs/promises");
+      const { writeFile, rename } = fs();
       const temp = `${path}.tmp`;
 
       Object.assign(data, changes);
