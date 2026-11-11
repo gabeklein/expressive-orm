@@ -118,7 +118,7 @@ Datatypes are portable - orm declares them, and each connection maps them to its
 | `str` | `text` (default), `varchar(n)`, `char(n)`, `uuid` | TEXT |
 | `num` | `integer` (default), `smallint`, `bigint`, `real`, `double`, `numeric(p, s)`, `decimal(p, s)` | INTEGER, REAL, NUMERIC |
 | `bool` | - (boolean) | INTEGER, 1 or 0 |
-| `date` | `timestamp` (default), `date`, `time` | TEXT, ISO 8601 |
+| `date` | `timestamp` (default), `date`, `time` | TEXT - ISO 8601 UTC to the ms; `date` as the local day `YYYY-MM-DD`; `time` as UTC `HH:MM:SS` |
 | `json` | - | TEXT |
 | `one` | - (the related key's) | the key's |
 
@@ -140,6 +140,7 @@ class Product extends Type {
 - `sql.now` is the database's current time in the column's storage - as a `fallback`, in a statics write or comparison (`lessThan(sql.now)`), or in a `Query`. Statics read it from the app's clock. `"NOW"` is a deprecated alias.
 - Writes are checked by the field on every connection - `varchar` and `char` length, integer ranges, decimal precision and scale. The SQL floor checks again before storing, so rows forwarded from a client meet the same rules.
 - `Connection.new` throws for a datatype the connection can't store - `SQLiteConnection can't store json type 'blob' (Doc.blob).`
+- A `date` type is a local calendar day on every connection: a Date keeps its local day, `"YYYY-MM-DD"` is that day, and it reads back as local midnight. `sql.now` on it is the database's UTC day.
 - Storage-only types are gone: store epoch time as `num(sql.bigint)`, yes/no text as `str`.
 
 `codecs` maps each base helper to how SQL stores it (`Connection.Codec`). A dialect extends it - `new Map([...codecs, [date, myDateCodec]])` - and returns it from a protected `codecs` getter.

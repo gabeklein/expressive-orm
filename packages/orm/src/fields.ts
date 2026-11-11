@@ -391,6 +391,8 @@ function bool<T extends bool.Options[]>(...config: T & Exact<T, bool.Types>): In
 
 bool.and = presets(bool) as typeof bool.and;
 
+const DAY = /^(\d{4})-(\d\d)-(\d\d)$/;
+
 class TimeColumn extends Field<Date> {
   declare type: date.DataType;
   declare precision?: number;
@@ -400,17 +402,22 @@ class TimeColumn extends Field<Date> {
       return undefined;
 
     const date = value instanceof Date || typeof value == "string" || typeof value == "number"
-      ? new Date(value)
+      ? this.parse(value)
       : undefined;
 
     if (!date || isNaN(date.getTime()))
       throw new Error(`Got '${value}' but value must be a Date or date string.`);
 
-    return date;
+    return this.type === "date" ? new Date(date.getFullYear(), date.getMonth(), date.getDate()) : date;
   }
 
   get(value: unknown) {
-    return value == null || value instanceof Date ? value ?? undefined : new Date(value as string);
+    return value == null || value instanceof Date ? value ?? undefined : this.parse(value as string);
+  }
+
+  private parse(value: string | number | Date){
+    const day = this.type === "date" && typeof value == "string" && DAY.exec(value);
+    return day ? new Date(+day[1], +day[2] - 1, +day[3]) : new Date(value);
   }
 }
 
@@ -424,7 +431,7 @@ declare namespace date {
     timezone?: boolean;
   }
 
-  /** A calendar day. Written from the UTC day, read as local midnight. */
+  /** A calendar day - local midnight. A `YYYY-MM-DD` string is that local day; a Date keeps its local day. */
   interface Day extends TimeColumn {
     type: "date";
   }

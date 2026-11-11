@@ -49,13 +49,18 @@ const time: Codec = {
     return precision === undefined ? type : `${type}(${precision})`;
   },
   encode({ type }, value){
-    const iso = (value as Date).toISOString();
+    const date = value as Date;
 
-    return type === "date" ? iso.slice(0, 10) : type === "time" ? iso.slice(11, 19) : iso;
+    if (type === "date")
+      return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(pad).join("-");
+
+    const iso = date.toISOString();
+
+    return type === "time" ? iso.slice(11, 19) : iso;
   },
   decode({ type }, value){
     if (typeof value === "string" && type === "date") {
-      const [year, month, day] = value.split('-').map(Number);
+      const [year, month, day] = value.slice(0, 10).split('-').map(Number);
       return new Date(year, month - 1, day);
     }
 
@@ -68,6 +73,10 @@ const time: Codec = {
     return new Date(value as string | Date);
   }
 };
+
+function pad(part: number, index: number){
+  return String(part).padStart(index ? 2 : 4, "0");
+}
 
 const object: Codec = {
   types: ["json"],
@@ -86,7 +95,9 @@ const object: Codec = {
 /**
  * How SQL stores each field helper's values - keyed by the helper.
  *
- * `str` as text, `num` as its numeric type, `bool` as boolean, `date` as ISO 8601 text, `json` as JSON text. A dialect replaces entries it stores differently.
+ * `str` as text, `num` as its numeric type, `bool` as boolean, `json` as JSON text.
+ * `date` as ISO 8601 text - a `timestamp` in UTC to the millisecond, a `date` as the local calendar day `YYYY-MM-DD` (read back as local midnight), a `time` as UTC `HH:MM:SS`.
+ * A dialect replaces entries it stores differently.
  */
 const codecs: ReadonlyMap<Function, Codec> = new Map<Function, Codec>([
   [str, text],

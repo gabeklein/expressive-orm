@@ -19,7 +19,7 @@ interface Datatypes {
   readonly double: { readonly type: "double" };
   /** `date` (default) - date and time. */
   readonly timestamp: { readonly type: "timestamp" };
-  /** `date` - a calendar day, `YYYY-MM-DD`. Written from the UTC day, read as local midnight. */
+  /** `date` - a calendar day, stored `YYYY-MM-DD` from the local day and read as local midnight. */
   readonly date: { readonly type: "date" };
   /** `date` - time of day, `HH:MM:SS` UTC, read on 1970-01-01. */
   readonly time: { readonly type: "time" };

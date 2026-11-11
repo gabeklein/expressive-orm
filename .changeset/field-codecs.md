@@ -9,3 +9,5 @@ Fields declare portable datatypes and connections own storage. A field checks pl
 Breaking: orm declares the portable types - `str` text, varchar, char, uuid; `num` integer (now the default everywhere), smallint, bigint, real, double, decimal, numeric; `date` timestamp, date, time, with `timezone`; `bool` boolean. Storage-only types are dropped - `date` ms, seconds, integer and text, `num` float, `bool` with `either`, `one` integer and bigint (a relation takes its key's type), Postgres `serial` and `interval` - with their `sql.*` tokens. The column classes and `X.Type` hooks are gone (`StringColumn`, `NumericColumn`, `BooleanColumn`, `TimeColumn`, `ForeignColumn`); `@expressive/sql` exports `codecs` instead. `Field.datatype` is gone. `memory()` stores values as given.
 
 Every helper gains `.and(...presets)`, returning the same helper with those options first; `date.created` and `date.updated` are presets of `date`.
+
+A `date({ type: "date" })` column is the local calendar day on every side - stored `YYYY-MM-DD` from the local day, read as local midnight; a `"YYYY-MM-DD"` string is that day.

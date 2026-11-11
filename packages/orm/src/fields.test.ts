@@ -265,6 +265,17 @@ describe("date", () => {
     expect(caught(() => field.set(true))).toBe("Got 'true' but value must be a Date or date string.");
   })
 
+  it("will keep a calendar day as local midnight", () => {
+    const field = column(() => date({ type: "date" }));
+    const day = new Date(2026, 0, 2);
+
+    expect(field.set("2026-01-02")).toEqual(day);
+    expect(field.set(new Date(2026, 0, 2, 23, 30))).toEqual(day);
+    expect(field.set(day.getTime())).toEqual(day);
+    expect(field.get("2026-01-02")).toEqual(day);
+    expect(field.get("2026-01-02T00:00:00")).toEqual(day);
+  })
+
   it("will default to timestamp", () => {
     expect(column(() => date()).type).toBe("timestamp");
     expect(column(() => date({ type: "time", timezone: true })).type).toBe("time");
