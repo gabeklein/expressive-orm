@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { Connection } from './Connection';
-import { str } from './fields';
+import { Field } from './Field';
+import { bool, date, json, num, str } from './fields';
+import { Builder } from './query/Builder';
 import { one } from './one';
 import { isLike } from './where';
 import { memory } from './memory';
@@ -184,6 +186,139 @@ describe("then", () => {
     await db.then(undefined, failed);
 
     expect(failed).toHaveBeenCalledWith(new Error("nope"));
+  })
+})
+
+describe("codecs", () => {
+  const upper: Connection.Codec = {
+    types: ["text", "varchar"],
+    datatype: ({ type, length }: Field) => length ? `${type}(${length})` : type,
+    encode: (_field, value) => String(value).toUpperCase(),
+    decode: (_field, value) => String(value).toLowerCase()
+  };
+
+  const count: Connection.Codec = {
+    types: ["integer"],
+    datatype: () => "int",
+    encode: (_field, value) => `#${value}`,
+    decode: (_field, value) => Number(String(value).slice(1))
+  };
+
+  class Coded extends Store {
+    protected get codecs(){
+      return new Map<Function, Connection.Codec>([[str, upper], [num, count]]);
+    }
+  }
+
+  it("will pass values through without codecs", () => {
+    const db = Store.new();
+    const field = new Field("name", { type: "text" });
+
+    expect(db._encode(field, "a")).toBe("a");
+    expect(db._decode(field, "a")).toBe("a");
+    expect(db._datatype(field)).toBe("text");
+  })
+
+  it("will store a field by its helper's codec", () => {
+    class User extends Type {
+      name = str({ type: "varchar", length: 8 });
+    }
+
+    const db = Coded.new([User]);
+    const name = User.fields.get("name")!;
+
+    expect(db._encode(name, "ann")).toBe("ANN");
+    expect(db._decode(name, "ANN")).toBe("ann");
+    expect(db._datatype(name)).toBe("varchar(8)");
+    expect(db._encode(name, null)).toBeNull();
+    expect(db._decode(name, undefined)).toBeUndefined();
+  })
+
+  it("will store a relation by its key's codec", () => {
+    class User extends Type {}
+
+    class Post extends Type {
+      author = one(User);
+    }
+
+    const db = Coded.new([User, Post]);
+    const author = Post.fields.get("author")!;
+
+    expect(db._encode(author, 3)).toBe("#3");
+    expect(db._decode(author, "#3")).toBe(3);
+    expect(db._datatype(author)).toBe("int");
+  })
+
+  it("will refuse to bind a type it can't store", () => {
+    class User extends Type {
+      name = str();
+      seen = date();
+    }
+
+    class Flag extends Type {
+      on = bool();
+    }
+
+    expect(() => Coded.new([Flag, User])).toThrow("Coded can't store bool type 'boolean' (Flag.on).");
+    expect(Flag.hasOwnProperty("connection")).toBe(false);
+    expect(User.hasOwnProperty("connection")).toBe(false);
+  })
+
+  it("will refuse a datatype its codec lacks", () => {
+    class Doc extends Type {
+      body = str({ type: "uuid" });
+    }
+
+    expect(() => Coded.new([Doc])).toThrow("Coded can't store str type 'uuid' (Doc.body).");
+  })
+
+  it("will refuse a field without a helper", () => {
+    const db = Coded.new();
+
+    expect(() => db._encode(new Field("raw"), 1)).toThrow("Coded can't store a field of type '' (undefined.raw).");
+  })
+
+  it("will check and encode in a Builder", () => {
+    class User extends Type {
+      name = str();
+    }
+
+    Coded.new([User]);
+
+    const builder = new Builder();
+    const table = builder.use(User) as Record<string, Field>;
+
+    expect(builder.encode(table.name, "ann")).toBe("ANN");
+    expect(builder.decode(table.name, "ANN")).toBe("ann");
+    expect(() => builder.encode(table.name, 3)).toThrow("Value must be a string.");
+  })
+
+  it("will check without a connection in a Builder", () => {
+    const builder = new Builder();
+    const field = new Field("data", { set: (value: unknown) => [value], get: (value: unknown) => `${value}!` });
+
+    expect(builder.encode(field, 1)).toEqual([1]);
+    expect(builder.decode(field, "a")).toBe("a!");
+    expect(builder.decode(field, null)).toBe("undefined!");
+  })
+
+  it("will keep plain values in memory", async () => {
+    class Event extends Type {
+      static connection = memory();
+      at = date();
+      data = json<{ tags: string[] }>();
+    }
+
+    const at = new Date("2024-06-01T12:00:00.000Z");
+    const data = { tags: ["a"] };
+
+    await Event.insert({ at, data });
+    data.tags.push("b");
+
+    const [row] = await Event.find({ at });
+
+    expect(row).toEqual({ id: 1, at, data: { tags: ["a"] } });
+    expect(await Event.count({ at: isLike("2024-06%") })).toBe(1);
   })
 })
 

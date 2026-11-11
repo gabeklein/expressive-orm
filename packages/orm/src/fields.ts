@@ -106,25 +106,35 @@ function field<T, F extends Field = Field>(
   }) as T;
 }
 
-function column<T>(Type: new (key: string) => Field, ...config: Config<any>[]): T {
-  return field((key) => configure(new Type(key), config));
+function column<T>(helper: Function, Type: new (key: string) => Field, ...config: Config<any>[]): T {
+  return field((key) => configure(new Type(key), [{ helper }, ...config]));
+}
+
+/** A field helper with options preset - from `.and()`. Same signature; presets apply before the options given. */
+interface Preset<Options, Types, Base, P extends any[]> {
+  <T extends Options[]>(...config: T & Exact<T, Types>): Infer<[...P, ...T], Base>;
+  /** Preset more options on top of these. */
+  and<Q extends Options[]>(...preset: Q & Exact<Q, Types>): Preset<Options, Types, Base, [...P, ...Q]>;
+  /** The helper it presets - a connection stores its fields as that helper's. */
+  readonly base: Function;
+}
+
+function presets(base: Function, at = 0) {
+  return (...preset: unknown[]) => derive(base, preset, at);
+}
+
+function derive(base: Function, preset: unknown[], at: number): Function {
+  const helper = (...args: unknown[]) => base(...args.slice(0, at), ...preset, ...args.slice(at));
+
+  return Object.assign(helper, {
+    base,
+    and: (...more: unknown[]) => derive(base, [...preset, ...more], at)
+  });
 }
 
 class StringColumn extends Field<string> {
   declare type: str.DataType;
   declare collate?: string;
-
-  get datatype() {
-    let { type, length, collate } = this;
-
-    if (type && length)
-      type += `(${length})`;
-
-    if (type && collate)
-      type += ` COLLATE "${collate}"`;
-
-    return type;
-  }
 
   set(value: unknown) {
     if (value == null)
@@ -141,27 +151,60 @@ class StringColumn extends Field<string> {
 }
 
 declare namespace str {
+  /** Unbounded text - the default. */
+  interface Text extends StringColumn {
+    type: "text";
+  }
+
+  /** Text up to `length` characters. */
+  interface VarChar extends StringColumn {
+    type: "varchar";
+    length: number;
+  }
+
+  /** Fixed-length text of `length` characters. */
+  interface Char extends StringColumn {
+    type: "char";
+    length: number;
+  }
+
+  /** A UUID. As a `key`, a UUIDv7 is generated on insert when absent. */
+  interface UUID extends StringColumn {
+    type: "uuid";
+  }
+
   /**
-   * Datatypes `str()` accepts, by name - augment to add one.
+   * Portable datatypes `str()` accepts, by name - every connection maps them to its storage.
    *
    * `default` is the datatype used when none is given, and types a plain options object.
    */
-  interface Types {}
+  interface Types {
+    default: Text;
+    text: Text;
+    varchar: VarChar;
+    char: Char;
+    uuid: UUID;
+  }
 
-  /** Name of a registered `str()` datatype. */
+  /** Name of a `str()` datatype. */
   type DataType = DataTypes<Types>;
 
   /** One option of `str()` - `null`, a modifier, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, StringColumn>;
 
-  /** Column class behind `str()` - a package replaces it to add datatypes. */
-  let Type: typeof StringColumn;
+  /**
+   * `str` with options preset - same signature, presets first.
+   *
+   * @example
+   * const email = str.and({ type: "varchar", length: 255 }, unique);
+   */
+  let and: <P extends Options[]>(...preset: P & Exact<P, Types>) => Preset<Options, Types, string, P>;
 }
 
 /**
  * A string column.
  *
- * Options in any order - `null` for nullable, `optional`, `unique`, `index`, a datatype from the driver package, or an object of column options.
+ * Options in any order - `null` for nullable, `optional`, `unique`, `index`, a datatype, or an object of column options.
  * Required on insert unless nullable or defaulted. A write throws for a non-string or one over `length`.
  *
  * @example
@@ -169,33 +212,30 @@ declare namespace str {
  * bio = str(null, { column: "about" });
  */
 function str<T extends str.Options[]>(...config: T & Exact<T, str.Types>): Infer<T, string> {
-  return column(str.Type, { kind: String }, ...config);
+  return column(str, StringColumn, { kind: String, type: "text" }, ...config);
 }
 
-str.Type = StringColumn;
+str.and = presets(str) as typeof str.and;
 
 /**
  * A string column.
  *
- * @deprecated Use `key(sql.uuid)` for an id, or `str(sql.uuid)` for a column.
+ * @deprecated Use `key({ type: "uuid" })` for an id, or `str({ type: "uuid" })` for a column.
  */
 function uuid<T extends str.Options[]>(...config: T & Exact<T, str.Types>): Infer<T, string> {
-  return column(str.Type, { kind: String }, ...config);
+  return column(str, StringColumn, { kind: String, type: "text" }, ...config);
 }
+
+const RANGE: Record<string, [number, number]> = {
+  smallint: [-32768, 32767],
+  integer: [-2147483648, 2147483647],
+  bigint: [-Infinity, Infinity]
+};
 
 class NumericColumn extends Field<number> {
   declare type: num.DataType;
   declare precision?: number;
   declare scale?: number;
-
-  get datatype() {
-    let { type, precision, scale } = this;
-
-    if (type && precision !== undefined)
-      type += scale === undefined ? `(${precision})` : `(${precision},${scale})`;
-
-    return type;
-  }
 
   set(value: unknown) {
     if (value == null)
@@ -204,112 +244,158 @@ class NumericColumn extends Field<number> {
     if (typeof value !== "number" || isNaN(value))
       throw new Error(`Got '${value}' but value must be a number.`);
 
-    return value;
-  }
+    const { type, precision, scale } = this;
+    const range = RANGE[type];
 
-  get(value: any) {
-    return value != null ? parseFloat(value) : value;
+    if (range) {
+      const [min, max] = range;
+
+      if (value !== Math.floor(value) || value < min || value > max)
+        throw new Error(`Value ${value} out of range for ${type}.`);
+    }
+    else if (precision !== undefined) {
+      const [whole, fraction = ""] = Math.abs(value).toString().split('.');
+
+      if (whole.length + fraction.length > precision)
+        throw new Error(`Value ${value} exceeds precision of ${precision}.`);
+
+      if (scale !== undefined && fraction.length > scale)
+        throw new Error(`Value ${value} exceeds scale of ${scale}.`);
+    }
+
+    return value;
   }
 }
 
 declare namespace num {
+  /** 32-bit integer - the default. A fraction or a value out of range throws on write. */
+  interface Integer extends NumericColumn {
+    type: "integer";
+  }
+
+  /** 16-bit integer. A fraction or a value out of range throws on write. */
+  interface SmallInt extends NumericColumn {
+    type: "smallint";
+  }
+
+  /** 64-bit integer. A fraction throws on write. */
+  interface BigInt extends NumericColumn {
+    type: "bigint";
+  }
+
+  /** Single-precision floating point. */
+  interface Real extends NumericColumn {
+    type: "real";
+  }
+
+  /** Double-precision floating point. */
+  interface Double extends NumericColumn {
+    type: "double";
+  }
+
+  /** Exact decimal of `precision` digits, `scale` after the point. A value past either throws on write. */
+  interface Decimal extends NumericColumn {
+    type: "decimal";
+    precision: number;
+    scale: number;
+  }
+
+  /** Exact decimal, as `decimal`. */
+  interface Numeric extends NumericColumn {
+    type: "numeric";
+    precision: number;
+    scale: number;
+  }
+
   /**
-   * Datatypes `num()` accepts, by name - augment to add one.
+   * Portable datatypes `num()` accepts, by name - every connection maps them to its storage.
    *
    * `default` is the datatype used when none is given, and types a plain options object.
    */
-  interface Types {}
+  interface Types {
+    default: Integer;
+    integer: Integer;
+    smallint: SmallInt;
+    bigint: BigInt;
+    real: Real;
+    double: Double;
+    decimal: Decimal;
+    numeric: Numeric;
+  }
 
-  /** Name of a registered `num()` datatype. */
+  /** Name of a `num()` datatype. */
   type DataType = DataTypes<Types>;
 
   /** One option of `num()` - `null`, a modifier, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, NumericColumn>;
 
-  /** Column class behind `num()` - a package replaces it to add datatypes. */
-  let Type: typeof NumericColumn;
+  /** `num` with options preset - same signature, presets first. */
+  let and: <P extends Options[]>(...preset: P & Exact<P, Types>) => Preset<Options, Types, number, P>;
 }
 
 /**
  * A number column - options as `str()`.
  *
- * A write throws for a non-number or `NaN`. The driver package sets the default datatype - with `@expressive/sql`, a 32-bit integer.
+ * A 32-bit integer unless another datatype is given. A write throws for a non-number, `NaN`, a value outside an integer type, or past a decimal's precision or scale.
  */
 function num<T extends num.Options[]>(...config: T & Exact<T, num.Types>): Infer<T, number> {
-  return column(num.Type, { kind: Number }, ...config);
+  return column(num, NumericColumn, { kind: Number, type: "integer" }, ...config);
 }
 
-num.Type = NumericColumn;
+num.and = presets(num) as typeof num.and;
 
 class BooleanColumn extends Field<boolean> {
   declare type: bool.DataType;
-  declare either?: readonly [true: string | number, false: string | number];
 
-  set(value: unknown): string | number | boolean | null | undefined {
+  set(value: unknown) {
     if (value == null)
       return value;
 
     if (typeof value !== "boolean")
       throw new Error("Value must be a boolean.");
 
-    const [TRUE, FALSE] = this.either || [1, 0];
-
-    return value ? TRUE : FALSE;
-  }
-
-  get(value: unknown) {
-    if (value === undefined)
-      return value;
-
-    const [TRUE] = this.either || [1];
-
-    return value === true || value === TRUE;
+    return value;
   }
 }
 
 declare namespace bool {
+  /** True or false - the default. */
+  interface Boolean extends BooleanColumn {
+    type: "boolean";
+  }
+
   /**
-   * Datatypes `bool()` accepts, by name - augment to add one.
+   * Portable datatypes `bool()` accepts, by name.
    *
    * `default` is the datatype used when none is given, and types a plain options object.
    */
-  interface Types {}
+  interface Types {
+    default: Boolean;
+    boolean: Boolean;
+  }
 
-  /** Name of a registered `bool()` datatype. */
+  /** Name of a `bool()` datatype. */
   type DataType = DataTypes<Types>;
 
   /** One option of `bool()` - `null`, a modifier, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, BooleanColumn>;
 
-  /** Column class behind `bool()` - a package replaces it to add datatypes. */
-  let Type: typeof BooleanColumn;
+  /** `bool` with options preset - same signature, presets first. */
+  let and: <P extends Options[]>(...preset: P & Exact<P, Types>) => Preset<Options, Types, boolean, P>;
 }
 
-/**
- * A boolean column - options as `str()`.
- *
- * `{ either: [yes, no] }` stores those two values in place of true and false.
- */
+/** A boolean column - options as `str()`. A write throws for a non-boolean. */
 function bool<T extends bool.Options[]>(...config: T & Exact<T, bool.Types>): Infer<T, boolean> {
-  return column(bool.Type, { kind: Boolean }, ...config);
+  return column(bool, BooleanColumn, { kind: Boolean, type: "boolean" }, ...config);
 }
 
-bool.Type = BooleanColumn;
+bool.and = presets(bool) as typeof bool.and;
 
 class TimeColumn extends Field<Date> {
   declare type: date.DataType;
   declare precision?: number;
 
-  get datatype() {
-    let { type, precision } = this;
-
-    if (type && precision !== undefined)
-      type += `(${precision})`;
-
-    return type;
-  }
-
-  set(value: unknown): string | number | undefined {
+  set(value: unknown): Date | undefined {
     if (!value)
       return undefined;
 
@@ -320,44 +406,69 @@ class TimeColumn extends Field<Date> {
     if (!date || isNaN(date.getTime()))
       throw new Error(`Got '${value}' but value must be a Date or date string.`);
 
-    return date.toISOString();
+    return date;
   }
 
-  get(value: any) {
-    return value ? new Date(value) : undefined;
+  get(value: unknown) {
+    return value == null || value instanceof Date ? value ?? undefined : new Date(value as string);
   }
 }
 
+type Created = { readonly fallback: typeof now; readonly fixed: true };
+type Updated = { readonly fallback: typeof now; readonly update: typeof now };
+
 declare namespace date {
+  /** Date and time - the default. `timezone` keeps the offset where the store can. */
+  interface Timestamp extends TimeColumn {
+    type: "timestamp";
+    timezone?: boolean;
+  }
+
+  /** A calendar day. Written from the UTC day, read as local midnight. */
+  interface Day extends TimeColumn {
+    type: "date";
+  }
+
+  /** Time of day, read on 1970-01-01. `timezone` keeps the offset where the store can. */
+  interface Time extends TimeColumn {
+    type: "time";
+    timezone?: boolean;
+  }
+
   /**
-   * Datatypes `date()` accepts, by name - augment to add one.
+   * Portable datatypes `date()` accepts, by name - every connection maps them to its storage.
    *
    * `default` is the datatype used when none is given, and types a plain options object.
    */
-  interface Types {}
+  interface Types {
+    default: Timestamp;
+    timestamp: Timestamp;
+    date: Day;
+    time: Time;
+  }
 
-  /** Name of a registered `date()` datatype. */
+  /** Name of a `date()` datatype. */
   type DataType = DataTypes<Types>;
 
   /** One option of `date()` - `null`, a modifier, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, TimeColumn>;
 
-  /** Column class behind `date()` - a package replaces it to add datatypes. */
-  let Type: typeof TimeColumn;
+  /** `date` with options preset - same signature, presets first. */
+  let and: <P extends Options[]>(...preset: P & Exact<P, Types>) => Preset<Options, Types, Date, P>;
 
   /**
-   * A Date column set to now on insert and never updated - `{ fallback: now, fixed: true }`.
+   * A Date column set to now on insert and never updated - `date.and({ fallback: now, fixed: true })`.
    *
    * Upserts leave it. An update giving it fails to compile and throws.
    */
-  let created: <T extends Options[]>(...config: T & Exact<T, Types>) => Infer<[...T, { fallback: {}, fixed: true }], Date>;
+  let created: Preset<Options, Types, Date, [Created]>;
 
   /**
    * A Date column set to now on insert and on every update or upsert not giving it.
    *
-   * Underneath, `{ fallback: now, update: now }`.
+   * Underneath, `date.and({ fallback: now, update: now })`.
    */
-  let updated: <T extends Options[]>(...config: T & Exact<T, Types>) => Infer<[...T, { fallback: {} }], Date>;
+  let updated: Preset<Options, Types, Date, [Updated]>;
 }
 
 /**
@@ -366,42 +477,39 @@ declare namespace date {
  * A write takes a Date, a date string or epoch milliseconds, and throws for anything unparseable. `0` and `""` count as no value.
  */
 function date<T extends date.Options[]>(...config: T & Exact<T, date.Types>): Infer<T, Date> {
-  return column(date.Type, { kind: Date }, ...config);
+  return column(date, TimeColumn, { kind: Date, type: "timestamp" }, ...config);
 }
 
-date.Type = TimeColumn;
+date.and = presets(date) as typeof date.and;
+date.created = date.and({ fallback: now, fixed: true }) as typeof date.created;
+date.updated = date.and({ fallback: now, update: now }) as typeof date.updated;
 
-Object.assign(date, {
-  created: (...config: date.Options[]) => column(date.Type, { kind: Date, fallback: now, fixed: true }, ...config),
-  updated: (...config: date.Options[]) => column(date.Type, { kind: Date, fallback: now, update: now }, ...config)
-});
+declare namespace json {
+  /** `json` with options preset. */
+  let and: (...preset: Config[]) => typeof json;
+}
 
 /** A nullable JSON column - reads `T | undefined`. */
 function json<T>(nullable: Nullable): T | undefined;
 /**
- * A column holding `T` as JSON text.
+ * A column holding `T` as JSON.
  *
- * Takes one option, unlike the other helpers. Text that fails to parse reads `undefined`. `isLike` matches the stored text.
+ * Takes one option, unlike the other helpers. A stored value that fails to parse reads `undefined`. `isLike` matches the stored text.
  *
  * @example
  * prefs = json<{ theme: string }>();
  */
 function json<T>(config?: Config): T;
-function json<T>(config?: Config){
-  return column<T>(Field, {
+function json<T>(...config: Config[]){
+  return column<T>(json, Field, {
     kind: Object,
-    type: "text",
-    set: (value: T) => value == null ? null : JSON.stringify(value),
-    get: (value: string) => {
-      try {
-        return value ? JSON.parse(value) : undefined;
-      }
-      catch {
-        return undefined;
-      }
-    },
-  }, config);
+    type: "json",
+    set: (value: T) => value ?? null,
+    get: (value: T) => value ?? undefined
+  }, ...config);
 }
+
+json.and = presets(json) as typeof json.and;
 
 /** A composite key's `id` - its parts as a JSON string, branded with their types. */
 type Key<P> = string & { readonly "~key": P; readonly "~optional"?: true };
@@ -457,8 +565,8 @@ type KeyType<T extends any[]> =
     ? Has<T, { type: "uuid" }> extends true ? Optional<string> : string
     : Has<T, { increment: false }> extends true ? number : Optional<number>;
 
-const INTEGER = new Set(["integer", "smallint", "bigint", "serial", "smallserial", "bigserial"]);
-const NUMERIC = new Set([...INTEGER, "real", "float", "double", "numeric", "decimal"]);
+const INTEGER = new Set(["integer", "smallint", "bigint"]);
+const NUMERIC = new Set([...INTEGER, "real", "double", "numeric", "decimal"]);
 
 /** An incrementing integer `id` - what every entity has by default. */
 function key(): Optional<number>;
@@ -481,7 +589,7 @@ function key<P extends readonly unknown[]>(read: () => readonly [...P]): Key<{ -
  * `{ column }` renames the column; the property stays `id`.
  *
  * @example
- * id = key(sql.uuid);
+ * id = key({ type: "uuid" });
  */
 function key<T extends (str.Options | num.Options)[]>(...config: T): KeyType<T>;
 function key(...config: any[]): unknown {
@@ -492,8 +600,8 @@ function key(...config: any[]): unknown {
   const numeric = !type || NUMERIC.has(type);
 
   return field(key => {
-    const column = configure(new (numeric ? num.Type : str.Type)(key), [
-      { kind: numeric ? Number : String, primary: true, increment: !type || INTEGER.has(type) },
+    const column = configure(new (numeric ? NumericColumn : StringColumn)(key), [
+      { helper: numeric ? num : str, kind: numeric ? Number : String, type: numeric ? "integer" : "text", primary: true, increment: !type || INTEGER.has(type) },
       ...config
     ]);
 
@@ -581,7 +689,7 @@ const unique = { unique: true } as const;
 /** Modifier - `sync` creates an index named `<table>_<column>`. `{ index: "name" }` names it. */
 const index = { index: true } as const;
 
-export type { DataTypes, Exact, Has, Key, OptionsOf };
+export type { DataTypes, Exact, Has, Key, OptionsOf, Preset };
 
 export {
   FIELDS,
@@ -590,6 +698,7 @@ export {
   placeholder,
   write,
   field,
+  presets,
   json,
   key,
   str,

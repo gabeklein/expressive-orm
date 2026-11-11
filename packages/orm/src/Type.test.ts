@@ -182,7 +182,7 @@ describe("fields", () => {
 
     const name = User.fields.get("name")!;
 
-    expect(name.datatype).toBe("varchar(3)");
+    expect(name.type).toBe("varchar");
     expect(name.length).toBe(3);
     expect(name.unique).toBe(true);
     expect(name.kind).toBe(String);

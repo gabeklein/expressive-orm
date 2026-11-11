@@ -333,6 +333,18 @@ class Builder {
       into.set(field, value);
   }
 
+  /** Check a value with its field, then encode it through the connection's codec. Throws when it does not fit. */
+  encode(field: Field, value: unknown){
+    const checked = field.set(value);
+    return this.connection ? this.connection._encode(field, checked) : checked;
+  }
+
+  /** Decode a stored value through the connection's codec, then read it with its field. */
+  decode(field: Field, value: unknown, raw?: Record<string, any>){
+    const plain = this.connection ? this.connection._decode(field, value) : value;
+    return field.get(plain ?? undefined, raw);
+  }
+
   /** Encode a value for a column, passing columns and expressions through. Throws when it does not fit. */
   digest(value: unknown, field: Field){
     if (value instanceof Field || value instanceof Value)
@@ -353,7 +365,7 @@ class Builder {
     }
 
     try {
-      return field.set(value);
+      return this.encode(field, value);
     }
     catch (err: unknown){
       throw new Error(`Provided value for ${field} is not acceptable.\n${err instanceof Error ? err.message : err}`);
@@ -386,7 +398,7 @@ class Builder {
     }
 
     if (right instanceof Parameter)
-      right.digest = left.set.bind(left);
+      right.digest = value => this.encode(left, value);
 
     return this.filters.add(left, op, right);
   }
@@ -407,7 +419,7 @@ class Builder {
 
     if (returns instanceof Map){
       if (entity)
-        return entry(entity, raw);
+        return entry(this, entity, raw);
 
       const nested = NESTED.get(this)!;
       const objects: {}[] = [];
@@ -438,7 +450,7 @@ class Builder {
         const value = raw[column];
 
         if (value !== undefined)
-          target[property] = value === null ? undefined : decode(select, value, raw);
+          target[property] = value === null ? undefined : decode(this, select, value, raw);
       }
 
       for (const [use, table] of nested) {
@@ -449,7 +461,7 @@ class Builder {
         const { parts } = table.fields.get("id")!;
         const probe = parts ? parts[0].key : "id";
 
-        target[property] = raw[use + "." + probe] == null ? undefined : await entry(table, raw, use + ".");
+        target[property] = raw[use + "." + probe] == null ? undefined : await entry(this, table, raw, use + ".");
       }
 
       objects.forEach(freeze);
@@ -457,7 +469,7 @@ class Builder {
       return freeze(values);
     }
 
-    return decode(returns, values(raw)[0], raw);
+    return decode(this, returns, values(raw)[0], raw);
   }
 
   /** An outline of the query, for a connection without SQL. */
@@ -530,18 +542,20 @@ function select(columns: Map<string, unknown>, table: Builder.ITable, prefix = "
   });
 }
 
-function entry(table: Builder.ITable, raw: Record<string, any>, prefix = ""){
+function entry(builder: Builder, table: Builder.ITable, raw: Record<string, any>, prefix = ""){
+  const { connection } = builder;
   const columns: Record<string, unknown> = {};
 
   table.fields.forEach((field, key) => {
-    columns[field.column] = raw[prefix + key];
+    const value = raw[prefix + key];
+    columns[field.column] = connection && !field.absent ? connection._decode(field, value) : value;
   });
 
   return row(table.fields, columns);
 }
 
-function decode(select: unknown, value: unknown, raw: Record<string, any>){
-  return select instanceof Field ? select.get(value ?? undefined, raw) :
+function decode(builder: Builder, select: unknown, value: unknown, raw: Record<string, any>){
+  return select instanceof Field ? builder.decode(select, value, raw) :
     select instanceof Parameter ? select.digest(value) :
     value;
 }
