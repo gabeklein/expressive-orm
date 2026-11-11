@@ -90,6 +90,8 @@ declare namespace Connection {
 
 type Scope = Map<Connection, Connection.Journal>;
 
+type Codecs = ReadonlyMap<Function, Connection.Codec>;
+
 type Hook<H> = { type: Type.Class; hooks: H };
 type Hooks = { before: Set<Hook<Connection.Before<any>>>; after: Set<Hook<Connection.After<any>>> };
 
@@ -114,6 +116,16 @@ function scope(){
   );
 }
 
+function resolve(codecs: Codecs, name: string, field: Field): [Connection.Codec, Field] {
+  const target = field.reference || field;
+  const codec = codecs.get(target.helper!);
+
+  if (!codec || !codec.types.includes(target.type))
+    throw new Error(`${name} can't store ${target.helper?.name || "a field of"} type '${target.type}' (${field.parent?.name}.${field.key}).`);
+
+  return [codec, target];
+}
+
 /**
  * Base class of a driver - a Model binding entity classes to a store.
  *
@@ -136,19 +148,20 @@ abstract class Connection extends Model {
    * Throws when a class already has one. Construct with `Connection.new`.
    */
   constructor(using: Connection.Types = []){
-    super();
-
     const types = Object.values(using);
+    const codecs = Reflect.get(new.target.prototype, "codecs") as Codecs | undefined;
 
     for (const type of types) {
       if (type.hasOwnProperty('connection'))
         throw new Error(`Type ${type.name} already has assigned connection.`);
 
-      if (this.codecs)
+      if (codecs)
         for (const field of type.fields.values())
           if (!field.absent && !("entity" in field))
-            this._codec(field);
+            resolve(codecs, new.target.name, field);
     }
+
+    super();
 
     this.using = new Set(types.map(type => {
       type.connection = this;
@@ -234,23 +247,13 @@ abstract class Connection extends Model {
    * Unset, values pass through as they are, like `memory()` or a connection forwarding to another.
    * Set, `Connection.new` throws for a field none of them can store.
    */
-  protected get codecs(): ReadonlyMap<Function, Connection.Codec> | undefined {
+  protected get codecs(): Codecs | undefined {
     return undefined;
   }
 
-  _codec(field: Field): [Connection.Codec, Field] | undefined {
+  _codec(field: Field){
     const { codecs } = this;
-
-    if (!codecs)
-      return;
-
-    const target = field.reference || field;
-    const codec = codecs.get(target.helper!);
-
-    if (!codec || !codec.types.includes(target.type))
-      throw new Error(`${this.constructor.name} can't store ${target.helper?.name || "a field of"} type '${target.type}' (${field.parent?.name}.${field.key}).`);
-
-    return [codec, target];
+    return codecs && resolve(codecs, this.constructor.name, field);
   }
 
   _encode(field: Field, value: unknown){
