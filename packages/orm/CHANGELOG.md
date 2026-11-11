@@ -194,6 +194,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 # @expressive/orm
 
+## 0.15.1
+
+### Patch Changes
+
+- [#49](https://github.com/gabeklein/expressive-orm/pull/49) [`8d351b8`](https://github.com/gabeklein/expressive-orm/commit/8d351b81030922a9135f779f94af6baae37d475f) **`@expressive/orm` bundles under Metro.** `transaction` takes `AsyncLocalStorage` from `process.getBuiltinModule` instead of a dynamic `import()`, which Metro's bundler rejects, so a React Native app importing `@expressive/orm` - `memory()` included - builds. `transaction` now needs Node 20.16+ or 22.3+, Bun, Deno, or Workers with `nodejs_compat`; elsewhere, React Native included, it throws.
+
 ## 0.15.0
 
 ### Minor Changes

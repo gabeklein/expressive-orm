@@ -1,5 +1,13 @@
 # @expressive/sql
 
+## 0.8.1
+
+### Patch Changes
+
+- [#49](https://github.com/gabeklein/expressive-orm/pull/49) [`8d351b8`](https://github.com/gabeklein/expressive-orm/commit/8d351b81030922a9135f779f94af6baae37d475f) **`@expressive/sql` bundles under Metro for iOS and Android.** The SQLite driver loader sits in its own module, which a `react-native` package field swaps for one that loads nothing, so Metro no longer rejects its dynamic `import()`. On React Native, pass an `Engine` in place of a filename; a filename or libSQL address rejects, asking for one. Expo web and Expo Router server bundles still do not bundle `@expressive/sql`.
+- Updated dependencies [[`8d351b8`](https://github.com/gabeklein/expressive-orm/commit/8d351b81030922a9135f779f94af6baae37d475f)]:
+  - @expressive/orm@0.15.1
+
 ## 0.8.0
 
 ### Minor Changes
