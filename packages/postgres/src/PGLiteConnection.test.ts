@@ -1961,4 +1961,25 @@ describe("recency", () => {
     expect((await Note.query({ made: asc() })).map(x => x.text)).toEqual(["a", "b", "c"]);
     await expect(Note.one({ text: "a" })).resolves.toMatchObject({ text: "a" });
   })
+
+  it("will read a filter in batches, newest first", async () => {
+    class Item extends Type {
+      id = key({ type: "text" });
+      group = num();
+      made = date.created();
+    }
+
+    await TestConnection.new([Item]);
+
+    for (const [id, at] of [["b", 1], ["a", 2], ["d", 2], ["c", 3], ["e", 4]] as const)
+      await Item.insert({ id, group: 1, made: new Date(at) });
+
+    const batches: string[][] = [];
+
+    for await (const batch of Item.query({ group: 1 }, 2))
+      batches.push(batch.map(x => x.id));
+
+    expect(batches).toEqual([["e", "c"], ["d", "a"], ["b"]]);
+    expect((await Item.query({ group: 1 }, 2, 1)).map(x => x.id)).toEqual(["c", "d"]);
+  })
 })
