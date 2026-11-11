@@ -59,8 +59,8 @@ class User extends Type {
   age = num(null);
   admin = bool({ fallback: false });
   joined = date.created();
-  edited = date.updated(sql.ms);
-  seen = date(sql.ms, null);
+  edited = date.updated();
+  seen = date(null);
   prefs = json<{ theme: string }>(null);
   token = str(sql.uuid, null, { column: "api_token" });
 }
@@ -79,11 +79,11 @@ Options, in any order:
 - `null` - nullable; the value is `T | undefined`.
 - `optional` - may be left out of an insert, for a column the database fills; on Postgres a missing column is tolerated and reads `undefined`.
 - `unique`, `index` - `sync` creates a missing index as `<table>_<column>`, or `{ index: "name" }`; on SQLite an existing single-column index on it counts.
-- `sql.*` - the datatype, see [Datatypes](#datatypes).
+- A datatype - `sql.*` or an object like `{ type: "varchar", length: 255 }`, see [Datatypes](#datatypes).
 - `{ column }` - column name; default is the property in snake case.
 - `{ fallback }` - column default, also optional on insert. `sql.now` is the database's current time in the column's storage; `"NOW"` is a deprecated alias.
 
-`date.created()` and `date.updated()` take `date()`'s options and default to `sql.now`. `created` is written on insert only - upserts leave it, and an update giving it fails to compile and throws. `updated` is set to now on every update and upsert that doesn't give it. Underneath they are `{ fixed: true }` and `{ update: sql.now }`, which any column takes; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
+Every helper has `.and(...presets)`: a helper with the same signature and those options applied first, so `const email = str.and(sql.varchar(255), unique)` declares `email = email()` the way the line above does. Types follow every option, preset or given. `date.created()` and `date.updated()` are presets of `date()` and default to `sql.now`. `created` is written on insert only - upserts leave it, and an update giving it fails to compile and throws. `updated` is set to now on every update and upsert that doesn't give it. Underneath they are `{ fixed: true }` and `{ update: sql.now }`, which any column takes; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
 
 `orNull` and `uuid()` are deprecated for `null` and `str(sql.uuid)`.
 
@@ -473,7 +473,6 @@ db.after(Upload, {
 `after` is best effort: every handler runs after the row is removed and is awaited before the delete resolves. A throw or rejection is logged with `console.error` and never fails the delete. Inside a `transaction` they run after the commit, once the connection is released, and before `transaction` resolves; they never run on rollback.
 
 ## Live rows
-## Live rows
 
 A connection with `subscribe` keeps loaded entities current with changes made elsewhere - another process, another client, a `Query` update. Observers see them as any other change.
 
@@ -502,44 +501,27 @@ await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 
 ## Datatypes
 
-`sql.*` picks the column type; a factory takes its size. A config is portable: the same class syncs on SQLite and Postgres.
+A field declares a portable datatype; each connection decides how to store it. The same schema module - importing only `@expressive/orm` - binds to SQLite, D1, Postgres, `memory()` or a connection forwarding to a server, unchanged. `sql.*` is shorthand for the declaration; an object says the same: `str(sql.varchar(40))` is `str({ type: "varchar", length: 40 })`.
 
-| Helper | `sql.*` | SQLite | Postgres |
+| Helper | Datatype | SQLite | Postgres |
 |---|---|---|---|
 | `str` | `text` (default), `varchar(n)`, `char(n)`, `uuid` | TEXT | TEXT, VARCHAR(n), CHAR(n), UUID |
-| `num` | `integer` (default), `smallint`, `bigint`, `real`, `float`, `double`, `numeric(p, s)`, `decimal(p, s)` | INTEGER, REAL, NUMERIC | the type, `(precision, scale)` where set |
-| `bool` | `boolean` (default), `integer` (1/0), `text` / `varchar(n)` with `either` | INTEGER, TEXT | BOOLEAN, INTEGER, TEXT, VARCHAR |
-| `date` | `timestamp` (default), `date`, `time`, `ms` (epoch milliseconds), `seconds` or `integer` (epoch seconds), `text` | TEXT, INTEGER | TIMESTAMP(p), DATE, TIME(p), BIGINT, INTEGER, TEXT |
-| `one` | `integer` (default), `bigint` | INTEGER | INTEGER, BIGINT |
+| `num` | `integer` (default), `smallint`, `bigint`, `real`, `double`, `numeric(p, s)`, `decimal(p, s)` | INTEGER, REAL, NUMERIC | the type, `(precision, scale)` where set |
+| `bool` | `boolean` | INTEGER | BOOLEAN |
+| `date` | `timestamp` (default), `date`, `time`; `timezone` on `timestamp` and `time` | TEXT | TIMESTAMP(p), DATE, TIME(p), with TZ |
+| `json` | - | TEXT | TEXT |
+| `one` | the related key's | the key's | the key's |
 
-A datatype of another helper, like `num(sql.text)`, is a type error. `@expressive/postgres` exports `sql` with `serial`, `timestamptz`, `timetz` and `interval` - the last for schema; its values do not yet round-trip. Options a factory doesn't take, like `precision` on `timestamp`, go in an object: `date({ type: "timestamp", precision: 3 })`.
+A datatype of another helper, like `num(sql.text)`, is a type error, whatever the module imports. Options a factory doesn't take, like `precision` on `timestamp`, go in an object: `date({ type: "timestamp", precision: 3 })`. `@expressive/postgres` adds `sql.timestamptz` and `sql.timetz`.
 
-Every connection validates on write: `varchar` and `char` length, integer ranges, `numeric` precision and scale.
+The field checks every value before it is written, the same on every side: a `str` is a string within `length`, a `num` an integer within its range unless `real`, `double` or decimal, a decimal within its precision and scale, a `bool` a boolean, a `date` a Date, date string or epoch milliseconds. A connection takes and returns plain values - Dates, booleans, numbers, JSON values - and stores them its own way: SQLite and D1 keep dates as ISO 8601 text and booleans as 1 or 0; Postgres keeps a `timestamp` without time zone as UTC. A SQL connection checks each value with its field again before storing it, so a row forwarded from a client meets the server's rules. `Connection.new` throws when a bound class has a field it can't store, like `SQLiteConnection can't store date type 'interval' (Event.length).`
 
 ```ts
-import { Type, bool, num, sql, str } from '@expressive/sql';
+import { Type, num, sql, str } from '@expressive/sql';
 
 class Product extends Type {
   code = str(sql.char(3));
   price = num(sql.numeric(10, 2));
-  listed = bool(sql.text, { either: ["yes", "no"] });
-}
-```
-
-Add a datatype by augmenting the helper's `Types`:
-
-```ts
-import { StringColumn, Type, str } from '@expressive/postgres';
-
-declare module '@expressive/orm' {
-  namespace str {
-    interface Inet extends StringColumn { type: "inet" }
-    interface Types { inet: Inet }
-  }
-}
-
-class Device extends Type {
-  address = str({ type: "inet" });
 }
 ```
 
@@ -554,7 +536,9 @@ A connection is a `Connection`, itself a Model. The floor every driver implement
 | `update(table, id, data)` | updates one row |
 | `remove(table, id)` | deletes one row |
 
-A composite `id` reaches the driver as its tuple, in the order `key` lists the parts; `fields.get("id").parts` lists them.
+The floor takes and returns plain values by column - what the fields check and read, Dates and JSON values included - so a driver can forward it as is. A composite `id` reaches the driver as its tuple, in the order `key` lists the parts; `fields.get("id").parts` lists them.
+
+A driver storing values its own way sets a protected `codecs` getter: a map from each base helper - `str`, `num`, `bool`, `date`, `json` - to a `Connection.Codec` with the `types` it stores, a schema `datatype(field)`, and `encode` and `decode` between plain and stored values. A field resolves its codec by `field.helper`, a relation by the key it references. `Connection.new` throws for a field none of them can store. `_encode`, `_decode` and `_datatype` apply them; `Builder.encode` and `Builder.decode` do so for a `Query`, after the field's own check. `@expressive/sql` exports its `codecs` for a dialect to extend.
 
 Optional capabilities: `prepare(builder)` runs a `Query` - without it `Query` and `Type.query` throw; `subscribe(listener)` reports changes for live rows; `sync(fix?)` checks or creates the schema, and runs when the connection is awaited; a protected `transact(fn)` runs `fn` in one transaction - `BEGIN`, `fn`, `COMMIT` or `ROLLBACK` on SQL - and enables `transaction(fn)`. `Connection` implements `transaction` over it: it takes the connection's lock, scopes the transaction with `AsyncLocalStorage` so statements inside join it, and keeps the journal that restores instances on rollback; `_journal()` returns it, and a driver may keep its own handle on its `session`. A driver calls `idle()` before each statement so it waits out another's transaction; a pooled driver overrides `lock()` and `idle()` to run transactions side by side.
 

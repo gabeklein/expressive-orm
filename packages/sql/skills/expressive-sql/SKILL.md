@@ -1,6 +1,6 @@
 ---
 name: expressive-sql
-description: Expressive ORM on SQL (@expressive/sql) - SQLiteConnection with a built-in or custom Engine, sync and plan, the expressive sql CLI, the sql.* datatype vocabulary and validation, and the SQL Connection and Generator base for dialects. Use when connecting entities to SQLite, Cloudflare D1 or libSQL and Turso, choosing column datatypes, syncing or checking a schema, plugging in a SQLite host, or writing a SQL driver.
+description: Expressive ORM on SQL (@expressive/sql) - SQLiteConnection with a built-in or custom Engine, sync and plan, the expressive sql CLI, the sql.* datatype shorthand and codecs, and the SQL Connection and Generator base for dialects. Use when connecting entities to SQLite, Cloudflare D1 or libSQL and Turso, choosing column datatypes, syncing or checking a schema, plugging in a SQLite host, or writing a SQL driver.
 ---
 
 # @expressive/sql
@@ -111,26 +111,26 @@ The entry is the module that creates the connections - imported with `sync` held
 
 ## Datatypes
 
-`sql.*` picks a column's type; a factory takes its size. A config is portable - the same class syncs on SQLite and Postgres.
+Datatypes are portable - orm declares them, and each connection maps them to its storage. `sql.*` is shorthand for the declaration: `str(sql.varchar(40))` is `str({ type: "varchar", length: 40 })`. A schema module importing only `@expressive/orm` writes the object form and binds here unchanged.
 
 | Helper | `sql.*` | SQLite |
 |---|---|---|
 | `str` | `text` (default), `varchar(n)`, `char(n)`, `uuid` | TEXT |
-| `num` | `integer` (default), `smallint`, `bigint`, `real`, `float`, `double`, `numeric(p, s)`, `decimal(p, s)` | INTEGER, REAL, NUMERIC |
-| `bool` | `boolean` (default), `integer` (1/0), `text` / `varchar(n)` with `either` | INTEGER, TEXT |
-| `date` | `timestamp` (default), `date`, `time`, `ms` (epoch ms), `seconds` or `integer` (epoch s), `text` | TEXT, INTEGER |
-| `one` | `integer` (default), `bigint` | INTEGER |
+| `num` | `integer` (default), `smallint`, `bigint`, `real`, `double`, `numeric(p, s)`, `decimal(p, s)` | INTEGER, REAL, NUMERIC |
+| `bool` | - (boolean) | INTEGER, 1 or 0 |
+| `date` | `timestamp` (default), `date`, `time` | TEXT, ISO 8601 |
+| `json` | - | TEXT |
+| `one` | - (the related key's) | the key's |
 
 ```ts
-import { Type, bool, date, key, num, sql, str } from '@expressive/sql';
+import { Type, date, key, num, sql, str } from '@expressive/sql';
 
 class Product extends Type {
   id = key(sql.uuid);   // UUIDv7 on insert
   code = str(sql.char(3));
   price = num(sql.numeric(10, 2));
-  listed = bool(sql.text, { either: ["yes", "no"] });
-  seen = date(sql.ms, null);
-  edited = date.updated(sql.ms);
+  seen = date(null);
+  edited = date.updated();
 }
 ```
 
@@ -138,26 +138,11 @@ class Product extends Type {
 - A datatype of another helper, like `num(sql.text)`, is a type error.
 - Options a factory doesn't take go in an object - `date({ type: "timestamp", precision: 3 })`.
 - `sql.now` is the database's current time in the column's storage - as a `fallback`, in a statics write or comparison (`lessThan(sql.now)`), or in a `Query`. Statics read it from the app's clock. `"NOW"` is a deprecated alias.
-- Writes are validated - `varchar` and `char` length, integer ranges, `numeric` precision and scale. Importing `@expressive/sql` turns this on for every connection, `memory()` included.
+- Writes are checked by the field on every connection - `varchar` and `char` length, integer ranges, decimal precision and scale. The SQL floor checks again before storing, so rows forwarded from a client meet the same rules.
+- `Connection.new` throws for a datatype the connection can't store - `SQLiteConnection can't store json type 'blob' (Doc.blob).`
+- Storage-only types are gone: store epoch time as `num(sql.bigint)`, yes/no text as `str`.
 
-Add a datatype by augmenting the helper's `Types`:
-
-```ts
-import { StringColumn, Type, str } from '@expressive/sql';
-
-declare module '@expressive/orm' {
-  namespace str {
-    interface Inet extends StringColumn { type: "inet" }
-    interface Types { inet: Inet }
-  }
-}
-
-class Device extends Type {
-  address = str({ type: "inet" });
-}
-```
-
-`StringColumn`, `NumericColumn`, `BooleanColumn`, `TimeColumn`, `ForeignColumn` are the column classes behind `str`, `num`, `bool`, `date` and `one`.
+`codecs` maps each base helper to how SQL stores it (`Connection.Codec`). A dialect extends it - `new Map([...codecs, [date, myDateCodec]])` - and returns it from a protected `codecs` getter.
 
 ## SQL drivers
 
