@@ -83,7 +83,7 @@ Options, in any order:
 - `{ column }` - column name; default is the property in snake case.
 - `{ fallback }` - column default, also optional on insert. `sql.now` is the database's current time in the column's storage; `"NOW"` is a deprecated alias.
 
-Every helper has `.and(...presets)`: a helper with the same signature and those options applied first, so `const email = str.and(sql.varchar(255), unique)` declares `email = email()` the way the line above does. Types follow every option, preset or given. `date.created()` and `date.updated()` are presets of `date()` and default to `sql.now`. `created` is written on insert only - upserts leave it, and an update giving it fails to compile and throws. `updated` is set to now on every update and upsert that doesn't give it. Underneath they are `{ fixed: true }` and `{ update: sql.now }`, which any column takes; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
+Every helper has `.and(...presets)`: a helper with the same signature and those options applied first, so `const email = str.and(sql.varchar(255), unique)` declares `email = email()` the way the line above does. Types follow every option, preset or given. `date.created()` and `date.updated()` are presets of `date()` and default to `sql.now`. `created` is written on insert only - upserts leave it, and an update giving it fails to compile and throws. It is also the class's [recency](#read-and-write): unfiltered reads take the newest first by it, and a second `created()` on one class throws. `updated` is set to now on every update and upsert that doesn't give it. Underneath they are `{ fixed: true }` and `{ update: sql.now }`, which any column takes; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
 
 `orNull` and `uuid()` are deprecated for `null` and `str(sql.uuid)`.
 
@@ -176,7 +176,7 @@ export default {
   async fetch(request: Request, env: { DB: D1Database }) {
     await (ready ??= open(env.DB));
 
-    return Response.json(await User.find({}));
+    return Response.json(await User.query());
   }
 };
 ```
@@ -219,11 +219,11 @@ import { asc, greaterThan, isLike, lessThan } from '@expressive/sql';
 
 const gabe = await User.insert({ name: "Gabe", email: "gabe@example.com", age: 35 });
 
-await User.one(gabe.id);                       // the row
-await User.one({ email: "gabe@example.com" }); // throws if not found
+await User.one({ email: "gabe@example.com" }); // the entity; throws if not found
 await User.one({ name: "Nobody" }, false);     // undefined if not found
+await User.one();                              // the newest
 
-const users = await User.find({
+const users = await User.query({
   name: [isLike("G%"), asc()],
   age: [greaterThan(17), lessThan(65)]
 }, 10, 0);
@@ -232,7 +232,9 @@ for await (const page of User.all(100))
   console.log(page.length);
 ```
 
-Reads and `insert` return plain rows: decoded values by property, a relation as its id, frozen. `insert` returns the stored row, with its `id` and database defaults. For an instance to observe or edit, take a [reference](#references).
+`query`, `all` and `insert` return plain rows: decoded values by property, a relation as its id, frozen. `insert` returns the stored row, with its `id` and database defaults. `query` with a filter needs only the driver's `select`, so it runs on any connection, a forwarding one included. `one(where?, expect?)` resolves the live entity instead - the [reference](#references) `get(id)` would give - settling a loaded one with the fetched row; it takes a filter, never an id.
+
+Without a filter, `query`, `load` and `one` take the newest first: by the class's `date.created()` column, else by an incrementing `id` descending. A class with neither reads unordered, and `one()` without a filter throws. A filter drops that order; add `asc()` / `desc()`. A class declares at most one `date.created()`.
 
 ```ts
 await User.insert(row, { conflict: "update" });                     // upsert on the primary key
@@ -285,7 +287,7 @@ const users = await User.load({ admin: true }, 20); // entities, in one select
 await users[0].set({ age: 36 });
 ```
 
-`Type.load(where?, limit?, offset?)` is `find` returning entities: the same filter and order, one select for the whole call. An entity already in the identity map settles the fetched row and is returned as is; the rest join the map loaded. Omit `limit` for every match.
+`Type.load(where?, limit?, offset?)` is `query` returning entities: the same filter and order, one select for the whole call. An entity already in the identity map settles the fetched row and is returned as is; the rest join the map loaded. Omit `limit` for every match.
 
 ## Relations
 
@@ -306,15 +308,15 @@ class Post extends Type {
 
 `author = one(Other)` stores `author_id` - `{ column }` names another, and two fields on one column throw - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. `set`, an insert or a filter takes an entity, an id or a row.
 
-`rows(Other, key?)` is a handle on the rows pointing back - `find`, `load`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class.
+`rows(Other, key?)` is a handle on the rows pointing back - `query`, `load`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class.
 
 ```ts
 const author = await Author.new({ name: "Gabe" });
 const post = await author.posts.insert({ title: "Hello", editor: author });
 
-await author.posts.find();                  // rows, equal to [post]
+await author.posts.query();                 // rows, equal to [post]
 await author.posts.load();                  // entities, [post] itself
-await author.posts.one({ title: "Hello" }); // a row equal to post
+await author.posts.one({ title: "Hello" }); // the entity
 console.log(post.author === author.id);     // true
 ```
 
@@ -376,7 +378,7 @@ const titles = await Query(where => {
 });
 ```
 
-- Return a column for its values, an object for rows of that shape, a table for its rows - frozen, a table as from `find` at any depth (`undefined` for a missing left join).
+- Return a column for its values, an object for rows of that shape, a table for its rows - frozen, a table as from `query` at any depth (`undefined` for a missing left join).
 - `where(...conditions)` groups them with `or`; a group inside a group alternates to `and`.
 - Comparisons: `equal`, `not`, `over`, `under` (`true` for or-equal), `in`.
 - A `one()` relation joins on access: inner when required, left when nullable. `where(Other)` joins another table, `where(Other, true)` left joins it.
@@ -466,7 +468,7 @@ db.after(Upload, {
 });
 ```
 
-`connection.before(Type, hooks)` and `connection.after(Type, hooks)` register handlers on the host that owns the connection, and each returns a function that removes them. Classes bound to another connection, such as a browser client sharing them, never run them. Both see deletes by id - `entity.delete()`, `Type.delete(id)`, or `remove(table, id)` called directly, as a remote client does - and receive the row as `find` returns it. A delete by filter, a `Query` delete or a database cascade runs neither. With a handler registered for the table, a delete by id selects its row once for both phases; without one, it does not. A missing row runs neither.
+`connection.before(Type, hooks)` and `connection.after(Type, hooks)` register handlers on the host that owns the connection, and each returns a function that removes them. Classes bound to another connection, such as a browser client sharing them, never run them. Both see deletes by id - `entity.delete()`, `Type.delete(id)`, or `remove(table, id)` called directly, as a remote client does - and receive the row as `query` returns it. A delete by filter, a `Query` delete or a database cascade runs neither. With a handler registered for the table, a delete by id selects its row once for both phases; without one, it does not. A missing row runs neither.
 
 `before` is a gate: its handlers run in order before the row is removed, inside the `transaction` when there is one. A throw or rejection cancels the delete - the row stays, no `after` handler runs, and the error reaches the caller.
 
@@ -589,7 +591,7 @@ class Item extends Type {
 Logged.new([Item]);
 
 await Item.insert({ label: "one" });
-await Item.find();
+await Item.query();
 ```
 
 ## Deprecated
