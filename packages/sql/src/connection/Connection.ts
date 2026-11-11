@@ -1,11 +1,7 @@
-import '../columns/Bool';
-import '../columns/Num';
-import '../columns/One';
-import '../columns/Str';
-import '../columns/Time';
-
 import { Connection as Base, Field, Query, Type } from '@expressive/orm';
 import { Builder, Parameter } from '@expressive/orm/driver';
+
+import { codecs } from '../codecs';
 
 declare namespace Connection {
   type Types = Base.Types;
@@ -17,6 +13,8 @@ declare namespace Connection {
   type Conflict = Base.Conflict;
 
   type Key = Base.Key;
+
+  type Codec = Base.Codec;
 
   /** An open transaction's journal. */
   type Transaction = Base.Journal;
@@ -53,8 +51,13 @@ function ref({ schema, table }: Query.Table){
  *
  * A dialect supplies `schema`, `prepare`, `sync` and `plan`, and `transact` to enable `transaction`.
  * Each statement throws when no bound or loaded class owns its table.
+ * The floor takes and returns plain values: it checks each with its field, then stores it through the dialect's codecs.
  */
 abstract class Connection extends Base {
+  protected get codecs(){
+    return codecs;
+  }
+
   /** DDL creating every bound class's table and indexes. */
   abstract get schema(): string;
 
@@ -77,6 +80,7 @@ abstract class Connection extends Base {
 
     for (const [column, op, value] of constraints) {
       const field = lookup(target, column);
+      const put = (value: unknown) => bind(op.includes("LIKE") ? value : this._encode(field, check(field, value, true)));
 
       if (op === 'asc' || op === 'desc')
         builder.order.set(field, op);
@@ -87,7 +91,7 @@ abstract class Connection extends Base {
       else if (value === null)
         builder.filters.add(field, op, null);
       else
-        builder.filters.add(field, op, Array.isArray(value) ? value.map(bind) : bind(value));
+        builder.filters.add(field, op, Array.isArray(value) ? value.map(put) : put(value));
     }
 
     builder.limit = limit;
@@ -96,16 +100,17 @@ abstract class Connection extends Base {
 
     const rows = await this.prepare(builder).all(run());
 
-    return rows.map(raw => decode(builder, raw));
+    return rows.map(raw => this.decode(builder, raw));
   }
 
   async insert(table: string, data: Record<string, any>, returns?: boolean, conflict?: Connection.Conflict){
     const { builder, target, bind, run } = statement(this, table);
     const values: Builder.Insert = new Map();
+    const put = (field: Field, value: unknown) => bind(this._encode(field, check(field, value)));
 
     for (const field of target.fields.values())
       if (field.column in data)
-        values.set(field, bind(data[field.column]));
+        values.set(field, put(field, data[field.column]));
 
     builder.inserts.set(target, values);
 
@@ -113,7 +118,10 @@ abstract class Connection extends Base {
       builder.conflict = {
         on: conflict.on.map(column => lookup(target, column)),
         update: conflict.update?.map(column => lookup(target, column)),
-        set: new Map(Object.entries(conflict.set || {}).map(([column, value]) => [lookup(target, column), bind(value)]))
+        set: new Map(Object.entries(conflict.set || {}).map(([column, value]) => {
+          const field = lookup(target, column);
+          return [field, put(field, value)];
+        }))
       };
 
     if (!returns)
@@ -123,18 +131,20 @@ abstract class Connection extends Base {
 
     const [row] = await this.prepare(builder).all(run());
 
-    return row && decode(builder, row);
+    return row && this.decode(builder, row);
   }
 
   async update(table: string, id: Connection.Key, data: Record<string, any>){
     const { builder, target, bind, run } = statement(this, table);
     const values: Builder.Insert = new Map();
 
-    for (const column in data)
-      values.set(lookup(target, column), bind(data[column]));
+    for (const column in data) {
+      const field = lookup(target, column);
+      values.set(field, bind(this._encode(field, check(field, data[column]))));
+    }
 
     builder.updates.set(target, values);
-    identify(builder, target, id, bind);
+    this.identify(builder, target, id, bind);
 
     await this.prepare(builder).run(run());
   }
@@ -143,19 +153,35 @@ abstract class Connection extends Base {
     const { builder, target, bind, run } = statement(this, table);
 
     builder.deletes.add(target);
-    identify(builder, target, id, bind);
+    this.identify(builder, target, id, bind);
 
     await this.prepare(builder).run(run());
   }
+
+  private identify(builder: Builder, target: Builder.ITable, id: Connection.Key, bind: (value: unknown) => Parameter){
+    const primary = target.fields.get("id")!;
+    const { parts = [primary] } = primary;
+    const ids = primary.parts ? id as unknown[] : [id];
+
+    parts.forEach((part, i) => {
+      const field = lookup(target, part.column);
+      builder.filters.add(field, '=', bind(this._encode(field, ids[i])));
+    });
+  }
+
+  private decode(builder: Builder, raw: Record<string, any>){
+    const row: Record<string, any> = {};
+
+    (builder.returns as Map<string, Field>).forEach((field, key) => {
+      row[field.column] = this._decode(field, raw[key]);
+    });
+
+    return row;
+  }
 }
 
-function identify(builder: Builder, target: Builder.ITable, id: Connection.Key, bind: (value: unknown) => Parameter){
-  const { parts } = target.fields.get("id")!;
-
-  if (parts)
-    parts.forEach((part, i) => builder.filters.add(lookup(target, part.column), '=', bind((id as unknown[])[i])));
-  else
-    builder.filters.add(target.fields.get("id")!, '=', bind(id));
+function check(field: Field, value: unknown, compare?: boolean){
+  return field.reference || value == null ? value : field.set(value, compare);
 }
 
 function statement(connection: Connection, table: string){
@@ -189,16 +215,6 @@ function lookup(table: Builder.ITable, column: string){
       return field;
 
   throw new Error(`Column ${column} does not exist in ${table.name}.`);
-}
-
-function decode(builder: Builder, raw: Record<string, any>){
-  const row: Record<string, any> = {};
-
-  (builder.returns as Map<string, Field>).forEach((field, key) => {
-    row[field.column] = raw[key];
-  });
-
-  return row;
 }
 
 export { Connection };

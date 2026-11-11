@@ -314,7 +314,7 @@ export class Generator {
     const raw = (value: unknown) => (
       value === now ? this.now(left) :
       isValue(value) ? this.reference(value) :
-      this.literal(op.includes("LIKE") ? value : left.set(value))
+      this.literal(op.includes("LIKE") ? value : this.query.encode(left, value))
     );
 
     if (right === null){

@@ -51,10 +51,9 @@ describe("schema", () => {
     `);
   });
 
-  it("will render json as text and an unknown datatype as declared", async () => {
+  it("will render json as text", async () => {
     class Doc extends Type {
       data = json<{ a: number }>();
-      blob = json({ type: "blob" });
     }
 
     const sql = TestConnection.new({ Doc });
@@ -63,10 +62,18 @@ describe("schema", () => {
       "CREATE TABLE
         doc (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-          data TEXT NOT NULL,
-          blob BLOB NOT NULL
+          data TEXT NOT NULL
         );"
     `);
+  });
+
+  it("will refuse a datatype it can't store", async () => {
+    class Doc extends Type {
+      blob = json({ type: "blob" });
+    }
+
+    expect(() => SQLiteConnection.new({ Doc })).toThrow("SQLiteConnection can't store json type 'blob' (Doc.blob).");
+    expect(Doc.hasOwnProperty("connection")).toBe(false);
   });
 
   it("will create FK constraints", async () => {
@@ -146,10 +153,6 @@ describe("types", () => {
   it("will insert and retrieve a Bool", async () => {
     class Test extends Type {
       value1 = bool();
-      value2 = bool({
-        type: "text",
-        either: ["YES", "NO"]
-      });
     }
 
     const conn = await TestConnection.new([Test]);
@@ -158,21 +161,19 @@ describe("types", () => {
       "CREATE TABLE
         test (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-          value1 INTEGER NOT NULL,
-          value2 TEXT NOT NULL
+          value1 INTEGER NOT NULL
         );"
     `);
 
     const insert = Query(where => {
-      where(Test, { value1: true, value2: true });
+      where(Test, { value1: true });
     });
 
     expect(String(insert)).toMatchInlineSnapshot(`
       "INSERT INTO
-        test (value1, value2)
+        test (value1)
       SELECT
-        true,
-        'YES'"
+        true"
     `);
 
     await insert;
@@ -180,12 +181,12 @@ describe("types", () => {
     const test = await Test.one();
 
     expect(test).toEqual({
-      id: 1, value1: true, value2: true
+      id: 1, value1: true
     });
 
-    const other = await Test.insert({ value1: false, value2: false });
+    const other = await Test.insert({ value1: false });
 
-    expect(await Test.one(other.id)).toMatchObject({ value1: false, value2: false });
+    expect(await Test.one(other.id)).toMatchObject({ value1: false });
   });
 
   it("will insert and retrieve a Date", async () => {
@@ -1464,7 +1465,7 @@ describe("timestamps", () => {
   it("will fill created and updated from the database", async () => {
     class Post extends Type {
       title = str();
-      created = date.created({ type: "ms" });
+      created = date.created();
       updated = date.updated();
     }
 
@@ -1472,7 +1473,7 @@ describe("timestamps", () => {
     const before = Date.now();
     const post = await Post.insert({ title: "a" });
 
-    expect(conn.schema.replace(/\s+/g, " ")).toContain("created INTEGER NOT NULL DEFAULT ( CAST( (JULIANDAY('now') - 2440587.5) * 86400000 AS INTEGER ) )");
+    expect(conn.schema.replace(/\s+/g, " ")).toContain("created TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now'))");
     expect(post.created.getTime()).toBeGreaterThanOrEqual(before - 5);
     expect(post.updated.toISOString()).toMatch(/\.\d{3}Z$/);
 
@@ -1487,14 +1488,14 @@ describe("timestamps", () => {
   it("will fill defaults an existing table lacks", async () => {
     class Image extends Type {
       status = str(null, { fallback: "done" });
-      created = date.created({ type: "ms" }, null);
+      created = date.created(null);
       legacy = date(null, { fallback: "NOW" });
     }
 
     const conn = SQLiteConnection.new([Image]);
     const db = await conn["db"]();
 
-    await db.exec("CREATE TABLE image (id INTEGER NOT NULL PRIMARY KEY, status TEXT, created INTEGER, legacy TEXT)");
+    await db.exec("CREATE TABLE image (id INTEGER NOT NULL PRIMARY KEY, status TEXT, created TEXT, legacy TEXT)");
     await conn.sync();
 
     const image = await Image.insert({});
@@ -1526,7 +1527,7 @@ describe("timestamps", () => {
   it("will compare and write the database time", async () => {
     class Session extends Type {
       id = key({ type: "text" });
-      expires = date({ type: "ms" });
+      expires = date();
     }
 
     await TestConnection.new([Session]);
@@ -1549,7 +1550,7 @@ describe("timestamps", () => {
   it("will add a nullable column defaulting to now", async () => {
     class Post extends Type {
       title = str();
-      at = date.created({ type: "ms" }, null);
+      at = date.created(null);
     }
 
     const conn = SQLiteConnection.new([Post]);
@@ -1569,7 +1570,7 @@ describe("timestamps", () => {
   it("will not add a column defaulting to now", async () => {
     class Post extends Type {
       title = str();
-      at = date.created({ type: "ms" });
+      at = date.created();
     }
 
     const conn = SQLiteConnection.new([Post]);
@@ -1686,10 +1687,7 @@ describe("plan", () => {
       bar = str({ type: "" as "text" });
     }
 
-    const { conn } = await open([Foo]);
-
-    await expect(conn.plan()).rejects.toThrow("Column bar has no datatype. Is @expressive/orm installed twice?");
-    await conn.close();
+    await expect(open([Foo])).rejects.toThrow("SQLiteConnection can't store str type '' (Foo.bar).");
   })
 
   it("will not move a relation off its old column", async () => {

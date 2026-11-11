@@ -102,11 +102,19 @@ describe("floor", () => {
   it("will insert without returning", async () => {
     db.log = [];
 
-    await expect(db.insert("foo", { name: "Joe", active: 1 })).resolves.toBe(1);
+    await expect(db.insert("foo", { name: "Joe", active: true })).resolves.toBe(1);
     expect(db.log).toEqual([[
       "INSERT INTO `foo` (`name`,`active`) SELECT ?,?",
-      ["Joe", 1]
+      ["Joe", true]
     ]]);
+  })
+
+  it("will check values with their field", async () => {
+    db.log = [];
+
+    await expect(db.insert("foo", { name: "Joe", active: 1 })).rejects.toThrow("Value must be a boolean.");
+    await expect(db.update("foo", 1, { name: 3 })).rejects.toThrow("Value must be a string.");
+    expect(db.log).toEqual([]);
   })
 
   it("will update by id", async () => {
