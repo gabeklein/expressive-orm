@@ -1,5 +1,24 @@
 # @expressive/sql
 
+## 0.8.0
+
+### Minor Changes
+
+- [#51](https://github.com/gabeklein/expressive-orm/pull/51) [`8905fb4`](https://github.com/gabeklein/expressive-orm/commit/8905fb4a3553437e2ac3d7c3e33e564c7a46cd55) Fields declare portable datatypes and connections own storage. A field checks plain values the same on every side - integer ranges, decimal precision and scale, string length - and a connection takes and returns them, Dates and JSON values included, storing them through codecs chosen by the field's base helper (`Connection.Codec`, a protected `codecs` getter). One schema module importing only `@expressive/orm` binds to SQLite, D1, Postgres, `memory()` or a connection forwarding to a server, and the SQL floor checks forwarded values again before storing them. `Connection.new` throws for a field the connection can't store.
+  
+  Breaking: orm declares the portable types - `str` text, varchar, char, uuid; `num` integer (now the default everywhere), smallint, bigint, real, double, decimal, numeric; `date` timestamp, date, time, with `timezone`; `bool` boolean. Storage-only types are dropped - `date` ms, seconds, integer and text, `num` float, `bool` with `either`, `one` integer and bigint (a relation takes its key's type), Postgres `serial` and `interval` - with their `sql.*` tokens. The column classes and `X.Type` hooks are gone (`StringColumn`, `NumericColumn`, `BooleanColumn`, `TimeColumn`, `ForeignColumn`); `@expressive/sql` exports `codecs` instead. `Field.datatype` is gone. `memory()` stores values as given.
+  
+  Every helper gains `.and(...presets)`, returning the same helper with those options first; `date.created` and `date.updated` are presets of `date`.
+  
+  A `date({ type: "date" })` column is a calendar day, not an instant: a Date gives its local day, a `"YYYY-MM-DD"` string is that day, and it reads as local midnight. It crosses every connection and is stored as `YYYY-MM-DD`, so a client and server in different time zones agree.
+
+- [#50](https://github.com/gabeklein/expressive-orm/pull/50) [`f5cafff`](https://github.com/gabeklein/expressive-orm/commit/f5cafff8d048e390a48dd6c67315ccdc2496e464) `Type.load(where?, limit?, offset?)` resolves live entities for a filter in one select, reusing and settling loaded ones; `rows()` handles gain `load`. `connection.before(Type, { delete(row) })` gates a delete by id - a throw cancels it - and `connection.after(Type, { delete(row) })` runs best-effort effects once it is done: awaited, errors logged rather than thrown, after commit inside a transaction. Each returns a remover.
+
+### Patch Changes
+
+- Updated dependencies [[`8905fb4`](https://github.com/gabeklein/expressive-orm/commit/8905fb4a3553437e2ac3d7c3e33e564c7a46cd55), [`f5cafff`](https://github.com/gabeklein/expressive-orm/commit/f5cafff8d048e390a48dd6c67315ccdc2496e464)]:
+  - @expressive/orm@0.15.0
+
 ## 0.7.0
 
 ### Minor Changes
