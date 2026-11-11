@@ -215,11 +215,11 @@ class Note extends Type {
 }
 ```
 
-`memory.indexedDB(name)` stores each table as one record in the browser's IndexedDB database `name`. `memory.file(path)` stores every table in one JSON file on Node or Bun, writing a `path.tmp` beside it and renaming it over, so a crash never leaves a half-written file; the directory must exist. The connection loads on creation and every statement waits for it. Writes mark their table; changed tables save together once per tick, one save at a time, ids continuing where they left off. A transaction saves once it commits, and a rollback saves nothing. `close()` waits for an open transaction and the last save, and throws if that save failed; a failed save otherwise retries on the next write. If loading fails, every statement rejects with its error, and `close()` still closes.
+`memory.indexedDB(name)` stores each table as one record in the browser's IndexedDB database `name`, giving it up when another connection deletes or upgrades it. `memory.file(path)` stores every table in one JSON file - Bun, Node 20.16+ or 22.3+, Deno - writing a `path.tmp` beside it and renaming it over, so a crashed process never leaves a half-written file; the directory must exist. It keeps `Date`; other values round-trip as JSON, and a `BigInt` fails the save. The connection loads on creation and every statement waits for it. Writes mark their table; changed tables save together a macrotask later, one save at a time, ids continuing where they left off - a write just before the page or process exits is lost unless `close()` is awaited. Where `transaction` runs, it saves once it commits, and a rollback saves nothing. A failed save logs to `console.error` and retries with the next write; `close()` waits for an open transaction and the last save, and throws if that save failed. If loading fails, every statement rejects with its error, and `close()` still closes.
 
 An adapter is `{ load, save }`: `load()` returns `{ [table]: { rows, next } }` or nothing, `save(changes)` receives the changed tables as copies.
 
-Each connection holds its own copy. Two tabs or processes on the same store don't see each other's writes, and the last to save a table wins it - inserts from both can share an id. Open one connection per store.
+Each connection holds its own copy. Two tabs or processes on the same store don't see each other's writes, and the last to save a table wins it - inserts from both can share an id. Open one connection per store. Each save rewrites every changed table whole - `memory.file` rewrites the file - so keep stores small.
 
 ### Command line
 

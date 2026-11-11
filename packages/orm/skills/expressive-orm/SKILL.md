@@ -79,7 +79,7 @@ An integer `key` increments; another numeric type does not. `User.one(id)`, `Use
 
 `Connection.new(types, ...)` binds each class to a connection. Awaiting it runs `sync` once when the driver has one. `await db.close()` releases it and destroys every entity loaded through it. Drivers: `SQLiteConnection` (`expressive-sql`), `PGConnection` and `PGLiteConnection` (`expressive-postgres`).
 
-`memory()` keeps rows in arrays - for tests and prototypes. It runs the floor and `Query` (not raw SQL templates) and reports every write for live rows:
+`memory()` keeps rows in arrays - for tests and prototypes, or small apps with `memory({ persist: memory.indexedDB(name) })` or `memory.file(path)`, which load on creation and save each change. It runs the floor and `Query` (not raw SQL templates) and reports every write for live rows:
 
 ```ts
 import { Type, memory, one, str } from '@expressive/orm';
