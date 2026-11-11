@@ -1,4 +1,4 @@
-import { optional } from './load';
+import { missing, optional } from './load';
 
 /**
  * A SQLite host - what `SQLiteConnection` runs statements on.
@@ -60,10 +60,7 @@ export async function createEngine(filename: string): Promise<Engine> {
     }
   }
 
-  throw new Error(
-    "No compatible SQLite driver found. Run under Bun or Node >=24, " +
-    "or install one of: better-sqlite3, sqlite3, @libsql/client."
-  );
+  throw new Error(missing);
 }
 
 async function bunSqlite(file: string): Promise<Engine | null> {
