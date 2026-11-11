@@ -1187,7 +1187,7 @@ describe("type", () => {
 
   describe("get method", () => {
     it("will fetch rows", async () => {
-      const query = Item.query();
+      const query = Item.query(() => {});
 
       expect(String(query)).toMatchInlineSnapshot(`
         "SELECT

@@ -100,8 +100,8 @@ describe("remote", () => {
     const expected = { id: 1, attorney: 1, filed, amount: 12.5, count: 3, closed: true, payment: ["check"] };
 
     expect(claim).toEqual(expected);
-    expect(await client.Claim.one(claim.id)).toEqual(expected);
-    expect(await server.Claim.one(claim.id)).toEqual(expected);
+    expect((await client.Claim.one({ id: claim.id })).columns).toEqual(expected);
+    expect((await server.Claim.one({ id: claim.id })).columns).toEqual(expected);
     expect(sent).toHaveBeenCalledWith("insert", ["claim", {
       attorney_id: 1,
       filed,
@@ -121,7 +121,7 @@ describe("remote", () => {
     await server.Attorney.insert({ name: "Kim", email: "kim@example.com" });
     await server.Claim.insert({ attorney: 1, filed, amount: 3.25, closed: false, payment: ["cash"] });
 
-    const [claim] = await client.Claim.find({ filed });
+    const [claim] = await client.Claim.query({ filed });
 
     expect(claim).toEqual({ id: 1, attorney: 1, filed, amount: 3.25, count: undefined, closed: false, payment: ["cash"] });
 
@@ -142,7 +142,7 @@ describe("remote", () => {
     await claims[1].delete();
 
     expect(claims[0].attorney).toBe(kim);
-    expect(await server.Claim.find()).toEqual([
+    expect(await server.Claim.query()).toEqual([
       { id: 2, attorney: 1, filed: new Date(0), amount: undefined, count: undefined, closed: true, payment: undefined }
     ]);
 
@@ -167,7 +167,7 @@ describe("remote", () => {
     expect(received).toHaveBeenLastCalledWith("insert", { id: 1, attorney_id: null, filed: null, due: text, amount: null, count: null, closed: null, payment: null });
     expect(claim.due).toEqual(day);
 
-    const [found] = await client.Claim.find({ due: day });
+    const [found] = await client.Claim.query({ due: day });
 
     expect(sent).toHaveBeenLastCalledWith("select", ["claim", [["due", "=", text]], null, 0]);
     expect(found.due).toEqual(day);
