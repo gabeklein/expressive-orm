@@ -116,7 +116,7 @@ it("will throw if no connection", async () => {
     name = str();
   }
 
-  await expect(User.find()).rejects.toThrow("No database connection.");
+  await expect(User.query()).rejects.toThrow("No database connection.");
 })
 
 describe("fields", () => {
@@ -387,7 +387,7 @@ describe("rows", () => {
     const user = await User.insert({ name: "Gabe" });
     const when = new Date(0);
     const post = await Post.insert({ title: "Hello", when, data: { a: 1 }, user });
-    const reads = [post, await Post.one(post.id), ...await Post.find()];
+    const reads = [post, ...await Post.query({ id: post.id }), ...await Post.query()];
 
     expect(post).toEqual({ id: 1, title: "Hello", when, data: { a: 1 }, user: 1, editor: undefined });
 
@@ -494,7 +494,7 @@ describe("update", () => {
     const { id } = await User.insert({ name: "John" });
 
     await expect(User.update(id, { name: "Bob" })).resolves.toBeUndefined();
-    await expect(User.one(id)).resolves.toEqual({ id, name: "Bob", age: undefined });
+    await expect(User.one({ id })).resolves.toEqual({ id, name: "Bob", age: undefined });
   })
 
   it("will settle a loaded entity by id", async () => {
@@ -727,7 +727,7 @@ describe("new", () => {
     expect("then" in user).toBe(false);
     expect(insert).toHaveBeenCalledWith(User.ref, { name: "John" }, true);
     expect(user.columns).toEqual({ id: user.id, name: "John", age: undefined });
-    await expect(User.one(user.id)).resolves.toEqual(user.columns);
+    await expect(User.one({ id: user.id })).resolves.toEqual(user.columns);
 
     insert.mockRestore();
   })
@@ -850,7 +850,7 @@ describe("delete", () => {
 
     await user.delete();
 
-    await expect(User.find()).resolves.toEqual([]);
+    await expect(User.query()).resolves.toEqual([]);
   })
 
   it("will evict and destroy entity", async () => {
@@ -910,7 +910,7 @@ describe("static delete", () => {
     const { id } = await User.insert({ name: "John" });
 
     await expect(User.delete(id)).resolves.toBeUndefined();
-    await expect(User.find()).resolves.toEqual([]);
+    await expect(User.query()).resolves.toEqual([]);
   })
 
   it("will evict and destroy a loaded entity", async () => {
@@ -946,9 +946,35 @@ describe("one method", () => {
 
   it("will get record by id", async () => {
     await ready;
-    const user = await User.one(2);
+    const user = await User.one({ id: 2 });
 
     expect(user.id).toBe(2);
+  });
+
+  it("will resolve the loaded entity", async () => {
+    await ready;
+    const user = await User.one({ name: "Alice" });
+
+    expect(user).toBeInstanceOf(User);
+    expect(User.get(2)).toBe(user);
+    await expect(User.one({ id: 2 })).resolves.toBe(user);
+  });
+
+  it("will settle a loaded entity", async () => {
+    await ready;
+    const user = await User.get(1);
+
+    await User.connection.update(User.ref, 1, { name: "Gabe2" });
+    await expect(User.one({ id: 1 })).resolves.toBe(user);
+    expect(user.name).toBe("Gabe2");
+
+    await User.connection.update(User.ref, 1, { name: "Gabe" });
+    await User.one({ id: 1 });
+  });
+
+  it("will throw for an id", async () => {
+    await expect(User.one(2 as any)).rejects.toThrow("User.one() takes a filter - use get(id) for an id.");
+    await expect(User.one([2] as any)).rejects.toThrow("User.one() takes a filter - use get(id) for an id.");
   });
 
   it("will get latest record", async () => {
@@ -985,7 +1011,7 @@ describe("one method", () => {
     await ready;
     const query = User.one({ name: "Foo" });
 
-    await expect(query).rejects.toThrow();
+    await expect(query).rejects.toThrow("No User found");
   });
 
   it("will return undefined if optional", async () => {
@@ -996,7 +1022,7 @@ describe("one method", () => {
   });
 });
 
-describe("find", () => {
+describe("query rows", () => {
   class User extends connect() {
     name = str();
   }
@@ -1008,42 +1034,42 @@ describe("find", () => {
 
   it("will find latest first by default", async () => {
     await ready;
-    const users = await User.find();
+    const users = await User.query();
 
     expect(users.map(x => x.name)).toEqual(["Bob", "Alice", "Gabe"]);
   })
 
   it("will limit and offset", async () => {
     await ready;
-    const users = await User.find({ id: asc() }, 1, 1);
+    const users = await User.query({ id: asc() }, 1, 1);
 
     expect(users.map(x => x.name)).toEqual(["Alice"]);
   })
 
   it("will match many values", async () => {
     await ready;
-    const users = await User.find({ name: isIn(["Gabe", "Bob"]), id: asc() });
+    const users = await User.query({ name: isIn(["Gabe", "Bob"]), id: asc() });
 
     expect(users.map(x => x.id)).toEqual([1, 3]);
   })
 
   it("will skip undefined conditions", async () => {
     await ready;
-    const users = await User.find({ name: [undefined as any, equal(undefined)], id: desc() });
+    const users = await User.query({ name: [undefined as any, equal(undefined)], id: desc() });
 
     expect(users).toHaveLength(3);
   })
 
   it("will default to equality", async () => {
     await ready;
-    const users = await User.find({ name: new Where() as any });
+    const users = await User.query({ name: new Where() as any });
 
     expect(users).toHaveLength(0);
   })
 
   it("will ignore unknown fields", async () => {
     await ready;
-    const users = await User.find({ foo: "bar" } as any);
+    const users = await User.query({ foo: "bar" } as any);
 
     expect(users).toHaveLength(3);
   })
@@ -1053,6 +1079,89 @@ describe("find", () => {
     const users = await User["fetch"]([["name", "=", "Alice"], ["foo", "=", 1]]);
 
     expect(users.map(x => x.id)).toEqual([2]);
+  })
+
+  it("will read through select alone", async () => {
+    await ready;
+    const connection = User.connection as { prepare?: unknown };
+
+    connection.prepare = undefined;
+
+    const users = await User.query({ name: "Bob" });
+
+    delete connection.prepare;
+
+    expect(users).toEqual([{ id: 3, name: "Bob" }]);
+    expect(users[0]).not.toBeInstanceOf(User);
+    expect(User.loaded.size).toBe(0);
+  })
+})
+
+describe("recency", () => {
+  it("will order by a created column without a filter", async () => {
+    class Post extends connect() {
+      id = key({ type: "uuid" });
+      title = str();
+      made = date.created();
+    }
+
+    for (const [title, at] of [["b", 2], ["c", 3], ["a", 1]] as const)
+      await Post.connection.insert(Post.ref, { id: title, title, made: new Date(at) });
+
+    expect((await Post.query()).map(x => x.title)).toEqual(["c", "b", "a"]);
+    expect((await Post.load()).map(x => x.title)).toEqual(["c", "b", "a"]);
+    expect((await Post.one()).title).toBe("c");
+    expect((await Post.query({ made: asc() })).map(x => x.title)).toEqual(["a", "b", "c"]);
+    expect((await Post.query({ title: isIn(["a", "b"]), made: desc() })).map(x => x.title)).toEqual(["b", "a"]);
+  })
+
+  it("will drop the default order for a filter", async () => {
+    class Post extends connect() {
+      title = str();
+    }
+
+    for (const title of ["a", "b", "c"])
+      await Post.insert({ title });
+
+    expect((await Post.query()).map(x => x.title)).toEqual(["c", "b", "a"]);
+    expect((await Post.query({ title: isIn(["a", "c"]) })).map(x => x.title)).toEqual(["a", "c"]);
+  })
+
+  it("will not order without a created column or incrementing id", async () => {
+    class Tag extends connect() {
+      id = key({ type: "text" });
+    }
+
+    for (const id of ["b", "c", "a"])
+      await Tag.insert({ id });
+
+    expect((await Tag.query()).map(x => x.id)).toEqual(["b", "c", "a"]);
+    expect((await Tag.load()).map(x => x.id)).toEqual(["b", "c", "a"]);
+    await expect(Tag.one()).rejects.toThrow("Tag.one() needs a filter - it has no created() column or incrementing id to order by.");
+    await expect(Tag.one({ id: "c" })).resolves.toBe(Tag.get("c"));
+  })
+
+  it("will keep the marker through and()", async () => {
+    const made = date.created.and(null);
+
+    class Post extends connect() {
+      id = key({ type: "text" });
+      made = made();
+    }
+
+    await Post.insert({ id: "a", made: new Date(1) });
+    await Post.insert({ id: "b", made: new Date(2) });
+
+    expect((await Post.one()).id).toBe("b");
+  })
+
+  it("will throw for two created columns", () => {
+    class Post extends connect() {
+      made = date.created();
+      also = date.created();
+    }
+
+    expect(() => Post.fields).toThrow("Post.made and Post.also are both created() - a class orders by one.");
   })
 })
 
@@ -1070,7 +1179,7 @@ describe("query", () => {
 
   it("will select entities", async () => {
     await ready;
-    const query = User.query();
+    const query = User.query(() => {});
     const users = await query;
 
     expect<Query.Selects<Query.From<User>>>(query);
@@ -1117,7 +1226,7 @@ describe("query", () => {
       static table = "other";
     }
 
-    await expect(Other.query()).rejects.toThrow("Query needs a connection with prepare() to run.");
+    await expect(Other.query(() => {})).rejects.toThrow("Query needs a connection with prepare() to run.");
   })
 })
 
@@ -1197,7 +1306,7 @@ describe("extended types", () => {
     await user.set({ name: "Alice Doe" });
 
     expect(user.displayName()).toBe("User: Alice Doe");
-    await expect(UserExt.one(2)).resolves.toEqual({ id: 2, name: "Alice Doe" });
+    await expect(UserExt.one({ id: 2 })).resolves.toEqual({ id: 2, name: "Alice Doe" });
   });
 })
 
@@ -1324,13 +1433,13 @@ describe("primary key", () => {
     expect(id).toBe("x1");
     expect(Doc.fields.get("id")!.kind).toBe(String);
     expect(Doc.loaded.get("x1")).toBe(doc);
-    await expect(Doc.one("x1")).resolves.toEqual(row);
+    await expect(Doc.one({ id: "x1" })).resolves.toEqual(row);
 
     await Doc.update("x1", { title: "Bye" });
     expect(doc.title).toBe("Bye");
 
     await doc.delete();
-    await expect(Doc.one("x1", false)).resolves.toBeUndefined();
+    await expect(Doc.one({ id: "x1" }, false)).resolves.toBeUndefined();
   })
 
   it("will type id by declaration", () => {
@@ -1357,8 +1466,8 @@ describe("primary key", () => {
 
     const lookups = [
       // @ts-expect-error
-      () => Doc.one(1),
-      () => User.one("a1", false)
+      () => Doc.one({ id: 1 }),
+      () => User.one({ id: "a1" }, false)
     ];
 
     expect(lookups).toHaveLength(2);
@@ -1397,8 +1506,8 @@ describe("identity map", () => {
 
     const row = await User.insert({ name: "A" });
 
-    await User.one(row.id);
-    await User.find();
+    await User.query({ id: row.id });
+    await User.query();
 
     for await (const _ of User.all(1));
 
@@ -1411,11 +1520,11 @@ describe("identity map", () => {
     }
 
     const user = await User.new({ name: "C" });
-    const first = await User.one(user.id);
+    const [first] = await User.query({ id: user.id });
 
     await User.connection.update(User.ref, user.id, { name: "C2" });
 
-    const second = await User.one(user.id);
+    const [second] = await User.query({ id: user.id });
 
     expect(first).toEqual({ id: user.id, name: "C" });
     expect(second).toEqual({ id: user.id, name: "C2" });
@@ -1797,7 +1906,7 @@ describe("renamed key column", () => {
 
     expect(user.id).toBe(1);
     expect(row).toEqual({ user_id: 1, name: "Gabe" });
-    await expect(User.one(1)).resolves.toEqual({ id: 1, name: "Gabe" });
+    await expect(User.one({ id: 1 })).resolves.toEqual({ id: 1, name: "Gabe" });
 
     await user.set({ name: "Bob" });
     await expect(User.connection.select(User.ref, [])).resolves.toEqual([{ user_id: 1, name: "Bob" }]);
@@ -1819,13 +1928,13 @@ describe("renamed key column", () => {
 
     const doc = await Doc.get("a1");
 
-    await expect(Doc.one("a1")).resolves.toEqual({ id: "a1", title: "Hello" });
+    await expect(Doc.one({ id: "a1" })).resolves.toEqual({ id: "a1", title: "Hello" });
 
     await doc.set({ title: "Bye" });
     await expect(Doc.connection.select(Doc.ref, [])).resolves.toEqual([{ doc_id: "a1", title: "Bye" }]);
 
     await doc.delete();
-    await expect(Doc.one("a1", false)).resolves.toBeUndefined();
+    await expect(Doc.one({ id: "a1" }, false)).resolves.toBeUndefined();
   })
 })
 
@@ -1863,8 +1972,8 @@ describe("null", () => {
     expect(omitted).toEqual({ id: omitted.id, ...empty });
     expect(nulls).toEqual({ id: nulls.id, ...empty });
     expect(Object.values(nulls).filter(x => x === null)).toEqual([]);
-    expect(Object.values(await NullRow.one(nulls.id)).filter(x => x === null)).toEqual([]);
-    expect(await NullRow.find()).toEqual([{ id: nulls.id, ...empty }, { id: omitted.id, ...empty }]);
+    expect(Object.values(await NullRow.one({ id: nulls.id })).filter(x => x === null)).toEqual([]);
+    expect(await NullRow.query()).toEqual([{ id: nulls.id, ...empty }, { id: omitted.id, ...empty }]);
 
     const entity = await NullRow.get(nulls.id);
 
@@ -1899,13 +2008,13 @@ describe("null", () => {
 
     expect(entity.columns).toEqual({ id: entity.id, ...empty });
     expect(Object.values(entity.get()).filter(x => x === null)).toEqual([]);
-    await expect(NullRow.one(entity.id)).resolves.toEqual({ id: entity.id, ...empty });
+    await expect(NullRow.one({ id: entity.id })).resolves.toEqual({ id: entity.id, ...empty });
 
     await NullRow.update(entity.id, { n: 3 });
     await NullRow.update(entity.id, { n: null });
 
     expect(entity.n).toBeUndefined();
-    await expect(NullRow.one(entity.id)).resolves.toEqual({ id: entity.id, ...empty });
+    await expect(NullRow.one({ id: entity.id })).resolves.toEqual({ id: entity.id, ...empty });
   })
 })
 
@@ -1936,7 +2045,7 @@ describe("now", () => {
   it("will compare with the current time", async () => {
     await Event.insert({ name: "past", at: new Date(1000) });
 
-    const past = await Event.find({ at: lessThan(now) });
+    const past = await Event.query({ at: lessThan(now) });
 
     expect(past.map(event => event.name)).toContain("past");
   })
@@ -1979,7 +2088,7 @@ describe("created and updated", () => {
 
     await Post.update(id, { title: "b" });
 
-    const post = await Post.one(id);
+    const post = await Post.one({ id });
 
     expect(post.created).toEqual(new Date(1));
     expect(post.updated!.getTime()).toBeGreaterThan(1);
@@ -2007,7 +2116,7 @@ describe("created and updated", () => {
       where(post).update({ created: new Date(2) });
     });
 
-    expect((await Post.one(id)).created).toEqual(new Date(2));
+    expect((await Post.one({ id })).created).toEqual(new Date(2));
   })
 
   it("will update by a callback", async () => {
@@ -2023,7 +2132,7 @@ describe("created and updated", () => {
     await Doc.update(id, { title: "b" });
     await Doc.update({ title: "b" }, { title: "c" });
 
-    expect(await Doc.one(id)).toMatchObject({ title: "c", revision: 2 });
+    expect(await Doc.one({ id })).toMatchObject({ title: "c", revision: 2 });
   })
 
   it("will take an updated value given", async () => {
@@ -2031,7 +2140,7 @@ describe("created and updated", () => {
 
     await Post.update(id, { updated: new Date(5) });
 
-    expect((await Post.one(id)).updated).toEqual(new Date(5));
+    expect((await Post.one({ id })).updated).toEqual(new Date(5));
   })
 
   it("will keep created and touch updated on upsert", async () => {
@@ -2104,19 +2213,19 @@ describe("query writes", () => {
     expect(await Post.count({ author: isIn([ann.id, { name: "bob" }]) })).toBe(2);
     expect(await Post.update({ author: { name: "bob" } }, { title: "c" })).toBe(1);
     expect(await Post.delete({ author: { name: "ann" } })).toBe(1);
-    expect((await Post.find()).map(post => post.title)).toEqual(["c"]);
+    expect((await Post.query()).map(post => post.title)).toEqual(["c"]);
   })
 
   it("will match null as missing", async () => {
     await seed();
 
     expect(await Item.count({ note: null })).toBe(2);
-    expect((await Item.find({ note: null, kind: "a" })).map(item => item.file)).toEqual(["1"]);
+    expect((await Item.query({ note: null, kind: "a" })).map(item => item.file)).toEqual(["1"]);
     expect(await Item.update({ note: null }, { note: "y" })).toBe(2);
     expect(await Item.count({ note: "y" })).toBe(2);
 
     // @ts-expect-error
-    void (() => Item.find({ kind: null }));
+    void (() => Item.query({ kind: null }));
   })
 
   it("will update matching rows and settle loaded ones", async () => {
@@ -2129,7 +2238,7 @@ describe("query writes", () => {
     expect(count).toBe(2);
     expect([first.note, third.note]).toEqual(["y", "y"]);
     expect(first.revised).toBeInstanceOf(Date);
-    expect((await Item.one(2)).note).toBe("x");
+    expect((await Item.query({ id: 2 }))[0].note).toBe("x");
     expect(await Item.update({ kind: "a" }, { note: "w" })).toBe(2);
     expect(first.note).toBe("w");
   })
@@ -2138,7 +2247,7 @@ describe("query writes", () => {
     await seed();
 
     expect(await Item.update({ kind: "b" }, { note: "z" })).toBe(1);
-    expect((await Item.one(3)).note).toBe("z");
+    expect((await Item.one({ id: 3 })).note).toBe("z");
   })
 
   it("will delete matching rows and retire loaded ones", async () => {
@@ -2200,7 +2309,7 @@ describe("insert conflict", () => {
     const row = await Asset.insert({ id: "a", file: "two", made: 2 }, { conflict: "update" });
 
     expect(row).toEqual({ id: "a", file: "two", made: 2 });
-    await expect(Asset.find()).resolves.toEqual([row]);
+    await expect(Asset.query()).resolves.toEqual([row]);
   })
 
   describe("on another column", () => {
@@ -2296,7 +2405,7 @@ describe("insert conflict", () => {
     expectTypeOf(Asset.insert({ id: "z", file: "z", made: 0 }, { conflict })).resolves.toEqualTypeOf<Type.Columns<Asset> | undefined>();
     expectTypeOf(Asset.insert({ id: "z", file: "z", made: 0 }, { conflict: "update" })).resolves.toEqualTypeOf<Type.Columns<Asset>>();
     expect(row).toBeUndefined();
-    await expect(Asset.one("d")).resolves.toEqual({ id: "d", file: "seven", made: 1 });
+    await expect(Asset.one({ id: "d" })).resolves.toEqual({ id: "d", file: "seven", made: 1 });
   })
 
   it("will insert when nothing conflicts", async () => {
@@ -2378,8 +2487,9 @@ describe("composite key", () => {
 
     expect(row).toEqual({ id: A, account: 1, kind: "a", note: "first" });
     await expect(db.select(Pick.ref, [])).resolves.toEqual([{ account_id: 1, kind: "a", note: "first" }]);
-    await expect(Pick.one([1, "a"])).resolves.toEqual(row);
-    await expect(Pick.one(row.id)).resolves.toEqual(row);
+    await expect(Pick.query({ id: equal([1, "a"]) })).resolves.toEqual([row]);
+    await expect(Pick.query({ id: row.id })).resolves.toEqual([row]);
+    await expect(Pick.one({ id: row.id })).resolves.toBe(Pick.get(row.id));
   })
 
   it("will get an entity by tuple or key", async () => {
@@ -2398,7 +2508,7 @@ describe("composite key", () => {
     await Pick.update([1, "a"], { note: "second" });
 
     expect(pick.note).toBe("second");
-    await expect(Pick.one(pick.id)).resolves.toMatchObject({ note: "second" });
+    await expect(Pick.one({ id: pick.id })).resolves.toMatchObject({ note: "second" });
   })
 
   it("will rekey an entity when a part changes", async () => {
@@ -2426,13 +2536,13 @@ describe("composite key", () => {
   it("will order by key parts", async () => {
     await Pick.insert({ account: 1, kind: "c" });
 
-    const rows = await Pick.find();
+    const rows = await Pick.query({ id: desc() });
 
     expect(rows.map(row => row.kind)).toEqual(["c", "a"]);
   })
 
   it("will throw comparing a composite key", async () => {
-    await expect(Pick.find({ id: greaterThan(A) }))
+    await expect(Pick.query({ id: greaterThan(A) }))
       .rejects.toThrow("Pick.id is a composite key and can only be matched or ordered.");
   })
 
@@ -2463,7 +2573,7 @@ describe("composite key", () => {
     await Pick.delete([1, "c"]);
 
     expect(Pick.loaded.has('[1,"c"]')).toBe(false);
-    await expect(Pick.one([1, "c"], false)).resolves.toBeUndefined();
+    await expect(Pick.one({ id: equal([1, "c"]) }, false)).resolves.toBeUndefined();
   })
 
   it("will upsert on the composite key", async () => {
@@ -2489,7 +2599,7 @@ describe("composite key", () => {
       kind = str();
     }
 
-    await expect(Bad.find()).rejects.toThrow("Bad.id must list fields to key by, like key(() => [this.a, this.b]).");
+    await expect(Bad.query({ id: desc() })).rejects.toThrow("Bad.id must list fields to key by, like key(() => [this.a, this.b]).");
   })
 
   it("will throw when the key arrow throws", async () => {
@@ -2498,7 +2608,7 @@ describe("composite key", () => {
       kind = str();
     }
 
-    await expect(Bad.find()).rejects.toThrow("Bad.id must list fields to key by, like key(() => [this.a, this.b]).");
+    await expect(Bad.query({ id: desc() })).rejects.toThrow("Bad.id must list fields to key by, like key(() => [this.a, this.b]).");
   })
 })
 
@@ -2796,7 +2906,7 @@ describe("load", () => {
     const [ann, gabe] = await User.load();
 
     await ann.set({ age: 28 });
-    expect(await User.one(2)).toMatchObject({ name: "Ann", age: 28 });
+    expect(await User.one({ id: 2 })).toMatchObject({ name: "Ann", age: 28 });
 
     await gabe.delete();
     expect(await User.count()).toBe(1);

@@ -261,7 +261,7 @@ describe("query", () => {
     await ready;
     const post = await Post.one({ user: 1 });
 
-    expect(post).toEqual({ id: 1, title: "Hello World", user: 1 });
+    expect(post.columns).toEqual({ id: 1, title: "Hello World", user: 1 });
   })
 
   it("will search for relation by instance", async () => {
@@ -274,7 +274,7 @@ describe("query", () => {
 
   it("will search for relation by row", async () => {
     await ready;
-    const alice = await User.one(2);
+    const alice = await User.one({ id: 2 });
     const post = await Post.one({ user: alice });
 
     expect(post.id).toBe(3);

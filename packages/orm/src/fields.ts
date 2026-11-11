@@ -78,6 +78,8 @@ function field<T, F extends Field = Field>(
       for (const other of fields.values())
         if (other.column === field.column && !other.parts && !field.parts)
           throw new Error(`${type.name}.${other.key} and ${type.name}.${key} both use column ${field.column}.`);
+        else if (RECENT in other && RECENT in field)
+          throw new Error(`${type.name}.${other.key} and ${type.name}.${key} are both created() - a class orders by one.`);
 
       field.parent = type;
       fields.set(key, field);
@@ -105,6 +107,8 @@ function field<T, F extends Field = Field>(
     };
   }) as T;
 }
+
+const RECENT = Symbol("recent");
 
 function column<T>(helper: Function, Type: new (key: string) => Field, ...config: Config<any>[]): T {
   return field((key) => configure(new Type(key), [{ helper }, ...config]));
@@ -476,6 +480,7 @@ declare namespace date {
    * A Date column set to now on insert and never updated - `date.and({ fallback: now, fixed: true })`.
    *
    * Upserts leave it. An update giving it fails to compile and throws.
+   * It is the class's recency - `one()`, `query()` and `load()` without a filter take the newest first by it. A class declares at most one.
    */
   let created: Preset<Options, Types, Date, [Created]>;
 
@@ -497,7 +502,7 @@ function date<T extends date.Options[]>(...config: T & Exact<T, date.Types>): In
 }
 
 date.and = presets(date) as typeof date.and;
-date.created = date.and({ fallback: now, fixed: true }) as typeof date.created;
+date.created = date.and({ fallback: now, fixed: true, [RECENT]: true } as {}) as typeof date.created;
 date.updated = date.and({ fallback: now, update: now }) as typeof date.updated;
 
 declare namespace json {
@@ -710,6 +715,7 @@ export type { DataTypes, Exact, Has, Key, OptionsOf, Preset };
 export {
   FIELDS,
   PEEK,
+  RECENT,
   Field,
   placeholder,
   write,

@@ -315,7 +315,7 @@ describe("codecs", () => {
     await Event.insert({ at, data });
     data.tags.push("b");
 
-    const [row] = await Event.find({ at });
+    const [row] = await Event.query({ at });
 
     expect(row).toEqual({ id: 1, at, data: { tags: ["a"] } });
     expect(await Event.count({ at: isLike("2024-06%") })).toBe(1);
@@ -599,7 +599,7 @@ describe("after", () => {
     await seed(Upload, "a.png", "a.png.thumb");
     db.after(Upload, {
       async delete({ path }){
-        const [thumb] = await Upload.find({ path: `${path}.thumb` });
+        const [thumb] = await Upload.query({ path: `${path}.thumb` });
         await Upload.delete(thumb.id);
       }
     });
