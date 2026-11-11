@@ -84,10 +84,10 @@ describe("decode", () => {
     expect((decode(() => date(), "2026-11-05 07:55:04.250") as Date).toISOString()).toBe("2026-11-05T07:55:04.250Z");
   })
 
-  it("will read a date as local midnight", () => {
-    const day = decode(() => date({ type: "date" }), "2023-01-15") as Date;
-
-    expect([day.getFullYear(), day.getMonth(), day.getDate(), day.getHours()]).toEqual([2023, 0, 15, 0]);
+  it("will return a calendar day as its text", () => {
+    expect(decode(() => date({ type: "date" }), "2023-01-15")).toBe("2023-01-15");
+    expect(decode(() => date({ type: "date" }), "2023-01-15T00:00:00")).toBe("2023-01-15");
+    expect(decode(() => date({ type: "date" }), new Date(999, 0, 15))).toBe("0999-01-15");
   })
 
   it("will read a time on 1970-01-01", () => {

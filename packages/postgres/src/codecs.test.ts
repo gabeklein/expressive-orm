@@ -263,10 +263,10 @@ describe("date", () => {
 
     it("will handle date type correctly", () => {
       const field = codec(() => date({ type: "date" }));
-      const retrieved = field.decode("2023-01-15") as Date;
 
-      expect(field.encode(new Date("2023-01-15T14:30:45.123Z"))).toBe("2023-01-15");
-      expect([retrieved.getFullYear(), retrieved.getMonth(), retrieved.getDate(), retrieved.getHours()]).toEqual([2023, 0, 15, 0]);
+      expect(field.encode(new Date(2023, 0, 15, 14, 30))).toBe("2023-01-15");
+      expect(field.decode("2023-01-15")).toBe("2023-01-15");
+      expect(field.decode(new Date(2023, 0, 15))).toBe("2023-01-15");
     });
 
     it("will handle time type correctly", () => {

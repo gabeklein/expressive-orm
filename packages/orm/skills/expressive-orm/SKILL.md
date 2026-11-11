@@ -285,7 +285,7 @@ A connection with `subscribe` keeps loaded entities current with changes made el
 
 ## Drivers
 
-`Connection` (an abstract Model) - the floor is `select`, `insert`, `update` and `remove`, keyed by table name and primary column; each is documented on `Connection`. It takes and returns plain values - Dates, booleans, JSON values - so a client connection can forward the four calls to a server's as they are. A composite `id` arrives as its tuple, in `key` order.
+`Connection` (an abstract Model) - the floor is `select`, `insert`, `update` and `remove`, keyed by table name and primary column; each is documented on `Connection`. It takes and returns plain values - Dates, booleans, JSON values, and a `date({ type: "date" })` calendar day as the text `YYYY-MM-DD` - so a client connection can forward the four calls to a server's as they are, whatever either side's time zone. A composite `id` arrives as its tuple, in `key` order.
 
 A driver storing values its own way sets a protected `codecs` getter - a map from base helper (`str`, `num`, `bool`, `date`, `json`) to a `Connection.Codec` (`types`, `datatype`, `encode`, `decode`). A field resolves its codec by `field.helper`, a relation by its referenced key. Without `codecs`, values pass through as they are, as on `memory()`. Optional: `prepare(builder)` runs `Query` (without it `Query` and `Type.query` throw); `subscribe(listener)` reports `{ table, op, id, row? }` and returns a stop function; `sync(fix?)` checks or creates the schema; protected `transact(fn)` enables `transaction(fn)`. `Connection` holds the lock and journal: call `idle()` before each statement; a pooled driver overrides `lock()` and `idle()`.
 

@@ -265,15 +265,40 @@ describe("date", () => {
     expect(caught(() => field.set(true))).toBe("Got 'true' but value must be a Date or date string.");
   })
 
-  it("will keep a calendar day as local midnight", () => {
+  it("will write a calendar day as its local date", () => {
     const field = column(() => date({ type: "date" }));
     const day = new Date(2026, 0, 2);
 
-    expect(field.set("2026-01-02")).toEqual(day);
-    expect(field.set(new Date(2026, 0, 2, 23, 30))).toEqual(day);
-    expect(field.set(day.getTime())).toEqual(day);
+    expect(field.set("2026-01-02")).toBe("2026-01-02");
+    expect(field.set(new Date(2026, 0, 2, 23, 30))).toBe("2026-01-02");
+    expect(field.set(day.getTime())).toBe("2026-01-02");
+    expect(field.set(new Date(999, 0, 2))).toBe("0999-01-02");
+  })
+
+  it("will read a calendar day as local midnight", () => {
+    const field = column(() => date({ type: "date" }));
+    const day = new Date(2026, 0, 2);
+
     expect(field.get("2026-01-02")).toEqual(day);
     expect(field.get("2026-01-02T00:00:00")).toEqual(day);
+    expect(field.get(day)).toBe(day);
+  })
+
+  it("will keep a calendar day through memory", async () => {
+    class Event extends connect() {
+      day = date({ type: "date" });
+    }
+
+    const day = new Date(2026, 0, 2);
+    const event = await Event.new({ day: new Date(2026, 0, 2, 23, 30) });
+
+    expect(event.day).toEqual(day);
+    expect(await Event.connection.select("event", [])).toEqual([{ id: 1, day: "2026-01-02" }]);
+    expect(await Event.find({ day: "2026-01-02" })).toEqual([{ id: 1, day }]);
+
+    await event.set({ day: "2026-01-03" });
+
+    expect(event.day).toEqual(new Date(2026, 0, 3));
   })
 
   it("will default to timestamp", () => {

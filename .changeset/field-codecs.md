@@ -10,4 +10,4 @@ Breaking: orm declares the portable types - `str` text, varchar, char, uuid; `nu
 
 Every helper gains `.and(...presets)`, returning the same helper with those options first; `date.created` and `date.updated` are presets of `date`.
 
-A `date({ type: "date" })` column is the local calendar day on every side - stored `YYYY-MM-DD` from the local day, read as local midnight; a `"YYYY-MM-DD"` string is that day.
+A `date({ type: "date" })` column is a calendar day, not an instant: a Date gives its local day, a `"YYYY-MM-DD"` string is that day, and it reads as local midnight. It crosses every connection and is stored as `YYYY-MM-DD`, so a client and server in different time zones agree.

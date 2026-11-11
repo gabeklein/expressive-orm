@@ -10,6 +10,7 @@ export function schema(){
   class Claim extends Type {
     attorney = one(Attorney, null);
     filed = date(null);
+    due = date({ type: "date" }, null);
     amount = num({ type: "decimal", precision: 10, scale: 2 }, null);
     count = num(null);
     closed = bool(null);

@@ -391,13 +391,13 @@ function bool<T extends bool.Options[]>(...config: T & Exact<T, bool.Types>): In
 
 bool.and = presets(bool) as typeof bool.and;
 
-const DAY = /^(\d{4})-(\d\d)-(\d\d)$/;
+const DAY = /^(\d{4})-(\d\d)-(\d\d)/;
 
 class TimeColumn extends Field<Date> {
   declare type: date.DataType;
   declare precision?: number;
 
-  set(value: unknown): Date | undefined {
+  set(value: unknown): Date | string | undefined {
     if (!value)
       return undefined;
 
@@ -408,7 +408,7 @@ class TimeColumn extends Field<Date> {
     if (!date || isNaN(date.getTime()))
       throw new Error(`Got '${value}' but value must be a Date or date string.`);
 
-    return this.type === "date" ? new Date(date.getFullYear(), date.getMonth(), date.getDate()) : date;
+    return this.type === "date" ? day(date) : date;
   }
 
   get(value: unknown) {
@@ -421,6 +421,11 @@ class TimeColumn extends Field<Date> {
   }
 }
 
+function day(date: Date){
+  const pad = (part: number, size = 2) => String(part).padStart(size, "0");
+  return `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 type Created = { readonly fallback: typeof now; readonly fixed: true };
 type Updated = { readonly fallback: typeof now; readonly update: typeof now };
 
@@ -431,7 +436,11 @@ declare namespace date {
     timezone?: boolean;
   }
 
-  /** A calendar day - local midnight. A `YYYY-MM-DD` string is that local day; a Date keeps its local day. */
+  /**
+   * A calendar day, not an instant - read as local midnight.
+   *
+   * A Date gives its local day; a `YYYY-MM-DD` string is that day. It reaches a connection as `YYYY-MM-DD`, so each side reads it in its own time zone.
+   */
   interface Day extends TimeColumn {
     type: "date";
   }

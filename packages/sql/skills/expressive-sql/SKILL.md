@@ -140,7 +140,7 @@ class Product extends Type {
 - `sql.now` is the database's current time in the column's storage - as a `fallback`, in a statics write or comparison (`lessThan(sql.now)`), or in a `Query`. Statics read it from the app's clock. `"NOW"` is a deprecated alias.
 - Writes are checked by the field on every connection - `varchar` and `char` length, integer ranges, decimal precision and scale. The SQL floor checks again before storing, so rows forwarded from a client meet the same rules.
 - `Connection.new` throws for a datatype the connection can't store - `SQLiteConnection can't store json type 'blob' (Doc.blob).`
-- A `date` type is a local calendar day on every connection: a Date keeps its local day, `"YYYY-MM-DD"` is that day, and it reads back as local midnight. `sql.now` on it is the database's UTC day.
+- A `date` type is a calendar day: a Date gives its local day, `"YYYY-MM-DD"` is that day, and it reads back as local midnight. It crosses the floor and is stored as `YYYY-MM-DD`, so zones never shift it. `sql.now` on it is the database's UTC day. A `time` is a UTC time of day, crossing as a Date on 1970-01-01 UTC.
 - Storage-only types are gone: store epoch time as `num(sql.bigint)`, yes/no text as `str`.
 
 `codecs` maps each base helper to how SQL stores it (`Connection.Codec`). A dialect extends it - `new Map([...codecs, [date, myDateCodec]])` - and returns it from a protected `codecs` getter.

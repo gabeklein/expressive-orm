@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Connection, Type } from '@expressive/orm';
 
@@ -17,23 +17,45 @@ const wire = {
 
 type Floor = "select" | "insert" | "update" | "remove";
 
-async function setup(){
+const TZ = process.env.TZ;
+
+afterEach(() => {
+  if (TZ === undefined)
+    delete process.env.TZ;
+  else
+    process.env.TZ = TZ;
+});
+
+async function setup(zone?: string){
   const server = schema();
   const client = schema();
   const host = await SQLiteConnection.new(server.types);
   const sent = vi.fn();
+  const received = vi.fn();
 
   async function call(method: Floor, args: unknown[]){
     const request = wire.encode(args);
+    const local = process.env.TZ;
 
     sent(method, wire.decode(request));
 
+    if (zone)
+      process.env.TZ = zone;
+
     try {
       const response = await (host[method] as Function)(...wire.decode(request));
-      return wire.decode(wire.encode({ response })).response;
+      const reply = wire.encode({ response });
+
+      received(method, wire.decode(reply).response);
+
+      return wire.decode(reply).response;
     }
     catch (error) {
       throw new Error((error as Error).message);
+    }
+    finally {
+      if (zone)
+        process.env.TZ = local;
     }
   }
 
@@ -57,7 +79,7 @@ async function setup(){
 
   const remote = await Remote.new(client.types);
 
-  return { server, client, host, remote, sent, async close(){ await host.close(); await remote.close(); } };
+  return { server, client, host, remote, sent, received, async close(){ await host.close(); await remote.close(); } };
 }
 
 describe("remote", () => {
@@ -123,6 +145,45 @@ describe("remote", () => {
     expect(await server.Claim.find()).toEqual([
       { id: 2, attorney: 1, filed: new Date(0), amount: undefined, count: undefined, closed: true, payment: undefined }
     ]);
+
+    await close();
+  })
+
+  it.each([
+    ["America/New_York", "UTC", [2026, 0, 5], "2026-01-05"],
+    ["Asia/Tokyo", "UTC", [2026, 0, 2], "2026-01-02"],
+    ["UTC", "Asia/Tokyo", [2026, 0, 2, 23, 30], "2026-01-02"],
+    ["Pacific/Kiritimati", "Pacific/Pago_Pago", [2026, 0, 2], "2026-01-02"]
+  ] as const)("will carry a calendar day from %s to a server in %s", async (zone, serverZone, parts, text) => {
+    process.env.TZ = zone;
+
+    const { client, host, sent, received, close } = await setup(serverZone);
+    const [year, month, date, ...time] = parts;
+    const given = new Date(year, month, date, ...time);
+    const day = new Date(year, month, date);
+    const claim = await client.Claim.insert({ due: given });
+
+    expect(sent).toHaveBeenCalledWith("insert", ["claim", { due: text }, true, null]);
+    expect(received).toHaveBeenLastCalledWith("insert", { id: 1, attorney_id: null, filed: null, due: text, amount: null, count: null, closed: null, payment: null });
+    expect(claim.due).toEqual(day);
+
+    const [found] = await client.Claim.find({ due: day });
+
+    expect(sent).toHaveBeenLastCalledWith("select", ["claim", [["due", "=", text]], null, 0]);
+    expect(found.due).toEqual(day);
+
+    const entity = await client.Claim.get(1);
+
+    await entity.set({ due: "2026-03-01" });
+
+    expect(sent).toHaveBeenLastCalledWith("update", ["claim", 1, { due: "2026-03-01" }]);
+    expect(entity.due).toEqual(new Date(2026, 2, 1));
+
+    process.env.TZ = serverZone;
+
+    const db = await (host as SQLiteConnection)["db"]();
+
+    expect(await db.all("SELECT due FROM claim")).toEqual([{ due: "2026-03-01" }]);
 
     await close();
   })

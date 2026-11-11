@@ -67,9 +67,9 @@ describe.each(["Asia/Tokyo", "America/Los_Angeles", "UTC"])("in %s", zone => {
     const codec = codecs.get(date)!;
     const day = new Date(2026, 0, 2);
 
-    expect(codec.decode(field, day)).toEqual(day);
-    expect(codec.decode(field, "2026-01-02T00:00:00")).toEqual(day);
-    expect(codec.encode(field, field.set("2026-01-02"))).toBe("2026-01-02");
+    expect(codec.decode(field, day)).toBe("2026-01-02");
+    expect(codec.decode(field, "2026-01-02T00:00:00")).toBe("2026-01-02");
+    expect(codec.encode(field, field.set(day))).toBe("2026-01-02");
     expect(field.get("2026-01-02")).toEqual(day);
   })
 
