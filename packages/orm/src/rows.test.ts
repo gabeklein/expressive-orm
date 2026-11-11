@@ -52,8 +52,13 @@ describe("rows", () => {
     await ready;
     const gabe = await User.get(1);
     const page = await gabe.profiles.query({}, 1, 1);
+    const batches = [];
+
+    for await (const batch of gabe.profiles.query(undefined, 1))
+      batches.push(batch.map(p => p.bio));
 
     expect(page.map(p => p.bio)).toEqual(["Dev"]);
+    expect(batches).toEqual([["Writer"], ["Dev"]]);
   });
 
   it("will load related entities", async () => {

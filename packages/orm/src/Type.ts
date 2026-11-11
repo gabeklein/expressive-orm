@@ -86,11 +86,23 @@ declare namespace Type {
   /** The entity of a class; any other type passes through. */
   type Instance<T> = T extends Class<infer U> ? U : T;
 
+  /**
+   * Rows read a batch at a time - await it for the first batch, iterate it for every batch.
+   *
+   * From `query(where, limit, offset?)`. The first select runs at once; iterating starts with its batch, then selects `limit` more from where it left off until a batch comes back short.
+   * Batches move by offset - a row inserted or deleted ahead of the reader shifts the rest.
+   *
+   * @example
+   * for await (const batch of User.query({ admin: true }, 100))
+   *   batch.forEach(send);
+   */
+  interface Batches<T extends Type> extends Promise<Columns<T>[]>, AsyncIterable<Columns<T>[]> {}
+
   /** A filter value - a plain value (equal), an operator, or an array applying each. */
   type Conds<T> = Where | T | Conds<T>[]
 
   /**
-   * A filter by property - for `query`, `load`, `one`, `count`, `all` and writes by query.
+   * A filter by property - for `query`, `load`, `one`, `count` and writes by query.
    *
    * `null` matches a missing value. `undefined` drops the condition.
    * A relation takes an entity, an id, or an object of the related fields to match.
@@ -115,6 +127,7 @@ declare namespace Type {
 
   export {
     Async,
+    Batches,
     Class,
     Columns,
     Compat,
@@ -689,17 +702,34 @@ abstract class Type extends Model {
    * Runs on any connection - it needs only `select`.
    *
    * @example
-   * await User.query({ name: [isLike("G%"), asc()], age: greaterThan(17) }, 10);
+   * await User.query({ name: [isLike("G%"), asc()], age: greaterThan(17) });
    */
   static query<T extends Type>(
     this: Type.Class<T>,
     where?: Type.Query<T>,
-    limit?: number,
+    limit?: undefined,
     offset?: number
   ): Promise<Type.Columns<T>[]>;
-  static query(this: Type.Class, where?: Type.Query<any> | ((self: any, where: Query.Where) => unknown), limit?: number, offset?: number){
+  /**
+   * Up to `limit` rows matching a filter - awaited, one batch; iterated, every match a batch at a time.
+   *
+   * A limited read is always in one order: the filter's `asc()` / `desc()`, else the class's newest first, then by id.
+   * `offset` skips that many first.
+   *
+   * @example
+   * const latest = await User.query({ admin: true }, 20);
+   * for await (const batch of User.query({ admin: true }, 100))
+   *   batch.forEach(send);
+   */
+  static query<T extends Type>(
+    this: Type.Class<T>,
+    where: Type.Query<T> | undefined,
+    limit: number,
+    offset?: number
+  ): Type.Batches<T>;
+  static query(this: Type.Class, where?: Type.Query<any> | ((self: any, where: Query.Where) => unknown), limit?: number, offset = 0){
     if (typeof where != "function")
-      return this.fetch(where, limit, offset);
+      return limit === undefined ? this.fetch(where, limit, offset) : batches(this, where, limit, offset);
 
     return Query(from => {
       const self = from(this);
@@ -707,7 +737,7 @@ abstract class Type extends Model {
     });
   }
 
-  /** Select and decode rows - the path under `query` and `all`. */
+  /** Select and decode rows - the path under `query`. */
   protected static async fetch<T extends Type>(
     this: Type.Class<T>,
     from?: Type.Constraint[] | Type.Query<T>,
@@ -752,35 +782,6 @@ abstract class Type extends Model {
       return entity;
     }));
   }
-
-  /**
-   * Iterate rows matching a filter, a page at a time.
-   *
-   * One select per page, by offset.
-   *
-   * @example
-   * for await (const page of User.all(100))
-   *   page.forEach(send);
-   */
-  static async *all<T extends Type>(
-    this: Type.Class<T>,
-    pageSize: number,
-    where?: Type.Query<T>
-  ): AsyncGenerator<Type.Columns<T>[]> {
-    let offset = 0;
-    let done = false;
-
-    while (!done) {
-      const batch = await this.fetch(where, pageSize, offset);
-
-      offset += batch.length;
-
-      if (!batch.length) break;
-      if (pageSize && batch.length < pageSize) done = true;
-
-      yield batch;
-    }
-  }
 }
 
 async function select(
@@ -790,8 +791,11 @@ async function select(
   offset: number = 0
 ){
   const { connection, subset, ref } = type;
-  const constraints = Array.isArray(from) ? from : buildConstraints({ ...newest(type, from), ...subset });
+  const constraints = Array.isArray(from) ? [...from] : buildConstraints({ ...newest(type, from), ...subset });
   const query = [] as Type.Constraint[];
+
+  if (limit)
+    constraints.push(...settled(type, constraints));
 
   for (let [key, op, value] of constraints) {
     const field = type.fields.get(key);
@@ -817,6 +821,34 @@ async function select(
   register(type);
 
   return connection.select(ref, query, limit, offset);
+}
+
+function settled(type: typeof Type, constraints: Type.Constraint[]): Type.Constraint[] {
+  const ordered = ([, op]: Type.Constraint) => op == "asc" || op == "desc";
+  const added = constraints.some(ordered) ? [] : buildConstraints(newest(type) || {});
+  const order = [...constraints, ...added].filter(ordered);
+
+  if (!order.some(([key]) => key == "id"))
+    added.push(["id", order.length ? order[0][1] : "desc", undefined]);
+
+  return added;
+}
+
+function batches<T extends Type>(type: Type.Class<T>, where: Type.Query<T> | undefined, limit: number, offset: number): Type.Batches<T> {
+  const first = type["fetch"](where, limit, offset);
+
+  return Object.assign(first, {
+    async *[Symbol.asyncIterator](){
+      for (let batch = await first, at = offset; batch.length; batch = await type["fetch"](where, limit, at)) {
+        yield batch;
+
+        if (batch.length < limit || !limit)
+          return;
+
+        at += batch.length;
+      }
+    }
+  });
 }
 
 function newest(type: typeof Type, where?: Type.Query<any>): Type.Query<any> | undefined {

@@ -9,7 +9,8 @@ type Related<T> = {
 
 /** A `rows()` field - `query`, `load`, `one` and `insert` scoped to the entity, `insert` filling the relation. */
 interface Rows<T extends Type, K extends keyof T> {
-  query(where?: Type.Query<T>, limit?: number, offset?: number): Promise<Type.Columns<T>[]>;
+  query(where?: Type.Query<T>, limit?: undefined, offset?: number): Promise<Type.Columns<T>[]>;
+  query(where: Type.Query<T> | undefined, limit: number, offset?: number): Type.Batches<T>;
   load(where?: Type.Query<T>, limit?: number, offset?: number): Promise<T[]>;
   one(where?: Type.Query<T>, expect?: true): Promise<T>;
   one(where: Type.Query<T> | undefined, expect: boolean): Promise<T | undefined>;
@@ -46,7 +47,7 @@ function rows<T extends Type, K extends keyof T = Related<T>>(Class: Type.Class<
         const scope = (where?: object): any => ({ ...newest(Class, where), [fk]: id });
 
         return handle = {
-          query: (where, limit, offset) => Class.query(scope(where), limit, offset),
+          query: (where?: Type.Query<T>, limit?: number, offset?: number) => Class.query(scope(where), limit!, offset),
           load: (where, limit, offset) => Class.load(scope(where), limit, offset),
           one: (where?: Type.Query<T>, expect?: boolean) => Class.one(scope(where), expect as true),
           insert: (data) => Class.insert({ ...data, [fk]: id } as Type.Insert<T>)

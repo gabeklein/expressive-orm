@@ -1277,7 +1277,7 @@ describe("query", () => {
   })
 })
 
-describe("all", () => {
+describe("batches", () => {
   class User extends connect() {
     name = str();
   }
@@ -1287,34 +1287,114 @@ describe("all", () => {
       await User.connection.insert(User.ref, { name });
   })();
 
-  it("will page through results", async () => {
+  async function collect(batches: AsyncIterable<Type.Columns<User>[]>){
+    const names: string[][] = [];
+
+    for await (const batch of batches)
+      names.push(batch.map(x => x.name));
+
+    return names;
+  }
+
+  it("will await the first batch", async () => {
     await ready;
-    const pages: string[][] = [];
 
-    for await (const page of User.all(2, { id: asc() }))
-      pages.push(page.map(x => x.name));
-
-    expect(pages).toEqual([["A", "B"], ["C", "D"], ["E"]]);
+    expect((await User.query({ id: asc() }, 2)).map(x => x.name)).toEqual(["A", "B"]);
+    expect((await User.query({ id: asc() }, 2, 1)).map(x => x.name)).toEqual(["B", "C"]);
   })
 
-  it("will stop on empty page", async () => {
+  it("will iterate every batch", async () => {
     await ready;
-    const pages: number[] = [];
 
-    for await (const page of User.all(5))
-      pages.push(page.length);
-
-    expect(pages).toEqual([5]);
+    expect(await collect(User.query({ id: asc() }, 2))).toEqual([["A", "B"], ["C", "D"], ["E"]]);
+    expect(await collect(User.query({ id: asc() }, 2, 3))).toEqual([["D", "E"]]);
+    expect(await collect(User.query(undefined, 2))).toEqual([["E", "D"], ["C", "B"], ["A"]]);
   })
 
-  it("will fetch everything without page size", async () => {
+  it("will start iterating from the awaited batch", async () => {
     await ready;
-    const pages: number[] = [];
+    const select = vi.fn(User.connection.select.bind(User.connection));
+    const { connection } = User as { connection: { select: unknown } };
 
-    for await (const page of User.all(0))
-      pages.push(page.length);
+    connection.select = select;
 
-    expect(pages).toEqual([5]);
+    const batches = User.query({ id: asc() }, 2);
+    const first = await batches;
+    const all = [];
+
+    for await (const batch of batches)
+      all.push(batch);
+
+    delete (connection as { select?: unknown }).select;
+
+    expect(all[0]).toBe(first);
+    expect(select).toHaveBeenCalledTimes(3);
+  })
+
+  it("will iterate independently", async () => {
+    await ready;
+    const batches = User.query({ id: asc() }, 3);
+
+    expect(await collect(batches)).toEqual([["A", "B", "C"], ["D", "E"]]);
+    expect(await collect(batches)).toEqual([["A", "B", "C"], ["D", "E"]]);
+  })
+
+  it("will stop on an empty batch", async () => {
+    await ready;
+
+    expect(await collect(User.query({ id: asc() }, 5))).toEqual([["A", "B", "C", "D", "E"]]);
+    expect(await collect(User.query({ name: "Z" }, 5))).toEqual([]);
+  })
+
+  it("will read everything in one batch without a limit", async () => {
+    await ready;
+
+    expect(await collect(User.query({ id: asc() }, 0))).toEqual([["A", "B", "C", "D", "E"]]);
+  })
+
+  it("will not iterate without a limit", async () => {
+    await ready;
+    const rows = User.query({ name: "A" });
+
+    // @ts-expect-error
+    rows[Symbol.asyncIterator];
+
+    expect(Symbol.asyncIterator in rows).toBe(false);
+  })
+})
+
+describe("limited order", () => {
+  it("will order a limited filter by recency, then id", async () => {
+    class Post extends connect() {
+      id = key({ type: "text" });
+      tag = str();
+      made = date.created();
+    }
+
+    for (const [id, at] of [["b", 1], ["a", 2], ["d", 2], ["c", 3]] as const)
+      await Post.connection.insert(Post.ref, { id, tag: "x", made: new Date(at) });
+
+    expect((await Post.query({ tag: "x" })).map(x => x.id)).toEqual(["b", "a", "d", "c"]);
+    expect((await Post.query({ tag: "x" }, 10)).map(x => x.id)).toEqual(["c", "d", "a", "b"]);
+    expect((await Post.query({ made: asc() }, 10)).map(x => x.id)).toEqual(["b", "a", "d", "c"]);
+    expect((await Post.query(undefined, 10)).map(x => x.id)).toEqual(["c", "d", "a", "b"]);
+    expect((await Post.one({ tag: "x" })).id).toBe("c");
+  })
+
+  it("will order a limited filter by id without recency", async () => {
+    class Tag extends connect() {
+      id = key({ type: "text" });
+      group = num();
+    }
+
+    for (const [id, group] of [["b", 1], ["c", 2], ["a", 1]] as const)
+      await Tag.insert({ id, group });
+
+    expect((await Tag.query({ group: 1 })).map(x => x.id)).toEqual(["b", "a"]);
+    expect((await Tag.query({ group: 1 }, 10)).map(x => x.id)).toEqual(["b", "a"]);
+    expect((await Tag.query({ group: desc() }, 10)).map(x => x.id)).toEqual(["c", "b", "a"]);
+    expect((await Tag.query({ group: asc(), id: asc() }, 10)).map(x => x.id)).toEqual(["a", "b", "c"]);
+    expect((await Tag.query(undefined, 10)).map(x => x.id)).toEqual(["c", "b", "a"]);
   })
 })
 
@@ -1556,7 +1636,7 @@ describe("identity map", () => {
     await User.query({ id: row.id });
     await User.query();
 
-    for await (const _ of User.all(1));
+    for await (const _ of User.query(undefined, 1));
 
     expect(User.loaded.size).toBe(0);
   });
