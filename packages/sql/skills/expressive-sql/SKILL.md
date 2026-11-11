@@ -33,7 +33,7 @@ Connections enforce foreign keys. SQLite has no live rows.
 
 ### Engine
 
-In place of the filename, pass an `Engine` for a SQLite the built-in loader can't open, such as on React Native, where the loader opens nothing - any object with these, each async:
+In place of the filename, pass an `Engine` for a SQLite the built-in loader can't open, such as on React Native - any object with these, each async:
 
 ```ts
 import type { Engine } from '@expressive/sql';

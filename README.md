@@ -436,7 +436,7 @@ const ann = await db.transaction(async () => {
 
 `transaction(fn)` runs `fn` in one database transaction: it commits when `fn` resolves, to its result, and rolls back when it throws, rethrowing. Statements inside - statics, `Query`, instance writes, and effects they trigger - join it without a handle. A nested `transaction` joins the open one, so a nested failure is undone only if it reaches the outer `fn`; caught, its writes commit with the rest. Instances change as writes land; a rollback restores what they changed, destroys entities created inside, and keeps entities deleted inside, which a commit then destroys. Values read into an instance inside a rolled-back transaction stay.
 
-On SQLite, PGlite and `memory()`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `memory()` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite or `memory()` in a browser. D1 refuses `transaction`.
+On SQLite, PGlite and `memory()`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `memory()` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` from `process.getBuiltinModule` - Bun, Node 20.16+ or 22.3+, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as React Native, or PGlite or `memory()` in a browser. D1 refuses `transaction`.
 
 ## Live rows
 
