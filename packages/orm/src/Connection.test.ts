@@ -358,15 +358,18 @@ describe("transaction", () => {
 
   it("will throw without AsyncLocalStorage", async () => {
     vi.resetModules();
-    vi.doMock("node:async_hooks", () => { throw new Error("Cannot find module 'node:async_hooks'") });
+    vi.spyOn(process, "getBuiltinModule" as any).mockReturnValue(undefined);
 
-    const { memory } = await import('./memory');
-    const db = memory();
+    try {
+      const { memory } = await import('./memory');
+      const db = memory();
 
-    await expect(db.transaction(() => {})).rejects.toThrow("Transactions need AsyncLocalStorage, which this runtime does not provide.");
-
-    vi.doUnmock("node:async_hooks");
-    vi.resetModules();
+      await expect(db.transaction(() => {})).rejects.toThrow("Transactions need AsyncLocalStorage from process.getBuiltinModule, which this runtime does not provide.");
+    }
+    finally {
+      vi.restoreAllMocks();
+      vi.resetModules();
+    }
   })
 })
 

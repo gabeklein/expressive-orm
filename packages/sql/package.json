@@ -39,6 +39,9 @@
       "default": "./dist/index.js"
     }
   },
+  "react-native": {
+    "./dist/sqlite/load.js": "./dist/sqlite/load.native.js"
+  },
   "bin": {
     "expressive": "./dist/bin.js"
   },

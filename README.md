@@ -147,7 +147,7 @@ const lite = await PGLiteConnection.new([Account], "./data");
 
 `PGConnection` takes a connection string, a `pg` `PoolConfig` or a `Pool`. `PGLiteConnection` takes a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`. `close()` leaves a passed `Pool` or `PGlite` open.
 
-`SQLiteConnection` takes a filename, or an `Engine` in its place for a SQLite the built-in loader can't open: any object with `all(sql, params)`, `get(sql, params)`, `run(sql, params)` returning `{ changes }`, `exec(sql)` and `close()`, each async. A given engine is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
+`SQLiteConnection` takes a filename, or an `Engine` in its place for a SQLite the built-in loader can't open, such as on React Native: any object with `all(sql, params)`, `get(sql, params)`, `run(sql, params)` returning `{ changes }`, `exec(sql)` and `close()`, each async. A given engine is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
 
 Two optional members cover hosts without `BEGIN` and `COMMIT` on one connection. `transaction()` returns a session - the same four statements plus `commit()` and `rollback()` - and every statement inside `transaction(fn)` runs on it. `batch(sql)` runs statements atomically, and `sync` applies through it. A rebuild in a batch needs foreign keys off, or dropping the old table would cascade; on an engine that keeps them on, it is refused.
 
@@ -445,7 +445,7 @@ const ann = await db.transaction(async () => {
 
 `transaction(fn)` runs `fn` in one database transaction: it commits when `fn` resolves, to its result, and rolls back when it throws, rethrowing. Statements inside - statics, `Query`, instance writes, and effects they trigger - join it without a handle. A nested `transaction` joins the open one, so a nested failure is undone only if it reaches the outer `fn`; caught, its writes commit with the rest. Instances change as writes land; a rollback restores what they changed, destroys entities created inside, and keeps entities deleted inside, which a commit then destroys. Values read into an instance inside a rolled-back transaction stay.
 
-On SQLite, PGlite and `memory()`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `memory()` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite or `memory()` in a browser. D1 refuses `transaction`.
+On SQLite, PGlite and `memory()`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `memory()` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` from `process.getBuiltinModule` - Bun, Node 20.16+ or 22.3+, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as React Native, or PGlite or `memory()` in a browser. D1 refuses `transaction`.
 
 ## Hooks
 

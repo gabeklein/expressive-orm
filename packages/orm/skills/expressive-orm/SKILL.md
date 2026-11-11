@@ -265,7 +265,7 @@ const ann = await db.transaction(async () => {
 });
 ```
 
-Commits when `fn` resolves, rolls back and rethrows when it throws. Every statement inside - statics, `Query`, instance writes, effects they trigger - joins without a handle. A nested `transaction` joins the open one. Rollback restores what instances changed, destroys entities created inside, keeps entities deleted inside. Other statements on the connection wait until it ends, except on a pooled driver. Needs `AsyncLocalStorage` (Bun, Node, Deno, Workers with `nodejs_compat`); throws without it.
+Commits when `fn` resolves, rolls back and rethrows when it throws. Every statement inside - statics, `Query`, instance writes, effects they trigger - joins without a handle. A nested `transaction` joins the open one. Rollback restores what instances changed, destroys entities created inside, keeps entities deleted inside. Other statements on the connection wait until it ends, except on a pooled driver. Needs `AsyncLocalStorage` from `process.getBuiltinModule` (Bun, Node 20.16+/22.3+, Deno, Workers with `nodejs_compat`); throws without it - React Native included.
 
 ## Hooks
 

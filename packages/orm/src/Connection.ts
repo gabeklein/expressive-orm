@@ -99,21 +99,19 @@ const synced = new WeakMap<Connection, Promise<unknown>>();
 const HOOKED = new WeakSet<Connection>();
 const COLLECT = Symbol.for("@expressive/orm.collect");
 
-let storage: Promise<import('node:async_hooks').AsyncLocalStorage<Scope>> | undefined;
 let context: import('node:async_hooks').AsyncLocalStorage<Scope> | undefined;
 
-function hooks(name: string): Promise<typeof import('node:async_hooks')> {
-  return import(name);
-}
-
 function scope(){
-  return storage ||= hooks("node:async_hooks").then(
-    ({ AsyncLocalStorage }) => context = new AsyncLocalStorage<Scope>(),
-    () => {
-      storage = undefined;
-      throw new Error("Transactions need AsyncLocalStorage, which this runtime does not provide.");
-    }
-  );
+  if (context)
+    return context;
+
+  const hooks: typeof import('node:async_hooks') | undefined =
+    (globalThis as any).process?.getBuiltinModule?.("node:async_hooks");
+
+  if (!hooks)
+    throw new Error("Transactions need AsyncLocalStorage from process.getBuiltinModule, which this runtime does not provide.");
+
+  return context = new hooks.AsyncLocalStorage<Scope>();
 }
 
 function resolve(codecs: Codecs, name: string, field: Field): [Connection.Codec, Field] {
@@ -386,7 +384,7 @@ abstract class Connection extends Model {
     if (!this.transact)
       throw new Error(`${this.constructor.name} does not support transactions.`);
 
-    const storage = await scope();
+    const storage = scope();
     const outer = storage.getStore();
 
     if (outer?.has(this))
