@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { bool, date, key, num, str, Type } from '@expressive/orm';
+import { bool, date, key, num, str, Type, type Field } from '@expressive/orm';
 
 import { sql } from './datatypes';
 import { TestConnection } from './sqlite/TestConnection';
@@ -14,18 +14,28 @@ function column(define: () => unknown){
 }
 
 describe("sql", () => {
-  it("will set a column's datatype", () => {
-    expect(column(() => str(sql.text)).datatype).toBe("text");
-    expect(column(() => str(sql.varchar(40))).datatype).toBe("varchar(40)");
-    expect(column(() => str(sql.char(3))).datatype).toBe("char(3)");
-    expect(column(() => num(sql.bigint)).datatype).toBe("bigint");
-    expect(column(() => num(sql.decimal(10, 2))).datatype).toBe("decimal(10,2)");
-    expect(column(() => num(sql.numeric(4))).datatype).toBe("numeric(4,0)");
-    expect(column(() => num(sql.decimal(4))).datatype).toBe("decimal(4,0)");
-    expect(column(() => date(sql.timestamp)).datatype).toBe("timestamp");
-    expect(column(() => bool(sql.integer)).datatype).toBe("integer");
-    expect(column(() => date(sql.ms)).datatype).toBe("bigint");
-    expect(column(() => date(sql.seconds)).datatype).toBe("integer");
+  it("will declare a portable datatype", () => {
+    const pick = (define: () => unknown) => {
+      const { type, length, precision, scale } = column(define) as Field & { precision?: number, scale?: number };
+      return { type, length, precision, scale };
+    };
+
+    expect(pick(() => str(sql.text))).toMatchObject({ type: "text" });
+    expect(pick(() => str(sql.varchar(40)))).toMatchObject({ type: "varchar", length: 40 });
+    expect(pick(() => str(sql.char(3)))).toMatchObject({ type: "char", length: 3 });
+    expect(pick(() => str(sql.uuid))).toMatchObject({ type: "uuid" });
+    expect(pick(() => num(sql.bigint))).toMatchObject({ type: "bigint" });
+    expect(pick(() => num(sql.real))).toMatchObject({ type: "real" });
+    expect(pick(() => num(sql.double))).toMatchObject({ type: "double" });
+    expect(pick(() => num(sql.smallint))).toMatchObject({ type: "smallint" });
+    expect(pick(() => num(sql.integer))).toMatchObject({ type: "integer" });
+    expect(pick(() => num(sql.decimal(10, 2)))).toMatchObject({ type: "decimal", precision: 10, scale: 2 });
+    expect(pick(() => num(sql.numeric(4)))).toMatchObject({ type: "numeric", precision: 4, scale: 0 });
+    expect(pick(() => num(sql.numeric(4, 2)))).toMatchObject({ type: "numeric", precision: 4, scale: 2 });
+    expect(pick(() => num(sql.decimal(4)))).toMatchObject({ type: "decimal", precision: 4, scale: 0 });
+    expect(pick(() => date(sql.timestamp))).toMatchObject({ type: "timestamp" });
+    expect(pick(() => date(sql.date))).toMatchObject({ type: "date" });
+    expect(pick(() => date(sql.time))).toMatchObject({ type: "time" });
   })
 
   it("will combine with null and other options", () => {
@@ -46,6 +56,8 @@ describe("sql", () => {
     column(() => num(sql.text));
     // @ts-expect-error
     column(() => str(sql.bigint));
+    // @ts-expect-error
+    column(() => bool(sql.integer));
   })
 })
 

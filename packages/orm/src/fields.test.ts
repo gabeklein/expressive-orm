@@ -1,77 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import { bool, date, index, isLike, json, key, memory, num, one, optional, orNull, Query, str, Type, unique, uuid } from '.';
+import { bool, date, index, isLike, json, key, memory, now, num, one, optional, orNull, Query, str, Type, unique, uuid } from '.';
 import { Field } from './Field';
-
-class TextColumn extends str.Type {
-  type: str.DataType = "text";
-}
-
-class IntegerColumn extends num.Type {
-  type: num.DataType = "integer";
-}
-
-class TimeColumn extends date.Type {
-  type: date.DataType = "timestamp";
-}
-
-declare module '@expressive/orm' {
-  namespace str {
-    interface Text extends TextColumn {
-      type: "text";
-    }
-
-    interface VarChar extends TextColumn {
-      type: "varchar";
-      length: number;
-    }
-
-    interface UUID extends TextColumn {
-      type: "uuid";
-    }
-
-    interface Types {
-      default: Text;
-      text: Text;
-      varchar: VarChar;
-      uuid: UUID;
-    }
-  }
-
-  namespace num {
-    interface Integer extends IntegerColumn {
-      type: "integer";
-    }
-
-    interface Numeric extends IntegerColumn {
-      type: "numeric";
-      precision: number;
-    }
-
-    interface Types {
-      default: Integer;
-      integer: Integer;
-      numeric: Numeric;
-    }
-  }
-
-  namespace date {
-    interface Timestamp extends TimeColumn {
-      type: "timestamp";
-      timezone?: boolean;
-    }
-
-    interface Day extends TimeColumn {
-      type: "date";
-    }
-
-    interface Types {
-      default: Timestamp;
-      timestamp: Timestamp;
-      date: Day;
-    }
-  }
-}
 
 function connect(){
   return class Table extends Type {
@@ -112,15 +42,16 @@ describe("str", () => {
     expect(caught(() => field.set("abcd"))).toBe("Value length 4 exceeds maximum of 3.");
   })
 
-  it("will compose datatype", () => {
-    expect(column(() => str()).datatype).toBe("");
-    expect(column(() => str({ length: 3 })).datatype).toBe("");
-    expect(column(() => str({ type: "text" })).datatype).toBe("text");
-    expect(column(() => str({ type: "varchar", length: 40 })).datatype).toBe("varchar(40)");
-    expect(column(() => str({ type: "text", collate: "C" })).datatype).toBe('text COLLATE "C"');
+  it("will declare a portable type", () => {
+    expect(column(() => str()).type).toBe("text");
+    expect(column(() => str()).helper).toBe(str);
+
+    const field = column(() => str({ type: "varchar", length: 40, collate: "C" }));
+
+    expect([field.type, field.length]).toEqual(["varchar", 40]);
   })
 
-  it("will reject datatypes not augmented", () => {
+  it("will reject datatypes not declared", () => {
     // @ts-expect-error
     column(() => str({ type: "blob" }));
   })
@@ -135,7 +66,7 @@ describe("uuid", () => {
   it("will be a string column", () => {
     const field = column(() => uuid());
 
-    expect(field).toBeInstanceOf(str.Type);
+    expect(field.helper).toBe(str);
     expect(field.kind).toBe(String);
   })
 })
@@ -247,36 +178,52 @@ describe("num", () => {
     expect(caught(() => field.set(NaN))).toBe("Got 'NaN' but value must be a number.");
   })
 
-  it("will parse stored strings", () => {
-    expect(column(() => num()).get("1.5")).toBe(1.5);
+  it("will default to integer", () => {
+    const field = column(() => num());
+
+    expect(field.type).toBe("integer");
+    expect(caught(() => field.set(12.5))).toBe("Value 12.5 out of range for integer.");
+    expect(caught(() => field.set(2 ** 31))).toBe("Value 2147483648 out of range for integer.");
   })
 
-  it("will compose datatype", () => {
-    expect(column(() => num()).datatype).toBe("");
-    expect(column(() => num({ type: "integer" })).datatype).toBe("integer");
-    expect(column(() => num({ type: "numeric", precision: 10 })).datatype).toBe("numeric(10)");
-    expect(column(() => num({ type: "numeric", precision: 10, scale: 2 })).datatype).toBe("numeric(10,2)");
+  it("will check integer ranges", () => {
+    const small = column(() => num({ type: "smallint" }));
+    const big = column(() => num({ type: "bigint" }));
+
+    expect(small.set(32767)).toBe(32767);
+    expect(caught(() => small.set(32768))).toBe("Value 32768 out of range for smallint.");
+    expect(big.set(2 ** 40)).toBe(2 ** 40);
+    expect(caught(() => big.set(1.5))).toBe("Value 1.5 out of range for bigint.");
+  })
+
+  it("will accept fractions as real or double", () => {
+    expect(column(() => num({ type: "real" })).set(1.5)).toBe(1.5);
+    expect(column(() => num({ type: "double" })).set(1.5)).toBe(1.5);
+  })
+
+  it("will check decimal precision and scale", () => {
+    const field = column(() => num({ type: "decimal", precision: 5, scale: 2 }));
+    const whole = column(() => num({ type: "numeric", precision: 3 } as const));
+
+    expect(field.set(123.45)).toBe(123.45);
+    expect(caught(() => field.set(12345.6))).toBe("Value 12345.6 exceeds precision of 5.");
+    expect(caught(() => field.set(1.234))).toBe("Value 1.234 exceeds scale of 2.");
+    expect(whole.set(1.5)).toBe(1.5);
   })
 })
 
 describe("bool", () => {
-  it("will store as integer", () => {
+  it("will keep a boolean", () => {
     const field = column(() => bool());
 
-    expect(field.set(true)).toBe(1);
-    expect(field.set(false)).toBe(0);
-    expect(field.get(1)).toBe(true);
-    expect(field.get(0)).toBe(false);
+    expect(field.set(true)).toBe(true);
+    expect(field.set(false)).toBe(false);
+    expect(field.type).toBe("boolean");
   })
 
-  it("will store with either", () => {
-    const field = column(() => bool({ either: ["YES", "NO"] }));
-
-    expect(field.set(true)).toBe("YES");
-    expect(field.set(false)).toBe("NO");
-    expect(field.get("YES")).toBe(true);
-    expect(field.get("NO")).toBe(false);
-    expect(field.get(true)).toBe(true);
+  it("will reject storage options", () => {
+    // @ts-expect-error
+    column(() => bool({ either: ["YES", "NO"] }));
   })
 
   it("will throw on a non-boolean", () => {
@@ -287,20 +234,28 @@ describe("bool", () => {
     expect(column(() => bool(orNull)).set(null)).toBeNull();
   })
 
-  it("will use type as datatype", () => {
-    expect(column(() => bool()).datatype).toBe("");
-  })
 })
 
 describe("date", () => {
-  it("will store an ISO string", () => {
+  it("will normalise to a Date", () => {
     const field = column(() => date());
     const iso = "2024-01-01T00:00:00.000Z";
+    const given = new Date(iso);
 
-    expect(field.set(new Date(iso))).toBe(iso);
-    expect(field.set(iso)).toBe(iso);
+    expect(field.set(given)).toEqual(given);
+    expect(field.set(given)).not.toBe(given);
+    expect(field.set(iso)).toEqual(given);
     expect(field.set(0)).toBeUndefined();
-    expect(field.set(Date.parse(iso))).toBe(iso);
+    expect(field.set(Date.parse(iso))).toEqual(given);
+  })
+
+  it("will read a Date from a string", () => {
+    const field = column(() => date());
+    const given = new Date("2024-01-01T00:00:00.000Z");
+
+    expect(field.get(given)).toBe(given);
+    expect(field.get(given.toISOString())).toEqual(given);
+    expect(field.get(null)).toBeUndefined();
   })
 
   it("will throw on a non-date", () => {
@@ -310,9 +265,45 @@ describe("date", () => {
     expect(caught(() => field.set(true))).toBe("Got 'true' but value must be a Date or date string.");
   })
 
-  it("will compose datatype", () => {
-    expect(column(() => date()).datatype).toBe("");
-    expect(column(() => date({ type: "timestamp", precision: 3 })).datatype).toBe("timestamp(3)");
+  it("will write a calendar day as its local date", () => {
+    const field = column(() => date({ type: "date" }));
+    const day = new Date(2026, 0, 2);
+
+    expect(field.set("2026-01-02")).toBe("2026-01-02");
+    expect(field.set(new Date(2026, 0, 2, 23, 30))).toBe("2026-01-02");
+    expect(field.set(day.getTime())).toBe("2026-01-02");
+    expect(field.set(new Date(999, 0, 2))).toBe("0999-01-02");
+  })
+
+  it("will read a calendar day as local midnight", () => {
+    const field = column(() => date({ type: "date" }));
+    const day = new Date(2026, 0, 2);
+
+    expect(field.get("2026-01-02")).toEqual(day);
+    expect(field.get("2026-01-02T00:00:00")).toEqual(day);
+    expect(field.get(day)).toBe(day);
+  })
+
+  it("will keep a calendar day through memory", async () => {
+    class Event extends connect() {
+      day = date({ type: "date" });
+    }
+
+    const day = new Date(2026, 0, 2);
+    const event = await Event.new({ day: new Date(2026, 0, 2, 23, 30) });
+
+    expect(event.day).toEqual(day);
+    expect(await Event.connection.select("event", [])).toEqual([{ id: 1, day: "2026-01-02" }]);
+    expect(await Event.find({ day: "2026-01-02" })).toEqual([{ id: 1, day }]);
+
+    await event.set({ day: "2026-01-03" });
+
+    expect(event.day).toEqual(new Date(2026, 0, 3));
+  })
+
+  it("will default to timestamp", () => {
+    expect(column(() => date()).type).toBe("timestamp");
+    expect(column(() => date({ type: "time", timezone: true })).type).toBe("time");
   })
 
   it("will type options by datatype", () => {
@@ -325,11 +316,12 @@ describe("date", () => {
 })
 
 describe("json", () => {
-  it("will read malformed text as undefined", () => {
+  it("will keep a plain value", () => {
     const field = column(() => json());
 
-    expect(field.get("{", {})).toBeUndefined();
-    expect(field.get('{"a":1}', {})).toEqual({ a: 1 });
+    expect(field.set({ a: 1 })).toEqual({ a: 1 });
+    expect(field.set(undefined)).toBeNull();
+    expect(field.get(null)).toBeUndefined();
   })
 
   it("will match text by pattern", async () => {
@@ -350,71 +342,108 @@ describe("json", () => {
 
     expect(field.constructor).toBe(Field);
     expect(field.kind).toBe(Object);
-    expect(field.datatype).toBe("text");
+    expect([field.type, field.helper]).toEqual(["json", json]);
   })
 })
 
-describe("Type hook", () => {
-  it("will construct fields from a replaced class", () => {
-    const Base = str.Type;
+describe("and", () => {
+  it("will preset options", () => {
+    const email = str.and({ type: "varchar", length: 255 }, unique);
+    const field = column(() => email(index));
 
-    str.Type = TextColumn;
-
-    try {
-      const plain = column(() => str());
-      const sized = column(() => str({ type: "varchar", length: 40, column: "label" }));
-
-      expect(plain).toBeInstanceOf(TextColumn);
-      expect(plain.datatype).toBe("text");
-      expect(sized.datatype).toBe("varchar(40)");
-      expect(sized.column).toBe("label");
-    }
-    finally {
-      str.Type = Base;
-    }
-
-    expect(column(() => str())).not.toBeInstanceOf(TextColumn);
+    expect([field.type, field.length, field.unique, field.index]).toEqual(["varchar", 255, true, true]);
+    expect(field.helper).toBe(str);
+    expect(email.base).toBe(str);
   })
 
-  it("will replace each column class", () => {
-    const Num = num.Type;
-    const Time = date.Type;
+  it("will let options given override presets", () => {
+    const short = str.and({ type: "varchar", length: 8 });
 
-    num.Type = IntegerColumn;
-    date.Type = TimeColumn;
-
-    try {
-      expect(column(() => num()).datatype).toBe("integer");
-      expect(column(() => date()).datatype).toBe("timestamp");
-      expect(column(() => date({ type: "date" })).datatype).toBe("date");
-    }
-    finally {
-      num.Type = Num;
-      date.Type = Time;
-    }
+    expect(column(() => short({ length: 16 })).length).toBe(16);
   })
 
-  it("will replace the relation class", () => {
-    class Foreign<T extends Type = Type> extends one.Type<T> {
-      type: one.DataType = "integer";
-    }
+  it("will chain presets", () => {
+    const money = num.and({ type: "decimal", precision: 10, scale: 2 });
+    const owed = money.and(null);
+    const field = column(() => owed({ column: "owed_amount" }));
 
+    const { precision, scale } = field as Field & { precision?: number, scale?: number };
+
+    expect([field.type, precision, scale, field.nullable, field.column]).toEqual(["decimal", 10, 2, true, "owed_amount"]);
+    expect(owed.base).toBe(num);
+  })
+
+  it("will preset every helper", () => {
     class User extends connect() {}
 
-    const Base = one.Type;
+    const flag = bool.and({ fallback: false });
+    const day = date.and({ type: "date" });
+    const blob = json.and({ column: "data" });
+    const owner = one.and(null, { onDelete: "CASCADE" });
 
-    one.Type = Foreign;
+    expect(column(() => flag()).fallback).toBe(false);
+    expect(column(() => day()).type).toBe("date");
+    expect(column(() => blob()).column).toBe("data");
 
-    try {
-      const field = column(() => one(User, { onDelete: "cascade" }));
+    const field = column(() => owner(User)) as Field & { onDelete?: string };
 
-      expect(field).toBeInstanceOf(Foreign);
-      expect(field.datatype).toBe("integer");
-      expect(field.column).toBe("value_id");
+    expect([field.nullable, field.onDelete, field.helper]).toEqual([true, "CASCADE", one]);
+  })
+
+  it("will rebuild created and updated", () => {
+    const created = column(() => date.created());
+    const updated = column(() => date.updated());
+
+    expect([created.fallback, created.fixed, created.helper]).toEqual([now, true, date]);
+    expect([updated.fallback, updated.update, updated.helper]).toEqual([now, now, date]);
+    expect(date.created.base).toBe(date);
+  })
+
+  it("will type by presets and options", () => {
+    const maybe = str.and(null);
+    const later = str.and(optional);
+    const fixed = date.and({ fallback: now, fixed: true } as const);
+    const owner = one.and(null);
+
+    class Owner extends connect() {}
+
+    class Tag extends connect() {
+      a = str();
+      b = str(null);
+      c = maybe();
+      d = str(optional);
+      e = later();
+      f = date({ fallback: now, fixed: true } as const);
+      g = fixed();
+      h = date.created();
+      i = date.updated(null);
+      j = owner(Owner);
+      k = one(Owner, null);
+      l = one(Owner);
     }
-    finally {
-      one.Type = Base;
-    }
+
+    const tag = {} as Tag;
+
+    expectTypeOf(tag.a).toEqualTypeOf<string>();
+    expectTypeOf(tag.b).toEqualTypeOf<string | undefined>();
+    expectTypeOf(tag.c).toEqualTypeOf<typeof tag.b>();
+    expectTypeOf(tag.e).toEqualTypeOf<typeof tag.d>();
+    expectTypeOf(tag.g).toEqualTypeOf<typeof tag.f>();
+    expectTypeOf(tag.h).toEqualTypeOf<typeof tag.f>();
+    expectTypeOf(tag.i).toEqualTypeOf<Date | undefined>();
+    expectTypeOf(tag.j).toEqualTypeOf<Owner | undefined>();
+    expectTypeOf(tag.j).toEqualTypeOf<typeof tag.k>();
+    expectTypeOf(tag.l).toEqualTypeOf<Owner>();
+
+    const insert: Type.Insert<Tag> = { a: "a", l: 1 };
+
+    // @ts-expect-error
+    const missing: Type.Insert<Tag> = { l: 1 };
+
+    // @ts-expect-error
+    const update: Type.Update<Tag> = { h: new Date() };
+
+    expect([insert, missing, update]).toBeTruthy();
   })
 })
 

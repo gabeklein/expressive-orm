@@ -1,4 +1,4 @@
-import { DataTypes, Exact, field, Has, OptionsOf, PEEK } from "./fields";
+import { DataTypes, Exact, field, Has, OptionsOf, PEEK, presets } from "./fields";
 import { configure, Field, Nullable, underscore } from './Field';
 import type { Builder } from './query/Builder';
 import Type, { adopt } from "./Type";
@@ -96,7 +96,7 @@ export function getRelated<T extends Type.Class>(Class: T, type: Type.Class) {
 }
 
 declare namespace one {
-  /** Datatypes `one()` accepts for its key column, by name - augment to add one. */
+  /** Datatypes `one()` accepts - none; the column takes the related key's datatype. */
   interface Types {}
 
   /** Name of a registered `one()` datatype. */
@@ -105,8 +105,11 @@ declare namespace one {
   /** One option of `one()` - `null`, `lazy`, a datatype, or an object of column options. */
   type Options = OptionsOf<Types, OneToOneField>;
 
-  /** Column class behind `one()` - a package replaces it to add datatypes. */
-  let Type: typeof OneToOneField;
+  /** `one` with options preset - same signature, presets after the class. */
+  let and: <P extends Options[]>(...preset: P & Exact<P, Types>) => <T extends Type, C extends Options[]>(
+    from: Type.Class<T>,
+    ...config: C & Exact<C, Types>
+  ) => Has<[...P, ...C], Nullable> extends true ? T | undefined : T;
 }
 
 /**
@@ -126,7 +129,7 @@ declare namespace one {
 function one<T extends Type, C extends one.Options[]>(from: Type.Class<T>, ...config: C & Exact<C, one.Types>){
   return field<Has<C, Nullable> extends true ? T | undefined : T, OneToOneField<T>>(
     (key, parent) => {
-      const field = configure(new one.Type<T>(key), [{ entity: from, column: `${underscore(key)}_id` }, ...config]);
+      const field = configure(new OneToOneField<T>(key), [{ helper: one, entity: from, column: `${underscore(key)}_id` }, ...config]);
       let rel = ONE.get(parent);
 
       Object.defineProperty(field, "reference", {
@@ -218,7 +221,7 @@ function one<T extends Type, C extends one.Options[]>(from: Type.Class<T>, ...co
   );
 }
 
-one.Type = OneToOneField;
+one.and = presets(one, 1) as typeof one.and;
 
 /** Modifier for `one()` - load the related entity on first read, not with its parent. */
 const lazy = { lazy: true };

@@ -4,11 +4,6 @@ import { Generator } from '../connection/Generator';
 
 export function now(field?: Field){
   switch (field?.type) {
-    case "ms":
-      return "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-    case "seconds":
-    case "integer":
-      return "CAST(strftime('%s', 'now') AS INTEGER)";
     case "date":
       return "date('now')";
     case "time":

@@ -74,20 +74,34 @@ function like(pattern: string) {
   return new RegExp(`^${source}$`, 's');
 }
 
+function plain(value: unknown) {
+  return value instanceof Date ? value.getTime() : value;
+}
+
+function text(value: unknown) {
+  return typeof value == "string" ? value : value instanceof Date ? value.toISOString() : JSON.stringify(value);
+}
+
 function match(op: string, left: unknown, right: unknown) {
   const test = MATCH[op];
 
   if (!test)
     throw new Error(`Unsupported operator: ${op}`);
 
-  return left != null && test(left, right);
+  if (left == null)
+    return false;
+
+  if (op.includes("LIKE"))
+    return test(text(left), right);
+
+  return test(plain(left), Array.isArray(right) ? right.map(plain) : plain(right));
 }
 
 function sort<T>(items: T[], keys: [(item: T) => unknown, number][]) {
   return [...items].sort((a, b) => {
     for (const [key, dir] of keys) {
-      const x = key(a) ?? null;
-      const y = key(b) ?? null;
+      const x = plain(key(a)) ?? null;
+      const y = plain(key(b)) ?? null;
 
       if (x !== y)
         return (y === null || x !== null && x > y ? 1 : -1) * dir;

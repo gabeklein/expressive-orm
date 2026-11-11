@@ -54,7 +54,8 @@ class DataField extends Value {
   }
 
   get datatype(){
-    return this.field?.datatype || "";
+    const { field, table } = this;
+    return field && table.parent.connection ? table.parent.connection._datatype(field) : "";
   }
 
   toString(){

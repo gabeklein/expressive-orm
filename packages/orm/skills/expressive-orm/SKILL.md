@@ -37,11 +37,15 @@ Helpers: `str()` string, `num()` number, `bool()` boolean, `date()` Date. Option
 - `unique`, `index` - `sync` creates a missing index `<table>_<column>`, or `{ index: "name" }`.
 - `{ column }` - column name; default is the property in snake case.
 - `{ fallback }` - column default, also optional on insert. `sql.now` (from `@expressive/sql`) is the database's current time.
-- A datatype (`sql.varchar(255)`, `sql.uuid`, `sql.ms`) - `@expressive/sql`'s vocabulary, see `expressive-sql`.
+- A datatype - portable, declared by orm: `str` takes `text`, `varchar`/`char` with `length`, `uuid`; `num` takes `integer` (default), `smallint`, `bigint`, `real`, `double`, `decimal`/`numeric` with `precision` and `scale`; `date` takes `timestamp` (default), `date`, `time`, with `timezone` on the last two; `bool` takes `boolean`. Write it as an object - `str({ type: "varchar", length: 255 })` - or with `@expressive/sql`'s `sql.*` shorthand. Any other is a type error.
 
-`json<T>()` holds T as text and takes one option - `json<T>(null)` or `json<T>({ column })`. Unparseable text reads `undefined`.
+The field checks each write itself, on every connection: a string within `length`, an integer within its type's range, a decimal within precision and scale, a boolean, a Date (or date string, or epoch ms). A connection takes and returns those plain values and stores them its own way, so one schema module importing only `@expressive/orm` runs on a server and on a client forwarding to it. `Connection.new` throws when it can't store a field's datatype.
 
-`date.created()` is written on insert only - upserts leave it, an update giving it fails to compile and throws. `date.updated()` is set to now on every update and upsert that doesn't give it. Underneath: `{ fallback: sql.now, fixed: true }` and `{ fallback: sql.now, update: sql.now }`. Any column takes `fixed` and `update`; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
+Every helper has `.and(...presets)` - the same helper with those options first: `const money = num.and({ type: "decimal", precision: 10, scale: 2 })`, then `price = money(null)`. Types follow every option, preset or given; a preset helper chains `.and` again, and `.base` is the helper it presets.
+
+`json<T>()` holds a JSON value and takes one option - `json<T>(null)` or `json<T>({ column })`. SQL stores it as text; unparseable text reads `undefined`.
+
+`date.created()` and `date.updated()` are presets of `date`. `date.created()` is written on insert only - upserts leave it, an update giving it fails to compile and throws. `date.updated()` is set to now on every update and upsert that doesn't give it. Underneath: `{ fallback: sql.now, fixed: true }` and `{ fallback: sql.now, update: sql.now }`. Any column takes `fixed` and `update`; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
 
 Table is the class name in snake case; `static table` overrides, `static schema` qualifies it. `static subset = { role: "admin" }` scopes a subclass to part of a shared table (give it the parent's `table`): merged into inserts and every query filter. Reads by id (`get(id)`, `one(id)`) are scoped; `update(id)`, `delete(id)` and instance `set`/`delete` are not. `orNull` and `uuid()` are deprecated for `null` and `str(sql.uuid)`.
 
@@ -276,13 +280,14 @@ db.after(Upload, { async delete(row){ await bucket.delete(row.path) } });       
 - `after` runs once the row is gone and is awaited before the delete resolves; a throw is logged with `console.error`, never failing the delete. In a `transaction` it runs after commit and before `transaction` resolves, never on rollback.
 
 ## Live rows
-## Live rows
 
 A connection with `subscribe` keeps loaded entities current with changes made elsewhere: an update settles in, a delete destroys, an insert changes nothing loaded. `memory()` reports every write; Postgres uses LISTEN/NOTIFY; SQLite has none.
 
 ## Drivers
 
-`Connection` (an abstract Model) - the floor is `select`, `insert`, `update` and `remove`, keyed by table name and primary column; each is documented on `Connection`. A composite `id` arrives as its tuple, in `key` order. Optional: `prepare(builder)` runs `Query` (without it `Query` and `Type.query` throw); `subscribe(listener)` reports `{ table, op, id, row? }` and returns a stop function; `sync(fix?)` checks or creates the schema; protected `transact(fn)` enables `transaction(fn)`. `Connection` holds the lock and journal: call `idle()` before each statement; a pooled driver overrides `lock()` and `idle()`.
+`Connection` (an abstract Model) - the floor is `select`, `insert`, `update` and `remove`, keyed by table name and primary column; each is documented on `Connection`. It takes and returns plain values - Dates, booleans, JSON values, and a `date({ type: "date" })` calendar day as the text `YYYY-MM-DD` - so a client connection can forward the four calls to a server's as they are, whatever either side's time zone. A composite `id` arrives as its tuple, in `key` order.
+
+A driver storing values its own way sets a protected `codecs` getter - a map from base helper (`str`, `num`, `bool`, `date`, `json`) to a `Connection.Codec` (`types`, `datatype`, `encode`, `decode`). A field resolves its codec by `field.helper`, a relation by its referenced key. Without `codecs`, values pass through as they are, as on `memory()`. Optional: `prepare(builder)` runs `Query` (without it `Query` and `Type.query` throw); `subscribe(listener)` reports `{ table, op, id, row? }` and returns a stop function; `sync(fix?)` checks or creates the schema; protected `transact(fn)` enables `transaction(fn)`. `Connection` holds the lock and journal: call `idle()` before each statement; a pooled driver overrides `lock()` and `idle()`.
 
 For a SQL database extend `@expressive/sql`'s `Connection` instead (see `expressive-sql`). Without a query language, `evaluate(store, builder, params)` runs `Query` in JS against an `evaluate.Store`, returning `{ rows, count }`.
 

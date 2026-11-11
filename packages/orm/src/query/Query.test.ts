@@ -7,7 +7,7 @@ import { one } from '../one';
 import { Type } from '../Type';
 import { Builder } from './Builder';
 import { Query } from './Query';
-import { now } from './Value';
+import { DataField, now } from './Value';
 
 function connect(){
   return class Table extends Type {
@@ -1208,12 +1208,12 @@ describe("update", () => {
       const { age, name } = where(data);
       const user = where(Users);
 
-      expect(age.datatype).toBe("");
+      expect((age as unknown as DataField).datatype).toBe("");
 
       where(user.name).equal(name);
       where(user).update({ age });
 
-      expect(age.datatype).toBe("integer");
+      expect((age as unknown as DataField).datatype).toBe("integer");
     });
 
     expect(String(query)).toMatchInlineSnapshot(`
@@ -1514,7 +1514,7 @@ describe("template", () => {
 
     const active = query(true);
 
-    expect(active.params).toEqual([1]);
+    expect(active.params).toEqual([true]);
     await expect(active).resolves.toEqual([1]);
   })
 

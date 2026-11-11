@@ -3,6 +3,8 @@ import type { Connection } from '@expressive/sql';
 
 import { PostgresConnection } from './PostgresConnection';
 
+const DATE = 1082;
+
 export class PGLiteConnection extends PostgresConnection {
   protected declare engine: Promise<PGlite>;
   dataDir?: string;
@@ -30,7 +32,7 @@ export class PGLiteConnection extends PostgresConnection {
   }
 
   async query(sql: string, params?: any[]) {
-    return (await this.engine).query(sql, params);
+    return (await this.engine).query(sql, params, { parsers: { [DATE]: (value: string) => value } });
   }
 
   async exec(sql: string): Promise<void> {

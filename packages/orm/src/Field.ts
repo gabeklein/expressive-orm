@@ -26,9 +26,10 @@ export type Omits<V> =
 export type Config<T = Field> = Partial<T> | null | undefined | false;
 
 /**
- * A column's definition - what a field helper registers on its entity class.
+ * A column's declaration - what a field helper registers on its entity class.
  *
- * Drivers read it to build schema and to encode and decode values. Inside a `Query` it stands for the column.
+ * Portable: `set` and `get` check and normalise plain values, the same on every connection. A driver's codec, chosen by `helper`, stores them.
+ * Inside a `Query` it stands for the column.
  */
 export class Field<T = unknown> {
   /** Property name on the entity. */
@@ -37,6 +38,8 @@ export class Field<T = unknown> {
   column: string;
   /** Datatype name, from the helper's `Types`. */
   type = "";
+  /** The base helper declaring it - `str`, `num`, `bool`, `date`, `json` or `one`. A driver picks its codec by it. */
+  helper?: Function;
   /** Constructor of the JS value - `String`, `Number`, `Boolean`, `Date` or `Object`. */
   kind?: unknown;
   length?: number;
@@ -78,34 +81,29 @@ export class Field<T = unknown> {
     configure(this, opts);
   }
 
-  /** Datatype as schema renders it, size and options included. */
-  get datatype() {
-    return this.type;
-  }
-
   /** Called when the property is first read in a `Query` - a relation joins its table here. */
   use?(query: Builder): unknown;
 
   /**
-   * Encode a value for storage, throwing when it does not fit.
+   * Check and normalise a plain value for this column, throwing when it does not fit the declared type.
    *
-   * `compare` is set when encoding for a filter.
+   * Runs before every write, on the client and again at a driver. `compare` is set for a filter.
    */
-  set(this: Field, value: any, compare?: boolean): Async<string | number | boolean | null | undefined> {
+  set(this: Field, value: any, compare?: boolean): Async<unknown> {
     return value;
   }
 
-  /** Decode a stored value. `from` is the whole stored row. */
+  /** Read a plain value as the property holds it. `from` is the whole row. */
   get(this: Field, value: any, from?: Record<string, any>): Async<T | undefined> {
     return value;
   }
 
   /**
-   * Encode this field out of `from`, by property, into `update`, by column.
+   * Check this field out of `from`, by property, into `update`, by column.
    *
    * Applies the fallback, or with `partial` the `update` value. Throws for a missing required value, or for a fixed column given with `partial`.
    */
-  async apply(update: Record<string, string>, from: Record<string, any>, partial?: boolean) {
+  async apply(update: Record<string, unknown>, from: Record<string, any>, partial?: boolean) {
     const { key, column, nullable, fixed } = this;
     let value = from[key];
 

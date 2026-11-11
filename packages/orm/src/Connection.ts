@@ -2,7 +2,7 @@ import { Model } from '@expressive/mvc';
 
 import type { Builder } from './query/Builder';
 import type { Query } from './query/Query';
-import { match, row } from './Field';
+import { Field, match, row } from './Field';
 import type { Columns, Type } from './Type';
 
 declare namespace Connection {
@@ -61,6 +61,22 @@ declare namespace Connection {
     delete?(row: Columns<T>): void | Promise<void>;
   }
 
+  /**
+   * How a driver stores the fields of one helper - chosen by `Field.helper`, keyed by the helper itself.
+   *
+   * A relation's column uses the codec of the key it references.
+   */
+  interface Codec<F extends Field = any> {
+    /** `Field.type` values it can store - binding a class with another throws. */
+    readonly types: readonly string[];
+    /** Datatype as schema renders it, size and options included. */
+    datatype(field: F): string;
+    /** A plain value, already checked by the field, as stored. Not called for `null` or `undefined`. */
+    encode(field: F, value: unknown): unknown;
+    /** A stored value as plain. Not called for `null` or `undefined`. */
+    decode(field: F, value: unknown): unknown;
+  }
+
   /** A row change reported to `subscribe`'s listener. */
   interface Change {
     /** Table as the connection addresses it, schema included. */
@@ -73,6 +89,8 @@ declare namespace Connection {
 }
 
 type Scope = Map<Connection, Connection.Journal>;
+
+type Codecs = ReadonlyMap<Function, Connection.Codec>;
 
 type Hook<H> = { type: Type.Class; hooks: H };
 type Hooks = { before: Set<Hook<Connection.Before<any>>>; after: Set<Hook<Connection.After<any>>> };
@@ -98,6 +116,16 @@ function scope(){
   );
 }
 
+function resolve(codecs: Codecs, name: string, field: Field): [Connection.Codec, Field] {
+  const target = field.reference || field;
+  const codec = codecs.get(target.helper!);
+
+  if (!codec || !codec.types.includes(target.type))
+    throw new Error(`${name} can't store ${target.helper?.name || "a field of"} type '${target.type}' (${field.parent?.name}.${field.key}).`);
+
+  return [codec, target];
+}
+
 /**
  * Base class of a driver - a Model binding entity classes to a store.
  *
@@ -120,12 +148,22 @@ abstract class Connection extends Model {
    * Throws when a class already has one. Construct with `Connection.new`.
    */
   constructor(using: Connection.Types = []){
-    super();
+    const types = Object.values(using);
+    const codecs = Reflect.get(new.target.prototype, "codecs") as Codecs | undefined;
 
-    this.using = new Set(Object.values(using).map(type => {
+    for (const type of types) {
       if (type.hasOwnProperty('connection'))
         throw new Error(`Type ${type.name} already has assigned connection.`);
 
+      if (codecs)
+        for (const field of type.fields.values())
+          if (!field.absent && !("entity" in field))
+            resolve(codecs, new.target.name, field);
+    }
+
+    super();
+
+    this.using = new Set(types.map(type => {
       type.connection = this;
       return type;
     }));
@@ -201,6 +239,36 @@ abstract class Connection extends Model {
 
   _journal(){
     return context?.getStore()?.get(this);
+  }
+
+  /**
+   * Codecs by base helper - how this driver stores each helper's fields.
+   *
+   * Unset, values pass through as they are, like `memory()` or a connection forwarding to another.
+   * Set, `Connection.new` throws for a field none of them can store.
+   */
+  protected get codecs(): Codecs | undefined {
+    return undefined;
+  }
+
+  _codec(field: Field){
+    const { codecs } = this;
+    return codecs && resolve(codecs, this.constructor.name, field);
+  }
+
+  _encode(field: Field, value: unknown){
+    const codec = value == null ? undefined : this._codec(field);
+    return codec ? codec[0].encode(codec[1], value) : value;
+  }
+
+  _decode(field: Field, value: unknown){
+    const codec = value == null ? undefined : this._codec(field);
+    return codec ? codec[0].decode(codec[1], value) : value;
+  }
+
+  _datatype(field: Field){
+    const codec = this._codec(field);
+    return codec ? codec[0].datatype(codec[1]) : field.type;
   }
 
   /**

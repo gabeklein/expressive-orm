@@ -53,7 +53,7 @@ class Memory extends Connection {
 
   _add(name: string, data: Row, primary = this._key(name)) {
     const into = this._table(name);
-    const row = primary.parts ? { ...data } : { [primary.column]: into.next, ...data };
+    const row = primary.parts ? structuredClone(data) : { [primary.column]: into.next, ...structuredClone(data) };
     const id = identify(primary, row);
 
     if (typeof id == "number")
@@ -86,7 +86,7 @@ class Memory extends Connection {
 
     return sort(rows, order)
       .slice(offset, limit ? offset + limit : undefined)
-      .map(row => ({ ...row }));
+      .map(row => structuredClone(row));
   }
 
   async insert(name: string, data: Row, returns?: boolean, conflict?: Connection.Conflict) {
@@ -113,7 +113,7 @@ class Memory extends Connection {
       return;
 
     if (returns)
-      return { ...row };
+      return structuredClone(row);
   }
 
   async update(name: string, id: Connection.Key, data: Row) {
@@ -123,7 +123,7 @@ class Memory extends Connection {
 
     for (const row of this._table(name).rows)
       if (test(row)) {
-        Object.assign(row, data);
+        Object.assign(row, structuredClone(data));
         this._notify(name, "update", id, data);
       }
   }

@@ -7,17 +7,10 @@ export function now(field?: Field){
   const { timezone } = (field || {}) as { timezone?: boolean };
 
   switch (field?.type) {
-    case "ms":
-      return "(extract(epoch from now()) * 1000)::bigint";
-    case "seconds":
-    case "integer":
-      return "extract(epoch from now())::integer";
     case "date":
       return `${utc}::date`;
     case "time":
       return timezone ? "now()::timetz" : `${utc}::time`;
-    case "text":
-      return `to_char(${utc}, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
     default:
       return timezone ? "now()" : utc;
   }

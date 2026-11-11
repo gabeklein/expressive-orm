@@ -49,6 +49,6 @@ await db.close();
 - `Connection` - the SQL connection base: orm's floor implemented over `Query`, so a dialect supplies `prepare` (with a `Generator` subclass) and `sync`.
 - `Generator` - renders a `Query` builder as SQL.
 - Driver seams - `Builder`, `DataTable`, `DataField`, `Parameter`, `Computed`, `QueryTemplate`, `Where` - import from `@expressive/orm/driver`. A dialect package lists `@expressive/orm` as a direct dependency, at the range this package depends on.
-- `StringColumn`, `NumericColumn`, `BooleanColumn`, `TimeColumn`, `ForeignColumn` - the column classes behind `str`, `num`, `bool`, `date` and `one`, carrying the SQL datatype vocabulary and its validation. See [Datatypes](https://github.com/gabeklein/expressive-orm#datatypes).
+- `codecs` - how SQL stores each field helper's plain values, by helper; a dialect extends the map. `sql` - shorthand for orm's portable datatypes. See [Datatypes](https://github.com/gabeklein/expressive-orm#datatypes).
 
 SQLite has no live rows - neither `node:sqlite` nor `bun:sqlite` exposes an update hook. For those, use [`@expressive/postgres`](https://github.com/gabeklein/expressive-orm/tree/main/packages/postgres).

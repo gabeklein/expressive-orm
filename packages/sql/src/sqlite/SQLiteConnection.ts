@@ -1,5 +1,6 @@
-import { Field, now, Query } from '@expressive/orm';
+import { Field, now, Query, Type } from '@expressive/orm';
 import { Builder } from '@expressive/orm/driver';
+import { codecs } from '../codecs';
 import { Connection } from '../connection/Connection';
 import { format } from 'sql-formatter';
 
@@ -23,6 +24,10 @@ type TableInfo = {
  * const db = await SQLiteConnection.new([User, Post], "app.db");
  */
 export class SQLiteConnection extends Connection {
+  protected get codecs(){
+    return affinities;
+  }
+
   protected filename: string;
   protected engine?: Promise<Engine>;
   protected owned = true;
@@ -578,11 +583,8 @@ const AFFINITY: Record<string, string> = {
   integer: "INTEGER",
   smallint: "INTEGER",
   bigint: "INTEGER",
-  ms: "INTEGER",
-  seconds: "INTEGER",
   boolean: "INTEGER",
   real: "REAL",
-  float: "REAL",
   double: "REAL",
   numeric: "NUMERIC",
   decimal: "NUMERIC",
@@ -592,16 +594,21 @@ const AFFINITY: Record<string, string> = {
   uuid: "TEXT",
   timestamp: "TEXT",
   date: "TEXT",
-  time: "TEXT"
+  time: "TEXT",
+  json: "TEXT"
 };
 
+const affinities: ReadonlyMap<Function, Connection.Codec> = new Map(Array.from(codecs, ([helper, codec]) => [
+  helper,
+  { ...codec, datatype: (field: Field) => AFFINITY[field.type] }
+]));
+
+function connection(field: Field){
+  return (field.parent as Type.Class).connection;
+}
+
 function affinity(field: Field){
-  const type = AFFINITY[field.type] || field.datatype.toUpperCase();
-
-  if (!type)
-    throw new Error(`Column ${field.column} has no datatype. Is @expressive/orm installed twice?`);
-
-  return type;
+  return connection(field)._datatype(field);
 }
 
 function literal(field: Field, value: unknown){
@@ -611,7 +618,7 @@ function literal(field: Field, value: unknown){
   if (value === null)
     return "NULL";
 
-  const encoded = field.set(value);
+  const encoded = connection(field)._encode(field, field.set(value));
 
   return typeof encoded == "string"
     ? `'${encoded.replace(/'/g, "''")}'`
