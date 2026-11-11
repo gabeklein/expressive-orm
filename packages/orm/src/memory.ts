@@ -4,25 +4,45 @@ import type { Builder } from './query/Builder';
 import { evaluate, match, NULL, sort } from './query/evaluate';
 import type { Query } from './query/Query';
 import type { Type } from './Type';
-import { browser, disk } from './persist';
+import { fileAdapter, indexedDBAdapter } from './persist';
 
 type Row = evaluate.Row;
 
 type Table = memory.Table;
 
 declare namespace memory {
-  type Table = { rows: Row[], next: number };
+  /** One table as an adapter stores it. */
+  interface Table {
+    /** Every row, keyed by column. */
+    rows: Row[];
+    /** The id the next insert takes. */
+    next: number;
+  }
 
+  /** Tables by name. */
   type Snapshot = Record<string, Table>;
 
+  /** Where a persisted `memory()` loads from and saves to. */
   interface Adapter {
+    /**
+     * Returns every stored table, or nothing for an empty store.
+     *
+     * Runs once, when the connection is created. Every statement waits for it; if it throws, every statement rejects with its error.
+     */
     load(): Snapshot | undefined | Promise<Snapshot | undefined>;
+    /**
+     * Stores the tables that changed since the last save, as copies.
+     *
+     * Called a macrotask after a write, once per batch, one call at a time, and only for committed transactions.
+     * A failed save logs to `console.error` and retries with the next write; `close()` rethrows it.
+     */
     save(changes: Snapshot): void | Promise<void>;
   }
 
-  type Options = {
+  interface Options {
+    /** Loads tables when the connection opens and saves them as they change. */
     persist?: Adapter;
-  };
+  }
 }
 
 function key(type: Query.Table) {
@@ -63,8 +83,10 @@ class Memory extends Connection {
   async _load(adapter: memory.Adapter) {
     const snapshot = await adapter.load();
 
-    for (const name in snapshot)
-      this._tables.set(name, snapshot[name]);
+    for (const name in snapshot) {
+      const { rows, next } = snapshot[name];
+      this._tables.set(name, { rows: rows.map(row => ({ ...row })), next });
+    }
 
     this._persist = adapter;
   }
@@ -132,7 +154,7 @@ class Memory extends Connection {
     const emit = () => {
       if (this._persist) {
         this._dirty.add(table);
-        this._flush().catch(() => {});
+        this._flush().catch(error => console.error(error));
       }
 
       this._listeners.forEach(listener => listener(change));
@@ -287,14 +309,15 @@ class Memory extends Connection {
 }
 
 /**
- * An in-memory connection - rows in arrays, for tests and prototypes.
+ * An in-memory connection - rows in arrays, for tests, prototypes, and with `persist`, small apps.
  *
  * Runs `Query` except raw SQL templates, supports `transaction`, and reports every write to live rows.
  * `isLike` is case-sensitive, unlike SQLite's.
+ * With `persist`, tables load when the connection opens and save as they change; `close()` waits for the last save and throws if it failed.
  *
  * @example
  * class User extends Type {
- *   static connection = memory();
+ *   static connection = memory({ persist: memory.indexedDB("app") });
  *   name = str();
  * }
  */
@@ -309,7 +332,7 @@ function memory(options: memory.Options = {}): Connection {
   return db;
 }
 
-memory.indexedDB = browser;
-memory.file = disk;
+memory.indexedDB = indexedDBAdapter;
+memory.file = fileAdapter;
 
 export { memory };

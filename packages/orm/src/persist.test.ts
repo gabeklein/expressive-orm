@@ -59,6 +59,39 @@ describe("indexedDB", () => {
     await expect(db.select("user", [])).rejects.toThrow();
   })
 
+  it("will give the database up to a delete", async () => {
+    const db = memory({ persist: memory.indexedDB("app") });
+
+    await db.insert("user", { name: "A" });
+    await db.close();
+
+    await new Promise<void>((resolve, reject) => {
+      const req = factory.deleteDatabase("app");
+      req.onsuccess = () => resolve();
+      req.onblocked = () => reject(new Error("blocked"));
+    });
+
+    const next = memory({ persist: memory.indexedDB("app") });
+
+    await expect(next.select("user", [])).resolves.toEqual([]);
+    await next.close();
+  })
+
+  it("will reopen after giving the database up", async () => {
+    const persist = memory.indexedDB("app");
+    const table = { rows: [{ id: 1 }], next: 2 };
+
+    await persist.save({ user: table });
+    await new Promise<void>((resolve, reject) => {
+      const req = factory.deleteDatabase("app");
+      req.onsuccess = () => resolve();
+      req.onblocked = () => reject(new Error("blocked"));
+    });
+    await persist.save({ post: table });
+
+    await expect(persist.load()).resolves.toEqual({ post: table });
+  })
+
   it("will throw if save aborts", async () => {
     const db = memory({ persist: memory.indexedDB("app") });
 
@@ -68,6 +101,8 @@ describe("indexedDB", () => {
       this.transaction.abort();
       return {} as any;
     });
+
+    vi.spyOn(console, "error").mockImplementation(() => {});
 
     await db.insert("user", { name: "A" });
     await expect(db.close()).rejects.toBeDefined();
@@ -117,6 +152,39 @@ describe("file", () => {
     });
   })
 
+  it("will not save rolled back rows", async () => {
+    const path = join(dir, "db.json");
+
+    await writeFile(path, JSON.stringify({ user: { rows: [{ id: 1, name: "A" }], next: 2 } }));
+
+    const db = memory({ persist: memory.file(path) });
+
+    await expect(db.transaction(async () => {
+      await db.update("user", 1, { name: "B" });
+      await db.insert("user", { name: "C" });
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    await db.insert("post", { title: "X" });
+    await db.close();
+
+    expect(JSON.parse(await readFile(path, "utf8")).user).toEqual({ rows: [{ id: 1, name: "A" }], next: 2 });
+  })
+
+  it("will keep dates", async () => {
+    const path = join(dir, "db.json");
+    const at = new Date("2020-01-01T00:00:00.000Z");
+    const db = memory({ persist: memory.file(path) });
+
+    await db.insert("event", { at, meta: { $date: 1 } });
+    await db.close();
+
+    const next = memory({ persist: memory.file(path) });
+
+    await expect(next.select("event", [])).resolves.toEqual([{ id: 1, at, meta: { $date: 1 } }]);
+    await next.close();
+  })
+
   it("will write through a temporary file", async () => {
     const path = join(dir, "db.json");
     const db = memory({ persist: memory.file(path) });
@@ -142,6 +210,7 @@ describe("file", () => {
 
     await expect(db.select("user", [])).rejects.toThrow(SyntaxError);
   })
+
   it("will throw without node:fs", async () => {
     vi.spyOn(process, "getBuiltinModule" as any).mockReturnValue(undefined);
 

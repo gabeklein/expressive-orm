@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { str } from './fields';
 import { memory } from './memory';
@@ -375,6 +375,16 @@ function adapter(tables?: memory.Snapshot) {
 }
 
 describe("persist", () => {
+  let error: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    error = vi.spyOn(console, "error").mockImplementation(() => {});
+  })
+
+  afterEach(() => {
+    error.mockRestore();
+  })
+
   it("will load tables and continue ids", async () => {
     const { persist } = adapter({ user: { rows: [{ id: 3, name: "A" }], next: 7 } });
     const db = memory({ persist });
@@ -489,11 +499,21 @@ describe("persist", () => {
     const db = memory({ persist: { load: () => undefined, save } });
 
     await db.insert("user", { name: "A" });
-    await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(error).toHaveBeenCalledWith(new Error("disk full")));
     await db.close();
 
     expect(save).toHaveBeenCalledTimes(2);
     expect(save).toHaveBeenLastCalledWith({ user: { rows: [{ id: 1, name: "A" }], next: 2 } });
+  })
+
+  it("will not share loaded rows with adapter", async () => {
+    const tables = { user: { rows: [{ id: 1, name: "A" }], next: 2 } };
+    const db = memory({ persist: { load: () => tables, save: () => {} } });
+
+    await db.update("user", 1, { name: "B" });
+    await db.close();
+
+    expect(tables.user.rows).toEqual([{ id: 1, name: "A" }]);
   })
 
   it("will throw on close if save fails", async () => {

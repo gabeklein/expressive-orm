@@ -23,6 +23,8 @@ type Transaction = {
 type Database = {
   transaction(store: string, mode?: string): Transaction;
   createObjectStore(name: string): void;
+  onversionchange: (() => void) | null;
+  close(): void;
 };
 
 type Factory = {
@@ -36,16 +38,30 @@ function request<T>(request: Request<T>) {
   });
 }
 
-function browser(name: string): memory.Adapter {
+/**
+ * Persists `memory()` in the browser's IndexedDB database `name`, one record per table.
+ *
+ * Gives the database up when another connection deletes or upgrades it, reopening on the next save.
+ */
+function indexedDBAdapter(name: string): memory.Adapter {
   let database: Promise<Database> | undefined;
 
   function open() {
-    return database ||= new Promise<Database>((resolve, reject) => {
-      const factory = (globalThis as unknown as { indexedDB: Factory }).indexedDB;
-      const req = factory.open(name, 1);
+    if (database)
+      return database;
 
-      req.onupgradeneeded = () => req.result.createObjectStore("tables");
-      request(req).then(resolve, reject);
+    const factory = (globalThis as unknown as { indexedDB: Factory }).indexedDB;
+    const req = factory.open(name, 1);
+
+    req.onupgradeneeded = () => req.result.createObjectStore("tables");
+
+    return database = request(req).then(db => {
+      db.onversionchange = () => {
+        database = undefined;
+        db.close();
+      };
+
+      return db;
     });
   }
 
@@ -80,7 +96,23 @@ function fs(): typeof import('node:fs/promises') {
   return fs;
 }
 
-function disk(path: string): memory.Adapter {
+function replace(this: any, key: string, value: unknown) {
+  const raw = this[key];
+
+  return raw instanceof Date ? { $date: raw.toISOString() } : value;
+}
+
+function revive(_key: string, value: any) {
+  return value && typeof value.$date === "string" && Object.keys(value).length === 1 ? new Date(value.$date) : value;
+}
+
+/**
+ * Persists `memory()` to one JSON file, writing `path.tmp` and renaming it over.
+ *
+ * Needs `process.getBuiltinModule` - Bun, Node 20.16+ or 22.3+, Deno. The directory must exist.
+ * Values round-trip as JSON, except `Date`, which is kept; a `BigInt` fails the save.
+ */
+function fileAdapter(path: string): memory.Adapter {
   let data: memory.Snapshot = {};
 
   return {
@@ -88,7 +120,7 @@ function disk(path: string): memory.Adapter {
       const { readFile } = fs();
 
       try {
-        return data = JSON.parse(await readFile(path, "utf8"));
+        return data = JSON.parse(await readFile(path, "utf8"), revive);
       }
       catch (error) {
         if ((error as { code?: string }).code === "ENOENT")
@@ -102,10 +134,10 @@ function disk(path: string): memory.Adapter {
       const temp = `${path}.tmp`;
 
       Object.assign(data, changes);
-      await writeFile(temp, JSON.stringify(data));
+      await writeFile(temp, JSON.stringify(data, replace));
       await rename(temp, path);
     }
   };
 }
 
-export { browser, disk };
+export { fileAdapter, indexedDBAdapter };
