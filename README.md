@@ -279,6 +279,14 @@ await user; // the entity
 
 `Type.get(id)` is synchronous: the entity from the identity map, or a placeholder registered there at once, so concurrent gets share it. A placeholder's columns suspend until the row lands - a read throws a promise, which an effect or a React component waits for. Awaiting a reference resolves to the entity; `get(id)` and `Type.new` return `Type.Async<User>` - the entity, typed awaitable. A missing row rejects awaits and pending reads with `No User found with id 1` and leaves the identity map. `get(User, id)` in a Model, or `this.get(User, id)`, resolves through the same path, typed as the entity; `User.get()` with no id stays Model's context lookup.
 
+```ts
+const users = await User.load({ admin: true }, 20); // entities, in one select
+
+await users[0].set({ age: 36 });
+```
+
+`Type.load(where?, limit?, offset?)` is `find` returning entities: the same filter and order, one select for the whole call. An entity already in the identity map settles the fetched row and is returned as is; the rest join the map loaded. Omit `limit` for every match.
+
 ## Relations
 
 ```ts
@@ -298,13 +306,14 @@ class Post extends Type {
 
 `author = one(Other)` stores `author_id` - `{ column }` names another, and two fields on one column throw - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. `set`, an insert or a filter takes an entity, an id or a row.
 
-`rows(Other, key?)` is a handle on the rows pointing back - `find`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class.
+`rows(Other, key?)` is a handle on the rows pointing back - `find`, `load`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class.
 
 ```ts
 const author = await Author.new({ name: "Gabe" });
 const post = await author.posts.insert({ title: "Hello", editor: author });
 
 await author.posts.find();                  // rows, equal to [post]
+await author.posts.load();                  // entities, [post] itself
 await author.posts.one({ title: "Hello" }); // a row equal to post
 console.log(post.author === author.id);     // true
 ```
@@ -438,6 +447,32 @@ const ann = await db.transaction(async () => {
 
 On SQLite, PGlite and `memory()`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `memory()` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite or `memory()` in a browser. D1 refuses `transaction`.
 
+## Hooks
+
+```ts
+const db = await SQLiteConnection.new([User, Upload], "app.db");
+
+db.before(Upload, {
+  delete(upload){
+    if (upload.locked)
+      throw new Error("Upload is locked.");
+  }
+});
+
+db.after(Upload, {
+  async delete(upload){
+    await bucket.delete(upload.path);
+  }
+});
+```
+
+`connection.before(Type, hooks)` and `connection.after(Type, hooks)` register handlers on the host that owns the connection, and each returns a function that removes them. Classes bound to another connection, such as a browser client sharing them, never run them. Both see deletes by id - `entity.delete()`, `Type.delete(id)`, or `remove(table, id)` called directly, as a remote client does - and receive the row as `find` returns it. A delete by filter, a `Query` delete or a database cascade runs neither. With a handler registered for the table, a delete by id selects its row once for both phases; without one, it does not. A missing row runs neither.
+
+`before` is a gate: its handlers run in order before the row is removed, inside the `transaction` when there is one. A throw or rejection cancels the delete - the row stays, no `after` handler runs, and the error reaches the caller.
+
+`after` is best effort: every handler runs after the row is removed and is awaited before the delete resolves. A throw or rejection is logged with `console.error` and never fails the delete. Inside a `transaction` they run after the commit, once the connection is released, and before `transaction` resolves; they never run on rollback.
+
+## Live rows
 ## Live rows
 
 A connection with `subscribe` keeps loaded entities current with changes made elsewhere - another process, another client, a `Query` update. Observers see them as any other change.
