@@ -91,6 +91,8 @@ declare namespace Type {
    *
    * From `query(where, limit, offset?)`. The first select runs at once; iterating starts with its batch, then selects `limit` more from where it left off until a batch comes back short.
    * Batches move by offset - a row inserted or deleted ahead of the reader shifts the rest.
+   * A `limit` of `0` reads every match in one batch.
+   * An `async` function returning one resolves only the first batch - return it from a plain function to keep it iterable.
    *
    * @example
    * for await (const batch of User.query({ admin: true }, 100))
@@ -698,7 +700,7 @@ abstract class Type extends Model {
   /**
    * Rows matching a filter, as frozen columns - no entities.
    *
-   * Without a filter, newest first: by a `created()` column then id, else an incrementing id, else unordered. A filter with a condition drops that order; order by a property with `asc()` / `desc()`.
+   * Without a filter, newest first: by a `created()` column then id - by id within a millisecond when ids are not incrementing - else an incrementing id, else unordered. A filter with a condition drops that order; order by a property with `asc()` / `desc()`.
    * Runs on any connection - it needs only `select`.
    *
    * @example
