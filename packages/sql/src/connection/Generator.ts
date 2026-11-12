@@ -5,6 +5,8 @@ import { escape } from '../utils';
 
 type Expression = Builder["filters"];
 
+const OPERATORS = new Set(['=', '<>', '!=', '<', '<=', '>', '>=', 'LIKE', 'IN', 'NOT IN']);
+
 function isValue(input: unknown){
   return (
     input instanceof Field ||
@@ -311,6 +313,9 @@ export class Generator {
 
   /** One condition. `null` renders `IS` / `IS NOT`; an empty list a constant. */
   protected filter(left: Field, op: string, right: unknown){
+    if (!OPERATORS.has(op))
+      throw new Error(`Unsupported operator: ${op}`);
+
     const raw = (value: unknown) => (
       value === now ? this.now(left) :
       isValue(value) ? this.reference(value) :
@@ -368,12 +373,21 @@ export class Generator {
 
     if(order.size)
       return 'ORDER BY ' +
-        Array.from(order, ([x, y]) => `${this.reference(x)} ${y}`);
+        Array.from(order, ([x, y]) => {
+          if (y !== "asc" && y !== "desc")
+            throw new Error(`Unsupported order: ${y}`);
+
+          return `${this.reference(x)} ${y}`;
+        });
   }
 
   /** `LIMIT` and `OFFSET` clauses. */
   protected limit(){
     const { limit, offset } = this.query;
+
+    for (const value of [limit, offset])
+      if (value != null && !(Number.isSafeInteger(value) && value >= 0))
+        throw new Error(`Limit and offset must be whole numbers, not ${value}.`);
 
     return [
       limit && `LIMIT ${limit}`,
