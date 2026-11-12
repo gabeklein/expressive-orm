@@ -130,6 +130,37 @@ function resolve(codecs: Codecs, name: string, field: Field): [Connection.Codec,
  * Implement `select`, `insert`, `update` and `remove`. `prepare`, `subscribe`, `sync` and `transact` are optional capabilities.
  * Create with `Connection.new(types)` and await it. Holds the identity map of entities loaded through it.
  */
+let latest: Connection | undefined;
+
+function check(target: Function, type: Query.Table){
+  const codecs = Reflect.get(target.prototype, "codecs") as Codecs | undefined;
+
+  if (type.hasOwnProperty('connection'))
+    throw new Error(`Type ${type.name} already has assigned connection.`);
+
+  if (codecs)
+    for (const field of type.fields.values())
+      if (!field.absent && !("entity" in field))
+        resolve(codecs, target.name, field);
+}
+
+function ambient(type: Query.Table): Connection | undefined {
+  const into = latest;
+
+  if (into) {
+    check(into.constructor, type);
+    (into.using as Set<Query.Table>).add(type);
+    type.connection = into;
+  }
+
+  return into;
+}
+
+function forget(connection: Connection){
+  if (latest === connection)
+    latest = undefined;
+}
+
 abstract class Connection extends Model {
   /** Entity classes bound at construction. */
   readonly using: ReadonlySet<Query.Table>;
@@ -147,17 +178,9 @@ abstract class Connection extends Model {
    */
   constructor(using: Connection.Types = []){
     const types = Object.values(using);
-    const codecs = Reflect.get(new.target.prototype, "codecs") as Codecs | undefined;
 
-    for (const type of types) {
-      if (type.hasOwnProperty('connection'))
-        throw new Error(`Type ${type.name} already has assigned connection.`);
-
-      if (codecs)
-        for (const field of type.fields.values())
-          if (!field.absent && !("entity" in field))
-            resolve(codecs, new.target.name, field);
-    }
+    for (const type of types)
+      check(new.target, type);
 
     super();
 
@@ -166,7 +189,13 @@ abstract class Connection extends Model {
       return type;
     }));
 
+    this.get(() => {
+      latest = this;
+    });
+
     this.get(null, () => {
+      forget(this);
+
       for (const type of this.using)
         if (type.connection === this)
           delete type.connection;
@@ -466,4 +495,4 @@ abstract class Connection extends Model {
   sync?(fix?: boolean): Promise<unknown>;
 }
 
-export { Connection };
+export { ambient, Connection, forget };

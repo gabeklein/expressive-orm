@@ -116,6 +116,8 @@ it("will throw if no connection", async () => {
     name = str();
   }
 
+  await Memory.new().close();
+
   await expect(User.find()).rejects.toThrow("No database connection.");
 })
 
