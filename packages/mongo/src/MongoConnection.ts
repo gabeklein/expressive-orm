@@ -1,4 +1,5 @@
-import { Builder, Connection, evaluate, Field, Parameter, Query, Type } from '@expressive/orm';
+import { Connection, Field, Query, Type } from '@expressive/orm';
+import { Builder, evaluate, Parameter } from '@expressive/orm/driver';
 import { ChangeStream, ChangeStreamDocument, ClientSession, Db, Document, MongoClient } from 'mongodb';
 
 import { Bind, compile, Plan } from './compile';

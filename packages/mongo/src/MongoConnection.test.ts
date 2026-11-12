@@ -2,7 +2,7 @@ import { MongoClient } from 'mongodb';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { afterAll, describe, expect, inject, it, vi } from 'vitest';
 
-import { Connection, key, num, one, Query, str, Type } from '@expressive/orm';
+import { bool, Connection, date, key, num, one, Query, str, Type } from '@expressive/orm';
 
 import { MongoConnection } from './MongoConnection';
 
@@ -249,6 +249,27 @@ describe("entities", () => {
     await User.insert({ name: "B", email: "up", age: 2 }, { conflict: "update", on: "email" });
 
     await expect(User.one({ email: "up" })).resolves.toMatchObject({ name: "B", age: 2 });
+  })
+})
+
+describe("native values", () => {
+  class Event extends Type {
+    static table = "event";
+    at = date();
+    open = bool();
+  }
+
+  connect([Event]);
+
+  it("will store dates and booleans as BSON", async () => {
+    const at = new Date("2026-01-02T03:04:05Z");
+
+    await Event.insert({ at, open: true });
+
+    const doc = await (Event.connection as MongoConnection).db.collection("event").findOne();
+
+    expect(doc).toEqual({ _id: 1, at, open: true });
+    await expect(Event.one({ open: true })).resolves.toMatchObject({ at, open: true });
   })
 })
 
@@ -522,7 +543,7 @@ describe("query writes", () => {
 
     expect(String(query)).toMatch(/^evaluate\n/);
     await expect(query).resolves.toBe(1);
-    await expect(Item.one(id)).resolves.toMatchObject({ count: 2 });
+    await expect(Item.one({ id })).resolves.toMatchObject({ count: 2 });
   })
 
   it("will insert and delete through evaluate", async () => {
@@ -596,7 +617,7 @@ describe("transaction", () => {
     })).rejects.toThrow("nope");
 
     expect(account.balance).toBe(5);
-    await expect(Account.one(account.id)).resolves.toMatchObject({ balance: 5 });
+    await expect(Account.one({ id: account.id })).resolves.toMatchObject({ balance: 5 });
     await expect(Account.count()).resolves.toBe(3);
   })
 })
