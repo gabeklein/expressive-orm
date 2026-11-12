@@ -79,7 +79,7 @@ An integer `key` increments; another numeric type does not. `User.get(id)`, `Use
 
 `Connection.new(types, ...)` binds each class to a connection; awaiting it runs `sync` once when the driver has one. `await db.close()` releases it, unbinds its classes and destroys every entity loaded through it.
 
-A class no connection binds joins the connection created last, on first use, while it is open, and stays on it until it closes. Listing it in a later `new` then throws `Type User already has assigned connection.` List classes where `sync` matters: one joining after the await gets no table (`no such table` on SQL), and the CLI sees only listed classes.
+A class no connection binds joins the `Memory` created last, on first use, while it is open, and stays on it until it closes. Listing it in a later `new` then throws `Type User already has assigned connection.` A connection with `sync` - SQLite, Postgres - takes only the classes listed; an unlisted one rejects with `No database connection`.
 
 `Memory` keeps rows in arrays. It runs the floor and `Query` (not raw SQL templates) and reports every write for live rows.
 
@@ -216,7 +216,7 @@ const editor = await post.get(async ($) => $.editor);
 | `Missing required field: name` | insert without a required column |
 | `created is fixed and can't be updated.` | an update gave a fixed column |
 | `User needs a condition to write by query.` | `update({}, …)` or `delete({})` |
-| `No database connection. …` | no connection open when the class was first used, or its connection closed |
+| `No database connection. …` | class not listed on a SQL connection, no `Memory` open when first used, or its connection closed |
 | `Type User already has assigned connection.` | listed in `new` after it joined or was bound elsewhere |
 
 ## Query

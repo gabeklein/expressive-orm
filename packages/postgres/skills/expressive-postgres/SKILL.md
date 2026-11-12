@@ -81,6 +81,6 @@ await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 ```
 
 - Each `sync` installs an `expressive_notify()` function and a trigger per table; tables created outside `sync` get theirs on the next one. Triggers `pg_notify` the `expressive_orm` channel with `{ table, op, id, row }`; `row` is dropped past 8000 bytes and the entity reloads it.
-- `PGConnection` holds one pool client for `LISTEN`, from the first statement through a bound class until `close()`. A class that joins after the await has no trigger, so no live rows.
+- `PGConnection` holds one pool client for `LISTEN`, from the first statement through a bound class until `close()`.
 - A pooler in transaction mode (PgBouncer, some serverless proxies) drops notifications silently - connect directly or in session mode.
 - Notifications carry the full row - any role that can `LISTEN` on the database receives it, whatever its table grants.
