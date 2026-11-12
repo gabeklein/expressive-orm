@@ -87,7 +87,7 @@ export class SQLiteConnection extends Connection {
       }
       catch (err) {
         if(err instanceof Error)
-          throw new Error(`Error running SQL: ${err.message}\n${pretty(sql)}`);
+          throw new Error(`Error running SQL: ${err.message}\n${sql.length > 4096 ? sql.slice(0, 4096) + "..." : pretty(sql)}`);
 
         throw err;
       }
