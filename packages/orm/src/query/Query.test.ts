@@ -1617,6 +1617,8 @@ describe("connection", () => {
       name = str();
     }
 
+    await Memory.new().close();
+
     const query = Query(where => where(Foo).name);
 
     expect(String(query)).toMatchInlineSnapshot(`

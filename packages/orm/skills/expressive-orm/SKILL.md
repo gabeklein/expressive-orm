@@ -77,7 +77,7 @@ An integer `key` increments; another numeric type does not. `User.one(id)`, `Use
 
 ## Connect
 
-`Connection.new(types, ...)` binds each class to a connection. Awaiting it runs `sync` once when the driver has one. `await db.close()` releases it and destroys every entity loaded through it. Drivers: `SQLiteConnection` (`expressive-sql`), `PGConnection` and `PGLiteConnection` (`expressive-postgres`).
+`Connection.new(types, ...)` binds each class to a connection. A class no connection binds joins the one created last, on first use, while it is open - list classes where `sync` matters, since one joining after the await gets no table and the CLI sees only listed classes. Awaiting it runs `sync` once when the driver has one. `await db.close()` releases it and destroys every entity loaded through it. Drivers: `SQLiteConnection` (`expressive-sql`), `PGConnection` and `PGLiteConnection` (`expressive-postgres`).
 
 `Memory` keeps rows in arrays - for tests, prototypes and small apps. It runs the floor and `Query` (not raw SQL templates) and reports every write for live rows. `db.clear()` deletes every row, restarts ids and destroys loaded entities - between tests. `Memory.new(types, source)` persists: a string is a JSON file on Bun/Node/Deno, an IndexedDB name in a browser, or pass a `Memory.Adapter`; tables load on creation and save each change:
 

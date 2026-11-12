@@ -95,12 +95,121 @@ describe("detached", () => {
     class Foo extends Type {}
     class Bar extends Type {}
 
+    await Memory.new().close();
+
     expect(Foo.connection).toBe(Bar.connection);
     expect(Foo.loaded.size).toBe(0);
     await expect(Foo.connection.select("foo", [])).rejects.toThrow("No database connection.");
     await expect(Foo.connection.insert("foo", {})).rejects.toThrow("No database connection.");
     await expect(Foo.connection.update("foo", 1, {})).rejects.toThrow("No database connection.");
     await expect(Foo.connection.remove("foo", 1)).rejects.toThrow("No database connection.");
+  })
+})
+
+describe("ambient", () => {
+  it("will bind a type to the latest connection", () => {
+    class Foo extends Type {}
+
+    Store.new();
+    const db = Store.new();
+
+    expect(Foo.connection).toBe(db);
+    expect(db.using).toEqual(new Set([Foo]));
+  })
+
+  it("will not bind the base Type", () => {
+    const db = Store.new();
+
+    expect(Type.connection).not.toBe(db);
+    expect(db.using).toEqual(new Set());
+  })
+
+  it("will keep a bound type where it is", () => {
+    class Foo extends Type {}
+
+    const db = Store.new([Foo]);
+
+    Store.new();
+
+    expect(Foo.connection).toBe(db);
+  })
+
+  it("will stay with the connection it joined", () => {
+    class Foo extends Type {}
+
+    const db = Store.new();
+
+    expect(Foo.connection).toBe(db);
+
+    Store.new();
+
+    expect(Foo.connection).toBe(db);
+  })
+
+  it("will not bind to a closed connection", async () => {
+    class Foo extends Type {}
+
+    const open = Store.new();
+    const db = Store.new();
+
+    expect(Foo.connection).toBe(db);
+
+    await db.close();
+
+    expect(Foo.hasOwnProperty("connection")).toBe(false);
+    expect(Foo.connection).not.toBe(open);
+    await expect(Foo.find()).rejects.toThrow("No database connection.");
+  })
+
+  it("will bind to a connection made after none", async () => {
+    class Foo extends Type {}
+
+    await Store.new().close();
+    await expect(Foo.find()).rejects.toThrow("No database connection.");
+
+    const db = Store.new();
+
+    expect(Foo.connection).toBe(db);
+  })
+
+  it("will sync a type that joined before await", async () => {
+    class Foo extends Type {}
+
+    const db = Store.new();
+    const sync = db.sync = vi.fn(async () => {
+      expect(db.using).toEqual(new Set([Foo]));
+      db.set({ ready: true });
+    });
+
+    expect(Foo.connection).toBe(db);
+
+    await db;
+
+    expect(sync).toHaveBeenCalledTimes(1);
+  })
+
+  it("will refuse a type it can't store", () => {
+    class Flag extends Type {
+      on = bool();
+    }
+
+    class Coded extends Store {
+      protected get codecs(){
+        const codec: Connection.Codec = {
+          types: ["text", "integer"],
+          datatype: ({ type }: Field) => type,
+          encode: (_field, value) => value,
+          decode: (_field, value) => value
+        };
+
+        return new Map<Function, Connection.Codec>([[str, codec], [num, codec]]);
+      }
+    }
+
+    Coded.new();
+
+    expect(() => Flag.connection).toThrow("Coded can't store bool type 'boolean' (Flag.on).");
+    expect(Flag.hasOwnProperty("connection")).toBe(false);
   })
 })
 
