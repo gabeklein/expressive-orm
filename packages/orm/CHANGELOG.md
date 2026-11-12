@@ -194,6 +194,26 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 # @expressive/orm
 
+## 0.17.0
+
+### Minor Changes
+
+- [#60](https://github.com/gabeklein/expressive-orm/pull/60) [`5e6ac69`](https://github.com/gabeklein/expressive-orm/commit/5e6ac69fd0980879590d6d0bf7dddd00fed76615) **A class without a connection joins the last one created.** On first use, a class no connection binds joins the connection created last while it is open, as if listed in its `new` - field codecs included, and covered by `sync` if the connection is not yet awaited. A test needs only `Memory.new()`. Closing it unbinds them; with none open, statements still reject with `No database connection`. Previously such a class rejected even with a connection open.
+
+- [#59](https://github.com/gabeklein/expressive-orm/pull/59) [`9f0596d`](https://github.com/gabeklein/expressive-orm/commit/9f0596dfa3f9c3921f1f440aa49e88ffa37d48ec) **`Memory` is a connection class.** `Memory.new([User, Post])` binds classes like `SQLiteConnection.new`, so tests and prototypes swap one class name. `db.clear()` deletes every row, restarts ids and destroys loaded entities - between tests. Persistence moves to a second argument: `Memory.new(types, "data.json")` is a JSON file on Bun, Node or Deno and an IndexedDB database in a browser, or pass a `Memory.Adapter`. `memory({ persist })`, `memory.file` and `memory.indexedDB` are removed; `memory()` is deprecated.
+
+## 0.16.0
+
+### Minor Changes
+
+- [#37](https://github.com/gabeklein/expressive-orm/pull/37) [`da081bd`](https://github.com/gabeklein/expressive-orm/commit/da081bd0ed401965f6ec097099034022adb6e215) **`memory({ persist })` survives a reload.** An adapter loads every table when the connection opens and saves the changed ones a macrotask after each write, id counters included; a failed save logs and retries, and `close()` waits for an open transaction and the last save. `memory.indexedDB(name)` persists in the browser, `memory.file(path)` to a JSON file on Bun, Node 20.16+ or 22.3+, or Deno, keeping `Date`s, through a temp file and rename. A transaction saves once it commits; a rollback saves nothing.
+
+## 0.15.1
+
+### Patch Changes
+
+- [#49](https://github.com/gabeklein/expressive-orm/pull/49) [`8d351b8`](https://github.com/gabeklein/expressive-orm/commit/8d351b81030922a9135f779f94af6baae37d475f) **`@expressive/orm` bundles under Metro.** `transaction` takes `AsyncLocalStorage` from `process.getBuiltinModule` instead of a dynamic `import()`, which Metro's bundler rejects, so a React Native app importing `@expressive/orm` - `memory()` included - builds. `transaction` now needs Node 20.16+ or 22.3+, Bun, Deno, or Workers with `nodejs_compat`; elsewhere, React Native included, it throws.
+
 ## 0.15.0
 
 ### Minor Changes

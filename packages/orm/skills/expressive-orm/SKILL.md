@@ -1,6 +1,6 @@
 ---
 name: expressive-orm
-description: Expressive ORM core (@expressive/orm) - entities as @expressive/mvc Models extending Type, field helpers, keys, relations, references and the identity map, Query, transactions, live rows, the memory() driver and the driver contract. Use when defining entities, reading or writing rows, building a Query, observing entities, testing on memory(), or writing a driver.
+description: Expressive ORM core (@expressive/orm) - entities as @expressive/mvc Models extending Type, field helpers, keys, relations, references and the identity map, Query, transactions, live rows, the Memory driver and the driver contract. Use when defining entities, reading or writing rows, building a Query, observing entities, testing on Memory, or writing a driver.
 ---
 
 # Expressive ORM
@@ -77,23 +77,23 @@ An integer `key` increments; another numeric type does not. `User.get(id)`, `Use
 
 ## Connect
 
-`Connection.new(types, ...)` binds each class to a connection. Awaiting it runs `sync` once when the driver has one. `await db.close()` releases it and destroys every entity loaded through it. Drivers: `SQLiteConnection` (`expressive-sql`), `PGConnection` and `PGLiteConnection` (`expressive-postgres`).
+`Connection.new(types, ...)` binds each class to a connection. A class no connection binds joins the one created last, on first use, while it is open - list classes where `sync` matters, since one joining after the await gets no table and the CLI sees only listed classes. Awaiting it runs `sync` once when the driver has one. `await db.close()` releases it and destroys every entity loaded through it. Drivers: `SQLiteConnection` (`expressive-sql`), `PGConnection` and `PGLiteConnection` (`expressive-postgres`).
 
-`memory()` keeps rows in arrays - for tests and prototypes. It runs the floor and `Query` (not raw SQL templates) and reports every write for live rows:
+`Memory` keeps rows in arrays - for tests, prototypes and small apps. It runs the floor and `Query` (not raw SQL templates) and reports every write for live rows. `db.clear()` deletes every row, restarts ids and destroys loaded entities - between tests. `Memory.new(types, source)` persists: a string is a JSON file on Bun/Node/Deno, an IndexedDB name in a browser, or pass a `Memory.Adapter`; tables load on creation and save each change:
 
 ```ts
-import { Type, memory, one, str } from '@expressive/orm';
+import { Memory, Type, one, str } from '@expressive/orm';
 
 class User extends Type {
-  static connection = memory();
   name = str();
 }
 
 class Post extends Type {
-  static connection = User.connection;
   author = one(User);
   title = str();
 }
+
+const db = Memory.new([User, Post]);
 ```
 
 ## Read and write
@@ -120,7 +120,7 @@ Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`,
 
 Without a filter, `query()`, `load()` and `one()` take the newest first: by the class's `date.created()` column then `id` for rows created the same millisecond, else an incrementing `id` descending, else unordered - and `one()` throws asking for a filter. A filter with a condition drops that order - `{}` or all-`undefined` values count as none; add `asc()` / `desc()`. `undefined`, as a value or an operator's argument, drops its condition.
 
-On `memory()`, `isLike` is case-sensitive (SQLite's is ASCII case-insensitive) and `notIn([])` skips rows without a value (SQL matches every row).
+On `Memory`, `isLike` is case-sensitive (SQLite's is ASCII case-insensitive) and `notIn([])` skips rows without a value (SQL matches every row).
 
 ```ts
 await User.insert(row, { conflict: "update" });                      // upsert on the primary key
@@ -251,7 +251,7 @@ const admins = User.query((user, where) => { where(user.admin).equal(true) });
 - A template's arguments are placeholders - compare with them, don't branch on them.
 - `query.one()` resolves the first row, `query.one(true)` throws without one.
 - A write resolves the rows affected. A query returning nothing and writing nothing resolves the count. A query runs when awaited, once per `then`.
-- A second callback argument holds math (`add`, `sub`, `mul`, `div`, `mod`, `neg`, `pos`) and `bit`; a template string embeds raw SQL (not on `memory()`).
+- A second callback argument holds math (`add`, `sub`, `mul`, `div`, `mod`, `neg`, `pos`) and `bit`; a template string embeds raw SQL (not on `Memory`).
 - `String(query)` is the SQL, or the query's intent without one.
 
 ## Transactions
@@ -264,7 +264,7 @@ const ann = await db.transaction(async () => {
 });
 ```
 
-Commits when `fn` resolves, rolls back and rethrows when it throws. Every statement inside - statics, `Query`, instance writes, effects they trigger - joins without a handle. A nested `transaction` joins the open one. Rollback restores what instances changed, destroys entities created inside, keeps entities deleted inside. Other statements on the connection wait until it ends, except on a pooled driver. Needs `AsyncLocalStorage` (Bun, Node, Deno, Workers with `nodejs_compat`); throws without it.
+Commits when `fn` resolves, rolls back and rethrows when it throws. Every statement inside - statics, `Query`, instance writes, effects they trigger - joins without a handle. A nested `transaction` joins the open one. Rollback restores what instances changed, destroys entities created inside, keeps entities deleted inside. Other statements on the connection wait until it ends, except on a pooled driver. Needs `AsyncLocalStorage` from `process.getBuiltinModule` (Bun, Node 20.16+/22.3+, Deno, Workers with `nodejs_compat`); throws without it - React Native included.
 
 ## Hooks
 
@@ -280,23 +280,23 @@ db.after(Upload, { async delete(row){ await bucket.delete(row.path) } });       
 
 ## Live rows
 
-A connection with `subscribe` keeps loaded entities current with changes made elsewhere: an update settles in, a delete destroys, an insert changes nothing loaded. `memory()` reports every write; Postgres uses LISTEN/NOTIFY; SQLite has none.
+A connection with `subscribe` keeps loaded entities current with changes made elsewhere: an update settles in, a delete destroys, an insert changes nothing loaded. `Memory` reports every write; Postgres uses LISTEN/NOTIFY; SQLite has none.
 
 ## Drivers
 
 `Connection` (an abstract Model) - the floor is `select`, `insert`, `update` and `remove`, keyed by table name and primary column; each is documented on `Connection`. It takes and returns plain values - Dates, booleans, JSON values, and a `date({ type: "date" })` calendar day as the text `YYYY-MM-DD` - so a client connection can forward the four calls to a server's as they are, whatever either side's time zone. A composite `id` arrives as its tuple, in `key` order.
 
-A driver storing values its own way sets a protected `codecs` getter - a map from base helper (`str`, `num`, `bool`, `date`, `json`) to a `Connection.Codec` (`types`, `datatype`, `encode`, `decode`). A field resolves its codec by `field.helper`, a relation by its referenced key. Without `codecs`, values pass through as they are, as on `memory()`. Optional: `prepare(builder)` runs `Query` (without it `Query` and `Type.query` throw); `subscribe(listener)` reports `{ table, op, id, row? }` and returns a stop function; `sync(fix?)` checks or creates the schema; protected `transact(fn)` enables `transaction(fn)`. `Connection` holds the lock and journal: call `idle()` before each statement; a pooled driver overrides `lock()` and `idle()`.
+A driver storing values its own way sets a protected `codecs` getter - a map from base helper (`str`, `num`, `bool`, `date`, `json`) to a `Connection.Codec` (`types`, `datatype`, `encode`, `decode`). A field resolves its codec by `field.helper`, a relation by its referenced key. Without `codecs`, values pass through as they are, as on `Memory`. Optional: `prepare(builder)` runs `Query` (without it `Query` and `Type.query` throw); `subscribe(listener)` reports `{ table, op, id, row? }` and returns a stop function; `sync(fix?)` checks or creates the schema; protected `transact(fn)` enables `transaction(fn)`. `Connection` holds the lock and journal: call `idle()` before each statement; a pooled driver overrides `lock()` and `idle()`.
 
 For a SQL database extend `@expressive/sql`'s `Connection` instead (see `expressive-sql`). Without a query language, `evaluate(store, builder, params)` runs `Query` in JS against an `evaluate.Store`, returning `{ rows, count }`.
 
 Driver seams import from `@expressive/orm/driver` - `Builder`, `evaluate`, `Where`, and the values a SQL generator renders (`Computed`, `DataField`, `DataTable`, `Parameter`, `QueryTemplate`). App code never needs them.
 
 ```ts
-import { Connection, memory } from '@expressive/orm';
+import { Connection, Memory } from '@expressive/orm';
 
 class Logged extends Connection {
-  inner = memory();
+  inner = Memory.new();
 
   select(...args: Parameters<Connection["select"]>) {
     console.log("select", args[0]);

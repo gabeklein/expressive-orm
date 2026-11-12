@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, test, vi } from 'vitest';
 
 import { PGlite } from '@electric-sql/pglite';
 
-import { asc, bool, date, desc, greaterThan, index, isIn, lessThan, now, isLike, isNull, json, key, notIn, notNull, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
+import { asc, bool, date, desc, greaterThan, index, isIn, lessThan, now, isLike, isNull, json, key, Memory, notIn, notNull, num, one, orNull, Query, str, Type, uuid } from '@expressive/orm';
 import type { Connection } from '@expressive/sql';
 
 import { PGLiteConnection } from './PGLiteConnection';
@@ -285,6 +285,8 @@ describe("persistence", () => {
     class Post extends Type {
       author = one(Author);
     }
+
+    Memory.new([Author]);
 
     const pg = new PGlite();
 

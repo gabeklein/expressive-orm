@@ -1,6 +1,6 @@
 {
   "name": "@expressive/orm",
-  "version": "0.15.0",
+  "version": "0.17.0",
   "description": "Entities on @expressive/mvc Model: driver contract, Query builder and an in-memory driver.",
   "keywords": [
     "orm",
@@ -54,6 +54,7 @@
   },
   "devDependencies": {
     "@expressive/mvc": "^0.94.2",
+    "fake-indexeddb": "^6.2.7",
     "tsdown": "^0.20.1"
   },
   "peerDependencies": {
