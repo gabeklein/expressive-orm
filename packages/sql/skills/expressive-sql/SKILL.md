@@ -27,7 +27,7 @@ const db = await SQLiteConnection.new([User], "app.db");   // omit the filename 
 await db.close();
 ```
 
-A filename or in-memory connection enforces foreign keys. `sync` covers the classes passed to `new`; a class that joins later (`expressive-orm/SKILL.md#connect`) gets no table. `db.schema` is the DDL. A failed statement throws `Error running SQL: <message>` followed by the SQL.
+A filename or in-memory connection enforces foreign keys. `sync` covers the classes passed to `new` - list every class; an unlisted one has no connection. `db.schema` is the DDL. A failed statement throws `Error running SQL: <message>` followed by the SQL.
 
 ### Engine
 

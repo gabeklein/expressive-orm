@@ -172,20 +172,16 @@ describe("ambient", () => {
     expect(Foo.connection).toBe(db);
   })
 
-  it("will sync a type that joined before await", async () => {
+  it("will not bind to a connection with sync", async () => {
     class Foo extends Type {}
 
     const db = Store.new();
-    const sync = db.sync = vi.fn(async () => {
-      expect(db.using).toEqual(new Set([Foo]));
-      db.set({ ready: true });
-    });
 
-    expect(Foo.connection).toBe(db);
+    db.sync = async () => {};
 
-    await db;
-
-    expect(sync).toHaveBeenCalledTimes(1);
+    expect(Foo.connection).not.toBe(db);
+    expect(db.using).toEqual(new Set());
+    await expect(Foo.query()).rejects.toThrow("No database connection.");
   })
 
   it("will refuse a type it can't store", () => {

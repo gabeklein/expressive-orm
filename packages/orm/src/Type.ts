@@ -433,8 +433,8 @@ abstract class Type extends Model {
    *
    * Set by `Connection.new([...])`, or assigned: `static connection = Memory.new()`.
    * A class binds to one connection - listing it in a second `new`, or after it joined one, throws.
-   * Unset, the class joins the connection created last, while it is open, on first use - an awaited one has already run `sync` without it.
-   * With none open, every statement rejects with `No database connection`.
+   * Unset, the class joins the connection created last on first use, while it is open and has no `sync` - a `Memory`.
+   * Otherwise every statement rejects with `No database connection`.
    */
   static get connection(): Type.Connection {
     const found = this !== Type && ambient(this);
