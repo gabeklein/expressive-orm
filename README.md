@@ -234,7 +234,7 @@ for await (const page of User.all(100))
 
 `query`, `all` and `insert` return plain rows: decoded values by property, a relation as its id, frozen. `insert` returns the stored row, with its `id` and database defaults. `query` with a filter needs only the driver's `select`, so it runs on any connection, a forwarding one included. `one(where?, expect?)` resolves the live entity instead - the [reference](#references) `get(id)` would give - settling a loaded one with the fetched row; it takes a filter, never an id.
 
-Without a filter, `query`, `load` and `one` take the newest first: by the class's `date.created()` column, else by an incrementing `id` descending. A class with neither reads unordered, and `one()` without a filter throws. A filter drops that order; add `asc()` / `desc()`. A class declares at most one `date.created()`.
+Without a filter, `query`, `load` and `one` take the newest first: by the class's `date.created()` column, then by `id` among rows created the same millisecond, else by an incrementing `id` descending. A class with neither reads unordered, and `one()` without a filter throws. A filter with a condition drops that order - `{}` or only `undefined` values count as no filter; add `asc()` / `desc()`. A class declares at most one `date.created()`.
 
 ```ts
 await User.insert(row, { conflict: "update" });                     // upsert on the primary key

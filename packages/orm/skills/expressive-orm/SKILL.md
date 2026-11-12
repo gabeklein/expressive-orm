@@ -118,7 +118,7 @@ await User.delete({ age: lessThan(18) });           // resolves rows deleted; em
 
 Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, `asc` / `desc`. A plain value is `equal`, `null` is `isNull`, an array applies each. `isLike` also matches a `json()` column's text.
 
-Without a filter, `query()`, `load()` and `one()` take the newest first: by the class's `date.created()` column, else an incrementing `id` descending, else unordered - and `one()` throws asking for a filter. A filter drops that order; add `asc()` / `desc()`. `undefined`, as a value or an operator's argument, drops its condition.
+Without a filter, `query()`, `load()` and `one()` take the newest first: by the class's `date.created()` column then `id` for rows created the same millisecond, else an incrementing `id` descending, else unordered - and `one()` throws asking for a filter. A filter with a condition drops that order - `{}` or all-`undefined` values count as none; add `asc()` / `desc()`. `undefined`, as a value or an operator's argument, drops its condition.
 
 On `memory()`, `isLike` is case-sensitive (SQLite's is ASCII case-insensitive) and `notIn([])` skips rows without a value (SQL matches every row).
 

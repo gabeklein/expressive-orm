@@ -651,7 +651,7 @@ abstract class Type extends Model {
     if (where !== undefined && !isQuery(where))
       throw new Error(`${this.name}.one() takes a filter - use get(id) for an id.`);
 
-    if (!where && !(where = newest(this)))
+    if (!(where = newest(this, where)))
       throw new Error(`${this.name}.one() needs a filter - it has no created() column or incrementing id to order by.`);
 
     const [entity] = await this.load(where, 1);
@@ -685,7 +685,7 @@ abstract class Type extends Model {
   /**
    * Rows matching a filter, as frozen columns - no entities.
    *
-   * Without a filter, newest first: by a `created()` column, else an incrementing id, else unordered. A filter drops that order; order by a property with `asc()` / `desc()`.
+   * Without a filter, newest first: by a `created()` column then id, else an incrementing id, else unordered. A filter with a condition drops that order; order by a property with `asc()` / `desc()`.
    * Runs on any connection - it needs only `select`.
    *
    * @example
@@ -785,12 +785,12 @@ abstract class Type extends Model {
 
 async function select(
   type: typeof Type,
-  from: Type.Constraint[] | Type.Query<any> = newest(type) || {},
+  from?: Type.Constraint[] | Type.Query<any>,
   limit?: number,
   offset: number = 0
 ){
   const { connection, subset, ref } = type;
-  const constraints = Array.isArray(from) ? from : buildConstraints({ ...from, ...subset });
+  const constraints = Array.isArray(from) ? from : buildConstraints({ ...newest(type, from), ...subset });
   const query = [] as Type.Constraint[];
 
   for (let [key, op, value] of constraints) {
@@ -819,16 +819,16 @@ async function select(
   return connection.select(ref, query, limit, offset);
 }
 
-function newest(type: typeof Type): Type.Query<any> | undefined {
-  let id: Field | undefined;
+function newest(type: typeof Type, where?: Type.Query<any>): Type.Query<any> | undefined {
+  if (where && Object.values(where).some(value => value !== undefined))
+    return where;
 
   for (const field of type.fields.values())
     if (RECENT in field)
-      return { [field.key]: desc() };
-    else if (field.key == "id" && field.increment)
-      id = field;
+      return { [field.key]: desc(), id: desc() };
 
-  return id && { id: desc() };
+  if (type.fields.get("id")!.increment)
+    return { id: desc() };
 }
 
 function reference<T extends Type>(type: Type.Class<T>, id: Type.Id<T>): T {

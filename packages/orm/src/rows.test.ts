@@ -53,7 +53,7 @@ describe("rows", () => {
     const gabe = await User.get(1);
     const page = await gabe.profiles.query({}, 1, 1);
 
-    expect(page.map(p => p.bio)).toEqual(["Writer"]);
+    expect(page.map(p => p.bio)).toEqual(["Dev"]);
   });
 
   it("will load related entities", async () => {

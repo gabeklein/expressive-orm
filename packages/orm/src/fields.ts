@@ -477,10 +477,10 @@ declare namespace date {
   let and: <P extends Options[]>(...preset: P & Exact<P, Types>) => Preset<Options, Types, Date, P>;
 
   /**
-   * A Date column set to now on insert and never updated - `date.and({ fallback: now, fixed: true })`.
+   * A Date column set to now on insert and never updated - the class's recency.
    *
    * Upserts leave it. An update giving it fails to compile and throws.
-   * It is the class's recency - `one()`, `query()` and `load()` without a filter take the newest first by it. A class declares at most one.
+   * `one()`, `query()` and `load()` without a filter take the newest first by it, then by `id` for rows created the same millisecond. A class declares at most one.
    */
   let created: Preset<Options, Types, Date, [Created]>;
 

@@ -43,7 +43,7 @@ function rows<T extends Type, K extends keyof T = Related<T>>(Class: Type.Class<
         if (!fields.has(fk))
           throw new Error(`Field ${fk} does not exist on ${Class.name}`);
 
-        const scope = (where?: object): any => ({ ...where || newest(Class), [fk]: id });
+        const scope = (where?: object): any => ({ ...newest(Class, where), [fk]: id });
 
         return handle = {
           query: (where, limit, offset) => Class.query(scope(where), limit, offset),

@@ -1115,6 +1115,53 @@ describe("recency", () => {
     expect((await Post.query({ title: isIn(["a", "b"]), made: desc() })).map(x => x.title)).toEqual(["b", "a"]);
   })
 
+  it("will break created ties by id", async () => {
+    class Post extends connect() {
+      title = str();
+      made = date.created();
+    }
+
+    class Tag extends connect() {
+      id = key({ type: "text" });
+      made = date.created();
+    }
+
+    for (const title of ["a", "b", "c", "d", "e"])
+      await Post.connection.insert(Post.ref, { title, made: new Date(1) });
+
+    for (const id of ["b", "c", "a"])
+      await Tag.connection.insert(Tag.ref, { id, made: new Date(1) });
+
+    const loaded = await Post.load();
+
+    expect((await Post.query()).map(x => x.title)).toEqual(["e", "d", "c", "b", "a"]);
+    expect((await Post.query(undefined, 2)).map(x => x.title)).toEqual(["e", "d"]);
+    expect(loaded.map(x => x.title)).toEqual(["e", "d", "c", "b", "a"]);
+    expect(await Post.one()).toBe(loaded[0]);
+    expect((await Tag.query()).map(x => x.id)).toEqual(["c", "b", "a"]);
+  })
+
+  it("will treat a filter without conditions as none", async () => {
+    class Post extends connect() {
+      title = str();
+    }
+
+    class Tag extends connect() {
+      id = key({ type: "text" });
+    }
+
+    for (const title of ["a", "b", "c"])
+      await Post.insert({ title });
+
+    await Tag.insert({ id: "a" });
+
+    expect((await Post.query({})).map(x => x.title)).toEqual(["c", "b", "a"]);
+    expect((await Post.one({})).title).toBe("c");
+    expect((await Post.one({ title: undefined })).title).toBe("c");
+    await expect(Tag.one({})).rejects.toThrow("Tag.one() needs a filter");
+    await expect(Tag.one({ id: undefined })).rejects.toThrow("Tag.one() needs a filter");
+  })
+
   it("will drop the default order for a filter", async () => {
     class Post extends connect() {
       title = str();
