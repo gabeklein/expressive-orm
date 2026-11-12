@@ -40,7 +40,7 @@ declare namespace Connection {
   /** Host-side gates for a class's rows - registered with `before`. */
   interface Before<T extends Type = Type> {
     /**
-     * Runs before a row is deleted by id, receiving it as `find` resolves it - a throw cancels the delete.
+     * Runs before a row is deleted by id, receiving it as `query` resolves it - a throw cancels the delete.
      *
      * Covers instance `delete()`, static `delete(id)` and `remove` called directly; a delete by filter skips it.
      * Runs inside the transaction when there is one. A missing row skips it.
@@ -52,7 +52,7 @@ declare namespace Connection {
   /** Host-side effects for a class's rows - registered with `after`. */
   interface After<T extends Type = Type> {
     /**
-     * Runs after a row is deleted by id, receiving it as `find` resolves it - best effort.
+     * Runs after a row is deleted by id, receiving it as `query` resolves it - best effort.
      *
      * Covers instance `delete()`, static `delete(id)` and `remove` called directly; a delete by filter skips it.
      * Awaited before the delete resolves - inside a transaction, after commit and before `transaction` resolves, never after a rollback.
@@ -124,12 +124,6 @@ function resolve(codecs: Codecs, name: string, field: Field): [Connection.Codec,
   return [codec, target];
 }
 
-/**
- * Base class of a driver - a Model binding entity classes to a store.
- *
- * Implement `select`, `insert`, `update` and `remove`. `prepare`, `subscribe`, `sync` and `transact` are optional capabilities.
- * Create with `Connection.new(types)` and await it. Holds the identity map of entities loaded through it.
- */
 let latest: Connection | undefined;
 
 function check(target: Function, type: Query.Table){
@@ -161,6 +155,12 @@ function forget(connection: Connection){
     latest = undefined;
 }
 
+/**
+ * Base class of a driver - a Model binding entity classes to a store.
+ *
+ * Implement `select`, `insert`, `update` and `remove`. `prepare`, `subscribe`, `sync` and `transact` are optional capabilities.
+ * Create with `Connection.new(types)` and await it. Holds the identity map of entities loaded through it.
+ */
 abstract class Connection extends Model {
   /** Entity classes bound at construction. */
   readonly using: ReadonlySet<Query.Table>;

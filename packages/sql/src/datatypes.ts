@@ -38,7 +38,7 @@ interface Datatypes {
 }
 
 /**
- * Column datatypes, passed to a field helper - `str(sql.varchar(255))`, `date(sql.ms)`.
+ * Column datatypes, passed to a field helper - `str(sql.varchar(255))`, `date(sql.date)`.
  *
  * Each fits only the helpers named on it; elsewhere it is a type error.
  */

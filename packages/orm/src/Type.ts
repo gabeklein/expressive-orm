@@ -420,7 +420,7 @@ abstract class Type extends Model {
    * Values every row of this class holds - merged into inserts and into every query filter.
    *
    * Scopes a subclass to part of a shared table; give it the parent's `table`.
-   * Reads by id (`get(id)`, `one(id)`) are scoped; writes by id (`update(id)`, `delete(id)`) and instance writes (`set`, `delete`) are not.
+   * Reads by id (`get(id)`) are scoped; writes by id (`update(id)`, `delete(id)`) and instance writes (`set`, `delete`) are not.
    * `Insert` still types the fields as required.
    *
    * @example
@@ -432,7 +432,7 @@ abstract class Type extends Model {
    * The connection this class reads and writes through.
    *
    * Set by `Connection.new([...])`, or assigned: `static connection = Memory.new()`.
-   * A class binds to one connection through `Connection.new([...])` - a second throws.
+   * A class binds to one connection - listing it in a second `new`, or after it joined one, throws.
    * Unset, the class joins the connection created last, while it is open, on first use - an awaited one has already run `sync` without it.
    * With none open, every statement rejects with `No database connection`.
    */
