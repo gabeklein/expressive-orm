@@ -1,5 +1,14 @@
 # @expressive/postgres
 
+## 0.8.1
+
+### Patch Changes
+
+- [#64](https://github.com/gabeklein/expressive-orm/pull/64) [`e38054e`](https://github.com/gabeklein/expressive-orm/commit/e38054e27400a618b31b5f0f7845f2be3cc54cac) Agent skills checked against the source: test setup on `Memory` and how classes join the last connection, persisted `Memory`, React Native, forcing a sync, the CLI entry, Postgres `sync(false)` and `static schema`, and corrections to `timezone`, `one(id)` and `static schema`. `Connection`'s JSDoc is attached to the class again.
+- Updated dependencies [[`2ddee0c`](https://github.com/gabeklein/expressive-orm/commit/2ddee0c5d766eb48e4d992cfdfc22fc34f3ec550), [`d8a845d`](https://github.com/gabeklein/expressive-orm/commit/d8a845d97914029de95998b4731d34c57720b440), [`e38054e`](https://github.com/gabeklein/expressive-orm/commit/e38054e27400a618b31b5f0f7845f2be3cc54cac)]:
+  - @expressive/orm@0.19.0
+  - @expressive/sql@0.9.1
+
 ## 0.8.0
 
 ### Minor Changes

@@ -194,6 +194,18 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 # @expressive/orm
 
+## 0.19.0
+
+### Minor Changes
+
+- [#66](https://github.com/gabeklein/expressive-orm/pull/66) [`2ddee0c`](https://github.com/gabeklein/expressive-orm/commit/2ddee0c5d766eb48e4d992cfdfc22fc34f3ec550) Only a connection without `sync` - a `Memory` - takes classes no connection binds. A class left unlisted on SQLite or Postgres rejects with `No database connection` again, instead of joining without a table.
+
+### Patch Changes
+
+- [#65](https://github.com/gabeklein/expressive-orm/pull/65) [`d8a845d`](https://github.com/gabeklein/expressive-orm/commit/d8a845d97914029de95998b4731d34c57720b440) `Type.count()` inside `transaction` no longer hangs on Bun.
+
+- [#64](https://github.com/gabeklein/expressive-orm/pull/64) [`e38054e`](https://github.com/gabeklein/expressive-orm/commit/e38054e27400a618b31b5f0f7845f2be3cc54cac) Agent skills checked against the source: test setup on `Memory` and how classes join the last connection, persisted `Memory`, React Native, forcing a sync, the CLI entry, Postgres `sync(false)` and `static schema`, and corrections to `timezone`, `one(id)` and `static schema`. `Connection`'s JSDoc is attached to the class again.
+
 ## 0.18.0
 
 ### Minor Changes
