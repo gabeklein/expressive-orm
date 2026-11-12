@@ -273,6 +273,34 @@ describe("native values", () => {
   })
 })
 
+describe("concurrent transactions", () => {
+  class Slot extends Type {
+    static table = "slot";
+    value = num();
+  }
+
+  connect([Slot]);
+
+  it("will not serialize transactions", async () => {
+    await Slot.connection;
+
+    const db = Slot.connection as MongoConnection;
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => release = resolve);
+
+    const first = db.transaction(async () => {
+      await Slot.insert({ value: 1 });
+      await gate;
+    });
+
+    await db.transaction(() => Slot.insert({ value: 2 }));
+    release();
+    await first;
+
+    await expect(Slot.count()).resolves.toBe(2);
+  })
+})
+
 describe("composite key", () => {
   class Tag extends Type {
     static table = "tag";

@@ -190,6 +190,10 @@ class MongoConnection extends Connection {
     await this._collection(name).deleteMany(locate(this._key(name), id), this._options());
   }
 
+  protected async lock(){
+    return () => {};
+  }
+
   protected async transact<T>(fn: () => Promise<T>): Promise<T> {
     const session = this.client.startSession();
 
