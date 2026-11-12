@@ -96,7 +96,7 @@ declare namespace Type {
    * for await (const batch of User.query({ admin: true }, 100))
    *   batch.forEach(send);
    */
-  interface Batches<T extends Type> extends Promise<Columns<T>[]>, AsyncIterable<Columns<T>[]> {}
+  interface Results<T extends Type> extends Promise<Columns<T>[]>, AsyncIterable<Columns<T>[]> {}
 
   /** A filter value - a plain value (equal), an operator, or an array applying each. */
   type Conds<T> = Where | T | Conds<T>[]
@@ -127,7 +127,6 @@ declare namespace Type {
 
   export {
     Async,
-    Batches,
     Class,
     Columns,
     Compat,
@@ -138,6 +137,7 @@ declare namespace Type {
     Insert,
     Instance,
     Query,
+    Results,
     Update
   }
 }
@@ -726,10 +726,10 @@ abstract class Type extends Model {
     where: Type.Query<T> | undefined,
     limit: number,
     offset?: number
-  ): Type.Batches<T>;
+  ): Type.Results<T>;
   static query(this: Type.Class, where?: Type.Query<any> | ((self: any, where: Query.Where) => unknown), limit?: number, offset = 0){
     if (typeof where != "function")
-      return limit === undefined ? this.fetch(where, limit, offset) : batches(this, where, limit, offset);
+      return limit === undefined ? this.fetch(where, limit, offset) : results(this, where, limit, offset);
 
     return Query(from => {
       const self = from(this);
@@ -834,7 +834,7 @@ function settled(type: typeof Type, constraints: Type.Constraint[]): Type.Constr
   return added;
 }
 
-function batches<T extends Type>(type: Type.Class<T>, where: Type.Query<T> | undefined, limit: number, offset: number): Type.Batches<T> {
+function results<T extends Type>(type: Type.Class<T>, where: Type.Query<T> | undefined, limit: number, offset: number): Type.Results<T> {
   const first = type["fetch"](where, limit, offset);
 
   return Object.assign(first, {

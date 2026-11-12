@@ -120,7 +120,7 @@ Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`,
 
 Without a filter, `query()`, `load()` and `one()` take the newest first: by the class's `date.created()` column then `id` for rows created the same millisecond, else an incrementing `id` descending, else unordered - and `one()` throws asking for a filter. A filter with a condition drops that order - `{}` or all-`undefined` values count as none; add `asc()` / `desc()`. A read with a `limit` (`one` included) is always totally ordered: the filter's `asc()` / `desc()`, else the newest first, then `id`. `undefined`, as a value or an operator's argument, drops its condition.
 
-`query(where, limit, offset?)` returns `Type.Batches` - awaited, the first `limit` rows; iterated with `for await`, every match `limit` per select, starting with the awaited batch and stopping at a short one. The first select runs at the call. Batches move by offset, so rows written ahead of the reader shift the rest - don't delete what you iterate; re-read instead. `all` is gone. There is no batched `load`; read ids by `query`, then `load({ id: isIn(ids) })`.
+`query(where, limit, offset?)` returns `Type.Results` - awaited, the first `limit` rows; iterated with `for await`, every match `limit` per select, starting with the awaited batch and stopping at a short one. The first select runs at the call. Batches move by offset, so rows written ahead of the reader shift the rest - don't delete what you iterate; re-read instead. `all` is gone. There is no batched `load`; read ids by `query`, then `load({ id: isIn(ids) })`.
 
 On `memory()`, `isLike` is case-sensitive (SQLite's is ASCII case-insensitive) and `notIn([])` skips rows without a value (SQL matches every row).
 

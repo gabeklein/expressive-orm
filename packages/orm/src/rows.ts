@@ -10,7 +10,7 @@ type Related<T> = {
 /** A `rows()` field - `query`, `load`, `one` and `insert` scoped to the entity, `insert` filling the relation. */
 interface Rows<T extends Type, K extends keyof T> {
   query(where?: Type.Query<T>, limit?: undefined, offset?: number): Promise<Type.Columns<T>[]>;
-  query(where: Type.Query<T> | undefined, limit: number, offset?: number): Type.Batches<T>;
+  query(where: Type.Query<T> | undefined, limit: number, offset?: number): Type.Results<T>;
   load(where?: Type.Query<T>, limit?: number, offset?: number): Promise<T[]>;
   one(where?: Type.Query<T>, expect?: true): Promise<T>;
   one(where: Type.Query<T> | undefined, expect: boolean): Promise<T | undefined>;
