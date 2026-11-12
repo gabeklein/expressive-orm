@@ -1131,6 +1131,7 @@ function buildConstraints(where: Type.Query<any>) {
 export {
   adopt,
   newest,
+  select,
   Type,
   Type as default,
   Columns,

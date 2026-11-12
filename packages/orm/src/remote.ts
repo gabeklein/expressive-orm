@@ -1,7 +1,6 @@
 import { Connection, NAMED } from './Connection';
-import { row } from './Field';
 import type { Query } from './query/Query';
-import type { Type } from './Type';
+import { select, type Type } from './Type';
 
 declare namespace Remote {
   /** Values by property name. */
@@ -55,7 +54,6 @@ const OPS = new Set(["=", "<>", "!=", "<", "<=", ">", ">=", "LIKE", "IN", "NOT I
 const BARE = new Set(["IS NULL", "IS NOT NULL", "asc", "desc"]);
 
 type Entity = typeof Type & {
-  fetch(from: Type.Constraint[], limit?: number, offset?: number): Promise<Remote.Values[]>;
   prepare(data: Remote.Values, partial?: boolean): Promise<Record<string, unknown>>;
 };
 
@@ -111,7 +109,7 @@ class Remote extends Connection {
    * const serve = Remote.handle(db, { expose: { User: ["name"] } });
    * const database = (request: unknown) => serve(request);
    */
-  static handle<C = unknown>(connection: Connection, options: Remote.Options<C> = {}){
+  static handle<C = unknown>(connection: Connection.Ready, options: Remote.Options<C> = {}){
     return async (input: unknown, context?: C): Promise<unknown> => {
       const request = valid(input);
       const type = [...connection.using].find(type => (
@@ -131,9 +129,15 @@ class Remote extends Connection {
         return field;
       };
 
-      const out = (values: Remote.Values) => Object.fromEntries(Object.entries(values).filter(([name]) => (
-        !expose || name == "id" || expose.includes(name)
-      )));
+      const out = (raw: Record<string, unknown>) => {
+        const values: Remote.Values = {};
+
+        for (const field of type.fields.values())
+          if (!field.absent && field.column in raw && (!expose || field.key == "id" || expose.includes(field.key)))
+            values[field.key] = raw[field.column];
+
+        return values;
+      };
 
       const id = (value: Remote.Id) => {
         const { parts } = type.fields.get("id")!;
@@ -168,18 +172,18 @@ class Remote extends Connection {
       switch (request.op) {
         case "select": {
           const where = [...request.where, ...Object.entries(type.subset || {}).map(([key, value]) => [key, "=", value])];
-          const rows = await type.fetch(where as Type.Constraint[], request.limit ?? undefined, request.offset ?? undefined);
+          const rows = await select(type, where as Type.Constraint[], request.limit ?? undefined, request.offset ?? undefined);
 
           return rows.map(out);
         }
 
         case "insert": {
-          const { connection, fields, ref, subset } = type;
+          const { connection, ref, subset } = type;
           const data = await type.prepare({ ...request.data, ...subset });
           const conflict = request.conflict && await upsert(type, request.conflict);
           const inserted = await connection.insert(ref, data, request.returns, conflict);
 
-          return inserted && out(await row(fields, inserted) as Remote.Values);
+          return inserted && out(inserted);
         }
 
         case "update": {
