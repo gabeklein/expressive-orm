@@ -1,28 +1,108 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { str } from './fields';
-import { memory } from './memory';
+import { Memory, memory } from './memory';
 import { Builder } from './query/Builder';
 import { Query } from './query/Query';
 import { Type } from './Type';
 
+describe("Memory", () => {
+  it("will bind types", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = Memory.new([User]);
+    const user = await User.new({ name: "A" });
+
+    expect(User.connection).toBe(db);
+    await expect(db.select("user", [])).resolves.toEqual([{ id: user.id, name: "A" }]);
+
+    await db.close();
+  })
+
+  it("will create from deprecated memory()", async () => {
+    const db = memory();
+
+    expect(db).toBeInstanceOf(Memory);
+  })
+})
+
+describe("clear", () => {
+  it("will delete rows and restart ids", async () => {
+    const db = Memory.new();
+
+    await db.insert("user", { name: "A" });
+    await db.insert("post", { title: "B" });
+    await db.clear();
+
+    await expect(db.select("user", [])).resolves.toEqual([]);
+    await expect(db.select("post", [])).resolves.toEqual([]);
+    await expect(db.insert("user", { name: "C" }, true)).resolves.toEqual({ id: 1, name: "C" });
+  })
+
+  it("will destroy loaded entities", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = Memory.new([User]);
+    const user = await User.new({ name: "A" });
+
+    await db.clear();
+    await vi.waitFor(() => expect(user.get(null)).toBe(true));
+
+    await db.close();
+  })
+
+  it("will notify each delete", async () => {
+    const db = Memory.new();
+    const changes: unknown[] = [];
+
+    await db.insert("user", { name: "A" });
+    await db.insert("user", { name: "B" });
+
+    db.subscribe(change => changes.push(change));
+    await db.clear();
+
+    expect(changes).toEqual([
+      { table: "user", op: "delete", id: 1 },
+      { table: "user", op: "delete", id: 2 }
+    ]);
+  })
+
+  it("will restore on rollback", async () => {
+    const db = Memory.new();
+
+    await db.insert("user", { name: "A" });
+
+    await expect(db.transaction(async () => {
+      await db.clear();
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    await expect(db.select("user", [])).resolves.toEqual([{ id: 1, name: "A" }]);
+    await expect(db.insert("user", {}, true)).resolves.toEqual({ id: 2 });
+  })
+})
+
 describe("insert", () => {
   it("will assign incrementing ids", async () => {
-    const db = memory();
+    const db = Memory.new();
 
     await expect(db.insert("user", { name: "A" }, true)).resolves.toEqual({ id: 1, name: "A" });
     await expect(db.insert("user", { name: "B" }, true)).resolves.toEqual({ id: 2, name: "B" });
   })
 
   it("will not return row unless asked", async () => {
-    const db = memory();
+    const db = Memory.new();
 
     await expect(db.insert("user", { name: "A" })).resolves.toBeUndefined();
     await expect(db.select("user", [])).resolves.toEqual([{ id: 1, name: "A" }]);
   })
 
   it("will continue after explicit id", async () => {
-    const db = memory();
+    const db = Memory.new();
 
     await db.insert("user", { id: 5 });
     await db.insert("user", { id: 2 });
@@ -31,8 +111,8 @@ describe("insert", () => {
   })
 
   it("will not share rows", async () => {
-    const db = memory();
-    const row = await db.insert("user", { name: "A" }, true);
+    const db = Memory.new();
+    const row = (await db.insert("user", { name: "A" }, true))!;
 
     row.name = "B";
 
@@ -45,7 +125,7 @@ describe("insert", () => {
 })
 
 describe("select", () => {
-  const db = memory();
+  const db = Memory.new();
   const ready = (async () => {
     for (const [name, age] of [["Gabe", 30], ["Alice", 25], ["Bob", null], ["alex", 25]] as const)
       await db.insert("user", { name, age });
@@ -121,7 +201,7 @@ describe("select", () => {
 
 describe("update", () => {
   it("will update row by id", async () => {
-    const db = memory();
+    const db = Memory.new();
 
     await db.insert("user", { name: "A" });
     await db.insert("user", { name: "B" });
@@ -136,7 +216,7 @@ describe("update", () => {
 
 describe("remove", () => {
   it("will remove row by id", async () => {
-    const db = memory();
+    const db = Memory.new();
 
     await db.insert("user", { name: "A" });
     await db.insert("user", { name: "B" });
@@ -149,7 +229,7 @@ describe("remove", () => {
 describe("prepare", () => {
   class User extends Type {
     static table = "user";
-    static connection = memory();
+    static connection = Memory.new();
     name = str();
   }
 
@@ -184,12 +264,12 @@ describe("prepare", () => {
 describe("subscribe", () => {
   class User extends Type {
     static table = "user";
-    static connection = memory();
+    static connection = Memory.new();
     name = str();
   }
 
   it("will report writes", async () => {
-    const db = memory();
+    const db = Memory.new();
     const changes: unknown[] = [];
     const stop = db.subscribe!(change => changes.push(change));
 
@@ -232,7 +312,7 @@ describe("subscribe", () => {
 
 describe("transaction", () => {
   it("will commit writes and report them after", async () => {
-    const db = memory();
+    const db = Memory.new();
     const changes: unknown[] = [];
 
     db.subscribe!(change => changes.push(change));
@@ -255,7 +335,7 @@ describe("transaction", () => {
   })
 
   it("will roll back rows and ids", async () => {
-    const db = memory();
+    const db = Memory.new();
     const changes: unknown[] = [];
 
     class Post extends Type {
@@ -288,7 +368,7 @@ describe("transaction", () => {
   })
 
   it("will join an outer transaction", async () => {
-    const db = memory();
+    const db = Memory.new();
 
     await expect(db.transaction(async () => {
       await db.insert("user", { name: "outer" });
@@ -300,7 +380,7 @@ describe("transaction", () => {
   })
 
   it("will hold other statements until it ends", async () => {
-    const db = memory();
+    const db = Memory.new();
     const order: string[] = [];
     let finish!: () => void;
     const held = new Promise<void>(resolve => finish = resolve);
@@ -327,7 +407,7 @@ describe("transaction", () => {
   })
 
   it("will run transactions one at a time", async () => {
-    const db = memory();
+    const db = Memory.new();
     const order: string[] = [];
 
     const run = (name: string) => db.transaction(async () => {
@@ -343,7 +423,7 @@ describe("transaction", () => {
   })
 
   it("will restore an entity rolled back", async () => {
-    const db = memory();
+    const db = Memory.new();
 
     class Note extends Type {
       static connection = db;
@@ -362,11 +442,11 @@ describe("transaction", () => {
   })
 })
 
-function adapter(tables?: memory.Snapshot) {
-  const saved: memory.Snapshot[] = [];
-  const persist: memory.Adapter = {
+function adapter(tables?: Memory.Snapshot) {
+  const saved: Memory.Snapshot[] = [];
+  const persist: Memory.Adapter = {
     load: () => tables,
-    save: vi.fn((changes: memory.Snapshot) => {
+    save: vi.fn((changes: Memory.Snapshot) => {
       saved.push(changes);
     })
   };
@@ -387,7 +467,7 @@ describe("persist", () => {
 
   it("will load tables and continue ids", async () => {
     const { persist } = adapter({ user: { rows: [{ id: 3, name: "A" }], next: 7 } });
-    const db = memory({ persist });
+    const db = Memory.new([], persist);
 
     await expect(db.insert("user", { name: "B" }, true)).resolves.toEqual({ id: 7, name: "B" });
     await expect(db.select("user", [])).resolves.toEqual([
@@ -397,12 +477,10 @@ describe("persist", () => {
   })
 
   it("will wait for load", async () => {
-    let finish!: (tables: memory.Snapshot) => void;
-    const db = memory({
-      persist: {
-        load: () => new Promise(resolve => finish = resolve),
-        save: () => {}
-      }
+    let finish!: (tables: Memory.Snapshot) => void;
+    const db = Memory.new([], {
+      load: () => new Promise(resolve => finish = resolve),
+      save: () => {}
     });
 
     const rows = db.select("user", []);
@@ -412,9 +490,19 @@ describe("persist", () => {
     await expect(rows).resolves.toEqual([{ id: 1 }]);
   })
 
+  it("will save a clear", async () => {
+    const { persist, saved } = adapter({ user: { rows: [{ id: 1, name: "A" }], next: 2 } });
+    const db = Memory.new([], persist);
+
+    await db.clear();
+    await db.close();
+
+    expect(saved).toEqual([{ user: { rows: [], next: 1 } }]);
+  })
+
   it("will start empty", async () => {
     const { persist, saved } = adapter();
-    const db = memory({ persist });
+    const db = Memory.new([], persist);
 
     await expect(db.select("user", [])).resolves.toEqual([]);
     await db.close();
@@ -424,7 +512,7 @@ describe("persist", () => {
 
   it("will save writes of a tick together", async () => {
     const { persist, saved } = adapter();
-    const db = memory({ persist });
+    const db = Memory.new([], persist);
 
     await db.insert("user", { name: "A" });
     await db.insert("post", { title: "B" });
@@ -439,7 +527,7 @@ describe("persist", () => {
 
   it("will save every kind of write", async () => {
     const { persist, saved } = adapter();
-    const db = memory({ persist });
+    const db = Memory.new([], persist);
 
     await db.insert("user", { name: "A" });
     await db.insert("user", { name: "B" });
@@ -453,16 +541,14 @@ describe("persist", () => {
 
   it("will save writes made while saving", async () => {
     let release!: () => void;
-    const saved: memory.Snapshot[] = [];
-    const db = memory({
-      persist: {
-        load: () => undefined,
-        save: changes => {
-          saved.push(changes);
+    const saved: Memory.Snapshot[] = [];
+    const db = Memory.new([], {
+      load: () => undefined,
+      save: changes => {
+        saved.push(changes);
 
-          if (saved.length == 1)
-            return new Promise<void>(resolve => release = resolve);
-        }
+        if (saved.length == 1)
+          return new Promise<void>(resolve => release = resolve);
       }
     });
 
@@ -481,7 +567,7 @@ describe("persist", () => {
 
   it("will not share rows with adapter", async () => {
     const { persist, saved } = adapter();
-    const db = memory({ persist });
+    const db = Memory.new([], persist);
 
     await db.insert("user", { name: "A" });
     await db.close();
@@ -496,7 +582,7 @@ describe("persist", () => {
       .mockRejectedValueOnce(new Error("disk full"))
       .mockResolvedValue(undefined);
 
-    const db = memory({ persist: { load: () => undefined, save } });
+    const db = Memory.new([], { load: () => undefined, save });
 
     await db.insert("user", { name: "A" });
     await vi.waitFor(() => expect(error).toHaveBeenCalledWith(new Error("disk full")));
@@ -508,7 +594,7 @@ describe("persist", () => {
 
   it("will not share loaded rows with adapter", async () => {
     const tables = { user: { rows: [{ id: 1, name: "A" }], next: 2 } };
-    const db = memory({ persist: { load: () => tables, save: () => {} } });
+    const db = Memory.new([], { load: () => tables, save: () => {} });
 
     await db.update("user", 1, { name: "B" });
     await db.close();
@@ -517,11 +603,9 @@ describe("persist", () => {
   })
 
   it("will throw on close if save fails", async () => {
-    const db = memory({
-      persist: {
-        load: () => undefined,
-        save: () => Promise.reject(new Error("disk full"))
-      }
+    const db = Memory.new([], {
+      load: () => undefined,
+      save: () => Promise.reject(new Error("disk full"))
     });
 
     await db.insert("user", { name: "A" });
@@ -531,11 +615,9 @@ describe("persist", () => {
   })
 
   it("will throw if load fails", async () => {
-    const db = memory({
-      persist: {
-        load: () => Promise.reject(new Error("corrupt")),
-        save: () => {}
-      }
+    const db = Memory.new([], {
+      load: () => Promise.reject(new Error("corrupt")),
+      save: () => {}
     });
 
     await expect(db.select("user", [])).rejects.toThrow("corrupt");
@@ -544,9 +626,7 @@ describe("persist", () => {
 
   it("will close after a failed load", async () => {
     const save = vi.fn();
-    const db = memory({
-      persist: { load: () => Promise.reject(new Error("corrupt")), save }
-    });
+    const db = Memory.new([], { load: () => Promise.reject(new Error("corrupt")), save });
 
     await expect(db.close()).resolves.toBeUndefined();
 
@@ -559,9 +639,10 @@ describe("persist", () => {
 
     class User extends Type {
       static table = "user";
-      static connection = memory({ persist });
       name = str();
     }
+
+    Memory.new([User], persist);
 
     await Query(where => {
       const user = where(User);
@@ -575,7 +656,7 @@ describe("persist", () => {
 
   it("will save once per commit", async () => {
     const { persist, saved } = adapter();
-    const db = memory({ persist });
+    const db = Memory.new([], persist);
 
     await db.transaction(async () => {
       await db.insert("user", { name: "A" });
@@ -595,7 +676,7 @@ describe("persist", () => {
 
   it("will not save a transaction still open", async () => {
     const { persist, saved } = adapter();
-    const db = memory({ persist });
+    const db = Memory.new([], persist);
     let resume!: () => void;
 
     await db.insert("user", { name: "A" });
@@ -621,7 +702,7 @@ describe("persist", () => {
 
   it("will not save a rolled back state", async () => {
     const { persist, saved } = adapter({ user: { rows: [{ id: 1, name: "A" }], next: 2 } });
-    const db = memory({ persist });
+    const db = Memory.new([], persist);
 
     await db.insert("post", { title: "X" });
 
@@ -639,7 +720,7 @@ describe("persist", () => {
 
   it("will close after an open transaction ends", async () => {
     const { persist, saved } = adapter();
-    const db = memory({ persist });
+    const db = Memory.new([], persist);
     let resume!: () => void;
 
     const open = db.transaction(async () => {
@@ -663,7 +744,7 @@ describe("persist", () => {
 
   it("will throw if closed inside its own transaction", async () => {
     const { persist, saved } = adapter();
-    const db = memory({ persist });
+    const db = Memory.new([], persist);
 
     await expect(db.transaction(async () => {
       await db.insert("user", { name: "A" });

@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { Field } from '../Field';
 import { bool, date, num, str } from '../fields';
-import { memory } from '../memory';
+import { Memory } from '../memory';
 import { one } from '../one';
 import { Type } from '../Type';
 import { Builder } from './Builder';
@@ -11,7 +11,7 @@ import { DataField, now } from './Value';
 
 function connect(){
   return class Table extends Type {
-    static connection = memory();
+    static connection = Memory.new();
   }
 }
 
@@ -1632,7 +1632,7 @@ describe("connection", () => {
       name = str();
     }
 
-    const db = memory();
+    const db = Memory.new();
 
     await db.insert("foo", { name: "Gabe" });
 
@@ -1649,7 +1649,7 @@ describe("connection", () => {
   })
 
   it("will query structural tables", async () => {
-    const db = memory();
+    const db = Memory.new();
 
     class Plain {
       static table = "plain";

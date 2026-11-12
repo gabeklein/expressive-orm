@@ -4,13 +4,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { memory } from './memory';
+import { Memory } from './memory';
+import { persist } from './persist';
 
 describe("indexedDB", () => {
   let factory: InstanceType<typeof IDBFactory>;
 
   beforeEach(() => {
     vi.stubGlobal("indexedDB", factory = new IDBFactory());
+    vi.spyOn(process, "getBuiltinModule" as any).mockReturnValue(undefined);
   })
 
   afterEach(() => {
@@ -19,14 +21,14 @@ describe("indexedDB", () => {
   })
 
   it("will survive a reload", async () => {
-    const first = memory({ persist: memory.indexedDB("app") });
+    const first = Memory.new([], "app");
 
     await first.insert("user", { name: "A" });
     await first.insert("post", { title: "B" });
     await first.remove("post", 1);
     await first.close();
 
-    const second = memory({ persist: memory.indexedDB("app") });
+    const second = Memory.new([], "app");
 
     await expect(second.select("user", [])).resolves.toEqual([{ id: 1, name: "A" }]);
     await expect(second.select("post", [])).resolves.toEqual([]);
@@ -35,12 +37,12 @@ describe("indexedDB", () => {
   })
 
   it("will keep tables apart by name", async () => {
-    const first = memory({ persist: memory.indexedDB("one") });
+    const first = Memory.new([], "one");
 
     await first.insert("user", { name: "A" });
     await first.close();
 
-    const second = memory({ persist: memory.indexedDB("two") });
+    const second = Memory.new([], "two");
 
     await expect(second.select("user", [])).resolves.toEqual([]);
   })
@@ -54,13 +56,13 @@ describe("indexedDB", () => {
       };
     });
 
-    const db = memory({ persist: memory.indexedDB("app") });
+    const db = Memory.new([], "app");
 
     await expect(db.select("user", [])).rejects.toThrow();
   })
 
   it("will give the database up to a delete", async () => {
-    const db = memory({ persist: memory.indexedDB("app") });
+    const db = Memory.new([], "app");
 
     await db.insert("user", { name: "A" });
     await db.close();
@@ -71,29 +73,29 @@ describe("indexedDB", () => {
       req.onblocked = () => reject(new Error("blocked"));
     });
 
-    const next = memory({ persist: memory.indexedDB("app") });
+    const next = Memory.new([], "app");
 
     await expect(next.select("user", [])).resolves.toEqual([]);
     await next.close();
   })
 
   it("will reopen after giving the database up", async () => {
-    const persist = memory.indexedDB("app");
+    const adapter = persist("app");
     const table = { rows: [{ id: 1 }], next: 2 };
 
-    await persist.save({ user: table });
+    await adapter.save({ user: table });
     await new Promise<void>((resolve, reject) => {
       const req = factory.deleteDatabase("app");
       req.onsuccess = () => resolve();
       req.onblocked = () => reject(new Error("blocked"));
     });
-    await persist.save({ post: table });
+    await adapter.save({ post: table });
 
-    await expect(persist.load()).resolves.toEqual({ post: table });
+    await expect(adapter.load()).resolves.toEqual({ post: table });
   })
 
   it("will throw if save aborts", async () => {
-    const db = memory({ persist: memory.indexedDB("app") });
+    const db = Memory.new([], "app");
 
     await db.select("user", []);
 
@@ -122,12 +124,12 @@ describe("file", () => {
 
   it("will survive a reload", async () => {
     const path = join(dir, "db.json");
-    const first = memory({ persist: memory.file(path) });
+    const first = Memory.new([], path);
 
     await first.insert("user", { name: "A" });
     await first.close();
 
-    const second = memory({ persist: memory.file(path) });
+    const second = Memory.new([], path);
 
     await expect(second.select("user", [])).resolves.toEqual([{ id: 1, name: "A" }]);
     await expect(second.insert("user", {}, true)).resolves.toEqual({ id: 2 });
@@ -136,12 +138,12 @@ describe("file", () => {
 
   it("will keep tables it did not change", async () => {
     const path = join(dir, "db.json");
-    const db = memory({ persist: memory.file(path) });
+    const db = Memory.new([], path);
 
     await db.insert("user", { name: "A" });
     await db.close();
 
-    const next = memory({ persist: memory.file(path) });
+    const next = Memory.new([], path);
 
     await next.insert("post", { title: "B" });
     await next.close();
@@ -157,7 +159,7 @@ describe("file", () => {
 
     await writeFile(path, JSON.stringify({ user: { rows: [{ id: 1, name: "A" }], next: 2 } }));
 
-    const db = memory({ persist: memory.file(path) });
+    const db = Memory.new([], path);
 
     await expect(db.transaction(async () => {
       await db.update("user", 1, { name: "B" });
@@ -174,12 +176,12 @@ describe("file", () => {
   it("will keep dates", async () => {
     const path = join(dir, "db.json");
     const at = new Date("2020-01-01T00:00:00.000Z");
-    const db = memory({ persist: memory.file(path) });
+    const db = Memory.new([], path);
 
     await db.insert("event", { at, meta: { $date: 1 } });
     await db.close();
 
-    const next = memory({ persist: memory.file(path) });
+    const next = Memory.new([], path);
 
     await expect(next.select("event", [])).resolves.toEqual([{ id: 1, at, meta: { $date: 1 } }]);
     await next.close();
@@ -187,7 +189,7 @@ describe("file", () => {
 
   it("will write through a temporary file", async () => {
     const path = join(dir, "db.json");
-    const db = memory({ persist: memory.file(path) });
+    const db = Memory.new([], path);
 
     await db.insert("user", { name: "A" });
     await db.close();
@@ -196,7 +198,7 @@ describe("file", () => {
   })
 
   it("will start empty without a file", async () => {
-    const db = memory({ persist: memory.file(join(dir, "db.json")) });
+    const db = Memory.new([], join(dir, "db.json"));
 
     await expect(db.select("user", [])).resolves.toEqual([]);
   })
@@ -206,18 +208,18 @@ describe("file", () => {
 
     await writeFile(path, "{");
 
-    const db = memory({ persist: memory.file(path) });
+    const db = Memory.new([], path);
 
     await expect(db.select("user", [])).rejects.toThrow(SyntaxError);
   })
 
-  it("will throw without node:fs", async () => {
+  it("will throw where nothing persists", async () => {
     vi.spyOn(process, "getBuiltinModule" as any).mockReturnValue(undefined);
 
     try {
-      const db = memory({ persist: memory.file(join(dir, "db.json")) });
+      const db = Memory.new([], "db.json");
 
-      await expect(db.select("user", [])).rejects.toThrow("memory.file needs node:fs from process.getBuiltinModule, which this runtime does not provide.");
+      await expect(db.select("user", [])).rejects.toThrow('Memory cannot persist "db.json" here - pass an adapter.');
     }
     finally {
       vi.restoreAllMocks();

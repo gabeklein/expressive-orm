@@ -4,13 +4,13 @@ import type { Builder } from './query/Builder';
 import { evaluate, match, NULL, sort } from './query/evaluate';
 import type { Query } from './query/Query';
 import type { Type } from './Type';
-import { fileAdapter, indexedDBAdapter } from './persist';
+import { persist } from './persist';
 
 type Row = evaluate.Row;
 
-type Table = memory.Table;
+type Table = Memory.Table;
 
-declare namespace memory {
+declare namespace Memory {
   /** One table as an adapter stores it. */
   interface Table {
     /** Every row, keyed by column. */
@@ -22,7 +22,7 @@ declare namespace memory {
   /** Tables by name. */
   type Snapshot = Record<string, Table>;
 
-  /** Where a persisted `memory()` loads from and saves to. */
+  /** Where a persisted `Memory` loads from and saves to. */
   interface Adapter {
     /**
      * Returns every stored table, or nothing for an empty store.
@@ -38,11 +38,6 @@ declare namespace memory {
      */
     save(changes: Snapshot): void | Promise<void>;
   }
-
-  interface Options {
-    /** Loads tables when the connection opens and saves them as they change. */
-    persist?: Adapter;
-  }
 }
 
 function key(type: Query.Table) {
@@ -55,13 +50,37 @@ function matches(primary: Field, id: unknown) {
   return (row: Row) => where.every(([column, , value]) => row[column] === value);
 }
 
+/**
+ * A connection keeping rows in arrays - for tests, prototypes, and small apps.
+ *
+ * Runs `Query` except raw SQL templates, supports `transaction`, and reports every write to live rows.
+ * `isLike` is case-sensitive, unlike SQLite's.
+ *
+ * @example
+ * const db = Memory.new([User, Post]);
+ */
 class Memory extends Connection {
   _tables = new Map<string, Table>();
   _listeners = new Set<(change: Connection.Change) => void>();
-  _persist?: memory.Adapter;
+  _persist?: Memory.Adapter;
   _ready?: Promise<void>;
   _saving?: Promise<void>;
   _dirty = new Set<string>();
+
+  /**
+   * Binds each class and, given a `source`, loads its tables and saves them as they change.
+   *
+   * A string is a JSON file path on Bun, Node 20.16+ or 22.3+, and Deno, and an IndexedDB database name in a browser.
+   * Every statement waits for the load; `close()` waits for the last save and throws if it failed.
+   */
+  constructor(using?: Connection.Types, source?: string | Memory.Adapter){
+    super(using);
+
+    if (source) {
+      this._ready = this._load(source);
+      this._ready.catch(() => {});
+    }
+  }
 
   _table(name: string) {
     let table = this._tables.get(name);
@@ -80,7 +99,8 @@ class Memory extends Connection {
     return new Field("id");
   }
 
-  async _load(adapter: memory.Adapter) {
+  async _load(source: string | Memory.Adapter) {
+    const adapter = typeof source == "string" ? persist(source) : source;
     const snapshot = await adapter.load();
 
     for (const name in snapshot) {
@@ -101,7 +121,7 @@ class Memory extends Connection {
         await new Promise(resolve => setTimeout(resolve));
 
         const release = await this.lock();
-        const changes: memory.Snapshot = {};
+        const changes: Memory.Snapshot = {};
 
         for (const name of this._dirty) {
           const { rows, next } = this._table(name);
@@ -124,6 +144,26 @@ class Memory extends Connection {
     }
     finally {
       this._saving = undefined;
+    }
+  }
+
+  /**
+   * Deletes every row and restarts ids, as between tests.
+   *
+   * Entities loaded through the connection are destroyed and live rows hear each delete. Inside a transaction, a rollback restores the rows.
+   */
+  async clear() {
+    await this.idle();
+
+    for (const [name, table] of this._tables) {
+      const primary = this._key(name);
+      const { rows } = table;
+
+      table.rows = [];
+      table.next = 1;
+
+      for (const row of rows)
+        this._notify(name, "delete", identify(primary, row));
     }
   }
 
@@ -309,30 +349,12 @@ class Memory extends Connection {
 }
 
 /**
- * An in-memory connection - rows in arrays, for tests, prototypes, and with `persist`, small apps.
+ * An in-memory connection, assigned to a class rather than binding it.
  *
- * Runs `Query` except raw SQL templates, supports `transaction`, and reports every write to live rows.
- * `isLike` is case-sensitive, unlike SQLite's.
- * With `persist`, tables load when the connection opens and save as they change; `close()` waits for the last save and throws if it failed.
- *
- * @example
- * class User extends Type {
- *   static connection = memory({ persist: memory.indexedDB("app") });
- *   name = str();
- * }
+ * @deprecated Use `Memory.new(types)`.
  */
-function memory(options: memory.Options = {}): Connection {
-  const db = Memory.new();
-
-  if (options.persist) {
-    db._ready = db._load(options.persist);
-    db._ready.catch(() => {});
-  }
-
-  return db;
+function memory(): Connection {
+  return Memory.new();
 }
 
-memory.indexedDB = indexedDBAdapter;
-memory.file = fileAdapter;
-
-export { memory };
+export { Memory, memory };

@@ -242,7 +242,7 @@ abstract class Connection extends Model {
   /**
    * Codecs by base helper - how this driver stores each helper's fields.
    *
-   * Unset, values pass through as they are, like `memory()` or a connection forwarding to another.
+   * Unset, values pass through as they are, like `Memory.new()` or a connection forwarding to another.
    * Set, `Connection.new` throws for a field none of them can store.
    */
   protected get codecs(): Codecs | undefined {

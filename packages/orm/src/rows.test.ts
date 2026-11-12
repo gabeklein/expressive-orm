@@ -2,14 +2,14 @@ import { Model } from '@expressive/mvc';
 import { describe, expect, it } from 'vitest';
 
 import { str } from './fields';
-import { memory } from './memory';
+import { Memory } from './memory';
 import { one } from './one';
 import { rows } from './rows';
 import { Type } from './Type';
 
 describe("rows", () => {
   class Table extends Type {
-    static connection = memory();
+    static connection = Memory.new();
   }
 
   class Profile extends Table {
@@ -118,7 +118,7 @@ describe("rows", () => {
 
 describe("explicit field", () => {
   class Table extends Type {
-    static connection = memory();
+    static connection = Memory.new();
   }
 
   class User extends Table {
@@ -152,7 +152,7 @@ describe("explicit field", () => {
 
 describe("errors", () => {
   class Table extends Type {
-    static connection = memory();
+    static connection = Memory.new();
   }
 
   it("will throw if no relationship found", async () => {
