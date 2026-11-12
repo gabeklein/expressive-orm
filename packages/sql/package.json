@@ -1,6 +1,6 @@
 {
   "name": "@expressive/sql",
-  "version": "0.8.0",
+  "version": "0.8.3",
   "description": "Expressive ORM on SQL: entities, Query and an embedded SQLite store from one import.",
   "keywords": [
     "orm",
@@ -39,6 +39,9 @@
       "default": "./dist/index.js"
     }
   },
+  "react-native": {
+    "./dist/sqlite/load.js": "./dist/sqlite/load.native.js"
+  },
   "bin": {
     "expressive": "./dist/bin.js"
   },
@@ -56,7 +59,7 @@
     "test": "bun run typecheck && bun run coverage"
   },
   "dependencies": {
-    "@expressive/orm": "^0.15.0",
+    "@expressive/orm": "^0.17.0",
     "sql-formatter": "^10.7.2"
   },
   "devDependencies": {

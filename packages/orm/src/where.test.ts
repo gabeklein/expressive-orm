@@ -1,12 +1,12 @@
 import { expect, it } from 'vitest';
 
 import { num, str, uuid } from './fields';
-import { memory } from './memory';
+import { Memory } from './memory';
 import { Type } from './Type';
 import * as where from './where';
 
 class User extends Type {
-  static connection = memory();
+  static connection = Memory.new();
 
   name = str();
   age = num(null);

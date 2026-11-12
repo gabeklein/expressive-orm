@@ -82,7 +82,7 @@ declare namespace Query {
   interface Where {
     /** Limit the rows selected. */
     (limit: number): void;
-    /** Embed raw SQL as a value. Not supported by `memory()`. */
+    /** Embed raw SQL as a value. Not supported by `Memory.new()`. */
     (template: string): QueryTemplate;
     /** Group conditions with OR. A group inside a group alternates to AND. */
     (...orWhere: Expression[]): Group;

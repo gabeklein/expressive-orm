@@ -2,7 +2,7 @@ import { Context, Model } from '@expressive/mvc';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Connection } from './Connection';
-import { memory } from './memory';
+import { Memory } from './memory';
 import { lazy, one } from './one';
 import { Type } from './Type';
 import { str } from './fields';
@@ -34,7 +34,7 @@ function spy<K extends "select" | "insert" | "update" | "remove">(connection: Co
 
 function connect(){
   return class Table extends Type {
-    static connection = memory();
+    static connection = Memory.new();
   }
 }
 
@@ -100,10 +100,10 @@ describe("get", () => {
   });
 
   it("will annotate failed relation", async () => {
-    const db = memory();
+    const db = Memory.new();
 
     class User extends Type {
-      static connection = Object.assign(memory(), { select: () => Promise.reject(new Error("offline")) });
+      static connection = Object.assign(Memory.new(), { select: () => Promise.reject(new Error("offline")) });
       static table = "user";
       name = str();
     }
@@ -120,10 +120,10 @@ describe("get", () => {
   });
 
   it("will pass through non-error rejection", async () => {
-    const db = memory();
+    const db = Memory.new();
 
     class User extends Type {
-      static connection = Object.assign(memory(), { select: () => Promise.reject("offline") });
+      static connection = Object.assign(Memory.new(), { select: () => Promise.reject("offline") });
       static table = "user";
       name = str();
     }
@@ -429,10 +429,10 @@ describe("lazy", () => {
   })
 
   it("will throw on read if load fails", async () => {
-    const db = memory();
+    const db = Memory.new();
 
     class User extends Type {
-      static connection = Object.assign(memory(), { select: () => Promise.reject(new Error("offline")) });
+      static connection = Object.assign(Memory.new(), { select: () => Promise.reject(new Error("offline")) });
       static table = "user";
       name = str();
     }

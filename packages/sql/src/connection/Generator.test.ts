@@ -1,7 +1,7 @@
 import { format } from 'sql-formatter';
 import { describe, expect, it } from 'vitest';
 
-import { bool, date, now, num, one, Query, str, Type } from '@expressive/orm';
+import { bool, date, Memory, now, num, one, Query, str, Type } from '@expressive/orm';
 import { Builder, DataTable } from '@expressive/orm/driver';
 
 import { Connection } from './Connection';
@@ -1373,7 +1373,9 @@ describe("generator", () => {
     })).toThrow("Not implemented.");
   })
 
-  it("will render data through a dialect", () => {
+  it("will render data through a dialect", async () => {
+    await Memory.new().close();
+
     class Dialect extends Generator {
       protected jsonTable(table: DataTable){
         return `SELECT * FROM rows(${this.param(table)})`;
@@ -1400,7 +1402,9 @@ describe("generator", () => {
     expect(String(new Dialect(builder))).toMatchInlineSnapshot(`"WITH \`input\` AS (SELECT * FROM rows(?)) SELECT \`loose\`.\`id\` FROM \`loose\` INNER JOIN \`input\` ON \`loose\`.\`name\` = \`input\`.\`name\`"`);
   })
 
-  it("will render literals, CTEs and tables through a dialect", () => {
+  it("will render literals, CTEs and tables through a dialect", async () => {
+    await Memory.new().close();
+
     class Dialect extends Generator {
       protected jsonTable(table: DataTable){
         return `SELECT * FROM rows(${this.param(table)})`;

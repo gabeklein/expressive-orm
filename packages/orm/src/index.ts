@@ -8,6 +8,6 @@ export { equal, notEqual, greaterThan, greaterThanOrEqual, lessThan, lessThanOrE
 export { one, lazy } from './one';
 export { rows } from './rows';
 export type { Rows } from './rows';
-export { memory } from './memory';
+export { Memory, memory } from './memory';
 export { Query } from './query/Query';
 export { now } from './query/Value';

@@ -1,11 +1,11 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import { bool, date, index, isLike, json, key, memory, now, num, one, optional, orNull, Query, str, Type, unique, uuid } from '.';
+import { bool, date, index, isLike, json, key, Memory, now, num, one, optional, orNull, Query, str, Type, unique, uuid } from '.';
 import { Field } from './Field';
 
 function connect(){
   return class Table extends Type {
-    static connection = memory();
+    static connection = Memory.new();
   }
 }
 

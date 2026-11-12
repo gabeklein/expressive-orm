@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { memory, num, str, Type } from '@expressive/orm';
+import { Memory, num, str, Type } from '@expressive/orm';
 
 import sql from './cli';
 import { createEngine } from './sqlite/engine';
@@ -82,7 +82,7 @@ describe("usage", () => {
     }
 
     const file = entry(async () => {
-      Note.connection = memory();
+      Note.connection = Memory.new();
       await Note.connection;
     });
 

@@ -321,3 +321,20 @@ it("will throw if no driver is available", async () => {
     "or install one of: better-sqlite3, sqlite3, @libsql/client."
   );
 });
+
+it("will ask for an engine under React Native", async () => {
+  vi.resetModules();
+  vi.doMock('./load', () => import('./load.native'));
+
+  try {
+    const { createEngine } = await import('./engine');
+
+    await expect(createEngine("app.db")).rejects.toThrow(
+      "SQLite does not load under React Native. Pass an Engine instead."
+    );
+  }
+  finally {
+    vi.doUnmock('./load');
+    vi.resetModules();
+  }
+});

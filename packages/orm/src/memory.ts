@@ -4,10 +4,41 @@ import type { Builder } from './query/Builder';
 import { evaluate, match, NULL, sort } from './query/evaluate';
 import type { Query } from './query/Query';
 import type { Type } from './Type';
+import { persist } from './persist';
 
 type Row = evaluate.Row;
 
-type Table = { rows: Row[], next: number };
+type Table = Memory.Table;
+
+declare namespace Memory {
+  /** One table as an adapter stores it. */
+  interface Table {
+    /** Every row, keyed by column. */
+    rows: Row[];
+    /** The id the next insert takes. */
+    next: number;
+  }
+
+  /** Tables by name. */
+  type Snapshot = Record<string, Table>;
+
+  /** Where a persisted `Memory` loads from and saves to. */
+  interface Adapter {
+    /**
+     * Returns every stored table, or nothing for an empty store.
+     *
+     * Runs once, when the connection is created. Every statement waits for it; if it throws, every statement rejects with its error.
+     */
+    load(): Snapshot | undefined | Promise<Snapshot | undefined>;
+    /**
+     * Stores the tables that changed since the last save, as copies.
+     *
+     * Called a macrotask after a write, once per batch, one call at a time, and only for committed transactions.
+     * A failed save logs to `console.error` and retries with the next write; `close()` rethrows it.
+     */
+    save(changes: Snapshot): void | Promise<void>;
+  }
+}
 
 function key(type: Query.Table) {
   return type.fields.get("id")!;
@@ -19,9 +50,37 @@ function matches(primary: Field, id: unknown) {
   return (row: Row) => where.every(([column, , value]) => row[column] === value);
 }
 
+/**
+ * A connection keeping rows in arrays - for tests, prototypes, and small apps.
+ *
+ * Runs `Query` except raw SQL templates, supports `transaction`, and reports every write to live rows.
+ * `isLike` is case-sensitive, unlike SQLite's.
+ *
+ * @example
+ * const db = Memory.new([User, Post]);
+ */
 class Memory extends Connection {
   _tables = new Map<string, Table>();
   _listeners = new Set<(change: Connection.Change) => void>();
+  _persist?: Memory.Adapter;
+  _ready?: Promise<void>;
+  _saving?: Promise<void>;
+  _dirty = new Set<string>();
+
+  /**
+   * Binds each class and, given a `source`, loads its tables and saves them as they change.
+   *
+   * A string is a JSON file path on Bun, Node 20.16+ or 22.3+, and Deno, and an IndexedDB database name in a browser.
+   * Every statement waits for the load; `close()` waits for the last save and throws if it failed.
+   */
+  constructor(using?: Connection.Types, source?: string | Memory.Adapter){
+    super(using);
+
+    if (source) {
+      this._ready = this._load(source);
+      this._ready.catch(() => {});
+    }
+  }
 
   _table(name: string) {
     let table = this._tables.get(name);
@@ -40,9 +99,106 @@ class Memory extends Connection {
     return new Field("id");
   }
 
+  async _load(source: string | Memory.Adapter) {
+    const adapter = typeof source == "string" ? persist(source) : source;
+    const snapshot = await adapter.load();
+
+    for (const name in snapshot) {
+      const { rows, next } = snapshot[name];
+      this._tables.set(name, { rows: rows.map(row => ({ ...row })), next });
+    }
+
+    this._persist = adapter;
+  }
+
+  _flush() {
+    return this._saving ||= this._write();
+  }
+
+  async _write() {
+    try {
+      while (this._dirty.size) {
+        await new Promise(resolve => setTimeout(resolve));
+
+        const release = await this.lock();
+        const changes: Memory.Snapshot = {};
+
+        for (const name of this._dirty) {
+          const { rows, next } = this._table(name);
+          changes[name] = { rows: rows.map(row => ({ ...row })), next };
+        }
+
+        this._dirty.clear();
+        release();
+
+        try {
+          await this._persist!.save(changes);
+        }
+        catch (error) {
+          for (const name in changes)
+            this._dirty.add(name);
+
+          throw error;
+        }
+      }
+    }
+    finally {
+      this._saving = undefined;
+    }
+  }
+
+  /**
+   * Deletes every row and restarts ids, as between tests.
+   *
+   * Entities loaded through the connection are destroyed and live rows hear each delete. Inside a transaction, a rollback restores the rows.
+   */
+  async clear() {
+    await this.idle();
+
+    for (const [name, table] of this._tables) {
+      const primary = this._key(name);
+      const { rows } = table;
+
+      table.rows = [];
+      table.next = 1;
+
+      for (const row of rows)
+        this._notify(name, "delete", identify(primary, row));
+    }
+  }
+
+  async close() {
+    if (this._persist && this._journal())
+      throw new Error("Cannot close a connection inside its own transaction.");
+
+    try {
+      await this._ready?.catch(() => {});
+
+      if (this._persist) {
+        (await this.lock())();
+        await this._flush();
+      }
+    }
+    finally {
+      await super.close();
+    }
+  }
+
+  protected async idle() {
+    await this._ready;
+    await super.idle();
+  }
+
   _notify(table: string, op: Connection.Change["op"], id: Connection.Key, row?: Row) {
     const change: Connection.Change = row ? { table, op, id, row: { ...row } } : { table, op, id };
-    const emit = () => this._listeners.forEach(listener => listener(change));
+    const emit = () => {
+      if (this._persist) {
+        this._dirty.add(table);
+        this._flush().catch(error => console.error(error));
+      }
+
+      this._listeners.forEach(listener => listener(change));
+    };
     const journal = this._journal();
 
     if (journal)
@@ -176,6 +332,8 @@ class Memory extends Connection {
   }
 
   protected async transact<T>(fn: () => Promise<T>): Promise<T> {
+    await this._ready;
+
     const saved = new Map(Array.from(this._tables, ([name, { rows, next }]) => (
       [name, { rows: rows.map(row => ({ ...row })), next }]
     )));
@@ -191,19 +349,12 @@ class Memory extends Connection {
 }
 
 /**
- * An in-memory connection - rows in arrays, for tests and prototypes.
+ * An in-memory connection, assigned to a class rather than binding it.
  *
- * Runs `Query` except raw SQL templates, supports `transaction`, and reports every write to live rows.
- * `isLike` is case-sensitive, unlike SQLite's.
- *
- * @example
- * class User extends Type {
- *   static connection = memory();
- *   name = str();
- * }
+ * @deprecated Use `Memory.new(types)`.
  */
 function memory(): Connection {
   return Memory.new();
 }
 
-export { memory };
+export { Memory, memory };

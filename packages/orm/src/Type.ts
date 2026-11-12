@@ -1,6 +1,6 @@
 import { Context, Model } from '@expressive/mvc';
 
-import { Connection } from './Connection';
+import { ambient, Connection, forget } from './Connection';
 import { FIELDS, Key, num, PEEK, placeholder, RECENT, write } from './fields';
 import { columns, Field, Fixes, fixes, match, Omits, Optional, present, row, underscore, updates } from './Field';
 import { Query } from './query/Query';
@@ -431,12 +431,21 @@ abstract class Type extends Model {
   /**
    * The connection this class reads and writes through.
    *
-   * Set by `Connection.new([...])`, or assigned: `static connection = memory()`.
+   * Set by `Connection.new([...])`, or assigned: `static connection = Memory.new()`.
    * A class binds to one connection through `Connection.new([...])` - a second throws.
-   * Unset, every statement rejects with `No database connection`.
+   * Unset, the class joins the connection created last, while it is open, on first use - an awaited one has already run `sync` without it.
+   * With none open, every statement rejects with `No database connection`.
    */
   static get connection(): Type.Connection {
-    return DETACHED ||= NotReady.new();
+    const found = this !== Type && ambient(this);
+
+    if (found)
+      return found;
+
+    if (!DETACHED)
+      forget(DETACHED = NotReady.new());
+
+    return DETACHED;
   }
 
   static set connection(value: Type.Connection) {

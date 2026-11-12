@@ -138,6 +138,8 @@ const db = await SQLiteConnection.new([User, Account, Session], "app.db");
 
 `new(types, ...)` binds each class to the connection. Awaiting it runs `sync`: missing tables are created, missing columns and indexes added, existing ones checked against the classes. A column added to a class appears on reopen, reading `undefined` or its `fallback` on old rows; one that cannot fill existing rows - primary, or `NOT NULL` without a `fallback` - is reported and nothing changes. A nullable column defaulting to now is added without the default; inserts fill it. Type and nullability drift is reported; `sync(true, true)` rebuilds it - Postgres alters the column, SQLite rebuilds the table - and refuses while a row would not fit, like a NULL under `NOT NULL`; SQLite also checks each value converts. A SQLite rebuild keeps columns not on the class, indexes and triggers, but not UNIQUE or REFERENCES on columns the class doesn't declare, and refuses while any row references a missing one. SQLite connections enforce foreign keys. `sync(false)` only verifies. `plan(force?)` returns what `sync` would do - `{ steps, problems }`, each step with its `action`, `reason` and `sql` - without doing it. A sync applies in one transaction. Omit the filename for an in-memory database. `await db.close()` releases it and destroys every entity loaded through it.
 
+A class no connection binds joins the one created last, on first use, while it is open - so a test needs only `Memory.new()`. List classes anyway where `sync` matters: one joining after the connection was awaited has no table made for it, and the CLI sees only listed classes. Closing that connection unbinds them; with none open, statements reject with `No database connection`.
+
 ```ts
 import { PGConnection, PGLiteConnection } from '@expressive/postgres';
 
@@ -147,7 +149,7 @@ const lite = await PGLiteConnection.new([Account], "./data");
 
 `PGConnection` takes a connection string, a `pg` `PoolConfig` or a `Pool`. `PGLiteConnection` takes a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`. `close()` leaves a passed `Pool` or `PGlite` open.
 
-`SQLiteConnection` takes a filename, or an `Engine` in its place for a SQLite the built-in loader can't open: any object with `all(sql, params)`, `get(sql, params)`, `run(sql, params)` returning `{ changes }`, `exec(sql)` and `close()`, each async. A given engine is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
+`SQLiteConnection` takes a filename, or an `Engine` in its place for a SQLite the built-in loader can't open, such as on React Native: any object with `all(sql, params)`, `get(sql, params)`, `run(sql, params)` returning `{ changes }`, `exec(sql)` and `close()`, each async. A given engine is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
 
 Two optional members cover hosts without `BEGIN` and `COMMIT` on one connection. `transaction()` returns a session - the same four statements plus `commit()` and `rollback()` - and every statement inside `transaction(fn)` runs on it. `batch(sql)` runs statements atomically, and `sync` applies through it. A rebuild in a batch needs foreign keys off, or dropping the old table would cascade; on an engine that keeps them on, it is refused.
 
@@ -191,16 +193,37 @@ An address starting `libsql:`, `https:`, `http:`, `ws:` or `wss:` opens a `@libs
 
 Every libSQL client runs each `transaction` on a libSQL write transaction (`BEGIN IMMEDIATE`) holding the connection's lock, so transactions run one at a time across the app. `sync` applies as one batch; a table rebuild runs through the client's `migrate`, which turns foreign keys off for it alone. Local libSQL enforces foreign keys by default; `PRAGMA foreign_keys` is per connection, so a remote client gets the server's setting.
 
-Without SQL, `memory()` keeps rows in arrays - for tests and prototypes:
+Without SQL, `Memory` keeps rows in arrays - for tests, prototypes and small apps. It binds classes like any connection:
 
 ```ts
-import { Type, memory, str } from '@expressive/sql';
+import { Memory, Type, str } from '@expressive/sql';
 
 class Note extends Type {
-  static connection = memory();
   text = str();
 }
+
+const db = Memory.new([Note]);
 ```
+
+`db.clear()` deletes every row and restarts ids, destroying loaded entities - between tests:
+
+```ts
+afterEach(() => db.clear());
+```
+
+### Persisted memory
+
+A second argument keeps the same arrays and query engine, and saves them - for casual and local-first apps:
+
+```ts
+const db = Memory.new([Note], "notes.json");
+```
+
+On Bun, Node 20.16+ or 22.3+, and Deno, the string is a JSON file, written as `path.tmp` and renamed over, so a crashed process never leaves a half-written file; the directory must exist. It keeps `Date`; other values round-trip as JSON, and a `BigInt` fails the save. In a browser it names an IndexedDB database, one record per table, given up when another connection deletes or upgrades it. The connection loads on creation and every statement waits for it. Writes mark their table; changed tables save together a macrotask later, one save at a time, ids continuing where they left off - a write just before the page or process exits is lost unless `close()` is awaited. Where `transaction` runs, it saves once it commits, and a rollback saves nothing. A failed save logs to `console.error` and retries with the next write; `close()` waits for an open transaction and the last save, and throws if that save failed. If loading fails, every statement rejects with its error, and `close()` still closes.
+
+In place of the string, pass a `Memory.Adapter` - `{ load, save }`: `load()` returns `{ [table]: { rows, next } }` or nothing, `save(changes)` receives the changed tables as copies.
+
+Each connection holds its own copy. Two tabs or processes on the same store don't see each other's writes, and the last to save a table wins it - inserts from both can share an id. Open one connection per store. Each save rewrites every changed table whole - a file is rewritten - so keep stores small.
 
 ### Command line
 
@@ -435,7 +458,7 @@ const admins = User.query((user, where) => {
 console.log(String(admins));
 ```
 
-`String(query)` is the SQL the connection runs; without a connection, or on `memory()`, it lists the query's intent. A second callback argument holds math (`add`, `sub`, `mul`, `div`, `mod`, `neg`) and `bit` operators; a template string, from `where` or that helper, embeds raw SQL. `memory()` runs everything but raw SQL.
+`String(query)` is the SQL the connection runs; without a connection, or on `Memory`, it lists the query's intent. A second callback argument holds math (`add`, `sub`, `mul`, `div`, `mod`, `neg`) and `bit` operators; a template string, from `where` or that helper, embeds raw SQL. `Memory` runs everything but raw SQL.
 
 ## Transactions
 
@@ -451,7 +474,7 @@ const ann = await db.transaction(async () => {
 
 `transaction(fn)` runs `fn` in one database transaction: it commits when `fn` resolves, to its result, and rolls back when it throws, rethrowing. Statements inside - statics, `Query`, instance writes, and effects they trigger - join it without a handle. A nested `transaction` joins the open one, so a nested failure is undone only if it reaches the outer `fn`; caught, its writes commit with the rest. Instances change as writes land; a rollback restores what they changed, destroys entities created inside, and keeps entities deleted inside, which a commit then destroys. Values read into an instance inside a rolled-back transaction stay.
 
-On SQLite, PGlite and `memory()`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `memory()` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` - Bun, Node, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as PGlite or `memory()` in a browser. D1 refuses `transaction`.
+On SQLite, PGlite and `Memory`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `Memory` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` from `process.getBuiltinModule` - Bun, Node 20.16+ or 22.3+, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as React Native, or PGlite or `Memory` in a browser. D1 refuses `transaction`.
 
 ## Hooks
 
@@ -503,11 +526,11 @@ await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 - A delete destroys the entity.
 - An insert changes nothing loaded.
 
-`memory()` reports every write, floor or `Query`. Postgres uses LISTEN/NOTIFY: `sync` installs a trigger per table (Postgres 14+) - see [`@expressive/postgres`](packages/postgres). SQLite has no live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
+`Memory` reports every write, floor or `Query`. Postgres uses LISTEN/NOTIFY: `sync` installs a trigger per table (Postgres 14+) - see [`@expressive/postgres`](packages/postgres). SQLite has no live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
 
 ## Datatypes
 
-A field declares a portable datatype; each connection decides how to store it. The same schema module - importing only `@expressive/orm` - binds to SQLite, D1, Postgres, `memory()` or a connection forwarding to a server, unchanged. `sql.*` is shorthand for the declaration; an object says the same: `str(sql.varchar(40))` is `str({ type: "varchar", length: 40 })`.
+A field declares a portable datatype; each connection decides how to store it. The same schema module - importing only `@expressive/orm` - binds to SQLite, D1, Postgres, `Memory` or a connection forwarding to a server, unchanged. `sql.*` is shorthand for the declaration; an object says the same: `str(sql.varchar(40))` is `str({ type: "varchar", length: 40 })`.
 
 | Helper | Datatype | SQLite | Postgres |
 |---|---|---|---|
@@ -552,7 +575,7 @@ To write a driver, extend `Connection` from `@expressive/orm` and implement the 
 
 Driver seams - `Builder`, `evaluate`, `Where` and a SQL generator's values - import from `@expressive/orm/driver`.
 
-A driver without a query language can run `Query` in JS, the way `memory()` does: `evaluate(store, builder, params)` returns `{ rows, count }`, so `prepare` is `all` resolving `rows` and `run` resolving `count`. The store reads and writes one table at a time:
+A driver without a query language can run `Query` in JS, the way `Memory` does: `evaluate(store, builder, params)` returns `{ rows, count }`, so `prepare` is `all` resolving `rows` and `run` resolving `count`. The store reads and writes one table at a time:
 
 | Method | Does |
 |---|---|
@@ -564,10 +587,10 @@ A driver without a query language can run `Query` in JS, the way `memory()` does
 `table` is the query's table, with `name` and the class as `type`. The rows `rows` and `insert` return are the ones handed back to `update` and `delete`, so a store can find its record by identity. Joins, filters, ordering and computed values run over them.
 
 ```ts
-import { Connection, Type, memory, str } from '@expressive/orm';
+import { Connection, Memory, Type, str } from '@expressive/orm';
 
 class Logged extends Connection {
-  inner = memory();
+  inner = Memory.new();
 
   select(...args: Parameters<Connection["select"]>){
     console.log("select", args[0]);
