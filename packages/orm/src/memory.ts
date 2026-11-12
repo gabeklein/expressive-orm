@@ -4,10 +4,46 @@ import type { Builder } from './query/Builder';
 import { evaluate, match, NULL, sort } from './query/evaluate';
 import type { Query } from './query/Query';
 import type { Type } from './Type';
+import { fileAdapter, indexedDBAdapter } from './persist';
 
 type Row = evaluate.Row;
 
-type Table = { rows: Row[], next: number };
+type Table = memory.Table;
+
+declare namespace memory {
+  /** One table as an adapter stores it. */
+  interface Table {
+    /** Every row, keyed by column. */
+    rows: Row[];
+    /** The id the next insert takes. */
+    next: number;
+  }
+
+  /** Tables by name. */
+  type Snapshot = Record<string, Table>;
+
+  /** Where a persisted `memory()` loads from and saves to. */
+  interface Adapter {
+    /**
+     * Returns every stored table, or nothing for an empty store.
+     *
+     * Runs once, when the connection is created. Every statement waits for it; if it throws, every statement rejects with its error.
+     */
+    load(): Snapshot | undefined | Promise<Snapshot | undefined>;
+    /**
+     * Stores the tables that changed since the last save, as copies.
+     *
+     * Called a macrotask after a write, once per batch, one call at a time, and only for committed transactions.
+     * A failed save logs to `console.error` and retries with the next write; `close()` rethrows it.
+     */
+    save(changes: Snapshot): void | Promise<void>;
+  }
+
+  interface Options {
+    /** Loads tables when the connection opens and saves them as they change. */
+    persist?: Adapter;
+  }
+}
 
 function key(type: Query.Table) {
   return type.fields.get("id")!;
@@ -22,6 +58,10 @@ function matches(primary: Field, id: unknown) {
 class Memory extends Connection {
   _tables = new Map<string, Table>();
   _listeners = new Set<(change: Connection.Change) => void>();
+  _persist?: memory.Adapter;
+  _ready?: Promise<void>;
+  _saving?: Promise<void>;
+  _dirty = new Set<string>();
 
   _table(name: string) {
     let table = this._tables.get(name);
@@ -40,9 +80,85 @@ class Memory extends Connection {
     return new Field("id");
   }
 
+  async _load(adapter: memory.Adapter) {
+    const snapshot = await adapter.load();
+
+    for (const name in snapshot) {
+      const { rows, next } = snapshot[name];
+      this._tables.set(name, { rows: rows.map(row => ({ ...row })), next });
+    }
+
+    this._persist = adapter;
+  }
+
+  _flush() {
+    return this._saving ||= this._write();
+  }
+
+  async _write() {
+    try {
+      while (this._dirty.size) {
+        await new Promise(resolve => setTimeout(resolve));
+
+        const release = await this.lock();
+        const changes: memory.Snapshot = {};
+
+        for (const name of this._dirty) {
+          const { rows, next } = this._table(name);
+          changes[name] = { rows: rows.map(row => ({ ...row })), next };
+        }
+
+        this._dirty.clear();
+        release();
+
+        try {
+          await this._persist!.save(changes);
+        }
+        catch (error) {
+          for (const name in changes)
+            this._dirty.add(name);
+
+          throw error;
+        }
+      }
+    }
+    finally {
+      this._saving = undefined;
+    }
+  }
+
+  async close() {
+    if (this._persist && this._journal())
+      throw new Error("Cannot close a connection inside its own transaction.");
+
+    try {
+      await this._ready?.catch(() => {});
+
+      if (this._persist) {
+        (await this.lock())();
+        await this._flush();
+      }
+    }
+    finally {
+      await super.close();
+    }
+  }
+
+  protected async idle() {
+    await this._ready;
+    await super.idle();
+  }
+
   _notify(table: string, op: Connection.Change["op"], id: Connection.Key, row?: Row) {
     const change: Connection.Change = row ? { table, op, id, row: { ...row } } : { table, op, id };
-    const emit = () => this._listeners.forEach(listener => listener(change));
+    const emit = () => {
+      if (this._persist) {
+        this._dirty.add(table);
+        this._flush().catch(error => console.error(error));
+      }
+
+      this._listeners.forEach(listener => listener(change));
+    };
     const journal = this._journal();
 
     if (journal)
@@ -176,6 +292,8 @@ class Memory extends Connection {
   }
 
   protected async transact<T>(fn: () => Promise<T>): Promise<T> {
+    await this._ready;
+
     const saved = new Map(Array.from(this._tables, ([name, { rows, next }]) => (
       [name, { rows: rows.map(row => ({ ...row })), next }]
     )));
@@ -191,19 +309,30 @@ class Memory extends Connection {
 }
 
 /**
- * An in-memory connection - rows in arrays, for tests and prototypes.
+ * An in-memory connection - rows in arrays, for tests, prototypes, and with `persist`, small apps.
  *
  * Runs `Query` except raw SQL templates, supports `transaction`, and reports every write to live rows.
  * `isLike` is case-sensitive, unlike SQLite's.
+ * With `persist`, tables load when the connection opens and save as they change; `close()` waits for the last save and throws if it failed.
  *
  * @example
  * class User extends Type {
- *   static connection = memory();
+ *   static connection = memory({ persist: memory.indexedDB("app") });
  *   name = str();
  * }
  */
-function memory(): Connection {
-  return Memory.new();
+function memory(options: memory.Options = {}): Connection {
+  const db = Memory.new();
+
+  if (options.persist) {
+    db._ready = db._load(options.persist);
+    db._ready.catch(() => {});
+  }
+
+  return db;
 }
+
+memory.indexedDB = indexedDBAdapter;
+memory.file = fileAdapter;
 
 export { memory };
