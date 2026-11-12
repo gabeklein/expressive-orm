@@ -109,14 +109,18 @@ A string is a JSON file on Bun, Node 20.16+/22.3+ and Deno, an IndexedDB databas
 
 ### Remote
 
-`Remote.new(types, send)` forwards every read and write through `send` to `Remote.handle(connection)` on a server - over any transport:
+`Remote.new(types, send)` forwards every read and write through `send` to `Remote.handle(connection, options)` on a server - over any transport:
 
 ```ts
-const db = Remote.new({ User, Post }, request => api.database(request));        // client
-const serve = Remote.handle(SQLiteConnection.new({ User, Post }, "app.db"));    // server
+const db = Remote.new({ User, Post }, request => api.database(request));                 // client
+const serve = Remote.handle(await SQLiteConnection.new({ User, Post }, "app.db"), {     // server
+  expose: { User: ["name"] },
+  check(request, user){ if (!user) throw new Error("Sign in first."); }
+});
+// serve(request, user)
 ```
 
-Requests carry the class's key and field properties - `{ op, type: "Post", where: [["author", "=", 1]] }` - never table or column, so the server alone decides storage. Bind by object under the same keys on both sides; an array-bound class throws when sent. The server checks values and runs its hooks; an unknown class or property rejects. Statics, relations and instance writes travel - not `Query`, `transaction` or live rows. `handle` serves every keyed class to whoever reaches it - authorize before calling it.
+Requests carry the class's key and field properties - `{ op, type: "Post", where: [["author", "=", 1]] }` - never table or column, so the server alone decides storage. Bind by object under the same keys on both sides; an array, or two classes sharing a table (subsets), throws. The server validates the request and runs it as the class's statics would - values checked, subset scoped, fixed fields refused, `updated` on its clock - and its hooks run. `expose` limits the properties each class shares (read, filter, write); `check(request, context)` refuses by throwing or narrows a select by pushing onto `where`. Without them every keyed class is served whole to whoever reaches the handler. Reads, inserts, writes by id, relations and instance writes travel - not `count`, writes by filter, `Query`, `transaction` or live rows.
 
 ## Read and write
 

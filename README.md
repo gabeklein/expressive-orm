@@ -232,21 +232,31 @@ Each connection holds its own copy. Two tabs or processes on the same store don'
 `Remote` runs entities in a client against a connection on a server - every read and write forwarded through a function you give it, over any transport:
 
 ```ts
-import { Remote } from '@expressive/sql';
+import { Remote, SQLiteConnection } from '@expressive/sql';
 import { types } from './entities';   // { User, Post }, shared by both sides
 
 // client
 const db = Remote.new(types, request => api.database(request));
 
 // server
-const serve = Remote.handle(SQLiteConnection.new(types, "app.db"));
+const serve = Remote.handle(await SQLiteConnection.new(types, "app.db"), {
+  expose: { User: ["name", "email"] },
+  check(request, user: Session){
+    if (!user)
+      throw new Error("Sign in first.");
+  }
+});
 
-export const database = (request: Remote.Request) => serve(request);
+export const database = (request: unknown, user: Session) => serve(request, user);
 ```
 
-Requests name each class by the key it is bound under and each field by its property - `{ op: "select", type: "Post", where: [["author", "=", 1]] }` - never a table or column, so the server resolves both against its own classes and alone decides where they are stored. Bind classes as an object, under the same keys on both sides; a class bound in an array can't be sent. The server checks and stores values as any write, and runs its `before` and `after` hooks; an unknown class or property rejects. Only the statics, relations and instance writes travel - `Query`, `transaction` and live rows don't, and `transaction` throws. Values must survive your transport: send `Date` with a codec that keeps it.
+Requests name each class by the key it is bound under and each field by its property - `{ op: "select", type: "Post", where: [["author", "=", 1]] }` - never a table or column, so the server alone decides where they are stored. Bind classes as an object, under the same keys on both sides. `Remote.new` throws when given an array, or two classes sharing a table - a subset can't travel.
 
-`Remote.handle` serves every class its connection binds by key, to anyone who can reach it. Check who is asking before calling it.
+The server validates each request and runs it as the class's own statics would: fields check values, a subset scopes reads and inserts, a fixed field rejects updates, and an `updated` field takes the server's clock. Its `before` and `after` hooks run. A malformed request, unknown class or unshared property rejects.
+
+`Remote.handle` serves every class its connection binds by key, to anyone who reaches it. `expose` lists the properties each class shares - read, filtered and written; others never leave the server and can't be filtered on. `check` runs for each valid request with the context you pass the handler - throw to refuse it, or push onto a select's `where` to narrow its rows.
+
+Reads, inserts and writes by id travel, with relations and instance writes. `count`, writes by filter, `Query`, `transaction` and live rows don't. Values must survive your transport: send `Date` with a codec that keeps it.
 
 ### Command line
 
