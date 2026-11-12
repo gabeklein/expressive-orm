@@ -141,11 +141,12 @@ function check(target: Function, type: Query.Table){
 function ambient(type: Query.Table): Connection | undefined {
   const into = latest;
 
-  if (into) {
-    check(into.constructor, type);
-    (into.using as Set<Query.Table>).add(type);
-    type.connection = into;
-  }
+  if (!into || into.sync)
+    return;
+
+  check(into.constructor, type);
+  (into.using as Set<Query.Table>).add(type);
+  type.connection = into;
 
   return into;
 }
