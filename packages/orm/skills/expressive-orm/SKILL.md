@@ -85,17 +85,17 @@ A class no connection binds joins the connection created last, on first use, whi
 
 ### Testing
 
-One `Memory` per test file; `clear()` deletes every row, restarts ids and destroys loaded entities:
+One `Memory` for the suite, in a setup file; `clear()` between tests deletes every row, restarts ids and destroys loaded entities:
 
 ```ts
 import { Memory } from '@expressive/orm';
 
-const db = Memory.new();   // every class used in this file joins it
+export const db = Memory.new();   // every class used joins it
 
 afterEach(() => db.clear());
 ```
 
-A fresh `Memory.new()` per test leaves classes on the first one, which stays open - `clear()` it, or `await db.close()` before making the next.
+Don't recreate it per test - classes stay on the connection they first joined.
 
 ### Persisted
 

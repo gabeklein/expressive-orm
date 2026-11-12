@@ -205,9 +205,11 @@ class Note extends Type {
 const db = Memory.new([Note]);
 ```
 
-`db.clear()` deletes every row and restarts ids, destroying loaded entities - between tests:
+For tests, make one `Memory` for the suite in a setup file and `clear()` it between tests - it deletes every row and restarts ids, destroying loaded entities. Don't recreate it per test:
 
 ```ts
+export const db = Memory.new();
+
 afterEach(() => db.clear());
 ```
 
