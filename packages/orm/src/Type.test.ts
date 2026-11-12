@@ -1311,6 +1311,22 @@ describe("batches", () => {
     expect(await collect(User.query(undefined, 2))).toEqual([["E", "D"], ["C", "B"], ["A"]]);
   })
 
+  it("will iterate from an offset", async () => {
+    await ready;
+
+    expect(await collect(User.query(undefined, 2, 1))).toEqual([["D", "C"], ["B", "A"]]);
+    expect(await collect(User.query({ id: asc() }, 2, 1))).toEqual([["B", "C"], ["D", "E"]]);
+  })
+
+  it("will accept an optional limit", async () => {
+    await ready;
+    const read = (limit?: number) => User.query({ id: asc() }, limit);
+    const rows: Type.Columns<User>[] = await read(2);
+
+    expect(rows.map(x => x.name)).toEqual(["A", "B"]);
+    expect((await read()).map(x => x.name)).toEqual(["A", "B", "C", "D", "E"]);
+  })
+
   it("will start iterating from the awaited batch", async () => {
     await ready;
     const select = vi.fn(User.connection.select.bind(User.connection));
@@ -1395,6 +1411,47 @@ describe("limited order", () => {
     expect((await Tag.query({ group: desc() }, 10)).map(x => x.id)).toEqual(["c", "b", "a"]);
     expect((await Tag.query({ group: asc(), id: asc() }, 10)).map(x => x.id)).toEqual(["a", "b", "c"]);
     expect((await Tag.query(undefined, 10)).map(x => x.id)).toEqual(["c", "b", "a"]);
+  })
+
+  it("will break ties in the direction of the first order", async () => {
+    class Tag extends connect() {
+      id = key({ type: "text" });
+      group = num();
+    }
+
+    for (const [id, group] of [["b", 1], ["c", 2], ["a", 1]] as const)
+      await Tag.insert({ id, group });
+
+    expect((await Tag.query({ group: asc() }, 10)).map(x => x.id)).toEqual(["a", "b", "c"]);
+    expect((await Tag.query({ group: desc() }, 10)).map(x => x.id)).toEqual(["c", "b", "a"]);
+  })
+
+  it("will order a composite key", async () => {
+    const db = memory();
+
+    class Account extends Type {
+      static connection = db;
+      name = str();
+    }
+
+    class Pick extends Type {
+      static connection = db;
+      id = key(() => [this.account, this.kind]);
+      account = one(Account);
+      kind = str();
+    }
+
+    await Account.insert({ name: "x" });
+    await Account.insert({ name: "y" });
+
+    for (const [account, kind] of [[1, "b"], [2, "a"], [1, "a"]] as const)
+      await Pick.insert({ account, kind });
+
+    const ids = (rows: Type.Columns<Pick>[]) => rows.map(x => [x.account, x.kind]);
+
+    expect(ids(await Pick.query(undefined, 10))).toEqual([[2, "a"], [1, "b"], [1, "a"]]);
+    expect(ids(await Pick.query({ kind: "a" }, 10))).toEqual([[2, "a"], [1, "a"]]);
+    expect(ids(await Pick.query({ kind: asc() }, 10))).toEqual([[1, "a"], [2, "a"], [1, "b"]]);
   })
 })
 

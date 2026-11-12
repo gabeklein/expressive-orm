@@ -727,6 +727,13 @@ abstract class Type extends Model {
     limit: number,
     offset?: number
   ): Type.Results<T>;
+  /** Rows matching a filter, up to `limit` when it is a number - then a `Type.Results`. */
+  static query<T extends Type>(
+    this: Type.Class<T>,
+    where: Type.Query<T> | undefined,
+    limit: number | undefined,
+    offset?: number
+  ): Promise<Type.Columns<T>[]>;
   static query(this: Type.Class, where?: Type.Query<any> | ((self: any, where: Query.Where) => unknown), limit?: number, offset = 0){
     if (typeof where != "function")
       return limit === undefined ? this.fetch(where, limit, offset) : results(this, where, limit, offset);
