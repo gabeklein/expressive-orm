@@ -108,7 +108,7 @@ class Session extends Type {
 }
 ```
 
-An integer `key` increments; another numeric type does not. `Account["id"]` is a `number`, `Session["id"]` a `string`; `one(id)`, `update(id)` and relations follow it. The property stays `id`.
+An integer `key` increments; another numeric type does not. `Account["id"]` is a `number`, `Session["id"]` a `string`; `get(id)`, `update(id)` and relations follow it. The property stays `id`.
 
 `key` with an arrow declares a composite primary key - the fields it lists, in order, with no column of its own:
 
@@ -205,9 +205,11 @@ class Note extends Type {
 const db = Memory.new([Note]);
 ```
 
-`db.clear()` deletes every row and restarts ids, destroying loaded entities - between tests:
+For tests, make one `Memory` for the suite in a setup file and `clear()` it between tests - it deletes every row and restarts ids, destroying loaded entities. Don't recreate it per test:
 
 ```ts
+export const db = Memory.new();
+
 afterEach(() => db.clear());
 ```
 
@@ -233,7 +235,7 @@ expressive sql sync src/db.ts         # create missing tables, columns and index
 expressive sql sync --force src/db.ts # also rebuild drifted columns
 ```
 
-The entry is the module that creates your connections; it is imported with `sync` held back, so `await Connection.new()` resolves without touching the database, and the command plans and syncs each connection it created. A TypeScript entry needs Bun (`bunx --bun expressive ...`) or Node 22.18+. `expressive` is shared by `@expressive/*` packages: `expressive <package> ...` runs the command an installed package declares.
+The entry is the module that creates your connections; it is imported with `sync` held back, so `await Connection.new()` resolves without touching the database, and the command plans and syncs each connection awaited while it loads. The entry must not query at load - the tables may not exist yet. A TypeScript entry needs Bun (`bunx --bun expressive ...`) or Node 22.18+. `expressive` is shared by `@expressive/*` packages: `expressive <package> ...` runs the command an installed package declares.
 
 ## Read and write
 
@@ -458,7 +460,7 @@ const admins = User.query((user, where) => {
 console.log(String(admins));
 ```
 
-`String(query)` is the SQL the connection runs; without a connection, or on `Memory`, it lists the query's intent. A second callback argument holds math (`add`, `sub`, `mul`, `div`, `mod`, `neg`) and `bit` operators; a template string, from `where` or that helper, embeds raw SQL. `Memory` runs everything but raw SQL.
+`String(query)` is the SQL the connection runs; without a connection, or on `Memory`, it lists the query's intent. A second callback argument holds math (`add`, `sub`, `mul`, `div`, `mod`, `neg`, `pos`) and `bit` operators; a template string, from `where` or that helper, embeds raw SQL. `Memory` runs everything but raw SQL.
 
 ## Transactions
 
