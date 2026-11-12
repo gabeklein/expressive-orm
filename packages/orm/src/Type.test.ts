@@ -1434,7 +1434,7 @@ describe("limited order", () => {
   })
 
   it("will order a composite key", async () => {
-    const db = memory();
+    const db = Memory.new();
 
     class Account extends Type {
       static connection = db;
