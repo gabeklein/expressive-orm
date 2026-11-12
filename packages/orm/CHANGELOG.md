@@ -194,6 +194,18 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 # @expressive/orm
 
+## 0.18.0
+
+### Minor Changes
+
+- [#54](https://github.com/gabeklein/expressive-orm/pull/54) [`3ff4f2b`](https://github.com/gabeklein/expressive-orm/commit/3ff4f2b7cc5086e0740780398db410e88a8dcad0) Breaking: `Type.one(where?, expect?)` resolves the live entity, loaded as `load(where, 1)` - a loaded entity settles the fetched row and is returned as is. It takes a filter only; `get(id)` covers ids, and an id throws. `Type.find` is now `Type.query(where?, limit?, offset?)`, still resolving frozen rows through the driver's `select` alone; `query(callback)` stays the `Query` builder, and `query()` without arguments now reads rows rather than building a `Query`. `rows()` handles follow: `find` is `query`, and `one` resolves an entity.
+  
+  `date.created()` marks the class's recency. Without a filter - `{}` and all-`undefined` filters included - `query`, `load` and `one` take the newest first by it then by `id`, else by an incrementing `id`, else unordered - and `one()` without a filter then throws asking for one. A second `created()` on one class throws.
+
+- [#56](https://github.com/gabeklein/expressive-orm/pull/56) [`d946b59`](https://github.com/gabeklein/expressive-orm/commit/d946b597a91d1f4219aee47301d6b9adea29c563) Breaking: `Type.all(pageSize, where?)` is gone - use `query(where, pageSize)`, arguments swapped. `query(where, limit, offset?)` with a numeric `limit` now returns `Type.Results` rather than a plain `Promise<Columns[]>`: it resolves its first `limit` rows when awaited and, iterated with `for await`, yields every match `limit` rows per select. A `limit` typed `number | undefined` resolves rows. A limit of `0` reads every match in one batch. `rows()` handles follow.
+  
+  A read with a limit is always totally ordered: the filter's `asc()` / `desc()`, else the class's newest first, then by id. Every limited select now carries an `ORDER BY` - `one`, `load(where, limit)` and the by-id load behind `get` included. `one({ ... })` now resolves the newest match rather than any.
+
 ## 0.17.0
 
 ### Minor Changes
