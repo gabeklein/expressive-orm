@@ -656,7 +656,9 @@ abstract class Type extends Model {
 
   /** Count rows matching a filter - the whole table when omitted. */
   static async count<T extends Type>(this: Type.Class<T>, where: Type.Query<T> = {}): Promise<number> {
-    return matching(this, await conditions(this, where, true));
+    const constraints = await conditions(this, where, true);
+
+    return await matching(this, constraints);
   }
 
   /** The live entity matching a filter - `undefined` when `expect` is false and none matches. */

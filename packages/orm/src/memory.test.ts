@@ -311,6 +311,19 @@ describe("subscribe", () => {
 })
 
 describe("transaction", () => {
+  it("will count inside a transaction", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = Memory.new([User]);
+
+    await expect(db.transaction(async () => {
+      await User.insert({ name: "A" });
+      return User.count();
+    })).resolves.toBe(1);
+  })
+
   it("will commit writes and report them after", async () => {
     const db = Memory.new();
     const changes: unknown[] = [];
