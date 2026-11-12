@@ -270,4 +270,22 @@ describe("remote", () => {
 
     await host.close();
   })
+
+  it("will serve a SQL connection without leaking it", async () => {
+    const server = schema();
+    const host = await SQLiteConnection.new({ Attorney: server.Attorney, Claim: server.Claim });
+    const serve = Remote.handle(host);
+
+    await expect(serve({ op: "insert", type: "Attorney", data: { name: "Lee", email: "lee@example.com" } })).resolves.toBeUndefined();
+
+    const error = await serve({ op: "insert", type: "Attorney", data: { name: "Leigh", email: "lee@example.com" } }).catch(e => e) as Error & { cause: Error };
+
+    expect(error.message).toBe("Request failed.");
+    expect(error.cause.message).toMatch(/UNIQUE/);
+
+    await expect(serve({ op: "select", type: "Claim", where: [["count", "IN", Array.from({ length: 40000 }, (_, i) => i)]] })).rejects.toThrow("Malformed request.");
+    await expect(server.Attorney.count()).resolves.toBe(1);
+
+    await host.close();
+  })
 })

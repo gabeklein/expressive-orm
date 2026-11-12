@@ -252,9 +252,11 @@ export const database = (request: unknown, user: Session) => serve(request, user
 
 Requests name each class by the key it is bound under and each field by its property - `{ op: "select", type: "Post", where: [["author", "=", 1]] }` - never a table or column, so the server alone decides where they are stored. Bind classes as an object, under the same keys on both sides. `Remote.new` throws when given an array, or two classes sharing a table - a subset can't travel.
 
-The server validates each request and runs it as the class's own statics would: fields check values, a subset scopes reads and inserts, a fixed field rejects updates, and an `updated` field takes the server's clock. Its `before` and `after` hooks run. A malformed request, unknown class or unshared property rejects.
+The server validates each request and runs it as the class's own statics would: fields check values, a subset scopes every read and write, a fixed field rejects updates and a key can't change, and `created` and `updated` fields take the server's clock. Its `before` and `after` hooks run. Values must be plain - a relation travels as its id, and an object reaches only a `json` field. A request may carry up to 100 conditions and 1000 values in a list.
 
-`Remote.handle` serves every class its connection binds by key, to anyone who reaches it. `expose` lists the properties each class shares - read, filtered and written; others never leave the server and can't be filtered on. `check` runs for each valid request with the context you pass the handler - throw to refuse it, or push onto a select's `where` to narrow its rows.
+A malformed request, unknown class or unshared property rejects with what was wrong, as does a value its field refuses. Anything that fails after that - a constraint, a hook, the database - rejects as `Request failed.`, with the original error as its `cause` for your logs, so table and column names never reach the client.
+
+`Remote.handle` serves every class its connection binds by key, to anyone who reaches it. `expose` names the classes served and the properties each shares - read, filtered and written; a class it leaves out isn't served, and properties it leaves out never leave the server and can't be filtered on. `id` and key parts are always shared. `check` runs for each valid request with the context you pass the handler - throw to refuse it, or push onto a select's `where` to narrow its rows.
 
 Reads, inserts and writes by id travel, with relations and instance writes. `count`, writes by filter, `Query`, `transaction` and live rows don't. Values must survive your transport: send `Date` with a codec that keeps it.
 

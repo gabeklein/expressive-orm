@@ -399,4 +399,182 @@ describe("handle", () => {
 
     await expect(serve({ op: "select", type: "Admin", where: [] })).resolves.toEqual([{ id: 2, name: "Ben", role: "admin" }]);
   })
+
+  it("will refuse an object for a relation", async () => {
+    const { server, serve } = pair({ expose: { Author: ["name"], Post: ["author", "title", "views"] } });
+
+    await expect(serve({ op: "insert", type: "Post", data: { title: "x", author: { name: "M", hash: "planted" } } })).rejects.toThrow('Post.author can\'t take {"name":"M","hash":"planted"}.');
+    await expect(serve({ op: "update", type: "Post", id: 1, data: { author: { name: "M" } } })).rejects.toThrow("Post.author can't take");
+    await expect(serve({ op: "select", type: "Post", where: [["author", "=", { hash: "s" }]] })).rejects.toThrow("Post.author can't take");
+    await expect(serve({ op: "select", type: "Post", where: [["author", "IN", [1, { hash: "s" }]]] })).rejects.toThrow("Post.author can't take");
+    await expect(serve({ op: "select", type: "Post", where: [["title", "=", { a: 1 }]] })).rejects.toThrow('Post.title can\'t take {"a":1}.');
+    await expect(server.select("people", [])).resolves.toEqual([]);
+  })
+
+  it("will check each value in a list", async () => {
+    const { server, serve } = pair();
+
+    await server.insert("articles", { author_id: 1, title: "a", views: 1 });
+
+    await expect(serve({ op: "select", type: "Post", where: [["views", "IN", [1, 2]], ["title", "LIKE", "a%"]] })).resolves.toMatchObject([{ title: "a" }]);
+    await expect(serve({ op: "select", type: "Post", where: [["views", "IN", [1, "x"]]] })).rejects.toThrow("value must be a number");
+  })
+
+  it("will refuse oversized requests", async () => {
+    const { serve } = pair();
+    const many = Array.from({ length: 101 }, () => ["views", ">", 0]);
+
+    await expect(serve({ op: "select", type: "Post", where: many })).rejects.toThrow("Malformed request.");
+    await expect(serve({ op: "select", type: "Post", where: [["views", "IN", Array.from({ length: 1001 }, (_, i) => i)]] })).rejects.toThrow("Malformed request.");
+  })
+
+  it("will refuse a value missing or of the wrong kind", async () => {
+    const { serve } = pair();
+
+    await expect(serve({ op: "select", type: "Post", where: [["title", "="]] })).rejects.toThrow("Malformed request.");
+    await expect(serve({ op: "select", type: "Post", where: [["title", "LIKE", 5]] })).rejects.toThrow("Malformed request.");
+    await expect(serve({ op: "update", type: "Post", data: {} })).rejects.toThrow("Malformed request.");
+    await expect(serve({ op: "remove", type: "Post" })).rejects.toThrow("Malformed request.");
+    await expect(serve({ op: "insert", type: "Post", data: {}, conflict: { on: [] } })).rejects.toThrow("Malformed request.");
+  })
+
+  it("will refuse an update to a key", async () => {
+    const { serve } = pair();
+
+    await expect(serve({ op: "update", type: "Post", id: 1, data: { id: 99 } })).rejects.toThrow("Post.id is part of its key and can't be updated.");
+  })
+
+  it("will send a composite key with a relation part", async () => {
+    const build = () => {
+      class User extends Type {
+        name = str();
+      }
+
+      class Member extends Type {
+        id = key(() => [this.user, this.role]);
+        user = one(User);
+        role = str();
+        note = str(null);
+      }
+
+      return { User, Member };
+    };
+
+    const server = build();
+    const client = build();
+    const host = Memory.new(server);
+
+    Remote.new(client, Remote.handle(host));
+
+    const ann = await client.User.insert({ name: "Ann" });
+
+    await client.Member.insert({ user: ann.id, role: "owner" });
+
+    const member = (await client.Member.get([ann.id, "owner"] as any))!;
+
+    await expect(client.Member.query(undefined, 1)).resolves.toHaveLength(1);
+    await member.set({ note: "n" });
+    await expect(server.Member.query()).resolves.toMatchObject([{ note: "n" }]);
+
+    await member.delete();
+    await expect(server.Member.query()).resolves.toEqual([]);
+  })
+
+  it("will scope writes by id to a subset", async () => {
+    class Person extends Type {
+      static table = "user";
+      static subset = { role: "user" };
+      name = str();
+      role = str();
+    }
+
+    const server = Memory.new({ Person });
+    const serve = Remote.handle(server);
+
+    await server.insert("user", { name: "Root", role: "admin" });
+    await server.insert("user", { name: "Ann", role: "user" });
+
+    await serve({ op: "update", type: "Person", id: 1, data: { name: "pwned" } });
+    await serve({ op: "remove", type: "Person", id: 1 });
+    await expect(serve({ op: "update", type: "Person", id: 2, data: { role: "admin" } })).rejects.toThrow("Person.role is fixed by its subset.");
+    await serve({ op: "update", type: "Person", id: 2, data: { name: "Anne" } });
+
+    await expect(server.select("user", [])).resolves.toEqual([
+      { id: 1, name: "Root", role: "admin" },
+      { id: 2, name: "Anne", role: "user" }
+    ]);
+  })
+
+  it("will stamp inserts and upserts on the server", async () => {
+    class Note extends Type {
+      email = str();
+      text = str();
+      made = date.created();
+      at = date.updated();
+    }
+
+    const server = Memory.new({ Note });
+    const serve = Remote.handle(server);
+    const past = new Date(0);
+    const future = new Date(4102444800000);
+
+    await serve({ op: "insert", type: "Note", data: { email: "a", text: "a", made: past, at: future } });
+
+    const [inserted] = await server.select("note", []);
+
+    expect(inserted.made > past && inserted.made < future).toBe(true);
+    expect(inserted.at < future).toBe(true);
+
+    await server.update("note", 1, { at: past });
+    await serve({ op: "insert", type: "Note", data: { email: "a", text: "b" }, conflict: { on: ["email"], update: ["text"] } });
+
+    const [upserted] = await server.select("note", []);
+
+    expect(upserted.text).toBe("b");
+    expect(upserted.at > past).toBe(true);
+  })
+
+  it("will hide a failure past validation", async () => {
+    const { server, serve } = pair();
+
+    server.before(server.using.values().next().value as typeof Type, {
+      delete(){
+        throw new Error("table people is locked");
+      }
+    });
+
+    await server.insert("people", { full_name: "Ann" });
+
+    const error = await serve({ op: "remove", type: "Author", id: 1 }).catch(e => e) as Error & { cause: Error };
+
+    expect(error.message).toBe("Request failed.");
+    expect(error.cause.message).toBe("table people is locked");
+  })
+
+  it("will serve only classes named in expose", async () => {
+    const { serve } = pair({ expose: { Author: ["name"] } });
+
+    await expect(serve({ op: "select", type: "Post", where: [] })).rejects.toThrow("Type Post is not served by this connection.");
+    expect(() => Remote.handle(Memory.new(), { expose: { User: [] } })).toThrow("Type User in expose is not served by this connection.");
+  })
+
+  it("will share key parts under expose", async () => {
+    class Tag extends Type {
+      id = key(() => [this.post, this.name]);
+      post = num();
+      name = str();
+      note = str(null);
+    }
+
+    const server = Memory.new({ Tag });
+    const check = vi.fn();
+    const serve = Remote.handle(server, { expose: { Tag: ["note"] }, check });
+
+    await server.insert("tag", { post: 1, name: "a", note: "n" });
+
+    await expect(serve({ op: "select", type: "Tag", where: [["post", "=", 1]] })).resolves.toEqual([{ post: 1, name: "a", note: "n" }]);
+    await serve({ op: "remove", type: "Tag", id: { name: "a", post: 1 } });
+
+    expect(check).toHaveBeenLastCalledWith(expect.objectContaining({ id: { name: "a", post: 1 } }), undefined);
+  })
 })

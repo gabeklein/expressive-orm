@@ -1,5 +1,6 @@
 import { Connection, NAMED } from './Connection';
 import type { Query } from './query/Query';
+import { type Field, present } from './Field';
 import { select, type Type } from './Type';
 
 declare namespace Remote {
@@ -34,9 +35,10 @@ declare namespace Remote {
   /** What `Remote.handle` serves, and to whom. */
   interface Options<C = unknown> {
     /**
-     * Properties each class shares, by key - read, filtered and written. `id` is always shared.
+     * Classes served and the properties each shares, by key - read, filtered and written. `id` and key parts are always shared.
      *
-     * A class left out shares every property. A property not shared is absent from rows and rejected in requests.
+     * Given, a class it leaves out is not served. A property not shared is absent from rows and rejected in requests.
+     * A key the connection does not serve throws.
      */
     expose?: { [type: string]: readonly string[] };
 
@@ -100,121 +102,167 @@ class Remote extends Connection {
   /**
    * Serve requests from a `Remote` through `connection` - returns a handler taking each request, and a context for `check`.
    *
-   * A request is validated, then run by the class `connection` binds under its key - as its own statics run,
-   * so fields check values, subsets scope reads and inserts, fixed fields reject updates and `update` fields take
-   * this side's value. Hooks run. A malformed request, unknown class or property not shared rejects.
-   * Every class bound by key is served to whoever reaches the handler - authorize in `check`, or before calling it.
+   * A request is validated, then run by the class `connection` binds under its key, as its own statics run:
+   * fields check values, subsets scope every read and write, fixed fields reject updates, and `created` and
+   * `updated` fields take this side's clock. Hooks run. A malformed request, unknown class or property not
+   * shared rejects with what was wrong; a failure past validation rejects as `Request failed.`, the original
+   * error as its `cause`, so storage details stay here. With `expose`, only the classes it names are served.
    *
    * @example
    * const serve = Remote.handle(db, { expose: { User: ["name"] } });
    * const database = (request: unknown) => serve(request);
    */
   static handle<C = unknown>(connection: Connection.Ready, options: Remote.Options<C> = {}){
-    return async (input: unknown, context?: C): Promise<unknown> => {
-      const request = valid(input);
-      const type = [...connection.using].find(type => (
-        NAMED.get(type) === request.type && type.connection === connection
-      )) as Entity | undefined;
+    const { expose, check } = options;
 
-      if (!type)
+    for (const key in expose)
+      if (!served(connection, key))
+        throw new Error(`Type ${key} in expose is not served by this connection.`);
+
+    return async (input: unknown, ...[context]: unknown extends C ? [context?: C] : [context: C]): Promise<unknown> => {
+      const request = valid(input);
+      const type = served(connection, request.type);
+
+      if (!type || expose && !(request.type in expose))
         throw new Error(`Type ${request.type} is not served by this connection.`);
 
-      const expose = options.expose?.[request.type];
-      const shared = (name: string) => {
+      const shared = expose?.[request.type];
+      const primary = type.fields.get("id")!;
+      const parts = primary.parts || [];
+      const visible = (field: Field) => !shared || field === primary || parts.includes(field) || shared.includes(field.key);
+
+      const field = (name: string) => {
         const field = type.fields.get(name);
 
-        if (!field || field.absent || expose && name != "id" && !expose.includes(name))
+        if (!field || field.absent || !visible(field))
           throw new Error(`${type.name} has no property ${name}.`);
 
         return field;
+      };
+
+      const scalar = (field: Field, value: unknown) => {
+        const ok = value === null || typeof value == "string" || typeof value == "number" || (
+          !("entity" in field) && (typeof value == "boolean" || value instanceof Date || field.type == "json")
+        );
+
+        if (!ok)
+          throw new Error(`${type.name}.${field.key} can't take ${JSON.stringify(value)}.`);
       };
 
       const out = (raw: Record<string, unknown>) => {
         const values: Remote.Values = {};
 
         for (const field of type.fields.values())
-          if (!field.absent && field.column in raw && (!expose || field.key == "id" || expose.includes(field.key)))
+          if (!field.absent && field.column in raw && visible(field))
             values[field.key] = raw[field.column];
 
         return values;
       };
 
-      const id = (value: Remote.Id) => {
-        const { parts } = type.fields.get("id")!;
+      if (request.op == "select")
+        for (const [name, op, value] of request.where) {
+          const target = field(name);
 
-        if (!parts) {
-          if (typeof value != "string" && typeof value != "number")
-            throw new Error(`${type.name} needs an id, not ${JSON.stringify(value)}.`);
-
-          return value;
+          if (!BARE.has(op))
+            for (const item of Array.isArray(value) ? value : [value])
+              scalar(target, item);
         }
 
-        if (!value || typeof value != "object" || Object.keys(value).length != parts.length || parts.some(part => !(part.key in value)))
-          throw new Error(`${type.name} needs an id of ${parts.map(part => part.key)}.`);
+      if ("data" in request)
+        for (const name in request.data) {
+          const target = field(name);
 
-        return parts.map(part => value[part.key]) as unknown as string;
-      };
+          if (request.op == "update" && (target === primary || parts.includes(target)))
+            throw new Error(`${type.name}.${name} is part of its key and can't be updated.`);
 
-      for (const [name] of request.op == "select" ? request.where : [])
-        shared(name);
-
-      for (const name in "data" in request ? request.data : {})
-        shared(name);
+          scalar(target, request.data[name]);
+        }
 
       if (request.op == "insert" && request.conflict)
-        [...request.conflict.on, ...request.conflict.update || []].forEach(shared);
+        [...request.conflict.on, ...request.conflict.update || []].forEach(field);
 
-      if ("id" in request)
-        request.id = id(request.id);
+      const key = "id" in request ? locate(type, request.id) : undefined;
+      const subset = Object.entries(type.subset || {}).map(([key, value]) => [key, "=", value] as Type.Constraint);
 
-      await options.check?.(request, context as C);
+      if (request.op == "update")
+        for (const [name] of subset)
+          if (name in request.data)
+            throw new Error(`${type.name}.${name} is fixed by its subset.`);
 
-      switch (request.op) {
-        case "select": {
-          const where = [...request.where, ...Object.entries(type.subset || {}).map(([key, value]) => [key, "=", value])];
-          const rows = await select(type, where as Type.Constraint[], request.limit ?? undefined, request.offset ?? undefined);
+      await check?.(request, context as C);
 
-          return rows.map(out);
+      if (request.op == "select")
+        for (const [name, op, value] of request.where)
+          if (!BARE.has(op) && op != "LIKE")
+            for (const item of Array.isArray(value) ? value : [value])
+              await type.fields.get(name)!.set(present(item), true);
+
+      const own = (data: Remote.Values, insert?: boolean) => {
+        const values: Remote.Values = {};
+
+        for (const name in data) {
+          const { update, fixed, fallback } = type.fields.get(name)!;
+
+          if (update === undefined && !(insert && fixed && fallback !== undefined))
+            values[name] = data[name];
         }
 
-        case "insert": {
-          const { connection, ref, subset } = type;
-          const data = await type.prepare({ ...request.data, ...subset });
-          const conflict = request.conflict && await upsert(type, request.conflict);
-          const inserted = await connection.insert(ref, data, request.returns, conflict);
+        return values;
+      };
 
-          return inserted && out(inserted);
+      const prepared = request.op == "insert"
+        ? await type.prepare({ ...own(request.data, true), ...type.subset })
+        : request.op == "update"
+          ? await type.prepare(own(request.data), true)
+          : undefined;
+
+      try {
+        switch (request.op) {
+          case "select": {
+            const rows = await select(type, [...request.where, ...subset] as Type.Constraint[], request.limit ?? undefined, request.offset ?? undefined);
+            return rows.map(out);
+          }
+
+          case "insert": {
+            const conflict = request.conflict && await upsert(type, request.conflict);
+            const inserted = await type.connection.insert(type.ref, prepared!, request.returns, conflict);
+
+            return request.returns && inserted ? out(inserted) : undefined;
+          }
+
+          case "update":
+          case "remove": {
+            if (subset.length && !(await select(type, [["id", "=", key], ...subset], 1)).length)
+              return;
+
+            if (request.op == "update")
+              await type.update(key as any, own(request.data) as any);
+            else
+              await type.delete(key as any);
+
+            return;
+          }
         }
-
-        case "update": {
-          const data: Remote.Values = {};
-
-          for (const name in request.data)
-            if (type.fields.get(name)!.update === undefined)
-              data[name] = request.data[name];
-
-          return type.update(request.id as any, data as any);
-        }
-
-        case "remove":
-          return type.delete(request.id as any);
+      }
+      catch (error) {
+        throw Object.assign(new Error("Request failed."), { cause: error });
       }
     };
   }
 
   async select(table: string, constraints: Type.Constraint[], limit?: number, offset?: number){
-    const [type, map] = this._target(table);
+    const [type, map] = target(this, table);
     const where = constraints.map(([column, op, value]) => (
       BARE.has(op) ? [map.key(column), op] : [map.key(column), op, value]
     ) as Remote.Constraint);
 
-    const rows: Remote.Values[] = await this._send({ op: "select", type, where, limit, offset });
+    const rows: Remote.Values[] = await send(this, { op: "select", type, where, limit, offset });
 
     return rows.map(map.row);
   }
 
   async insert(table: string, data: Record<string, any>, returns?: boolean, conflict?: Connection.Conflict){
-    const [type, map] = this._target(table);
+    const [type, map] = target(this, table);
     const request: Remote.Request = { op: "insert", type, data: map.values(data), returns };
 
     if (conflict)
@@ -223,38 +271,60 @@ class Remote extends Connection {
         update: [...conflict.update || [], ...Object.keys(conflict.set || {})].map(map.key)
       };
 
-    const row = await this._send(request);
+    const row = await send(this, request);
 
     return row && map.row(row);
   }
 
   async update(table: string, id: Connection.Key, data: Record<string, any>){
-    const [type, map] = this._target(table);
-    await this._send({ op: "update", type, id: map.id(id), data: map.values(data) });
+    const [type, map] = target(this, table);
+    await send(this, { op: "update", type, id: map.id(id), data: map.values(data) });
   }
 
   async remove(table: string, id: Connection.Key){
-    const [type, map] = this._target(table);
-    await this._send({ op: "remove", type, id: map.id(id) });
+    const [type, map] = target(this, table);
+    await send(this, { op: "remove", type, id: map.id(id) });
+  }
+}
+
+function served(connection: Connection.Ready, key: string){
+  return [...connection.using].find(type => (
+    NAMED.get(type) === key && type.connection === connection
+  )) as Entity | undefined;
+}
+
+function locate(type: Entity, value: Remote.Id){
+  const { parts } = type.fields.get("id")!;
+
+  if (!parts) {
+    if (typeof value != "string" && typeof value != "number")
+      throw new Error(`${type.name} needs an id, not ${JSON.stringify(value)}.`);
+
+    return value;
   }
 
-  _send(request: Remote.Request){
-    return SEND.get(this)!(request);
-  }
+  if (!value || typeof value != "object" || Object.keys(value).length != parts.length || parts.some(part => !(part.key in value)))
+    throw new Error(`${type.name} needs an id of ${parts.map(part => part.key)}.`);
 
-  _target(table: string){
-    for (const type of this.using)
-      if ((type as Entity).ref === table) {
-        const key = NAMED.get(type);
+  return parts.map(part => value[part.key]);
+}
 
-        if (key === undefined)
-          throw new Error(`Type ${type.name} is not bound by key, so it cannot be sent.`);
+function send(remote: Connection, request: Remote.Request){
+  return SEND.get(remote)!(request);
+}
 
-        return [key, names(type)] as const;
-      }
+function target(remote: Connection, table: string){
+  for (const type of remote.using)
+    if ((type as Entity).ref === table) {
+      const key = NAMED.get(type);
 
-    throw new Error(`Table ${table} is not used by this connection.`);
-  }
+      if (key === undefined)
+        throw new Error(`Type ${type.name} is not bound by key, so it cannot be sent.`);
+
+      return [key, names(type)] as const;
+    }
+
+  throw new Error(`Table ${table} is not used by this connection.`);
 }
 
 const NAMES = new WeakMap<Query.Table, ReturnType<typeof map>>();
@@ -316,23 +386,17 @@ function map(type: Query.Table){
 async function upsert(type: Entity, conflict: Remote.Conflict): Promise<Connection.Conflict> {
   const column = (name: string) => type.fields.get(name)!.column;
   const on = conflict.on.map(column);
-  const own = await type.prepare({}, true);
+  const set = await type.prepare({}, true);
   const update: string[] = [];
-  const set: Record<string, unknown> = {};
 
   for (const name of conflict.update || []) {
     const field = type.fields.get(name)!;
 
-    if (field.fixed || field.primary || on.includes(field.column))
-      continue;
-
-    if (field.column in own)
-      set[field.column] = own[field.column];
-    else
+    if (!field.fixed && !field.primary && !on.includes(field.column) && !(field.column in set))
       update.push(field.column);
   }
 
-  return update.length || Object.keys(set).length ? { on, update, set } : { on };
+  return update.length ? { on, update, set } : { on };
 }
 
 function valid(input: unknown): Remote.Request {
@@ -354,7 +418,7 @@ function valid(input: unknown): Remote.Request {
 
   switch (request.op) {
     case "select":
-      if (!Array.isArray(request.where) || !count(request.limit) || !count(request.offset))
+      if (!Array.isArray(request.where) || request.where.length > 100 || !count(request.limit) || !count(request.offset))
         return fail();
 
       request.where = request.where.map(item => {
@@ -366,7 +430,10 @@ function valid(input: unknown): Remote.Request {
         if (BARE.has(op))
           return [name, op];
 
-        if ((op == "IN" || op == "NOT IN") != Array.isArray(value))
+        if (value === undefined || (op == "IN" || op == "NOT IN") != Array.isArray(value) || Array.isArray(value) && value.length > 1000)
+          return fail();
+
+        if (op == "LIKE" && typeof value != "string")
           return fail();
 
         return [name, op, value];
@@ -379,17 +446,17 @@ function valid(input: unknown): Remote.Request {
         return fail();
 
       if (request.conflict !== undefined && (
-        !object(request.conflict) || !names(request.conflict.on) || request.conflict.update !== undefined && !names(request.conflict.update)
+        !object(request.conflict) || !names(request.conflict.on) || !request.conflict.on.length || request.conflict.update !== undefined && !names(request.conflict.update)
       ))
         return fail();
 
       return request;
 
     case "update":
-      return object(request.data) ? request : fail();
+      return object(request.data) && request.id !== undefined ? request : fail();
 
     case "remove":
-      return request;
+      return request.id !== undefined ? request : fail();
 
     default:
       return fail();
