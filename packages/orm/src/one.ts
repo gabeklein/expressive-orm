@@ -73,7 +73,7 @@ class OneToOneField<T extends Type = Type> extends Field {
         throw new Error(`Relation ${this} takes an entity, id or table in a query.`);
 
       const got = compare
-        ? Class.query(value as any, 1).then(([found]) => found)
+        ? Class.query(value as Type.Query<T>, 1).then(([found]) => found)
         : Class.insert(value);
 
       return got.then(found => found?.id);
