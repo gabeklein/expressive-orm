@@ -834,7 +834,7 @@ async function select(
         query.push([part.column, op, op == "=" ? await part.set(parts[i], true) : undefined]);
     }
     else if (field) {
-      const computed = op.includes("LIKE") ? value : Array.isArray(value)
+      const computed = BARE.has(op) ? undefined : op.includes("LIKE") ? value : Array.isArray(value)
         ? Promise.all(value.map(v => field.set(present(v), true)))
         : field.set(present(value), true);
 
@@ -846,6 +846,8 @@ async function select(
 
   return connection.select(ref, query, limit, offset);
 }
+
+const BARE = new Set(["asc", "desc", "IS NULL", "IS NOT NULL"]);
 
 function settled(type: typeof Type, constraints: Type.Constraint[]): Type.Constraint[] {
   const ordered = ([, op]: Type.Constraint) => op == "asc" || op == "desc";
