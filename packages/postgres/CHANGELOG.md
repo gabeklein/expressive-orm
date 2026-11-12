@@ -1,5 +1,13 @@
 # @expressive/postgres
 
+## 0.7.1
+
+### Patch Changes
+
+- Updated dependencies [[`da081bd`](https://github.com/gabeklein/expressive-orm/commit/da081bd0ed401965f6ec097099034022adb6e215)]:
+  - @expressive/orm@0.16.0
+  - @expressive/sql@0.8.2
+
 ## 0.7.0
 
 ### Minor Changes
