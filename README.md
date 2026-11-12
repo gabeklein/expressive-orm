@@ -87,7 +87,7 @@ Every helper has `.and(...presets)`: a helper with the same signature and those 
 
 `orNull` and `uuid()` are deprecated for `null` and `str(sql.uuid)`.
 
-The table is the class name in snake case; `static table` overrides it.
+The table is the class name in snake case; `static table` overrides it. Bind classes as an object - `SQLiteConnection.new({ User, Post })` - and a class without `table` takes its key instead, in snake case. Keys survive minification where class names don't, so a bundled app keeps its tables.
 
 Every entity has an incrementing integer `id`. Declare it with `key` to rename the column or change its type:
 
