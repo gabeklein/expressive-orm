@@ -162,7 +162,7 @@ describe("key", () => {
 
     await Asset.update(asset.id, { file: "b" });
 
-    expect(await Asset.one(asset.id)).toEqual({ id: "given", file: "b" });
+    expect(await Asset.one({ id: asset.id })).toEqual({ id: "given", file: "b" });
   })
 })
 
@@ -294,7 +294,7 @@ describe("date", () => {
 
     expect(event.day).toEqual(day);
     expect(await Event.connection.select("event", [])).toEqual([{ id: 1, day: "2026-01-02" }]);
-    expect(await Event.find({ day: "2026-01-02" })).toEqual([{ id: 1, day }]);
+    expect(await Event.query({ day: "2026-01-02" })).toEqual([{ id: 1, day }]);
 
     await event.set({ day: "2026-01-03" });
 
@@ -332,7 +332,7 @@ describe("json", () => {
     await Image.insert({ loras: [{ file: "a.ckpt" }] });
     await Image.insert({ loras: [{ file: "b.ckpt" }] });
 
-    const found = await Image.find({ loras: isLike('%"a.ckpt"%') });
+    const found = await Image.query({ loras: isLike('%"a.ckpt"%') });
 
     expect(found.map(image => image.loras)).toEqual([[{ file: "a.ckpt" }]]);
   })

@@ -78,7 +78,7 @@ function open(DB: D1Database){
 export default {
   async fetch(request: Request, env: { DB: D1Database }) {
     await (ready ??= open(env.DB));
-    return Response.json(await User.find({}));
+    return Response.json(await User.query());
   }
 };
 ```

@@ -53,7 +53,7 @@ describe("floor", () => {
     db.log = [];
     db.rows = [{ id: 1, name: "Gabe", rank: 3, active: 1 }];
 
-    const [foo] = await Foo.find({
+    const [foo] = await Foo.query({
       name: [notEqual("Bob"), isLike("G%")],
       rank: [greaterThan(1), isIn([3, 4]), notNull(), asc()],
       active: equal(true),
@@ -74,9 +74,9 @@ describe("floor", () => {
     db.log = [];
     db.rows = [];
 
-    await Foo.find({ rank: isNull() });
-    await Foo.find({ rank: equal(null) });
-    await Foo.find({ rank: notEqual(null) });
+    await Foo.query({ rank: isNull() });
+    await Foo.query({ rank: equal(null) });
+    await Foo.query({ rank: notEqual(null) });
 
     expect(db.log.map(([sql]) => sql.slice(sql.indexOf("WHERE")))).toEqual([
       "WHERE `foo`.`rank` IS NULL",

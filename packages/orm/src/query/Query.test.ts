@@ -1012,7 +1012,7 @@ describe("insert", () => {
     `);
     await expect(query).resolves.toBe(1);
 
-    const infos = await Info.find({ color: "green" });
+    const infos = await Info.query({ color: "green" });
 
     expect(infos.map(x => x.user)).toEqual([jane.id]);
   })
@@ -1021,7 +1021,7 @@ describe("insert", () => {
     const [user] = await Query(where => where(User, { name: "Ann" }));
 
     expect(user).toEqual({ id: 4, name: "Ann" });
-    await expect(User.one(user.id)).resolves.toEqual(user);
+    await expect(User.one({ id: user.id })).resolves.toEqual(user);
   })
 
   it("will insert iterable data", async () => {
@@ -1041,7 +1041,7 @@ describe("insert", () => {
         name: input.name"
     `);
     await expect(query).resolves.toBe(3);
-    await expect(User.find({ name: "Sam" })).resolves.toHaveLength(1);
+    await expect(User.query({ name: "Sam" })).resolves.toHaveLength(1);
   })
 
   it("will throw for relation by object", () => {

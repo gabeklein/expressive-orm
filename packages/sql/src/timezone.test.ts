@@ -50,7 +50,7 @@ describe.each(["Asia/Tokyo", "America/Los_Angeles", "UTC"])("in %s", zone => {
       { day: "2026-01-02", at: late.toISOString(), clock: null }
     ]);
 
-    for (const row of await Event.find())
+    for (const row of await Event.query())
       expect(row.day).toEqual(day);
 
     expect(await Event.count({ day: "2026-01-02" })).toBe(3);
@@ -80,7 +80,7 @@ describe.each(["Asia/Tokyo", "America/Los_Angeles", "UTC"])("in %s", zone => {
     await Event.insert({ day: new Date(2026, 0, 2), at: clock, clock });
 
     expect((await stored())[0].clock).toBe("14:30:45");
-    expect((await Event.one(1)).clock).toEqual(clock);
+    expect((await Event.one({ id: 1 })).clock).toEqual(clock);
     await conn.close();
   })
 })

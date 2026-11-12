@@ -172,7 +172,7 @@ describe("sqlite", () => {
     const inserted = await Event.insert(row);
 
     expect(inserted).toEqual({ id: 1, ...row });
-    expect(await Event.one(1)).toEqual({ id: 1, ...row });
+    expect(await Event.one({ id: 1 })).toEqual({ id: 1, ...row });
     expect(await Event.count({ at })).toBe(1);
   })
 })

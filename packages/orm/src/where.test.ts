@@ -33,14 +33,14 @@ it.each([
   ["desc", where.desc(), [1, 2, 3]]
 ])("will filter by %s", async (_, condition, expected) => {
   await ready;
-  const users = await User.find({ age: condition });
+  const users = await User.query({ age: condition });
 
   expect(users.map(x => x.id)).toEqual(expected);
 })
 
 it("will filter by isLike", async () => {
   await ready;
-  const users = await User.find({ name: where.isLike("%a%") });
+  const users = await User.query({ name: where.isLike("%a%") });
 
   expect(users.map(x => x.name)).toEqual(["Gabe"]);
 })

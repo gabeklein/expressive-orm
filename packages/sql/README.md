@@ -26,7 +26,7 @@ const db = await SQLiteConnection.new([User, Post], "app.db");
 const gabe = await User.new({ name: "Gabe", age: 35 });
 await Post.insert({ author: gabe, title: "Hello" });
 
-const adults = await User.find({ age: greaterThan(17) });
+const adults = await User.query({ age: greaterThan(17) });
 
 const titles = await Query(where => {
   const post = where(Post);

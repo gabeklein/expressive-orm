@@ -1,7 +1,7 @@
 import { Context, Model } from '@expressive/mvc';
 
 import { ambient, Connection, forget } from './Connection';
-import { FIELDS, Key, num, PEEK, placeholder, write } from './fields';
+import { FIELDS, Key, num, PEEK, placeholder, RECENT, write } from './fields';
 import { columns, Field, Fixes, fixes, match, Omits, Optional, present, row, underscore, updates } from './Field';
 import { Query } from './query/Query';
 import type { Moment } from './query/Value';
@@ -90,7 +90,7 @@ declare namespace Type {
   type Conds<T> = Where | T | Conds<T>[]
 
   /**
-   * A filter by property - for `find`, `one`, `count`, `all` and writes by query.
+   * A filter by property - for `query`, `load`, `one`, `count`, `all` and writes by query.
    *
    * `null` matches a missing value. `undefined` drops the condition.
    * A relation takes an entity, an id, or an object of the related fields to match.
@@ -644,30 +644,37 @@ abstract class Type extends Model {
     return matching(this, await conditions(this, where, true));
   }
 
-  /** Find one row by id or filter - `undefined` when `expect` is false and none matches. */
-  static async one<T extends Type>(this: Type.Class<T>, where: Type.Id<T> | Type.Query<T> | undefined, expect: boolean): Promise<Type.Columns<T> | undefined>;
+  /** The live entity matching a filter - `undefined` when `expect` is false and none matches. */
+  static async one<T extends Type>(this: Type.Class<T>, where: Type.Query<T> | undefined, expect: boolean): Promise<T | undefined>;
   /**
-   * Find one row by id or filter; throws when none matches.
+   * The live entity matching a filter; rejects when none matches.
    *
-   * Without an argument, the row with the highest id.
+   * Loads as `load(where, 1)` does - a loaded entity settles the fetched row and is returned as is.
+   * Without a filter, the newest by the class's default order; a class without one throws. Use `get(id)` for an id.
+   *
+   * @example
+   * const admin = await User.one({ role: "admin" });
    */
-  static async one<T extends Type>(this: Type.Class<T>, where?: Type.Id<T> | Type.Query<T>, expect?: true): Promise<Type.Columns<T>>;
-  static async one<T extends Type>(this: Type.Class<T>, where?: Type.Id<T> | Type.Query<T>, expect?: boolean){
-    if (where != null && (typeof where != "object" || Array.isArray(where)))
-      where = { id: equal(where) };
+  static async one<T extends Type>(this: Type.Class<T>, where?: Type.Query<T>, expect?: true): Promise<T>;
+  static async one<T extends Type>(this: Type.Class<T>, where?: Type.Query<T>, expect?: boolean){
+    if (where !== undefined && !isQuery(where))
+      throw new Error(`${this.name}.one() takes a filter - use get(id) for an id.`);
 
-    const [row] = await this.fetch(where as Type.Query<T> | undefined, 1);
+    if (!(where = newest(this, where)))
+      throw new Error(`${this.name}.one() needs a filter - it has no created() column or incrementing id to order by.`);
 
-    if (!row && expect !== false)
+    const [entity] = await this.load(where, 1);
+
+    if (!entity && expect !== false)
       throw new Error(`No ${this.name} found with: \n${JSON.stringify(where, null, 2)}\n`);
 
-    return row;
+    return entity;
   }
 
   /**
    * A `Query` over this table selecting what the callback returns.
    *
-   * `self` is the table's columns; `where` is the `Query` function.
+   * `self` is the table's columns; `where` is the `Query` function. Needs a connection with `prepare`.
    *
    * @example
    * const names = await User.query((user, where) => {
@@ -682,16 +689,34 @@ abstract class Type extends Model {
   /** A `Query` over this table selecting its rows - the callback only adds conditions. */
   static query<T extends Type>(
     this: Type.Class<T>,
-    where?: (self: Query.From<T>, where: Query.Where) => void
+    where: (self: Query.From<T>, where: Query.Where) => void
   ): Query.Selects<Query.From<T>>;
-  static query(this: Type.Class, where?: (self: any, where: Query.Where) => unknown){
+  /**
+   * Rows matching a filter, as frozen columns - no entities.
+   *
+   * Without a filter, newest first: by a `created()` column then id, else an incrementing id, else unordered. A filter with a condition drops that order; order by a property with `asc()` / `desc()`.
+   * Runs on any connection - it needs only `select`.
+   *
+   * @example
+   * await User.query({ name: [isLike("G%"), asc()], age: greaterThan(17) }, 10);
+   */
+  static query<T extends Type>(
+    this: Type.Class<T>,
+    where?: Type.Query<T>,
+    limit?: number,
+    offset?: number
+  ): Promise<Type.Columns<T>[]>;
+  static query(this: Type.Class, where?: Type.Query<any> | ((self: any, where: Query.Where) => unknown), limit?: number, offset?: number){
+    if (typeof where != "function")
+      return this.fetch(where, limit, offset);
+
     return Query(from => {
       const self = from(this);
-      return where && where(self, from) || self;
+      return where(self, from) || self;
     });
   }
 
-  /** Select and decode rows - the path under `find`, `one` and `all`. */
+  /** Select and decode rows - the path under `query` and `all`. */
   protected static async fetch<T extends Type>(
     this: Type.Class<T>,
     from?: Type.Constraint[] | Type.Query<T>,
@@ -703,26 +728,9 @@ abstract class Type extends Model {
   }
 
   /**
-   * Find rows matching a filter.
-   *
-   * Called without a filter, ordered by id descending; a filter drops that order. Order by a property with `asc()` / `desc()`.
-   *
-   * @example
-   * await User.find({ name: [isLike("G%"), asc()], age: greaterThan(17) }, 10);
-   */
-  static async find<T extends Type>(
-    this: Type.Class<T>,
-    where?: Type.Query<T>,
-    limit?: number,
-    offset?: number
-  ) {
-    return this.fetch(where, limit, offset);
-  }
-
-  /**
    * Find live entities matching a filter - one select for the whole call.
    *
-   * Filters and orders as `find` does. A loaded entity settles its fetched row and is returned as is; others are created and loaded.
+   * Filters and orders as `query` does. A loaded entity settles its fetched row and is returned as is; others are created and loaded.
    * Omit `limit` for every match.
    *
    * @example
@@ -786,12 +794,12 @@ abstract class Type extends Model {
 
 async function select(
   type: typeof Type,
-  from: Type.Constraint[] | Type.Query<any> = { id: desc() },
+  from?: Type.Constraint[] | Type.Query<any>,
   limit?: number,
   offset: number = 0
 ){
   const { connection, subset, ref } = type;
-  const constraints = Array.isArray(from) ? from : buildConstraints({ ...from, ...subset });
+  const constraints = Array.isArray(from) ? from : buildConstraints({ ...newest(type, from), ...subset });
   const query = [] as Type.Constraint[];
 
   for (let [key, op, value] of constraints) {
@@ -818,6 +826,18 @@ async function select(
   register(type);
 
   return connection.select(ref, query, limit, offset);
+}
+
+function newest(type: typeof Type, where?: Type.Query<any>): Type.Query<any> | undefined {
+  if (where && Object.values(where).some(value => value !== undefined))
+    return where;
+
+  for (const field of type.fields.values())
+    if (RECENT in field)
+      return { [field.key]: desc(), id: desc() };
+
+  if (type.fields.get("id")!.increment)
+    return { id: desc() };
 }
 
 function reference<T extends Type>(type: Type.Class<T>, id: Type.Id<T>): T {
@@ -1063,6 +1083,7 @@ function buildConstraints(where: Type.Query<any>) {
 
 export {
   adopt,
+  newest,
   Type,
   Type as default,
   Columns,

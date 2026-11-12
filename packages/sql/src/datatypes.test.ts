@@ -72,7 +72,7 @@ describe("key", () => {
     const image = await Image.insert({ id: "a.png", size: 1 });
 
     expect(schema).toContain("name TEXT NOT NULL PRIMARY KEY");
-    expect(await Image.one("a.png")).toEqual(image);
+    expect(await Image.one({ id: "a.png" })).toEqual(image);
   })
 
   it("will key by a generated uuid", async () => {

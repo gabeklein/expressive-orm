@@ -46,7 +46,7 @@ describe.each(["Asia/Tokyo", "America/Los_Angeles", "UTC"])("in %s", zone => {
       clock: "14:30:45"
     });
 
-    for (const row of await Event.find())
+    for (const row of await Event.query())
       expect(row).toMatchObject({ day, at: late, zoned: late, clock });
 
     expect(await Event.count({ day })).toBe(2);

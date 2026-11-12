@@ -32,10 +32,10 @@ describe("rows", () => {
     await Table.connection.insert("profile", { user_id: 1, bio: "Writer" });
   })();
 
-  it("will find related rows", async () => {
+  it("will query related rows", async () => {
     await ready;
     const gabe = await User.get(1);
-    const profiles = await gabe.profiles.find();
+    const profiles = await gabe.profiles.query();
 
     expect(profiles.map(p => p.bio)).toEqual(["Writer", "Dev"]);
   });
@@ -43,7 +43,7 @@ describe("rows", () => {
   it("will apply foreign key over query", async () => {
     await ready;
     const gabe = await User.get(1);
-    const found = await gabe.profiles.find({ bio: "Designer", user: 2 });
+    const found = await gabe.profiles.query({ bio: "Designer", user: 2 });
 
     expect(found).toEqual([]);
   });
@@ -51,9 +51,9 @@ describe("rows", () => {
   it("will page related rows", async () => {
     await ready;
     const gabe = await User.get(1);
-    const page = await gabe.profiles.find({}, 1, 1);
+    const page = await gabe.profiles.query({}, 1, 1);
 
-    expect(page.map(p => p.bio)).toEqual(["Writer"]);
+    expect(page.map(p => p.bio)).toEqual(["Dev"]);
   });
 
   it("will load related entities", async () => {
@@ -68,11 +68,12 @@ describe("rows", () => {
     expect(await gabe.profiles.load(undefined, 1, 1)).toEqual([profiles[1]]);
   });
 
-  it("will get one related row", async () => {
+  it("will get one related entity", async () => {
     await ready;
     const alice = await User.get(2);
 
     expect((await alice.profiles.one()).bio).toBe("Designer");
+    expect(await alice.profiles.one()).toBe(Profile.get(2));
     expect((await alice.profiles.one({ bio: "Designer" })).bio).toBe("Designer");
     await expect(alice.profiles.one({ bio: "Dev" }, false)).resolves.toBeUndefined();
     await expect(alice.profiles.one({ bio: "Dev" })).rejects.toThrow("No Profile found");
@@ -112,7 +113,7 @@ describe("rows", () => {
 
     await pending;
 
-    await expect(bob.profiles.find()).resolves.toEqual([]);
+    await expect(bob.profiles.query()).resolves.toEqual([]);
   });
 });
 
@@ -140,13 +141,13 @@ describe("explicit field", () => {
 
     await gabe.authored.insert({ editor: alice });
 
-    const [authored] = await gabe.authored.find();
-    const [edited] = await alice.edited.find();
+    const [authored] = await gabe.authored.query();
+    const [edited] = await alice.edited.query();
 
     expect(authored).toEqual(edited);
     expect(authored.author).toBe(gabe.id);
     expect(authored.editor).toBe(alice.id);
-    expect(await alice.authored.find()).toEqual([]);
+    expect(await alice.authored.query()).toEqual([]);
   });
 });
 

@@ -45,7 +45,7 @@ Every helper has `.and(...presets)` - the same helper with those options first: 
 
 `json<T>()` holds a JSON value and takes one option - `json<T>(null)` or `json<T>({ column })`. SQL stores it as text; unparseable text reads `undefined`.
 
-`date.created()` and `date.updated()` are presets of `date`. `date.created()` is written on insert only - upserts leave it, an update giving it fails to compile and throws. `date.updated()` is set to now on every update and upsert that doesn't give it. Underneath: `{ fallback: sql.now, fixed: true }` and `{ fallback: sql.now, update: sql.now }`. Any column takes `fixed` and `update`; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
+`date.created()` and `date.updated()` are presets of `date`. `date.created()` is written on insert only - upserts leave it, an update giving it fails to compile and throws. It is also the class's recency order; two on one class throw. `date.updated()` is set to now on every update and upsert that doesn't give it. Underneath: `{ fallback: sql.now, fixed: true }` and `{ fallback: sql.now, update: sql.now }`. Any column takes `fixed` and `update`; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
 
 Table is the class name in snake case; `static table` overrides, `static schema` qualifies it. `static subset = { role: "admin" }` scopes a subclass to part of a shared table (give it the parent's `table`): merged into inserts and every query filter. Reads by id (`get(id)`, `one(id)`) are scoped; `update(id)`, `delete(id)` and instance `set`/`delete` are not. `orNull` and `uuid()` are deprecated for `null` and `str(sql.uuid)`.
 
@@ -73,7 +73,7 @@ class Membership extends Type {
 }
 ```
 
-An integer `key` increments; another numeric type does not. `User.one(id)`, `User.update(id)` and relations follow the key's type. A composite key lists `this.<field>` reads only, runs lazily, has no column; `id` is the parts as a JSON string typed `Key<[number, string]>` (exported). `get`, `one`, `update`, `delete` take the key or the tuple. `id` matches or orders by its parts - other operators throw - and `one()` cannot relate to a composite-keyed class.
+An integer `key` increments; another numeric type does not. `User.get(id)`, `User.update(id)` and relations follow the key's type. A composite key lists `this.<field>` reads only, runs lazily, has no column; `id` is the parts as a JSON string typed `Key<[number, string]>` (exported). `get`, `update`, `delete` take the key or the tuple. `id` matches or orders by its parts - other operators throw - and `one()` cannot relate to a composite-keyed class.
 
 ## Connect
 
@@ -101,11 +101,10 @@ const db = Memory.new([User, Post]);
 ```ts
 const gabe = await User.insert({ name: "Gabe", email: "gabe@example.com", age: 35 });
 
-await User.one(gabe.id);                       // the row
-await User.one({ email: "gabe@example.com" }); // throws if not found
+await User.one({ email: "gabe@example.com" }); // the entity; throws if not found
 await User.one({ name: "Nobody" }, false);     // undefined if not found
 
-await User.find({ name: [isLike("G%"), asc()], age: [greaterThan(17), lessThan(65)] }, 10, 0);
+await User.query({ name: [isLike("G%"), asc()], age: [greaterThan(17), lessThan(65)] }, 10, 0);
 
 for await (const page of User.all(100)) page.length;
 
@@ -115,11 +114,11 @@ await User.update({ admin: false }, { age: 0 });    // resolves rows changed
 await User.delete({ age: lessThan(18) });           // resolves rows deleted; empty query throws
 ```
 
-Reads and `insert` return plain rows - frozen, decoded by property, a relation as its id. `insert` returns the stored row with `id` and defaults. For an instance, take a [reference](#references).
+`query`, `all` and `insert` return plain rows - frozen, decoded by property, a relation as its id. `insert` returns the stored row with `id` and defaults. `query(where?, limit?, offset?)` needs only the driver's `select`, so it works on a forwarding connection; `query(callback)` is a `Query` and needs `prepare`. `one(where?, expect?)` resolves the live entity, as `load(where, 1)` - it takes a filter only; use `get(id)` for an id. For a row by id, `query({ id })`.
 
 Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, `asc` / `desc`. A plain value is `equal`, `null` is `isNull`, an array applies each. `isLike` also matches a `json()` column's text.
 
-`find()` and `one()` with no filter order by `id` descending - `one()` is the newest row. A filter drops that order; add `asc()` / `desc()`. `undefined`, as a value or an operator's argument, drops its condition.
+Without a filter, `query()`, `load()` and `one()` take the newest first: by the class's `date.created()` column then `id` for rows created the same millisecond, else an incrementing `id` descending, else unordered - and `one()` throws asking for a filter. A filter with a condition drops that order - `{}` or all-`undefined` values count as none; add `asc()` / `desc()`. `undefined`, as a value or an operator's argument, drops its condition.
 
 On `Memory`, `isLike` is case-sensitive (SQLite's is ASCII case-insensitive) and `notIn([])` skips rows without a value (SQL matches every row).
 
@@ -160,7 +159,7 @@ await user;                                  // the entity
 const users = await User.load({ admin: true }, 20);   // entities, one select
 ```
 
-`Type.load(where?, limit?, offset?)` - `find`'s filter and order, resolving entities. A loaded entity settles the fetched row and is returned itself; others join the identity map. Prefer it over `find` plus `get(id)` per row.
+`Type.load(where?, limit?, offset?)` - `query`'s filter and order, resolving entities. A loaded entity settles the fetched row and is returned itself; others join the identity map. Prefer it over `query` plus `get(id)` per row.
 
 `Type.get(id)` is synchronous and goes through the identity map - concurrent gets share one instance. A placeholder's columns suspend (a read throws a promise; an effect or a React component waits). It and `Type.new` return `Type.Async<T>`. A missing row rejects with `No User found with id 1`. In a Model, `get(User, id)` or `this.get(User, id)` resolves the same way. `User.get()` with no id stays Model's context lookup.
 
@@ -179,12 +178,12 @@ class Post extends Type {
 }
 
 const post = await author.posts.insert({ title: "Hello", editor: author });
-await author.posts.find();
+await author.posts.query();
 await author.posts.one({ title: "Hello" });
 ```
 
 - `one(Other)` stores `<field>_id` (`{ column }` renames; two fields on one column throw) and loads the related entity with its parent - with `lazy`, on first read, suspending. Related entities are references, shared and never owned. A write takes an entity, an id or an object - with `id` it is used by it, without one it is inserted as a new related row. A filter takes the same; an object without `id` matches by its fields. `{ onDelete: "CASCADE", onUpdate: "RESTRICT" }` set the foreign key's actions.
-- `rows(Other, key?)` - `find`, `load`, `one`, `insert` with the foreign key applied. `key` only when `Other` relates to this class more than once.
+- `rows(Other, key?)` - `query`, `load`, `one`, `insert` with the foreign key applied. `key` only when `Other` relates to this class more than once.
 
 ## Observe
 
@@ -274,7 +273,7 @@ db.before(Upload, { delete(row){ if (row.locked) throw new Error("locked") } });
 db.after(Upload, { async delete(row){ await bucket.delete(row.path) } });         // best effort; returns a remover
 ```
 
-`connection.before(Type, { delete })` and `connection.after(Type, { delete })` run host-side handlers for deletes by id - instance `delete()`, static `delete(id)`, or `remove(table, id)` called directly, as a remote client does. The row arrives as `find` returns it. They live on the connection, so a client binding the same classes to another connection never runs them - prefer them over `onDelete` for rules and effects that must follow an instance delete wherever it was called. A delete by filter, a `Query` delete or a cascade skips both; so does a missing row. A delete by id selects its row once, and only while either phase has a handler for the table.
+`connection.before(Type, { delete })` and `connection.after(Type, { delete })` run host-side handlers for deletes by id - instance `delete()`, static `delete(id)`, or `remove(table, id)` called directly, as a remote client does. The row arrives as `query` returns it. They live on the connection, so a client binding the same classes to another connection never runs them - prefer them over `onDelete` for rules and effects that must follow an instance delete wherever it was called. A delete by filter, a `Query` delete or a cascade skips both; so does a missing row. A delete by id selects its row once, and only while either phase has a handler for the table.
 
 - `before` runs in order before the row is removed, inside the transaction if any. A throw cancels: the row stays, `after` is skipped, the error reaches the caller.
 - `after` runs once the row is gone and is awaited before the delete resolves; a throw is logged with `console.error`, never failing the delete. In a `transaction` it runs after commit and before `transaction` resolves, never on rollback.

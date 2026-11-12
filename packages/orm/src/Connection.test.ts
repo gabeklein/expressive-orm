@@ -158,14 +158,14 @@ describe("ambient", () => {
 
     expect(Foo.hasOwnProperty("connection")).toBe(false);
     expect(Foo.connection).not.toBe(open);
-    await expect(Foo.find()).rejects.toThrow("No database connection.");
+    await expect(Foo.query()).rejects.toThrow("No database connection.");
   })
 
   it("will bind to a connection made after none", async () => {
     class Foo extends Type {}
 
     await Store.new().close();
-    await expect(Foo.find()).rejects.toThrow("No database connection.");
+    await expect(Foo.query()).rejects.toThrow("No database connection.");
 
     const db = Store.new();
 
@@ -424,7 +424,7 @@ describe("codecs", () => {
     await Event.insert({ at, data });
     data.tags.push("b");
 
-    const [row] = await Event.find({ at });
+    const [row] = await Event.query({ at });
 
     expect(row).toEqual({ id: 1, at, data: { tags: ["a"] } });
     expect(await Event.count({ at: isLike("2024-06%") })).toBe(1);
@@ -711,7 +711,7 @@ describe("after", () => {
     await seed(Upload, "a.png", "a.png.thumb");
     db.after(Upload, {
       async delete({ path }){
-        const [thumb] = await Upload.find({ path: `${path}.thumb` });
+        const [thumb] = await Upload.query({ path: `${path}.thumb` });
         await Upload.delete(thumb.id);
       }
     });
