@@ -1,6 +1,6 @@
 # Spike: MongoDB driver (`@expressive/mongo`)
 
-`MongoConnection extends Connection` (from `@expressive/orm`) on the official `mongodb` driver (v6). Simple queries go straight to Mongo. Anything the translator can't express falls back to `evaluate` over a store backed by Mongo collections. 49 tests run on `mongodb-memory-server`: a single-node replica set for everything, plus one standalone server to check the limits. Coverage floors are 96/86/97/96. The package is `private` and has no changeset.
+`MongoConnection extends Connection` (from `@expressive/orm`) on the official `mongodb` driver (v6). Simple queries go straight to Mongo. Anything the translator can't express falls back to `evaluate` over a store backed by Mongo collections. 51 tests run on `mongodb-memory-server`: a single-node replica set for everything, plus one standalone server to check the limits. Coverage floors are 96/86/97/96. The package is `private` and has no changeset.
 
 ```ts
 const db = MongoConnection.new([User, Post], "mongodb://localhost:27017", "app");
@@ -78,10 +78,10 @@ How to read this:
 
 ## Caveats and limits
 
-- **Field encodings come from orm's generic columns.** Dates are stored as ISO strings and booleans as `1`/`0`, so documents look SQL-shaped. Native BSON `Date`/`bool` values would need a `columns/` override set like `@expressive/sql` has. That's mostly mechanical, but it touches how `set`/`get` are registered.
+- **No codecs.** Since fields declare portable types and connections own storage, fields hand the driver plain values. Mongo stores them as they come, like `Memory`: dates as BSON dates, booleans as BSON booleans, `json()` as embedded documents. Declaring `codecs` would only buy rejection of field types at bind time.
 - **No schema validation in `sync`.** It creates collections and indexes and nothing else: no `$jsonSchema` validator and no `plan()` diff.
 - **Nullable `unique` fields** get a partial index on non-null types, because Mongo otherwise treats every null as a duplicate. Non-nullable `unique` fields get a plain unique index.
-- **Transactions need a replica set or mongos.** A standalone server rejects them with Mongo's own error, which a test checks. The driver doesn't use `withTransaction`'s automatic retry, because the callback runs ORM journal side effects. A `TransientTransactionError` reaches the caller. Nested `transaction()` calls join the outer one.
+- **Transactions need a replica set or mongos.** A standalone server rejects them with Mongo's own error, which a test checks. The driver doesn't use `withTransaction`'s automatic retry, because the callback runs ORM journal side effects. A `TransientTransactionError` reaches the caller. Nested `transaction()` calls join the outer one. Like `PGConnection`, the driver overrides `lock`, so transactions run side by side on their own sessions and other statements don't wait.
 - **Change streams need a replica set.** On a standalone, the stream errors and is dropped silently, which a test checks. A `watch()` opened just before a write can miss it: the cursor opens lazily and nothing passes `startAtOperationTime`. Deletes in composite-key collections aren't reported, because `documentKey` holds only the hidden ObjectId. Fixing that needs pre-images (`changeStreamPreAndPostImages`).
 - **Changing a primary key** on a single-key table is an insert plus a delete. It's atomic only inside `transaction()`.
 - **`$lookup` null semantics:** a null `localField` matches documents whose `foreignField` is missing or null. That can't happen for `_id` (every `one()` relation) but can for joins on other columns.
@@ -95,7 +95,6 @@ How to read this:
 
 **Yes as an experimental package. Not yet as a peer of `@expressive/sql`.** The contract held up. CRUD, upserts, indexes, sessions and change streams all map almost one-to-one, the id choice keeps entities portable, and the `evaluate` fallback means every `Query` runs. Before calling it production-ready:
 
-1. Native BSON column types (dates and booleans).
-2. Cost-aware join planning: a semi-join rewrite for joined-side filters, instead of always using `$lookup`.
-3. Push the common computed update `x = x + n` down as `$inc`.
-4. Pre-images for composite-key change events, and `startAtOperationTime` for subscribe.
+1. Cost-aware join planning: a semi-join rewrite for joined-side filters, instead of always using `$lookup`.
+2. Push the common computed update `x = x + n` down as `$inc`.
+3. Pre-images for composite-key change events, and `startAtOperationTime` for subscribe.
