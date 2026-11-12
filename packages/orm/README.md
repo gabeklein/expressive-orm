@@ -8,23 +8,23 @@ Install [`@expressive/sql`](https://github.com/gabeklein/expressive-orm/tree/mai
 npm install @expressive/orm @expressive/mvc
 ```
 
-## memory()
+## Memory
 
-A connection keeping rows in arrays. It runs the floor and `Query` - joins, filters, order, paging, projections, math, inserts, updates and deletes - but not raw SQL templates, and reports every write for live rows. For tests and prototypes, or, with `memory({ persist: memory.indexedDB(name) })` or `memory.file(path)`, for apps whose data fits in memory - see [Persisted memory](https://github.com/gabeklein/expressive-orm#persisted-memory).
+A connection keeping rows in arrays. It runs the floor and `Query` - joins, filters, order, paging, projections, math, inserts, updates and deletes - but not raw SQL templates, and reports every write for live rows. For tests and prototypes - `clear()` resets it between tests - or, with a file or IndexedDB name as `Memory.new(types, source)`, for apps whose data fits in memory - see [Persisted memory](https://github.com/gabeklein/expressive-orm#persisted-memory).
 
 ```ts
-import { Query, Type, memory, one, str } from '@expressive/orm';
+import { Memory, Query, Type, one, str } from '@expressive/orm';
 
 class User extends Type {
-  static connection = memory();
   name = str();
 }
 
 class Post extends Type {
-  static connection = User.connection;
   author = one(User);
   title = str();
 }
+
+Memory.new([User, Post]);
 
 const gabe = await User.new({ name: "Gabe" });
 await Post.insert({ author: gabe, title: "Hello" });
