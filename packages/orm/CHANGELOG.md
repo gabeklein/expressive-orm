@@ -194,6 +194,14 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 # @expressive/orm
 
+## 0.17.0
+
+### Minor Changes
+
+- [#60](https://github.com/gabeklein/expressive-orm/pull/60) [`5e6ac69`](https://github.com/gabeklein/expressive-orm/commit/5e6ac69fd0980879590d6d0bf7dddd00fed76615) **A class without a connection joins the last one created.** On first use, a class no connection binds joins the connection created last while it is open, as if listed in its `new` - field codecs included, and covered by `sync` if the connection is not yet awaited. A test needs only `Memory.new()`. Closing it unbinds them; with none open, statements still reject with `No database connection`. Previously such a class rejected even with a connection open.
+
+- [#59](https://github.com/gabeklein/expressive-orm/pull/59) [`9f0596d`](https://github.com/gabeklein/expressive-orm/commit/9f0596dfa3f9c3921f1f440aa49e88ffa37d48ec) **`Memory` is a connection class.** `Memory.new([User, Post])` binds classes like `SQLiteConnection.new`, so tests and prototypes swap one class name. `db.clear()` deletes every row, restarts ids and destroys loaded entities - between tests. Persistence moves to a second argument: `Memory.new(types, "data.json")` is a JSON file on Bun, Node or Deno and an IndexedDB database in a browser, or pass a `Memory.Adapter`. `memory({ persist })`, `memory.file` and `memory.indexedDB` are removed; `memory()` is deprecated.
+
 ## 0.16.0
 
 ### Minor Changes
