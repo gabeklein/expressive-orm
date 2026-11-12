@@ -180,9 +180,15 @@ abstract class Connection extends Model {
    */
   constructor(using: Connection.Types = []){
     const entries = Object.entries(using);
+    const seen = new Set<Query.Table>();
 
-    for (const [, type] of entries)
+    for (const [, type] of entries) {
+      if (seen.has(type))
+        throw new Error(`Type ${type.name} is bound twice.`);
+
+      seen.add(type);
       check(new.target, type);
+    }
 
     super();
 

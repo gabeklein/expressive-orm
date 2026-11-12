@@ -77,6 +77,13 @@ describe("using", () => {
     expect(Foo.table).toBe("foo_table");
   })
 
+  it("will throw if a type is bound twice", () => {
+    class Foo extends Type {}
+
+    expect(() => Store.new({ A: Foo, B: Foo })).toThrow("Type Foo is bound twice.");
+    expect(() => Store.new([Foo, Foo])).toThrow("Type Foo is bound twice.");
+  })
+
   it("will not name a table by index", () => {
     class Foo extends Type {}
 
