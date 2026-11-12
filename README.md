@@ -227,6 +227,27 @@ In place of the string, pass a `Memory.Adapter` - `{ load, save }`: `load()` ret
 
 Each connection holds its own copy. Two tabs or processes on the same store don't see each other's writes, and the last to save a table wins it - inserts from both can share an id. Open one connection per store. Each save rewrites every changed table whole - a file is rewritten - so keep stores small.
 
+### Remote
+
+`Remote` runs entities in a client against a connection on a server - every read and write forwarded through a function you give it, over any transport:
+
+```ts
+import { Remote } from '@expressive/sql';
+import { types } from './entities';   // { User, Post }, shared by both sides
+
+// client
+const db = Remote.new(types, request => api.database(request));
+
+// server
+const serve = Remote.handle(SQLiteConnection.new(types, "app.db"));
+
+export const database = (request: Remote.Request) => serve(request);
+```
+
+Requests name each class by the key it is bound under and each field by its property - `{ op: "select", type: "Post", where: [["author", "=", 1]] }` - never a table or column, so the server resolves both against its own classes and alone decides where they are stored. Bind classes as an object, under the same keys on both sides; a class bound in an array can't be sent. The server checks and stores values as any write, and runs its `before` and `after` hooks; an unknown class or property rejects. Only the statics, relations and instance writes travel - `Query`, `transaction` and live rows don't, and `transaction` throws. Values must survive your transport: send `Date` with a codec that keeps it.
+
+`Remote.handle` serves every class its connection binds by key, to anyone who can reach it. Check who is asking before calling it.
+
 ### Command line
 
 ```sh
