@@ -3,7 +3,7 @@ import { get, Model } from '@expressive/mvc';
 
 import { Connection } from './Connection';
 import { Field } from './Field';
-import { memory } from './memory';
+import { Memory } from './memory';
 import { Query } from './query/Query';
 import { Type } from './Type';
 import { asc, desc, equal, greaterThan, isIn, isLike, isNull, lessThan, notEqual, notNull, Where } from './where';
@@ -15,7 +15,7 @@ function spy<K extends "select" | "insert" | "update" | "remove">(connection: Co
 }
 
 class Live extends Connection {
-  _db = memory();
+  _db = Memory.new();
   _emit?: (change: Connection.Change) => void;
   _subscribed = 0;
 
@@ -49,7 +49,7 @@ const settled = () => new Promise(res => setTimeout(res));
 
 function connect(){
   return class Table extends Type {
-    static connection = memory();
+    static connection = Memory.new();
   }
 }
 
@@ -407,7 +407,7 @@ describe("rows", () => {
 
 describe("insert", () => {
   it("will return the stored row", async () => {
-    const db = memory();
+    const db = Memory.new();
     const { insert } = db;
 
     class Post extends Type {
@@ -751,7 +751,7 @@ describe("new", () => {
   })
 
   it("will assign defaults from inserted row", async () => {
-    const db = memory();
+    const db = Memory.new();
     const { insert } = db;
 
     class Post extends Type {
@@ -914,7 +914,7 @@ describe("static delete", () => {
   })
 
   it("will evict and destroy a loaded entity", async () => {
-    for (const connection of [memory(), Live.new()]) {
+    for (const connection of [Memory.new(), Live.new()]) {
       class User extends Type {
         static connection = connection;
         name = str();
@@ -1312,7 +1312,7 @@ describe("primary key", () => {
 
   it("will redeclare id as a string", async () => {
     class Doc extends Type {
-      static connection = memory();
+      static connection = Memory.new();
       id = uuid({ primary: true });
       title = str();
     }
@@ -1366,7 +1366,7 @@ describe("primary key", () => {
 
   it("will relate to a string id", async () => {
     class Doc extends Type {
-      static connection = memory();
+      static connection = Memory.new();
       id = uuid({ primary: true });
     }
 
@@ -1429,7 +1429,7 @@ describe("identity map", () => {
 
     const user = await User.new({ name: "D" });
 
-    User.connection = memory();
+    User.connection = Memory.new();
 
     expect(User.loaded.get(user.id)).toBeUndefined();
   });
@@ -1852,7 +1852,7 @@ describe("null", () => {
 
   it("will read null as undefined", async () => {
     const { NullRef, NullRow } = define();
-    const connection = memory();
+    const connection = Memory.new();
 
     NullRef.connection = connection;
     NullRow.connection = connection;
@@ -1885,7 +1885,7 @@ describe("null", () => {
 
   it("will write null to clear each column", async () => {
     const { NullRef, NullRow } = define();
-    const connection = memory();
+    const connection = Memory.new();
 
     NullRef.connection = connection;
     NullRow.connection = connection;
@@ -2081,7 +2081,7 @@ describe("query writes", () => {
   })
 
   it("will match a relation by its columns", async () => {
-    const connection = memory();
+    const connection = Memory.new();
 
     class Author extends Type {
       static connection = connection;
@@ -2324,7 +2324,7 @@ describe("insert conflict", () => {
 })
 
 describe("composite key", () => {
-  const db = memory();
+  const db = Memory.new();
 
   class Account extends Type {
     static connection = db;
@@ -2504,7 +2504,7 @@ describe("composite key", () => {
 
 describe("journal", () => {
   function journaled(){
-    const db = memory();
+    const db = Memory.new();
     const record: Connection.Journal = { undo: [], done: [] };
     let open = false;
 
@@ -2698,7 +2698,7 @@ describe("journal", () => {
 describe("load", () => {
   function setup(){
     class User extends Type {
-      static connection = memory();
+      static connection = Memory.new();
       name = str();
       age = num(orNull);
     }
@@ -2770,7 +2770,7 @@ describe("load", () => {
 
   it("will scope to subset", async () => {
     class Person extends Type {
-      static connection = memory();
+      static connection = Memory.new();
       static table = "person";
       name = str();
       role = str();
@@ -2807,7 +2807,7 @@ describe("load", () => {
     const didDelete = vi.fn();
 
     class Post extends Type {
-      static connection = memory();
+      static connection = Memory.new();
       title = str();
 
       async delete(){
@@ -2828,7 +2828,7 @@ describe("load", () => {
 
   it("will load composite keys", async () => {
     class Owner extends Type {
-      static connection = memory();
+      static connection = Memory.new();
       name = str();
     }
 

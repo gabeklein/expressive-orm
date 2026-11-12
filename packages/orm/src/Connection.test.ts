@@ -6,11 +6,11 @@ import { bool, date, json, num, str } from './fields';
 import { Builder } from './query/Builder';
 import { one } from './one';
 import { isLike } from './where';
-import { memory } from './memory';
+import { Memory } from './memory';
 import { Type } from './Type';
 
 class Store extends Connection {
-  _db = memory();
+  _db = Memory.new();
 
   select(...args: Parameters<Connection["select"]>){
     return this._db.select(...args);
@@ -81,7 +81,7 @@ describe("using", () => {
     class Foo extends Type {}
 
     const db = Store.new([Foo]);
-    const other = memory();
+    const other = Memory.new();
 
     Foo.connection = other;
     db.set(null);
@@ -106,7 +106,7 @@ describe("detached", () => {
 
 describe("then", () => {
   it("will resolve without sync", async () => {
-    const db = memory();
+    const db = Memory.new();
 
     await expect(db).resolves.toBe(db);
     expect(db.then).toBeUndefined();
@@ -304,7 +304,7 @@ describe("codecs", () => {
 
   it("will keep plain values in memory", async () => {
     class Event extends Type {
-      static connection = memory();
+      static connection = Memory.new();
       at = date();
       data = json<{ tags: string[] }>();
     }
@@ -361,8 +361,8 @@ describe("transaction", () => {
     vi.spyOn(process, "getBuiltinModule" as any).mockReturnValue(undefined);
 
     try {
-      const { memory } = await import('./memory');
-      const db = memory();
+      const { Memory } = await import('./memory');
+      const db = Memory.new();
 
       await expect(db.transaction(() => {})).rejects.toThrow("Transactions need AsyncLocalStorage from process.getBuiltinModule, which this runtime does not provide.");
     }
@@ -375,7 +375,7 @@ describe("transaction", () => {
 
 describe("after", () => {
   function setup(){
-    const db = memory();
+    const db = Memory.new();
 
     class Upload extends Type {
       static connection = db;
@@ -445,7 +445,7 @@ describe("after", () => {
   })
 
   it("will pass relations as ids", async () => {
-    const db = memory();
+    const db = Memory.new();
     const didDelete = vi.fn();
 
     class User extends Type {
@@ -637,7 +637,7 @@ describe("after", () => {
 
   it("will not run for another connection", async () => {
     const { db, Upload } = setup();
-    const other = memory();
+    const other = Memory.new();
     const didDelete = vi.fn();
 
     class Shared extends Type {
@@ -657,7 +657,7 @@ describe("after", () => {
 
 describe("before", () => {
   function setup(){
-    const db = memory();
+    const db = Memory.new();
 
     class Upload extends Type {
       static connection = db;

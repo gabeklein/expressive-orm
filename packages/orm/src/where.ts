@@ -27,7 +27,7 @@ const notEqual = (value: any) => new Where('!=', value);
 /**
  * Match text against a `LIKE` pattern - `%` any run, `_` one character.
  *
- * Compares the stored text, so it matches inside a `json()` column. Case-sensitive on `memory()`; ASCII case-insensitive on SQLite.
+ * Compares the stored text, so it matches inside a `json()` column. Case-sensitive on `Memory.new()`; ASCII case-insensitive on SQLite.
  */
 const isLike = (value: any) => new Where('LIKE', value);
 /** Match a missing value. In a filter object `null` does the same. */
@@ -43,7 +43,7 @@ const isIn = (values: any[]) => new Where('IN', values);
 /**
  * Match none of `values`.
  *
- * An empty list matches every row on SQL; on `memory()`, every row with a value.
+ * An empty list matches every row on SQL; on `Memory.new()`, every row with a value.
  */
 const notIn = (values: any[]) => new Where('NOT IN', values);
 

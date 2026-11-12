@@ -1,4 +1,4 @@
-import type { memory } from './memory';
+import type { Memory } from './memory';
 
 type Request<T = any> = {
   result: T;
@@ -8,9 +8,9 @@ type Request<T = any> = {
 };
 
 type Store = {
-  getAll(): Request<memory.Table[]>;
+  getAll(): Request<Memory.Table[]>;
   getAllKeys(): Request<string[]>;
-  put(value: memory.Table, key: string): void;
+  put(value: Memory.Table, key: string): void;
 };
 
 type Transaction = {
@@ -38,12 +38,7 @@ function request<T>(request: Request<T>) {
   });
 }
 
-/**
- * Persists `memory()` in the browser's IndexedDB database `name`, one record per table.
- *
- * Gives the database up when another connection deletes or upgrades it, reopening on the next save.
- */
-function indexedDBAdapter(name: string): memory.Adapter {
+function indexedDBAdapter(name: string): Memory.Adapter {
   let database: Promise<Database> | undefined;
 
   function open() {
@@ -88,12 +83,7 @@ function indexedDBAdapter(name: string): memory.Adapter {
 }
 
 function fs(): typeof import('node:fs/promises') {
-  const fs = (globalThis as any).process?.getBuiltinModule?.("node:fs/promises");
-
-  if (!fs)
-    throw new Error("memory.file needs node:fs from process.getBuiltinModule, which this runtime does not provide.");
-
-  return fs;
+  return (globalThis as any).process.getBuiltinModule("node:fs/promises");
 }
 
 function replace(this: any, key: string, value: unknown) {
@@ -106,14 +96,8 @@ function revive(_key: string, value: any) {
   return value && typeof value.$date === "string" && Object.keys(value).length === 1 ? new Date(value.$date) : value;
 }
 
-/**
- * Persists `memory()` to one JSON file, writing `path.tmp` and renaming it over.
- *
- * Needs `process.getBuiltinModule` - Bun, Node 20.16+ or 22.3+, Deno. The directory must exist.
- * Values round-trip as JSON, except `Date`, which is kept; a `BigInt` fails the save.
- */
-function fileAdapter(path: string): memory.Adapter {
-  let data: memory.Snapshot = {};
+function fileAdapter(path: string): Memory.Adapter {
+  let data: Memory.Snapshot = {};
 
   return {
     async load() {
@@ -140,4 +124,16 @@ function fileAdapter(path: string): memory.Adapter {
   };
 }
 
-export { fileAdapter, indexedDBAdapter };
+function persist(source: string): Memory.Adapter {
+  const global = globalThis as any;
+
+  if (global.process?.getBuiltinModule?.("node:fs/promises"))
+    return fileAdapter(source);
+
+  if (global.indexedDB)
+    return indexedDBAdapter(source);
+
+  throw new Error(`Memory cannot persist "${source}" here - pass an adapter.`);
+}
+
+export { persist };
