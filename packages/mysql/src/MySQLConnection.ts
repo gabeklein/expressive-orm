@@ -1,10 +1,10 @@
-import './columns';
-
-import { Builder, Field, now, Parameter, Query } from '@expressive/orm';
+import { Field, now, Query, type Type } from '@expressive/orm';
+import { Builder, Parameter } from '@expressive/orm/driver';
 import { Connection } from '@expressive/sql';
 import type { Pool, PoolConnection, PoolOptions, ResultSetHeader } from 'mysql2/promise';
 import { format } from 'sql-formatter';
 
+import { codecs } from './codecs';
 import { escape, now as current, MySQLGenerator } from './MySQLGenerator';
 
 const TYPE_SYNONYMS: Record<string, string> = {
@@ -47,6 +47,10 @@ function encode(values: unknown[]){
 }
 
 export class MySQLConnection extends Connection {
+  protected get codecs(){
+    return codecs;
+  }
+
   protected engine: Promise<Pool>;
 
   private owned = false;
@@ -227,7 +231,7 @@ export class MySQLConnection extends Connection {
         continue;
 
       for (const field of fields.values()) {
-        if (!field.datatype)
+        if (field.parts)
           continue;
 
         const info = columns[field.column];
@@ -255,9 +259,9 @@ export class MySQLConnection extends Connection {
         if ((info.nullable === 'YES') === !field.nullable)
           messages.push({ message: `Column "${field.column}" in table ${table} has incorrect nullable value`, drift: field });
 
-        if (base(info.type) !== base(field.datatype))
+        if (base(info.type) !== base(datatype(field)))
           messages.push({
-            message: `Column "${field.column}" in table ${table} has type "${info.type.toLowerCase()}", expected "${field.datatype.toLowerCase()}"`,
+            message: `Column "${field.column}" in table ${table} has type "${info.type.toLowerCase()}", expected "${datatype(field).toLowerCase()}"`,
             drift: field
           });
 
@@ -429,10 +433,18 @@ export class MySQLConnection extends Connection {
   }
 }
 
-function definition(field: Field, keys = true){
-  const { column, datatype, fallback, increment, nullable, primary, unique } = field;
+function connection(field: Field){
+  return (field.parent as Type.Class).connection;
+}
 
-  let parts = `\`${column}\` ${datatype.toUpperCase()}`;
+function datatype(field: Field){
+  return connection(field)._datatype(field);
+}
+
+function definition(field: Field, keys = true){
+  const { column, fallback, increment, nullable, primary, unique } = field;
+
+  let parts = `\`${column}\` ${datatype(field).toUpperCase()}`;
 
   if (!nullable) parts += ' NOT NULL';
 
@@ -513,5 +525,5 @@ function literal(field: Field, value: unknown){
   if (value === null)
     return "NULL";
 
-  return String(escape(field.set(value)));
+  return String(escape(connection(field)._encode(field, field.set(value))));
 }

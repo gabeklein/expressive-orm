@@ -1,19 +1,13 @@
-import { Builder, DataTable, Field, Parameter } from '@expressive/orm';
+import { Field } from '@expressive/orm';
+import { Builder, DataTable, Parameter } from '@expressive/orm/driver';
 import { Generator } from '@expressive/sql';
 
 export function now(field?: Field){
   switch (field?.type) {
-    case "ms":
-      return "CAST(UNIX_TIMESTAMP(NOW(3)) * 1000 AS SIGNED)";
-    case "seconds":
-    case "integer":
-      return "UNIX_TIMESTAMP()";
     case "date":
       return "UTC_DATE()";
     case "time":
       return "UTC_TIME()";
-    case "text":
-      return "DATE_FORMAT(UTC_TIMESTAMP(3), '%Y-%m-%dT%H:%i:%s.%fZ')";
     default:
       return "UTC_TIMESTAMP(3)";
   }

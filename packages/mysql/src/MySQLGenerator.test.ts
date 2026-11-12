@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { bool, Builder, date, now, num, one, Parameter, Query, str, Type } from '@expressive/orm';
+import { bool, date, now, num, one, Query, str, Type } from '@expressive/orm';
+import { Builder, Parameter } from '@expressive/orm/driver';
 import type { Pool } from 'mysql2/promise';
 
 import { MySQLConnection } from './MySQLConnection';
@@ -32,12 +33,8 @@ function render(fn: (this: Builder) => void){
 
 describe("now", () => {
   it("will match each date storage", () => {
-    expect(current(column(() => date({ type: "ms" })))).toBe("CAST(UNIX_TIMESTAMP(NOW(3)) * 1000 AS SIGNED)");
-    expect(current(column(() => date({ type: "seconds" })))).toBe("UNIX_TIMESTAMP()");
-    expect(current(column(() => date({ type: "integer" })))).toBe("UNIX_TIMESTAMP()");
     expect(current(column(() => date({ type: "date" })))).toBe("UTC_DATE()");
     expect(current(column(() => date({ type: "time" })))).toBe("UTC_TIME()");
-    expect(current(column(() => date({ type: "text" })))).toBe("DATE_FORMAT(UTC_TIMESTAMP(3), '%Y-%m-%dT%H:%i:%s.%fZ')");
     expect(current(column(() => date()))).toBe("UTC_TIMESTAMP(3)");
     expect(current()).toBe("UTC_TIMESTAMP(3)");
   })

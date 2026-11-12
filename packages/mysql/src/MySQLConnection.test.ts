@@ -178,9 +178,15 @@ describe("datatype", () => {
       on = date({ type: "timestamp", precision: 0 });
     }
 
-    expect(Clock.fields.get("at")!.datatype).toBe("time(2)");
-    expect(Clock.fields.get("on")!.datatype).toBe("datetime(0)");
-    expect(Clock.fields.get("on")!.set(new Date("2024-01-02T03:04:05.678Z"))).toBe("2024-01-02 03:04:05.678");
+    const db = MySQLConnection.new([Clock], fake().pool);
+    const at = Clock.fields.get("at")!;
+    const on = Clock.fields.get("on")!;
+
+    expect(db._datatype(at)).toBe("time(2)");
+    expect(db._datatype(on)).toBe("datetime(0)");
+    expect(db._encode(on, new Date("2024-01-02T03:04:05.678Z"))).toBe("2024-01-02 03:04:05.678");
+
+    return db.close();
   })
 })
 
@@ -199,13 +205,13 @@ describe("prepare", () => {
     const db = MySQLConnection.new([Item], pool);
 
     query.mockRejectedValueOnce(new Error("You have an error in your SQL syntax"));
-    await expect(Item.find()).rejects.toThrow(/syntax\nin query: SELECT/);
+    await expect(Item.query()).rejects.toThrow(/syntax\nin query: SELECT/);
 
     query.mockRejectedValueOnce(new Error("Lost connection"));
-    await expect(Item.find()).rejects.toThrow("Lost connection");
+    await expect(Item.query()).rejects.toThrow("Lost connection");
 
     query.mockRejectedValueOnce("odd");
-    await expect(Item.find()).rejects.toBe("odd");
+    await expect(Item.query()).rejects.toBe("odd");
 
     await db.close();
   })
@@ -418,6 +424,7 @@ describe("pool", () => {
     vi.doMock("mysql2/promise", () => ({ createPool: vi.fn(() => fake().pool) }));
 
     const { MySQLConnection } = await import('./MySQLConnection');
+    const { Type } = await import('@expressive/orm');
     const { createPool } = await import('mysql2/promise') as any;
 
     class Thing extends Type {}
@@ -437,6 +444,7 @@ describe("pool", () => {
     vi.doMock("mysql2/promise", () => { throw new Error("not found") });
 
     const { MySQLConnection } = await import('./MySQLConnection');
+    const { Type } = await import('@expressive/orm');
 
     class Thing extends Type {}
 
@@ -491,7 +499,6 @@ describe.skipIf(!url)("live", () => {
       at = date.created();
       day = date({ type: "date", nullable: true });
       time = date({ type: "time", nullable: true });
-      ms = date({ type: "ms", nullable: true });
     }
 
     it("will round trip values", async () => {
@@ -499,7 +506,6 @@ describe.skipIf(!url)("live", () => {
 
       const author = await Author.insert({ name: "Gabe" });
       const day = new Date(2024, 4, 3);
-      const moment = new Date("2024-05-03T10:20:30.456Z");
 
       const post = await Post.insert({
         author: author.id,
@@ -509,7 +515,6 @@ describe.skipIf(!url)("live", () => {
         tags: ["a", "b"],
         day,
         time: new Date("1970-01-01T10:20:30Z"),
-        ms: moment
       });
 
       expect(post).toMatchObject({
@@ -521,11 +526,10 @@ describe.skipIf(!url)("live", () => {
         tags: ["a", "b"],
         day,
         time: new Date("1970-01-01T10:20:30Z"),
-        ms: moment
       });
 
       expect(Math.abs(post.at.getTime() - Date.now())).toBeLessThan(5000);
-      await expect(Post.one(1)).resolves.toEqual(post);
+      await expect(Post.query({ id: 1 })).resolves.toEqual([post]);
     })
 
     it("will update and delete by id", async () => {
@@ -535,10 +539,10 @@ describe.skipIf(!url)("live", () => {
       const author = await Author.get(1);
 
       await author.set({ name: "b" });
-      await expect(Author.one(1)).resolves.toEqual({ id: 1, name: "b" });
+      await expect(Author.query({ id: 1 })).resolves.toEqual([{ id: 1, name: "b" }]);
 
       await author.delete();
-      await expect(Author.find()).resolves.toEqual([]);
+      await expect(Author.query()).resolves.toEqual([]);
     })
 
     it("will match a literal with a backslash", async () => {
@@ -594,8 +598,8 @@ describe.skipIf(!url)("live", () => {
         where(Foo, { name: input.name, rank: input.rank });
       });
 
-      await expect(Foo.one(1)).resolves.toEqual({ id: 1, name: "a", rank: 1 });
-      await expect(Foo.one(2)).resolves.toEqual({ id: 2, name: "b", rank: 2 });
+      await expect(Foo.query({ id: 1 })).resolves.toEqual([{ id: 1, name: "a", rank: 1 }]);
+      await expect(Foo.query({ id: 2 })).resolves.toEqual([{ id: 2, name: "b", rank: 2 }]);
     })
 
     it("will update and delete across a join", async () => {
@@ -613,7 +617,7 @@ describe.skipIf(!url)("live", () => {
       });
 
       await expect(updated).resolves.toBe(2);
-      await expect(Foo.one(1)).resolves.toEqual({ id: 1, name: "a", rank: 5 });
+      await expect(Foo.query({ id: 1 })).resolves.toEqual([{ id: 1, name: "a", rank: 5 }]);
 
       const removed = Query(where => {
         const bar = where(Bar);
@@ -623,7 +627,7 @@ describe.skipIf(!url)("live", () => {
       });
 
       await expect(removed).resolves.toBe(2);
-      await expect(Bar.find()).resolves.toEqual([]);
+      await expect(Bar.query()).resolves.toEqual([]);
     })
 
     it("will page results", async () => {
@@ -692,7 +696,7 @@ describe.skipIf(!url)("live", () => {
       await Asset.insert({ id: "a", file: "one", made: 1 });
 
       await expect(Asset.insert({ id: "b", file: "one", made: 2 }, { conflict: "ignore", on: "file" })).resolves.toBeUndefined();
-      await expect(Asset.find()).resolves.toEqual([{ id: "a", file: "one", made: 1 }]);
+      await expect(Asset.query()).resolves.toEqual([{ id: "a", file: "one", made: 1 }]);
     })
 
     it("will return the existing serial id", async () => {
@@ -715,7 +719,7 @@ describe.skipIf(!url)("live", () => {
       const pick = await Pick.get([1, "a"]);
 
       await pick.delete();
-      await expect(Pick.find()).resolves.toEqual([]);
+      await expect(Pick.query()).resolves.toEqual([]);
     })
   })
 
@@ -732,7 +736,7 @@ describe.skipIf(!url)("live", () => {
         await Item.insert({ name: "b" });
       });
 
-      await expect(Item.find()).resolves.toHaveLength(2);
+      await expect(Item.query()).resolves.toHaveLength(2);
     })
 
     it("will roll back", async () => {
@@ -744,7 +748,7 @@ describe.skipIf(!url)("live", () => {
         throw new Error("nope");
       })).rejects.toThrow("nope");
 
-      await expect(Item.find()).resolves.toEqual([{ id: 1, name: "kept" }]);
+      await expect(Item.query()).resolves.toEqual([{ id: 1, name: "kept" }]);
     })
   })
 
@@ -795,7 +799,7 @@ describe.skipIf(!url)("live", () => {
       }
 
       await TestConnection.new([User2]);
-      await expect(User2.one(1)).resolves.toEqual({ id: 1, name: "Gabe", nick: "none", age: undefined });
+      await expect(User2.query({ id: 1 })).resolves.toEqual([{ id: 1, name: "Gabe", nick: "none", age: undefined }]);
     })
 
     it("will report and repair drift", async () => {
@@ -818,7 +822,7 @@ describe.skipIf(!url)("live", () => {
       await expect(db.sync()).rejects.toThrow(`Column "name" in table user has incorrect nullable value`);
       await db.sync(true, true);
       await User2.insert({ name: 3 });
-      await expect(User2.one(1)).resolves.toEqual({ id: 1, name: 3 });
+      await expect(User2.query({ id: 1 })).resolves.toEqual([{ id: 1, name: 3 }]);
     })
 
     it("will leave an optional column absent if it cannot be added", async () => {

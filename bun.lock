@@ -28,7 +28,7 @@
         "tsdown": "^0.20.1",
       },
       "peerDependencies": {
-        "@expressive/mvc": "^0.94.2",
+        "@expressive/mvc": "^0.94.0",
         "mysql2": "^3.0.0",
       },
     },
