@@ -1,6 +1,6 @@
 {
   "name": "@expressive/orm",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "Entities on @expressive/mvc Model: driver contract, Query builder and an in-memory driver.",
   "keywords": [
     "orm",
