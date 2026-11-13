@@ -194,6 +194,18 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 # @expressive/orm
 
+## 0.20.0
+
+### Minor Changes
+
+- [#69](https://github.com/gabeklein/expressive-orm/pull/69) [`b9a1b16`](https://github.com/gabeklein/expressive-orm/commit/b9a1b164559577122bb9f1b134f9b4792dcecadd) A class bound as an object - `Connection.new({ User, Post })` - takes its default table name from its key, in snake case. Keys survive minification where class names don't, so a bundled app keeps its tables without `static table`. An explicit `static table` still wins, and an array binds as before. A class listed twice now throws.
+  
+  **Breaking:** an object whose key differs from the class name - `{ users: User }` - now reads and writes table `users` where it used `user`. `sync` would create the new table empty. Set `static table = "user"` to keep the old one.
+
+- [#70](https://github.com/gabeklein/expressive-orm/pull/70) [`7adc7a0`](https://github.com/gabeklein/expressive-orm/commit/7adc7a034d0fc4d6e5d7a9eee8f54ff63df69495) `Remote` - a connection forwarding every read and write through a function you give it, to `Remote.handle(connection, options)` on a server. Requests name classes by the key they are bound under and fields by property, never table or column, so the server alone decides storage. The server validates each request and runs it as the class's own statics would, and masks failures past validation as `Request failed.`; `expose` names the classes and properties served and `check` authorizes each request with a context you pass. Reads, inserts, writes by id, relations and instance writes travel; `count`, writes by filter, `Query`, transactions and live rows don't.
+  
+  SQL generation now refuses an unknown operator, sort order, or a limit or offset that isn't a whole number. A failed SQLite statement over 4KB is reported unformatted. Ordering by, or matching null on, a required relation no longer throws.
+
 ## 0.19.0
 
 ### Minor Changes
