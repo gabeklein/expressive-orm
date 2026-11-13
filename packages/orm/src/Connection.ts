@@ -45,6 +45,7 @@ declare namespace Connection {
      * Covers instance `delete()`, static `delete(id)` and `remove` called directly; a delete by filter skips it.
      * Runs inside the transaction when there is one. A missing row skips it.
      * A throw or rejection propagates to the caller; the row stays and no `after` handler runs.
+     * Through `Remote.handle` the client gets `Request failed.`, the throw as its `cause`.
      */
     delete?(row: Columns<T>): void | Promise<void>;
   }

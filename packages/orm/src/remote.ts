@@ -18,12 +18,30 @@ declare namespace Remote {
   /** Operators a request may use. */
   type Op = "=" | "<>" | "!=" | "<" | "<=" | ">" | ">=" | "LIKE" | "IN" | "NOT IN" | "IS NULL" | "IS NOT NULL" | "asc" | "desc";
 
-  /** A request as it travels - classes by the key they are bound under, fields by property, never table or column. */
+  /**
+   * A request as it travels - classes by the key they are bound under, fields by property, never table or column.
+   *
+   * `v` is the format's version, `1`; a server refuses any other with code `version`.
+   */
   type Request =
-    | { op: "select"; type: string; where: Constraint[]; limit?: number; offset?: number }
-    | { op: "insert"; type: string; data: Values; returns?: boolean; conflict?: Conflict }
-    | { op: "update"; type: string; id: Id; data: Values }
-    | { op: "remove"; type: string; id: Id };
+    | { v: 1; op: "select"; type: string; where: Constraint[]; limit?: number; offset?: number }
+    | { v: 1; op: "insert"; type: string; data: Values; returns?: boolean; conflict?: Conflict }
+    | { v: 1; op: "update"; type: string; id: Id; data: Values }
+    | { v: 1; op: "remove"; type: string; id: Id };
+
+  /**
+   * Why `Remote.handle` refused a request.
+   *
+   * - `version` - a request format this side doesn't speak.
+   * - `malformed` - a request not of the documented shape.
+   * - `unknown` - a class not served, or a property not shared.
+   * - `invalid` - a value its field refuses, or a write the class forbids.
+   * - `failed` - a failure past validation - a constraint, a hook, the database. The original is its `cause`.
+   */
+  type Code = "version" | "malformed" | "unknown" | "invalid" | "failed";
+
+  /** A refusal from `Remote.handle`, with its `code`. */
+  type Error = RemoteError;
 
   /** How an insert handles an existing row, by property. The server computes its own `update` values. */
   interface Conflict {
@@ -54,6 +72,19 @@ declare namespace Remote {
 }
 
 const SEND = new WeakMap<Connection, Remote.Send>();
+
+/** A refusal from `Remote.handle` - `code` says why; a `failed` one keeps the original as `cause`. */
+class RemoteError extends Error {
+  cause?: unknown;
+
+  constructor(public code: Remote.Code, message: string, cause?: unknown){
+    super(message);
+    this.name = "RemoteError";
+
+    if (cause !== undefined)
+      this.cause = cause;
+  }
+}
 const OPS = new Set(["=", "<>", "!=", "<", "<=", ">", ">=", "LIKE", "IN", "NOT IN", "IS NULL", "IS NOT NULL", "asc", "desc"]);
 const BARE = new Set(["IS NULL", "IS NOT NULL", "asc", "desc"]);
 
@@ -74,6 +105,9 @@ type Entity = typeof Type & {
  * const db = Remote.new({ User, Post }, request => api.database(request));
  */
 class Remote extends Connection {
+  /** The error `Remote.handle` refuses a request with. */
+  static Error = RemoteError;
+
   constructor(using: Connection.Types, send: Remote.Send){
     if (Array.isArray(using))
       throw new Error("Remote binds classes by key - pass an object of them.");
@@ -105,10 +139,10 @@ class Remote extends Connection {
    * Serve requests from a `Remote` through `connection` - returns a handler taking each request, and a context for `check`.
    *
    * A request is validated, then run by the class `connection` binds under its key, as its own statics run:
-   * fields check values, subsets scope every read and write, fixed fields reject updates, and `created` and
-   * `updated` fields take this side's clock. Hooks run. A malformed request, unknown class or property not
-   * shared rejects with what was wrong; a failure past validation rejects as `Request failed.`, the original
-   * error as its `cause`, so storage details stay here. With `expose`, only the classes it names are served.
+   * fields check values, subsets scope every read and write, fixed fields reject updates, and fields defaulting
+   * to `now` take this side's clock. Hooks run. A refusal is a `Remote.Error` whose `code` says why - see
+   * `Remote.Code`; a failure past validation is `Request failed.` with the original as `cause`, so storage
+   * details stay here. Errors thrown by `check` pass through as they are. With `expose`, only the classes it names are served.
    *
    * @example
    * const serve = Remote.handle(db, { expose: { User: ["name"] } });
@@ -126,7 +160,7 @@ class Remote extends Connection {
       const type = served(connection, request.type);
 
       if (!type || expose && !(request.type in expose))
-        throw new Error(`Type ${request.type} is not served by this connection.`);
+        throw new RemoteError("unknown", `Type ${request.type} is not served by this connection.`);
 
       const shared = expose?.[request.type];
       const primary = type.fields.get("id")!;
@@ -138,7 +172,7 @@ class Remote extends Connection {
         const field = type.fields.get(name);
 
         if (!field || field.absent || !visible(field))
-          throw new Error(`${type.name} has no property ${name}.`);
+          throw new RemoteError("unknown", `${type.name} has no property ${name}.`);
 
         return field;
       };
@@ -149,7 +183,7 @@ class Remote extends Connection {
         );
 
         if (!ok)
-          throw new Error(`${type.name}.${field.key} can't take ${show(value)}.`);
+          throw new RemoteError("malformed", `${type.name}.${field.key} can't take ${show(value)}.`);
       };
 
       const hidden = (name: string) => {
@@ -191,7 +225,7 @@ class Remote extends Connection {
           const target = field(name);
 
           if (request.op == "update" && (target === primary || parts.includes(target)))
-            throw new Error(`${type.name}.${name} is part of its key and can't be updated.`);
+            throw new RemoteError("invalid", `${type.name}.${name} is part of its key and can't be updated.`);
 
           scalar(target, data[name] = request.data[name]);
         }
@@ -218,20 +252,29 @@ class Remote extends Connection {
       if (request.op == "update")
         for (const [name] of subset)
           if (name in request.data)
-            throw new Error(`${type.name}.${name} is fixed by its subset.`);
+            throw new RemoteError("invalid", `${type.name}.${name} is fixed by its subset.`);
 
       await check?.(request, context as C);
+
+      const invalid = async <T>(run: () => T | Promise<T>) => {
+        try {
+          return await run();
+        }
+        catch (error) {
+          throw new RemoteError("invalid", (error as Error).message);
+        }
+      };
 
       if (request.op == "select")
         for (const [name, op, value] of request.where) {
           const target = type.fields.get(name);
 
           if (!target || target.absent)
-            throw new Error(`${type.name} has no property ${name}.`);
+            throw new RemoteError("failed", "Request failed.", new Error(`check added a condition on ${type.name}.${name}, which it does not have.`));
 
           if (!BARE.has(op) && op != "LIKE")
             for (const item of Array.isArray(value) ? value : [value])
-              await target.set(present(item), true);
+              await invalid(() => target.set(present(item), true));
         }
 
       const own = (data: Remote.Values, insert?: boolean) => {
@@ -248,7 +291,7 @@ class Remote extends Connection {
       };
 
       const prepared = request.op == "insert"
-        ? await type.prepare({ ...own(request.data, true), ...type.subset })
+        ? await invalid(() => type.prepare({ ...own(request.data, true), ...type.subset }))
         : undefined;
 
       if (request.op == "update")
@@ -256,9 +299,9 @@ class Remote extends Connection {
           const target = type.fields.get(name)!;
 
           if (target.fixed)
-            throw new Error(`${name} is fixed and can't be updated.`);
+            throw new RemoteError("invalid", `${name} is fixed and can't be updated.`);
 
-          await target.set(value);
+          await invalid(() => target.set(value));
         }
 
       try {
@@ -275,7 +318,7 @@ class Remote extends Connection {
               const match = conflict.on.map(name => [name, "=", data[name]] as Type.Constraint);
 
               if (match.every(([, , value]) => value != null) && (await select(type, match, 1)).length && !(await select(type, [...match, ...subset], 1)).length)
-                throw new Error(`${type.name} can't take a row outside its subset.`);
+                throw new RemoteError("invalid", `${type.name} can't take a row outside its subset.`);
             }
 
             const inserted = await type.connection.insert(type.ref, prepared!, request.returns, conflict && await upsert(type, conflict));
@@ -298,7 +341,7 @@ class Remote extends Connection {
         }
       }
       catch (error) {
-        throw Object.assign(new Error("Request failed."), { cause: error });
+        throw error instanceof RemoteError ? error : new RemoteError("failed", "Request failed.", error);
       }
     };
   }
@@ -309,14 +352,14 @@ class Remote extends Connection {
       BARE.has(op) ? [map.key(column), op] : [map.key(column), op, value]
     ) as Remote.Constraint);
 
-    const rows: Remote.Values[] = await send(this, { op: "select", type, where, limit, offset });
+    const rows: Remote.Values[] = await send(this, { v: 1, op: "select", type, where, limit, offset });
 
     return rows.map(map.row);
   }
 
   async insert(table: string, data: Record<string, any>, returns?: boolean, conflict?: Connection.Conflict){
     const [type, map] = target(this, table);
-    const request: Remote.Request = { op: "insert", type, data: map.values(data), returns };
+    const request: Remote.Request = { v: 1, op: "insert", type, data: map.values(data), returns };
 
     if (conflict)
       request.conflict = {
@@ -331,12 +374,12 @@ class Remote extends Connection {
 
   async update(table: string, id: Connection.Key, data: Record<string, any>){
     const [type, map] = target(this, table);
-    await send(this, { op: "update", type, id: map.id(id), data: map.values(data) });
+    await send(this, { v: 1, op: "update", type, id: map.id(id), data: map.values(data) });
   }
 
   async remove(table: string, id: Connection.Key){
     const [type, map] = target(this, table);
-    await send(this, { op: "remove", type, id: map.id(id) });
+    await send(this, { v: 1, op: "remove", type, id: map.id(id) });
   }
 }
 
@@ -360,13 +403,13 @@ function locate(type: Entity, value: Remote.Id){
 
   if (!parts) {
     if (typeof value != "string" && typeof value != "number")
-      throw new Error(`${type.name} needs an id, not ${JSON.stringify(value)}.`);
+      throw new RemoteError("malformed", `${type.name} needs an id, not ${show(value)}.`);
 
     return value;
   }
 
   if (!value || typeof value != "object" || Object.keys(value).length != parts.length || parts.some(part => !(part.key in value)))
-    throw new Error(`${type.name} needs an id of ${parts.map(part => part.key)}.`);
+    throw new RemoteError("malformed", `${type.name} needs an id of ${parts.map(part => part.key)}.`);
 
   return parts.map(part => value[part.key]);
 }
@@ -463,7 +506,7 @@ async function upsert(type: Entity, conflict: Remote.Conflict): Promise<Connecti
 
 function valid(input: unknown): Remote.Request {
   const fail = (): never => {
-    throw new Error("Malformed request.");
+    throw new RemoteError("malformed", "Malformed request.");
   };
 
   const object = (value: unknown): value is Record<string, unknown> => (
@@ -475,6 +518,9 @@ function valid(input: unknown): Remote.Request {
 
   if (!object(input) || typeof input.type != "string")
     return fail();
+
+  if (input.v !== 1)
+    throw new RemoteError("version", `Request version ${show(input.v)} is not supported.`);
 
   const request = { ...input } as Remote.Request;
 
