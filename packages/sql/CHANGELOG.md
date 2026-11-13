@@ -1,5 +1,18 @@
 # @expressive/sql
 
+## 0.11.0
+
+### Minor Changes
+
+- [#73](https://github.com/gabeklein/expressive-orm/pull/73) [`4c19f4b`](https://github.com/gabeklein/expressive-orm/commit/4c19f4b25a643b3e5526bd7552ffcd3545ff0809) `Remote` requests carry a format version, `v: 1`, and `Remote.handle` refuses with a `Remote.Error` whose `code` says why: `version`, `malformed`, `unknown`, `invalid` or `failed`. Failures past validation still read `Request failed.`, with the original as `cause`; errors thrown by `check` pass through.
+  
+  **Breaking:** a server on this version refuses requests without `v` - those from a 0.20 `Remote` client - with code `version`. Update client and server together.
+
+### Patch Changes
+
+- Updated dependencies [[`4c19f4b`](https://github.com/gabeklein/expressive-orm/commit/4c19f4b25a643b3e5526bd7552ffcd3545ff0809)]:
+  - @expressive/orm@0.21.0
+
 ## 0.10.0
 
 ### Minor Changes
