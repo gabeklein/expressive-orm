@@ -254,7 +254,17 @@ Requests name each class by the key it is bound under and each field by its prop
 
 The server validates each request and runs it as the class's own statics would: fields check values, a subset scopes every read and write - an upsert can't take over a row outside it - a fixed field rejects updates and a key can't change, and fields defaulting to `now`, like `created` and `updated`, take the server's clock. Its `before` and `after` hooks run. Values must be plain - a relation travels as its id, and an object reaches only a `json` field. A request may carry up to 100 conditions and 1000 values in a list.
 
-A malformed request, unknown class or unshared property rejects with what was wrong, as does a value its field refuses. Anything that fails after that - a constraint, a hook, the database - rejects as `Request failed.`, with the original error as its `cause` for your logs, so table and column names never reach the client.
+A refusal is a `Remote.Error` with a `code`:
+
+| `code` | Means |
+|---|---|
+| `version` | the request's `v` isn't one this server speaks - the client is out of date |
+| `malformed` | the request isn't of the documented shape |
+| `unknown` | a class not served, or a property not shared |
+| `invalid` | a value its field refuses, or a write the class forbids - the message says which |
+| `failed` | anything after validation - a constraint, a hook, the database - as `Request failed.`, with the original as `cause` for your logs, so table and column names never reach the client |
+
+Errors thrown by `check` pass through untouched, so your own status codes reach the client. Every request carries `v: 1`, the format's version; a server refuses any other, so a client bundle and server that disagree fail loudly rather than misread each other. Whether `code` reaches the browser depends on your transport.
 
 `Remote.handle` serves every class its connection binds by key, to anyone who reaches it. `expose` names the classes served and the properties each shares - read, filtered and written; a class it leaves out isn't served, and properties it leaves out never leave the server and can't be filtered on. `id` and key parts are always shared. A hidden field the client fills on its own - a default, `created`, `updated` - is dropped quietly so the server sets it, and the recency field can still order reads. `check` runs for each valid request with the context you pass the handler - throw to refuse it, or push onto a select's `where` to narrow its rows.
 
