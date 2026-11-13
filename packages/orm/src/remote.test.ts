@@ -66,6 +66,7 @@ describe("client", () => {
     await Post.query({ author: ann, views: greaterThan(-1) });
 
     expect(send).toHaveBeenCalledWith({
+      v: 1,
       op: "select",
       type: "Post",
       where: [["author", "=", 1], ["views", ">", -1]],
@@ -92,6 +93,7 @@ describe("client", () => {
     await Post.insert({ id: 1, author: 1, title: "Changed" }, { conflict: "update" });
 
     expect(send).toHaveBeenLastCalledWith({
+      v: 1,
       op: "insert",
       type: "Post",
       data: { id: 1, author: 1, title: "Changed", views: 0 },
@@ -133,7 +135,7 @@ describe("client", () => {
     const db = Post.connection;
 
     await expect(db.insert(Post.ref, { author_id: 1, title: "Hello" })).resolves.toBeUndefined();
-    expect(send).toHaveBeenLastCalledWith({ op: "insert", type: "Post", data: { author: 1, title: "Hello" }, returns: undefined });
+    expect(send).toHaveBeenLastCalledWith({ v: 1, op: "insert", type: "Post", data: { author: 1, title: "Hello" }, returns: undefined });
   })
 
   it("will send a composite key by property", async () => {
@@ -159,7 +161,7 @@ describe("client", () => {
     await app.insert({ post: 1, name: "a" });
     await app.update(["a", 1] as any, { note: "n" });
 
-    expect(send).toHaveBeenLastCalledWith({ op: "update", type: "Tag", id: { name: "a", post: 1 }, data: { note: "n" } });
+    expect(send).toHaveBeenLastCalledWith({ v: 1, op: "update", type: "Tag", id: { name: "a", post: 1 }, data: { note: "n" } });
     await expect(server.select("tag", [])).resolves.toEqual([{ post: 1, name: "a", note: "n" }]);
 
     await app.delete(["a", 1] as any);
@@ -216,7 +218,7 @@ describe("handle", () => {
   it("will reject an unknown class", async () => {
     const serve = Remote.handle(Memory.new());
 
-    await expect(serve({ op: "remove", type: "Foo", id: 1 })).rejects.toThrow("Type Foo is not served by this connection.");
+    await expect(serve({ v: 1, op: "remove", type: "Foo", id: 1 })).rejects.toThrow("Type Foo is not served by this connection.");
   })
 
   it("will not serve a class rebound elsewhere", async () => {
@@ -228,15 +230,15 @@ describe("handle", () => {
     await first.close();
     Memory.new({ Foo });
 
-    await expect(serve({ op: "remove", type: "Foo", id: 1 })).rejects.toThrow("Type Foo is not served by this connection.");
+    await expect(serve({ v: 1, op: "remove", type: "Foo", id: 1 })).rejects.toThrow("Type Foo is not served by this connection.");
   })
 
   it("will reject an unknown property", async () => {
     const { serve } = pair();
 
-    await expect(serve({ op: "update", type: "Author", id: 1, data: { password: "x" } })).rejects.toThrow("Author has no property password.");
-    await expect(serve({ op: "select", type: "Author", where: [["password", "=", "x"]] })).rejects.toThrow("Author has no property password.");
-    await expect(serve({ op: "insert", type: "Author", data: { name: "x" }, conflict: { on: ["password"] } })).rejects.toThrow("Author has no property password.");
+    await expect(serve({ v: 1, op: "update", type: "Author", id: 1, data: { password: "x" } })).rejects.toThrow("Author has no property password.");
+    await expect(serve({ v: 1, op: "select", type: "Author", where: [["password", "=", "x"]] })).rejects.toThrow("Author has no property password.");
+    await expect(serve({ v: 1, op: "insert", type: "Author", data: { name: "x" }, conflict: { on: ["password"] } })).rejects.toThrow("Author has no property password.");
   })
 
   it("will reject a malformed request", async () => {
@@ -244,23 +246,23 @@ describe("handle", () => {
     const malformed = [
       null,
       [],
-      { op: "select" },
-      { op: "drop", type: "Author" },
-      { op: "select", type: "Author", where: {} },
-      { op: "select", type: "Author", where: ["name"] },
-      { op: "select", type: "Author", where: [[1, "="]] },
-      { op: "select", type: "Author", where: [["name", "= 'x' OR 1=1 OR 'a' =", "x"]] },
-      { op: "select", type: "Author", where: [["name", "IN", "x"]] },
-      { op: "select", type: "Author", where: [["name", "=", ["x"]]] },
-      { op: "select", type: "Author", where: [], limit: "1 OFFSET 1" },
-      { op: "select", type: "Author", where: [], limit: 1.5 },
-      { op: "select", type: "Author", where: [], offset: -1 },
-      { op: "insert", type: "Author", data: [] },
-      { op: "insert", type: "Author", data: {}, returns: "yes" },
-      { op: "insert", type: "Author", data: {}, conflict: [] },
-      { op: "insert", type: "Author", data: {}, conflict: { on: [1] } },
-      { op: "insert", type: "Author", data: {}, conflict: { on: ["id"], update: "name" } },
-      { op: "update", type: "Author", id: 1 }
+      { v: 1, op: "select" },
+      { v: 1, op: "drop", type: "Author" },
+      { v: 1, op: "select", type: "Author", where: {} },
+      { v: 1, op: "select", type: "Author", where: ["name"] },
+      { v: 1, op: "select", type: "Author", where: [[1, "="]] },
+      { v: 1, op: "select", type: "Author", where: [["name", "= 'x' OR 1=1 OR 'a' =", "x"]] },
+      { v: 1, op: "select", type: "Author", where: [["name", "IN", "x"]] },
+      { v: 1, op: "select", type: "Author", where: [["name", "=", ["x"]]] },
+      { v: 1, op: "select", type: "Author", where: [], limit: "1 OFFSET 1" },
+      { v: 1, op: "select", type: "Author", where: [], limit: 1.5 },
+      { v: 1, op: "select", type: "Author", where: [], offset: -1 },
+      { v: 1, op: "insert", type: "Author", data: [] },
+      { v: 1, op: "insert", type: "Author", data: {}, returns: "yes" },
+      { v: 1, op: "insert", type: "Author", data: {}, conflict: [] },
+      { v: 1, op: "insert", type: "Author", data: {}, conflict: { on: [1] } },
+      { v: 1, op: "insert", type: "Author", data: {}, conflict: { on: ["id"], update: "name" } },
+      { v: 1, op: "update", type: "Author", id: 1 }
     ];
 
     for (const request of malformed)
@@ -277,16 +279,16 @@ describe("handle", () => {
     const { serve } = pair();
     const tags = Remote.handle(Memory.new({ Tag }));
 
-    await expect(serve({ op: "remove", type: "Author", id: { id: 1 } })).rejects.toThrow('Author needs an id, not {"id":1}.');
-    await expect(tags({ op: "remove", type: "Tag", id: 1 })).rejects.toThrow("Tag needs an id of post,name.");
-    await expect(tags({ op: "remove", type: "Tag", id: { post: 1 } })).rejects.toThrow("Tag needs an id of post,name.");
-    await expect(tags({ op: "remove", type: "Tag", id: { post: 1, title: "a" } })).rejects.toThrow("Tag needs an id of post,name.");
+    await expect(serve({ v: 1, op: "remove", type: "Author", id: { id: 1 } })).rejects.toThrow('Author needs an id, not {"id":1}.');
+    await expect(tags({ v: 1, op: "remove", type: "Tag", id: 1 })).rejects.toThrow("Tag needs an id of post,name.");
+    await expect(tags({ v: 1, op: "remove", type: "Tag", id: { post: 1 } })).rejects.toThrow("Tag needs an id of post,name.");
+    await expect(tags({ v: 1, op: "remove", type: "Tag", id: { post: 1, title: "a" } })).rejects.toThrow("Tag needs an id of post,name.");
   })
 
   it("will check values on the server", async () => {
     const { serve } = pair();
 
-    await expect(serve({ op: "insert", type: "Author", data: { name: 5 } })).rejects.toThrow("Value must be a string.");
+    await expect(serve({ v: 1, op: "insert", type: "Author", data: { name: 5 } })).rejects.toThrow("Value must be a string.");
   })
 
   it("will share only exposed properties", async () => {
@@ -294,12 +296,12 @@ describe("handle", () => {
 
     await server.insert("people", { full_name: "Ann", hash: "secret" });
 
-    await expect(serve({ op: "select", type: "Author", where: [] })).resolves.toEqual([{ id: 1, name: "Ann" }]);
-    await expect(serve({ op: "select", type: "Author", where: [["hash", "LIKE", "s%"]] })).rejects.toThrow("Author has no property hash.");
-    await expect(serve({ op: "update", type: "Author", id: 1, data: { hash: "x" } })).rejects.toThrow("Author has no property hash.");
+    await expect(serve({ v: 1, op: "select", type: "Author", where: [] })).resolves.toEqual([{ id: 1, name: "Ann" }]);
+    await expect(serve({ v: 1, op: "select", type: "Author", where: [["hash", "LIKE", "s%"]] })).rejects.toThrow("Author has no property hash.");
+    await expect(serve({ v: 1, op: "update", type: "Author", id: 1, data: { hash: "x" } })).rejects.toThrow("Author has no property hash.");
     await expect(Author.get(1)).resolves.toMatchObject({ name: "Ann" });
 
-    await expect(serve({ op: "insert", type: "Author", data: { name: "Ben" }, returns: true })).resolves.toEqual({ id: 2, name: "Ben" });
+    await expect(serve({ v: 1, op: "insert", type: "Author", data: { name: "Ben" }, returns: true })).resolves.toEqual({ id: 2, name: "Ben" });
   })
 
   it("will check each request with its context", async () => {
@@ -318,7 +320,7 @@ describe("handle", () => {
 
     await expect(Post.query()).resolves.toMatchObject([{ title: "b" }]);
     await expect(Post.delete(1)).rejects.toThrow("me may not delete.");
-    expect(check).toHaveBeenCalledWith(expect.objectContaining({ op: "remove", id: 1 }), "me");
+    expect(check).toHaveBeenCalledWith(expect.objectContaining({ v: 1, op: "remove", id: 1 }), "me");
   })
 
   it("will not let a request write a fixed field", async () => {
@@ -329,9 +331,9 @@ describe("handle", () => {
 
     const serve = Remote.handle(Memory.new({ Note }));
 
-    await serve({ op: "insert", type: "Note", data: { text: "a", by: "ann" } });
+    await serve({ v: 1, op: "insert", type: "Note", data: { text: "a", by: "ann" } });
 
-    await expect(serve({ op: "update", type: "Note", id: 1, data: { by: "eve" } })).rejects.toThrow("by is fixed and can't be updated.");
+    await expect(serve({ v: 1, op: "update", type: "Note", id: 1, data: { by: "eve" } })).rejects.toThrow("by is fixed and can't be updated.");
   })
 
   it("will leave an existing row when asked to update nothing", async () => {
@@ -339,7 +341,7 @@ describe("handle", () => {
 
     await server.insert("people", { full_name: "Ann" });
 
-    await expect(serve({ op: "insert", type: "Author", data: { id: 1, name: "Ben" }, conflict: { on: ["id"] } })).resolves.toBeUndefined();
+    await expect(serve({ v: 1, op: "insert", type: "Author", data: { id: 1, name: "Ben" }, conflict: { on: ["id"] } })).resolves.toBeUndefined();
     await expect(server.select("people", [])).resolves.toEqual([{ id: 1, full_name: "Ann" }]);
   })
 
@@ -352,8 +354,8 @@ describe("handle", () => {
     const server = Memory.new({ Note });
     const serve = Remote.handle(server);
 
-    await serve({ op: "insert", type: "Note", data: { text: "a", by: "ann" } });
-    await serve({ op: "insert", type: "Note", data: { id: 1, text: "b", by: "eve" }, conflict: { on: ["id"], update: ["id", "text", "by"] } });
+    await serve({ v: 1, op: "insert", type: "Note", data: { text: "a", by: "ann" } });
+    await serve({ v: 1, op: "insert", type: "Note", data: { id: 1, text: "b", by: "eve" }, conflict: { on: ["id"], update: ["id", "text", "by"] } });
 
     await expect(server.select("note", [])).resolves.toEqual([{ id: 1, text: "b", by: "ann" }]);
   })
@@ -368,14 +370,14 @@ describe("handle", () => {
     const serve = Remote.handle(server);
     const past = new Date(0);
 
-    await serve({ op: "insert", type: "Note", data: { text: "a", at: past } });
-    await serve({ op: "update", type: "Note", id: 1, data: { text: "b", at: past } });
+    await serve({ v: 1, op: "insert", type: "Note", data: { text: "a", at: past } });
+    await serve({ v: 1, op: "update", type: "Note", id: 1, data: { text: "b", at: past } });
 
     const [updated] = await server.select("note", []);
 
     expect(updated.at > past).toBe(true);
 
-    await serve({ op: "insert", type: "Note", data: { id: 1, text: "c" }, conflict: { on: ["id"], update: ["text", "at"] } });
+    await serve({ v: 1, op: "insert", type: "Note", data: { id: 1, text: "c" }, conflict: { on: ["id"], update: ["text", "at"] } });
 
     const [upserted] = await server.select("note", []);
 
@@ -395,19 +397,19 @@ describe("handle", () => {
     const serve = Remote.handle(server);
 
     await server.insert("user", { name: "Ann", role: "user" });
-    await serve({ op: "insert", type: "Admin", data: { name: "Ben", role: "user" } });
+    await serve({ v: 1, op: "insert", type: "Admin", data: { name: "Ben", role: "user" } });
 
-    await expect(serve({ op: "select", type: "Admin", where: [] })).resolves.toEqual([{ id: 2, name: "Ben", role: "admin" }]);
+    await expect(serve({ v: 1, op: "select", type: "Admin", where: [] })).resolves.toEqual([{ id: 2, name: "Ben", role: "admin" }]);
   })
 
   it("will refuse an object for a relation", async () => {
     const { server, serve } = pair({ expose: { Author: ["name"], Post: ["author", "title", "views"] } });
 
-    await expect(serve({ op: "insert", type: "Post", data: { title: "x", author: { name: "M", hash: "planted" } } })).rejects.toThrow('Post.author can\'t take {"name":"M","hash":"planted"}.');
-    await expect(serve({ op: "update", type: "Post", id: 1, data: { author: { name: "M" } } })).rejects.toThrow("Post.author can't take");
-    await expect(serve({ op: "select", type: "Post", where: [["author", "=", { hash: "s" }]] })).rejects.toThrow("Post.author can't take");
-    await expect(serve({ op: "select", type: "Post", where: [["author", "IN", [1, { hash: "s" }]]] })).rejects.toThrow("Post.author can't take");
-    await expect(serve({ op: "select", type: "Post", where: [["title", "=", { a: 1 }]] })).rejects.toThrow('Post.title can\'t take {"a":1}.');
+    await expect(serve({ v: 1, op: "insert", type: "Post", data: { title: "x", author: { name: "M", hash: "planted" } } })).rejects.toThrow('Post.author can\'t take {"name":"M","hash":"planted"}.');
+    await expect(serve({ v: 1, op: "update", type: "Post", id: 1, data: { author: { name: "M" } } })).rejects.toThrow("Post.author can't take");
+    await expect(serve({ v: 1, op: "select", type: "Post", where: [["author", "=", { hash: "s" }]] })).rejects.toThrow("Post.author can't take");
+    await expect(serve({ v: 1, op: "select", type: "Post", where: [["author", "IN", [1, { hash: "s" }]]] })).rejects.toThrow("Post.author can't take");
+    await expect(serve({ v: 1, op: "select", type: "Post", where: [["title", "=", { a: 1 }]] })).rejects.toThrow('Post.title can\'t take {"a":1}.');
     await expect(server.select("people", [])).resolves.toEqual([]);
   })
 
@@ -416,32 +418,32 @@ describe("handle", () => {
 
     await server.insert("articles", { author_id: 1, title: "a", views: 1 });
 
-    await expect(serve({ op: "select", type: "Post", where: [["views", "IN", [1, 2]], ["title", "LIKE", "a%"]] })).resolves.toMatchObject([{ title: "a" }]);
-    await expect(serve({ op: "select", type: "Post", where: [["views", "IN", [1, "x"]]] })).rejects.toThrow("value must be a number");
+    await expect(serve({ v: 1, op: "select", type: "Post", where: [["views", "IN", [1, 2]], ["title", "LIKE", "a%"]] })).resolves.toMatchObject([{ title: "a" }]);
+    await expect(serve({ v: 1, op: "select", type: "Post", where: [["views", "IN", [1, "x"]]] })).rejects.toThrow("value must be a number");
   })
 
   it("will refuse oversized requests", async () => {
     const { serve } = pair();
     const many = Array.from({ length: 101 }, () => ["views", ">", 0]);
 
-    await expect(serve({ op: "select", type: "Post", where: many })).rejects.toThrow("Malformed request.");
-    await expect(serve({ op: "select", type: "Post", where: [["views", "IN", Array.from({ length: 1001 }, (_, i) => i)]] })).rejects.toThrow("Malformed request.");
+    await expect(serve({ v: 1, op: "select", type: "Post", where: many })).rejects.toThrow("Malformed request.");
+    await expect(serve({ v: 1, op: "select", type: "Post", where: [["views", "IN", Array.from({ length: 1001 }, (_, i) => i)]] })).rejects.toThrow("Malformed request.");
   })
 
   it("will refuse a value missing or of the wrong kind", async () => {
     const { serve } = pair();
 
-    await expect(serve({ op: "select", type: "Post", where: [["title", "="]] })).rejects.toThrow("Malformed request.");
-    await expect(serve({ op: "select", type: "Post", where: [["title", "LIKE", 5]] })).rejects.toThrow("Malformed request.");
-    await expect(serve({ op: "update", type: "Post", data: {} })).rejects.toThrow("Malformed request.");
-    await expect(serve({ op: "remove", type: "Post" })).rejects.toThrow("Malformed request.");
-    await expect(serve({ op: "insert", type: "Post", data: {}, conflict: { on: [] } })).rejects.toThrow("Malformed request.");
+    await expect(serve({ v: 1, op: "select", type: "Post", where: [["title", "="]] })).rejects.toThrow("Malformed request.");
+    await expect(serve({ v: 1, op: "select", type: "Post", where: [["title", "LIKE", 5]] })).rejects.toThrow("Malformed request.");
+    await expect(serve({ v: 1, op: "update", type: "Post", data: {} })).rejects.toThrow("Malformed request.");
+    await expect(serve({ v: 1, op: "remove", type: "Post" })).rejects.toThrow("Malformed request.");
+    await expect(serve({ v: 1, op: "insert", type: "Post", data: {}, conflict: { on: [] } })).rejects.toThrow("Malformed request.");
   })
 
   it("will refuse an update to a key", async () => {
     const { serve } = pair();
 
-    await expect(serve({ op: "update", type: "Post", id: 1, data: { id: 99 } })).rejects.toThrow("Post.id is part of its key and can't be updated.");
+    await expect(serve({ v: 1, op: "update", type: "Post", id: 1, data: { id: 99 } })).rejects.toThrow("Post.id is part of its key and can't be updated.");
   })
 
   it("will send a composite key with a relation part", async () => {
@@ -494,10 +496,10 @@ describe("handle", () => {
     await server.insert("user", { name: "Root", role: "admin" });
     await server.insert("user", { name: "Ann", role: "user" });
 
-    await serve({ op: "update", type: "Person", id: 1, data: { name: "pwned" } });
-    await serve({ op: "remove", type: "Person", id: 1 });
-    await expect(serve({ op: "update", type: "Person", id: 2, data: { role: "admin" } })).rejects.toThrow("Person.role is fixed by its subset.");
-    await serve({ op: "update", type: "Person", id: 2, data: { name: "Anne" } });
+    await serve({ v: 1, op: "update", type: "Person", id: 1, data: { name: "pwned" } });
+    await serve({ v: 1, op: "remove", type: "Person", id: 1 });
+    await expect(serve({ v: 1, op: "update", type: "Person", id: 2, data: { role: "admin" } })).rejects.toThrow("Person.role is fixed by its subset.");
+    await serve({ v: 1, op: "update", type: "Person", id: 2, data: { name: "Anne" } });
 
     await expect(server.select("user", [])).resolves.toEqual([
       { id: 1, name: "Root", role: "admin" },
@@ -518,7 +520,7 @@ describe("handle", () => {
     const past = new Date(0);
     const future = new Date(4102444800000);
 
-    await serve({ op: "insert", type: "Note", data: { email: "a", text: "a", made: past, at: future } });
+    await serve({ v: 1, op: "insert", type: "Note", data: { email: "a", text: "a", made: past, at: future } });
 
     const [inserted] = await server.select("note", []);
 
@@ -526,7 +528,7 @@ describe("handle", () => {
     expect(inserted.at < future).toBe(true);
 
     await server.update("note", 1, { at: past });
-    await serve({ op: "insert", type: "Note", data: { email: "a", text: "b" }, conflict: { on: ["email"], update: ["text"] } });
+    await serve({ v: 1, op: "insert", type: "Note", data: { email: "a", text: "b" }, conflict: { on: ["email"], update: ["text"] } });
 
     const [upserted] = await server.select("note", []);
 
@@ -545,7 +547,7 @@ describe("handle", () => {
 
     await server.insert("people", { full_name: "Ann" });
 
-    const error = await serve({ op: "remove", type: "Author", id: 1 }).catch(e => e) as Error & { cause: Error };
+    const error = await serve({ v: 1, op: "remove", type: "Author", id: 1 }).catch(e => e) as Error & { cause: Error };
 
     expect(error.message).toBe("Request failed.");
     expect(error.cause.message).toBe("table people is locked");
@@ -554,7 +556,7 @@ describe("handle", () => {
   it("will serve only classes named in expose", async () => {
     const { serve } = pair({ expose: { Author: ["name"] } });
 
-    await expect(serve({ op: "select", type: "Post", where: [] })).rejects.toThrow("Type Post is not served by this connection.");
+    await expect(serve({ v: 1, op: "select", type: "Post", where: [] })).rejects.toThrow("Type Post is not served by this connection.");
     expect(() => Remote.handle(Memory.new(), { expose: { User: [] } })).toThrow("Type User in expose is not served by this connection.");
   })
 
@@ -572,8 +574,8 @@ describe("handle", () => {
 
     await server.insert("tag", { post: 1, name: "a", note: "n" });
 
-    await expect(serve({ op: "select", type: "Tag", where: [["post", "=", 1]] })).resolves.toEqual([{ post: 1, name: "a", note: "n" }]);
-    await serve({ op: "remove", type: "Tag", id: { name: "a", post: 1 } });
+    await expect(serve({ v: 1, op: "select", type: "Tag", where: [["post", "=", 1]] })).resolves.toEqual([{ post: 1, name: "a", note: "n" }]);
+    await serve({ v: 1, op: "remove", type: "Tag", id: { name: "a", post: 1 } });
 
     expect(check).toHaveBeenLastCalledWith(expect.objectContaining({ id: { name: "a", post: 1 } }), undefined);
   })
@@ -592,13 +594,13 @@ describe("handle", () => {
     await server.insert("doc", { title: "secret", status: "draft" });
     await server.insert("doc", { title: "open", status: "pub" });
 
-    const takeover = { op: "insert", type: "Pub", data: { id: 1, title: "hacked" }, returns: true, conflict: { on: ["id"], update: ["title", "status"] } };
+    const takeover = { v: 1, op: "insert", type: "Pub", data: { id: 1, title: "hacked" }, returns: true, conflict: { on: ["id"], update: ["title", "status"] } };
     const error = await serve(takeover).catch(e => e) as Error & { cause: Error };
 
-    expect(error.cause.message).toBe("Pub can't take a row outside its subset.");
+    expect(error).toMatchObject({ code: "invalid", message: "Pub can't take a row outside its subset." });
 
-    await serve({ op: "insert", type: "Pub", data: { id: 2, title: "edited" }, conflict: { on: ["id"], update: ["title", "status"] } });
-    await serve({ op: "insert", type: "Pub", data: { id: 3, title: "new" }, conflict: { on: ["id"], update: ["title"] } });
+    await serve({ v: 1, op: "insert", type: "Pub", data: { id: 2, title: "edited" }, conflict: { on: ["id"], update: ["title", "status"] } });
+    await serve({ v: 1, op: "insert", type: "Pub", data: { id: 3, title: "new" }, conflict: { on: ["id"], update: ["title"] } });
 
     await expect(server.select("doc", [])).resolves.toEqual([
       { id: 1, title: "secret", status: "draft" },
@@ -637,10 +639,10 @@ describe("handle", () => {
 
     const serve = Remote.handle(host, { expose: { User: ["name"] } });
 
-    await expect(serve({ op: "update", type: "User", id: 1, data: { name: "x", role: "admin" } })).resolves.toBeUndefined();
+    await expect(serve({ v: 1, op: "update", type: "User", id: 1, data: { name: "x", role: "admin" } })).resolves.toBeUndefined();
     await expect(server.User.query()).resolves.toMatchObject([{ name: "x", role: "user" }]);
-    await expect(serve({ op: "select", type: "User", where: [["role", "=", "user"]] })).rejects.toThrow("User has no property role.");
-    await expect(serve({ op: "select", type: "User", where: [["role", "asc"]] })).rejects.toThrow("User has no property role.");
+    await expect(serve({ v: 1, op: "select", type: "User", where: [["role", "=", "user"]] })).rejects.toThrow("User has no property role.");
+    await expect(serve({ v: 1, op: "select", type: "User", where: [["role", "asc"]] })).rejects.toThrow("User has no property role.");
   })
 
   it("will keep a client's value unless the server owns the clock", async () => {
@@ -655,11 +657,11 @@ describe("handle", () => {
     const server = Memory.new({ Task });
     const serve = Remote.handle(server);
 
-    await serve({ op: "insert", type: "Task", data: { by: "me", kind: "task", seen: 0 } });
+    await serve({ v: 1, op: "insert", type: "Task", data: { by: "me", kind: "task", seen: 0 } });
     await expect(server.select("task", [])).resolves.toMatchObject([{ by: "me", kind: "task" }]);
 
     n = 0;
-    await serve({ op: "update", type: "Task", id: 1, data: { by: "you" } });
+    await serve({ v: 1, op: "update", type: "Task", id: 1, data: { by: "you" } });
 
     expect(n).toBe(1);
     await expect(server.select("task", [])).resolves.toMatchObject([{ by: "sys", seen: 1 }]);
@@ -680,8 +682,8 @@ describe("handle", () => {
 
     const serve = Remote.handle(Memory.new({ User, Member }));
 
-    await expect(serve({ op: "remove", type: "Member", id: { user: { secret: "s" }, slug: "a" } })).rejects.toThrow("Member.user can't take {\"secret\":\"s\"}.");
-    await expect(serve({ op: "remove", type: "Member", id: { user: [1], slug: "a" } })).rejects.toThrow("Member.user can't take [1].");
+    await expect(serve({ v: 1, op: "remove", type: "Member", id: { user: { secret: "s" }, slug: "a" } })).rejects.toThrow("Member.user can't take {\"secret\":\"s\"}.");
+    await expect(serve({ v: 1, op: "remove", type: "Member", id: { user: [1], slug: "a" } })).rejects.toThrow("Member.user can't take [1].");
   })
 
   it("will refuse a constraint check adds on an unknown property", async () => {
@@ -692,12 +694,28 @@ describe("handle", () => {
       }
     });
 
-    await expect(serve({ op: "select", type: "Post", where: [] })).rejects.toThrow("Post has no property owner.");
+    const error = await serve({ v: 1, op: "select", type: "Post", where: [] }).catch(e => e) as Remote.Error;
+
+    expect(error).toMatchObject({ code: "failed", message: "Request failed." });
+    expect((error.cause as Error).message).toBe("check added a condition on Post.owner, which it does not have.");
   })
 
   it("will describe a value it can't serialize", async () => {
     const { serve } = pair();
 
-    await expect(serve({ op: "insert", type: "Author", data: { name: 10n } })).rejects.toThrow("Author.name can't take 10.");
+    await expect(serve({ v: 1, op: "insert", type: "Author", data: { name: 10n } })).rejects.toThrow("Author.name can't take 10.");
+  })
+
+  it("will refuse with a code", async () => {
+    const { serve } = pair({ expose: { Author: ["name"], Post: ["author", "title", "views"] } });
+    const code = (request: unknown) => serve(request).catch((e: Remote.Error) => [e instanceof Remote.Error, e.code]);
+
+    expect(await code({ v: 2, op: "select", type: "Post", where: [] })).toEqual([true, "version"]);
+    expect(await code({ op: "select", type: "Post", where: [] })).toEqual([true, "version"]);
+    expect(await code({ v: 1, op: "drop", type: "Post" })).toEqual([true, "malformed"]);
+    expect(await code({ v: 1, op: "select", type: "User", where: [] })).toEqual([true, "unknown"]);
+    expect(await code({ v: 1, op: "select", type: "Author", where: [["hash", "=", "x"]] })).toEqual([true, "unknown"]);
+    expect(await code({ v: 1, op: "insert", type: "Author", data: { name: 5 } })).toEqual([true, "invalid"]);
+    expect(await code({ v: 1, op: "select", type: "Post", where: [["views", "=", "x"]] })).toEqual([true, "invalid"]);
   })
 })
