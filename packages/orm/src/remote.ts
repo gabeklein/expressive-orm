@@ -1,6 +1,8 @@
 import { Connection, NAMED } from './Connection';
 import type { Query } from './query/Query';
 import { type Field, present } from './Field';
+import { RECENT } from './fields';
+import { now } from './query/Value';
 import { select, type Type } from './Type';
 
 declare namespace Remote {
@@ -130,6 +132,7 @@ class Remote extends Connection {
       const primary = type.fields.get("id")!;
       const parts = primary.parts || [];
       const visible = (field: Field) => !shared || field === primary || parts.includes(field) || shared.includes(field.key);
+      const filled = (field: Field) => field.fallback !== undefined || field.update !== undefined;
 
       const field = (name: string) => {
         const field = type.fields.get(name);
@@ -146,7 +149,12 @@ class Remote extends Connection {
         );
 
         if (!ok)
-          throw new Error(`${type.name}.${field.key} can't take ${JSON.stringify(value)}.`);
+          throw new Error(`${type.name}.${field.key} can't take ${show(value)}.`);
+      };
+
+      const hidden = (name: string) => {
+        const field = type.fields.get(name);
+        return !!field && !field.absent && !visible(field) && filled(field);
       };
 
       const out = (raw: Record<string, unknown>) => {
@@ -161,6 +169,11 @@ class Remote extends Connection {
 
       if (request.op == "select")
         for (const [name, op, value] of request.where) {
+          const recent = type.fields.get(name);
+
+          if ((op == "asc" || op == "desc") && recent && RECENT in recent)
+            continue;
+
           const target = field(name);
 
           if (!BARE.has(op))
@@ -168,20 +181,38 @@ class Remote extends Connection {
               scalar(target, item);
         }
 
-      if ("data" in request)
+      if ("data" in request) {
+        const data: Remote.Values = {};
+
         for (const name in request.data) {
+          if (hidden(name))
+            continue;
+
           const target = field(name);
 
           if (request.op == "update" && (target === primary || parts.includes(target)))
             throw new Error(`${type.name}.${name} is part of its key and can't be updated.`);
 
-          scalar(target, request.data[name]);
+          scalar(target, data[name] = request.data[name]);
         }
 
-      if (request.op == "insert" && request.conflict)
-        [...request.conflict.on, ...request.conflict.update || []].forEach(field);
+        request.data = data;
+      }
+
+      if (request.op == "insert" && request.conflict) {
+        const { on, update } = request.conflict;
+
+        on.forEach(field);
+        request.conflict = { on, update: update && update.filter(name => !hidden(name)) };
+        request.conflict.update?.forEach(field);
+      }
 
       const key = "id" in request ? locate(type, request.id) : undefined;
+
+      if (parts.length && "id" in request)
+        for (const part of parts)
+          scalar(part, (request.id as Remote.Values)[part.key]);
+
       const subset = Object.entries(type.subset || {}).map(([key, value]) => [key, "=", value] as Type.Constraint);
 
       if (request.op == "update")
@@ -192,18 +223,24 @@ class Remote extends Connection {
       await check?.(request, context as C);
 
       if (request.op == "select")
-        for (const [name, op, value] of request.where)
+        for (const [name, op, value] of request.where) {
+          const target = type.fields.get(name);
+
+          if (!target || target.absent)
+            throw new Error(`${type.name} has no property ${name}.`);
+
           if (!BARE.has(op) && op != "LIKE")
             for (const item of Array.isArray(value) ? value : [value])
-              await type.fields.get(name)!.set(present(item), true);
+              await target.set(present(item), true);
+        }
 
       const own = (data: Remote.Values, insert?: boolean) => {
         const values: Remote.Values = {};
 
         for (const name in data) {
-          const { update, fixed, fallback } = type.fields.get(name)!;
+          const { update, fallback } = type.fields.get(name)!;
 
-          if (update === undefined && !(insert && fixed && fallback !== undefined))
+          if (insert ? fallback !== now && update !== now : update === undefined)
             values[name] = data[name];
         }
 
@@ -212,9 +249,17 @@ class Remote extends Connection {
 
       const prepared = request.op == "insert"
         ? await type.prepare({ ...own(request.data, true), ...type.subset })
-        : request.op == "update"
-          ? await type.prepare(own(request.data), true)
-          : undefined;
+        : undefined;
+
+      if (request.op == "update")
+        for (const [name, value] of Object.entries(own(request.data))) {
+          const target = type.fields.get(name)!;
+
+          if (target.fixed)
+            throw new Error(`${name} is fixed and can't be updated.`);
+
+          await target.set(value);
+        }
 
       try {
         switch (request.op) {
@@ -224,8 +269,16 @@ class Remote extends Connection {
           }
 
           case "insert": {
-            const conflict = request.conflict && await upsert(type, request.conflict);
-            const inserted = await type.connection.insert(type.ref, prepared!, request.returns, conflict);
+            const { conflict, data } = request;
+
+            if (conflict && subset.length) {
+              const match = conflict.on.map(name => [name, "=", data[name]] as Type.Constraint);
+
+              if (match.every(([, , value]) => value != null) && (await select(type, match, 1)).length && !(await select(type, [...match, ...subset], 1)).length)
+                throw new Error(`${type.name} can't take a row outside its subset.`);
+            }
+
+            const inserted = await type.connection.insert(type.ref, prepared!, request.returns, conflict && await upsert(type, conflict));
 
             return request.returns && inserted ? out(inserted) : undefined;
           }
@@ -284,6 +337,15 @@ class Remote extends Connection {
   async remove(table: string, id: Connection.Key){
     const [type, map] = target(this, table);
     await send(this, { op: "remove", type, id: map.id(id) });
+  }
+}
+
+function show(value: unknown){
+  try {
+    return JSON.stringify(value);
+  }
+  catch {
+    return String(value);
   }
 }
 
@@ -392,7 +454,7 @@ async function upsert(type: Entity, conflict: Remote.Conflict): Promise<Connecti
   for (const name of conflict.update || []) {
     const field = type.fields.get(name)!;
 
-    if (!field.fixed && !field.primary && !on.includes(field.column) && !(field.column in set))
+    if (!field.fixed && !field.primary && !on.includes(field.column) && !(field.column in set) && !(name in (type.subset || {})))
       update.push(field.column);
   }
 

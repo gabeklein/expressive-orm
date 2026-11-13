@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { date, key, num, str } from './fields';
+import { bool, date, key, num, str } from './fields';
 import { Memory } from './memory';
 import { one } from './one';
 import { Remote } from './remote';
@@ -576,5 +576,128 @@ describe("handle", () => {
     await serve({ op: "remove", type: "Tag", id: { name: "a", post: 1 } });
 
     expect(check).toHaveBeenLastCalledWith(expect.objectContaining({ id: { name: "a", post: 1 } }), undefined);
+  })
+
+  it("will refuse an upsert taking over a row outside its subset", async () => {
+    class Pub extends Type {
+      static table = "doc";
+      static subset = { status: "pub" };
+      title = str();
+      status = str();
+    }
+
+    const server = Memory.new({ Pub });
+    const serve = Remote.handle(server);
+
+    await server.insert("doc", { title: "secret", status: "draft" });
+    await server.insert("doc", { title: "open", status: "pub" });
+
+    const takeover = { op: "insert", type: "Pub", data: { id: 1, title: "hacked" }, returns: true, conflict: { on: ["id"], update: ["title", "status"] } };
+    const error = await serve(takeover).catch(e => e) as Error & { cause: Error };
+
+    expect(error.cause.message).toBe("Pub can't take a row outside its subset.");
+
+    await serve({ op: "insert", type: "Pub", data: { id: 2, title: "edited" }, conflict: { on: ["id"], update: ["title", "status"] } });
+    await serve({ op: "insert", type: "Pub", data: { id: 3, title: "new" }, conflict: { on: ["id"], update: ["title"] } });
+
+    await expect(server.select("doc", [])).resolves.toEqual([
+      { id: 1, title: "secret", status: "draft" },
+      { id: 2, title: "edited", status: "pub" },
+      { id: 3, title: "new", status: "pub" }
+    ]);
+  })
+
+  it("will let a client fill fields it can't see", async () => {
+    const build = () => {
+      class User extends Type {
+        name = str();
+        role = str({ fallback: "user" });
+        made = date.created();
+        at = date.updated();
+      }
+
+      return { User };
+    };
+
+    const server = build();
+    const client = build();
+    const host = Memory.new(server);
+
+    Remote.new(client, Remote.handle(host, { expose: { User: ["name"] } }));
+
+    await client.User.insert({ name: "Ann" });
+    await client.User.insert({ id: 1, name: "Anne" }, { conflict: "replace" });
+    await client.User.update(1, { name: "Ann" });
+
+    const ann = await client.User.get(1);
+
+    await ann.set({ name: "A" });
+    await expect(client.User.query(undefined, 5)).resolves.toMatchObject([{ id: 1, name: "A" }]);
+    await expect(server.User.query()).resolves.toMatchObject([{ name: "A", role: "user" }]);
+
+    const serve = Remote.handle(host, { expose: { User: ["name"] } });
+
+    await expect(serve({ op: "update", type: "User", id: 1, data: { name: "x", role: "admin" } })).resolves.toBeUndefined();
+    await expect(server.User.query()).resolves.toMatchObject([{ name: "x", role: "user" }]);
+    await expect(serve({ op: "select", type: "User", where: [["role", "=", "user"]] })).rejects.toThrow("User has no property role.");
+    await expect(serve({ op: "select", type: "User", where: [["role", "asc"]] })).rejects.toThrow("User has no property role.");
+  })
+
+  it("will keep a client's value unless the server owns the clock", async () => {
+    let n = 0;
+
+    class Task extends Type {
+      by = str({ update: "sys" });
+      kind = str({ fixed: true, fallback: "note" } as any);
+      seen = num({ update: () => ++n } as any);
+    }
+
+    const server = Memory.new({ Task });
+    const serve = Remote.handle(server);
+
+    await serve({ op: "insert", type: "Task", data: { by: "me", kind: "task", seen: 0 } });
+    await expect(server.select("task", [])).resolves.toMatchObject([{ by: "me", kind: "task" }]);
+
+    n = 0;
+    await serve({ op: "update", type: "Task", id: 1, data: { by: "you" } });
+
+    expect(n).toBe(1);
+    await expect(server.select("task", [])).resolves.toMatchObject([{ by: "sys", seen: 1 }]);
+  })
+
+  it("will check each part of a composite id", async () => {
+    class User extends Type {
+      secret = str();
+    }
+
+    class Member extends Type {
+      static subset = { live: true };
+      id = key(() => [this.user, this.slug]);
+      user = one(User);
+      slug = str();
+      live = bool();
+    }
+
+    const serve = Remote.handle(Memory.new({ User, Member }));
+
+    await expect(serve({ op: "remove", type: "Member", id: { user: { secret: "s" }, slug: "a" } })).rejects.toThrow("Member.user can't take {\"secret\":\"s\"}.");
+    await expect(serve({ op: "remove", type: "Member", id: { user: [1], slug: "a" } })).rejects.toThrow("Member.user can't take [1].");
+  })
+
+  it("will refuse a constraint check adds on an unknown property", async () => {
+    const { serve } = pair({
+      check(request){
+        if (request.op == "select")
+          request.where.push(["owner", "IS NULL"]);
+      }
+    });
+
+    await expect(serve({ op: "select", type: "Post", where: [] })).rejects.toThrow("Post has no property owner.");
+  })
+
+  it("will describe a value it can't serialize", async () => {
+    const { serve } = pair();
+
+    await expect(serve({ op: "insert", type: "Author", data: { name: 10n } })).rejects.toThrow("Author.name can't take 10.");
   })
 })
