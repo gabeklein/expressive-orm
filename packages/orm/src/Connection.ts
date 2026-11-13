@@ -6,7 +6,7 @@ import { Field, match, row } from './Field';
 import type { Columns, Type } from './Type';
 
 declare namespace Connection {
-  /** Entity classes to bind - an array, or an object of them. */
+  /** Entity classes to bind - an array, or an object of them keyed by name. A key names the table of a class that sets no `table`. */
   type Types =
     | Query.Table[]
     | { [key: string | number]: Query.Table };
@@ -97,6 +97,7 @@ type Hooks = { before: Set<Hook<Connection.Before<any>>>; after: Set<Hook<Connec
 
 const synced = new WeakMap<Connection, Promise<unknown>>();
 const HOOKED = new WeakSet<Connection>();
+const NAMED = new WeakMap<Query.Table, string>();
 const COLLECT = Symbol.for("@expressive/orm.collect");
 
 let context: import('node:async_hooks').AsyncLocalStorage<Scope> | undefined;
@@ -178,14 +179,23 @@ abstract class Connection extends Model {
    * Throws when a class already has one. Construct with `Connection.new`.
    */
   constructor(using: Connection.Types = []){
-    const types = Object.values(using);
+    const entries = Object.entries(using);
+    const seen = new Set<Query.Table>();
 
-    for (const type of types)
+    for (const [, type] of entries) {
+      if (seen.has(type))
+        throw new Error(`Type ${type.name} is bound twice.`);
+
+      seen.add(type);
       check(new.target, type);
+    }
 
     super();
 
-    this.using = new Set(types.map(type => {
+    this.using = new Set(entries.map(([key, type]) => {
+      if (!Array.isArray(using))
+        NAMED.set(type, key);
+
       type.connection = this;
       return type;
     }));
@@ -198,8 +208,10 @@ abstract class Connection extends Model {
       forget(this);
 
       for (const type of this.using)
-        if (type.connection === this)
+        if (type.connection === this) {
           delete type.connection;
+          NAMED.delete(type);
+        }
 
       for (const loaded of this._loaded.values())
         for (const entity of loaded.values())
@@ -496,4 +508,4 @@ abstract class Connection extends Model {
   sync?(fix?: boolean): Promise<unknown>;
 }
 
-export { ambient, Connection, forget };
+export { ambient, Connection, forget, NAMED };

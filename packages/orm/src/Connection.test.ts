@@ -57,6 +57,86 @@ describe("using", () => {
     expect(Foo.connection).toBe(db);
   })
 
+  it("will name a table by its key", () => {
+    const a = class extends Type {};
+    const b = class extends Type {};
+
+    Store.new({ BlogPost: a, user: b });
+
+    expect(a.table).toBe("blog_post");
+    expect(b.ref).toBe("user");
+  })
+
+  it("will not name a table by its key if assigned", () => {
+    class Foo extends Type {
+      static table = "foo_table";
+    }
+
+    Store.new({ Bar: Foo });
+
+    expect(Foo.table).toBe("foo_table");
+  })
+
+  it("will throw if a type is bound twice", () => {
+    class Foo extends Type {}
+
+    expect(() => Store.new({ A: Foo, B: Foo })).toThrow("Type Foo is bound twice.");
+    expect(() => Store.new([Foo, Foo])).toThrow("Type Foo is bound twice.");
+  })
+
+  it("will not name a table by index", () => {
+    class Foo extends Type {}
+
+    Store.new([Foo]);
+
+    expect(Foo.table).toBe("foo");
+  })
+
+  it("will forget a key on close", async () => {
+    class Foo extends Type {}
+
+    const db = Store.new({ Bar: Foo });
+
+    expect(Foo.table).toBe("bar");
+
+    await db.close();
+
+    expect(Foo.table).toBe("foo");
+  })
+
+  it("will match tables across minified classes", async () => {
+    const server = Memory.new();
+
+    class Remote extends Connection {
+      select(...args: Parameters<Connection["select"]>){
+        return server.select(...args);
+      }
+
+      insert(...args: Parameters<Connection["insert"]>){
+        return server.insert(...args);
+      }
+
+      update(...args: Parameters<Connection["update"]>){
+        return server.update(...args);
+      }
+
+      remove(...args: Parameters<Connection["remove"]>){
+        return server.remove(...args);
+      }
+    }
+
+    const api = class a extends Type { name = str() };
+    const app = class b extends Type { name = str() };
+
+    Memory.new({ User: api });
+    Remote.new({ User: app });
+
+    await app.new({ name: "Gabe" });
+
+    expect(api.table).toBe(app.table);
+    await expect(server.select("user", [])).resolves.toEqual([{ id: 1, name: "Gabe" }]);
+  })
+
   it("will throw if type already has a connection", () => {
     class Foo extends Type {}
 

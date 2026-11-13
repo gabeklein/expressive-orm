@@ -1,6 +1,6 @@
 import { Context, Model } from '@expressive/mvc';
 
-import { ambient, Connection, forget } from './Connection';
+import { ambient, Connection, forget, NAMED } from './Connection';
 import { FIELDS, Key, num, PEEK, placeholder, RECENT, write } from './fields';
 import { columns, Field, Fixes, fixes, match, Omits, Optional, present, row, underscore, updates } from './Field';
 import { Query } from './query/Query';
@@ -323,7 +323,7 @@ function awaitable<T extends Type>(entity: T): Type.Async<T> {
  * Base class of an entity - a Model whose fields are columns and whose statics query its table.
  *
  * Statics resolve plain frozen rows. Instances are read-only references from `get(id)`, `new(values)` or a relation; write with `await entity.set(patch)`.
- * The table is the class name in snake case unless `static table` is set.
+ * The table is the class name in snake case unless `static table` is set, or the class is bound under a key.
  *
  * @example
  * class User extends Type {
@@ -452,9 +452,13 @@ abstract class Type extends Model {
     Object.defineProperty(this, 'connection', { value, writable: true, configurable: true });
   }
 
-  /** Table name - the class name in snake case unless assigned. */
+  /**
+   * Table name - unless assigned, the key the class is bound under in snake case, else the class name.
+   *
+   * A key survives minification where a class name does not - bind with `Connection.new({ User })` to keep the default.
+   */
   static get table(): string {
-    return underscore(this.name);
+    return underscore(NAMED.get(this) ?? this.name);
   }
 
   static set table(value: string) {

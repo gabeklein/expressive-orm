@@ -47,7 +47,7 @@ Every helper has `.and(...presets)` - the same helper with those options first: 
 
 `date.created()` and `date.updated()` are presets of `date`. `date.created()` is written on insert only - upserts leave it, an update giving it fails to compile and throws. It is also the class's recency order; two on one class throw. `date.updated()` is set to now on every update and upsert that doesn't give it. Any column takes `fixed` and `update`; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
 
-Table is the class name in snake case; `static table` overrides. `static schema` qualifies it on `Memory` - SQLite and Postgres connections reject it. `static subset = { role: "admin" }` scopes a subclass to part of a shared table (give it the parent's `table`): merged into inserts and every query filter. `get(id)` is scoped; `update(id)`, `delete(id)` and instance `set`/`delete` are not.
+Table is the class name in snake case; `static table` overrides. Bound as an object - `Connection.new({ User, Post })` - a class without `table` takes its key in snake case instead, which survives minification where a class name doesn't; prefer it for anything bundled. `static schema` qualifies it on `Memory` - SQLite and Postgres connections reject it. `static subset = { role: "admin" }` scopes a subclass to part of a shared table (give it the parent's `table`): merged into inserts and every query filter. `get(id)` is scoped; `update(id)`, `delete(id)` and instance `set`/`delete` are not.
 
 ### Keys
 
