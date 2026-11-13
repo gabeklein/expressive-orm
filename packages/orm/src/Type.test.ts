@@ -1215,6 +1215,28 @@ describe("recency", () => {
 })
 
 describe("query", () => {
+  it("will order and match null on a required relation", async () => {
+    class Author extends Type {
+      name = str();
+    }
+
+    class Book extends Type {
+      author = one(Author);
+      title = str();
+    }
+
+    Memory.new({ Author, Book });
+
+    const ann = await Author.insert({ name: "Ann" });
+    const ben = await Author.insert({ name: "Ben" });
+
+    await Book.insert({ author: ben.id, title: "b" });
+    await Book.insert({ author: ann.id, title: "a" });
+
+    await expect(Book.query({ author: asc() })).resolves.toMatchObject([{ title: "a" }, { title: "b" }]);
+    await expect(Book.query({ author: notNull() })).resolves.toHaveLength(2);
+  })
+
   class User extends connect() {
     static table = "user";
     name = str();

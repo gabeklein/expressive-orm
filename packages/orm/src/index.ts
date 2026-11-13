@@ -9,5 +9,6 @@ export { one, lazy } from './one';
 export { rows } from './rows';
 export type { Rows } from './rows';
 export { Memory, memory } from './memory';
+export { Remote } from './remote';
 export { Query } from './query/Query';
 export { now } from './query/Value';

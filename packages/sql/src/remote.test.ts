@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { Connection, Type } from '@expressive/orm';
+import { Connection, Remote, Type } from '@expressive/orm';
 
 import { SQLiteConnection } from './sqlite/SQLiteConnection';
 import { schema } from './tests/schema';
@@ -228,5 +228,64 @@ describe("remote", () => {
     expect(Type.connection).not.toBe(remote);
 
     await close();
+  })
+
+  it.each([
+    ["America/New_York", "UTC"],
+    ["Asia/Tokyo", "UTC"],
+    ["UTC", "Asia/Tokyo"]
+  ])("will carry a calendar day through Remote from %s to a server in %s", async (zone, serverZone) => {
+    process.env.TZ = zone;
+
+    const server = schema();
+    const client = schema();
+    const host = await SQLiteConnection.new({ Attorney: server.Attorney, Claim: server.Claim });
+    const serve = Remote.handle(host);
+    const sent = vi.fn();
+
+    await Remote.new({ Attorney: client.Attorney, Claim: client.Claim }, async request => {
+      const local = process.env.TZ;
+
+      sent(wire.decode(wire.encode(request)));
+      process.env.TZ = serverZone;
+
+      try {
+        return wire.decode(wire.encode(await serve(wire.decode(wire.encode(request)))));
+      }
+      finally {
+        process.env.TZ = local;
+      }
+    });
+
+    const day = new Date(2026, 0, 5);
+    const claim = await client.Claim.insert({ due: new Date(2026, 0, 5, 23, 30) });
+
+    expect(sent).toHaveBeenLastCalledWith(expect.objectContaining({ op: "insert", data: { due: "2026-01-05" } }));
+    expect(claim.due).toEqual(day);
+
+    const [found] = await client.Claim.query({ due: day });
+
+    expect(found.due).toEqual(day);
+    expect((await client.Claim.get(1)).due).toEqual(day);
+
+    await host.close();
+  })
+
+  it("will serve a SQL connection without leaking it", async () => {
+    const server = schema();
+    const host = await SQLiteConnection.new({ Attorney: server.Attorney, Claim: server.Claim });
+    const serve = Remote.handle(host);
+
+    await expect(serve({ op: "insert", type: "Attorney", data: { name: "Lee", email: "lee@example.com" } })).resolves.toBeUndefined();
+
+    const error = await serve({ op: "insert", type: "Attorney", data: { name: "Leigh", email: "lee@example.com" } }).catch(e => e) as Error & { cause: Error };
+
+    expect(error.message).toBe("Request failed.");
+    expect(error.cause.message).toMatch(/UNIQUE/);
+
+    await expect(serve({ op: "select", type: "Claim", where: [["count", "IN", Array.from({ length: 40000 }, (_, i) => i)]] })).rejects.toThrow("Malformed request.");
+    await expect(server.Attorney.count()).resolves.toBe(1);
+
+    await host.close();
   })
 })

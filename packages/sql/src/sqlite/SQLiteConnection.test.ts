@@ -1977,6 +1977,18 @@ describe("prepare", () => {
     await conn.close();
   })
 
+  it("will not format a long failed statement", async () => {
+    class Foo extends Type {
+      num = num();
+    }
+
+    const conn = await SQLiteConnection.new([Foo]);
+    const values = Array.from({ length: 40000 }, (_, i) => i);
+
+    await expect(Foo.query({ num: isIn(values) })).rejects.toThrow(/\.\.\.$/);
+    await conn.close();
+  })
+
   it("will report raw SQL it cannot format", async () => {
     class Foo extends Type {
       name = str();

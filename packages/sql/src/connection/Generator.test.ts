@@ -207,6 +207,42 @@ describe("where", () => {
     `);
   });
 
+  it("will throw on an unknown operator", () => {
+    const query = () => String(Query(function(where){
+      const item = where(Item);
+
+      this.filters.add(item.number, "= 1 OR 1 =", 1);
+    }));
+
+    expect(query).toThrow("Unsupported operator: = 1 OR 1 =");
+  });
+
+  it("will throw on an unknown order", () => {
+    const query = () => String(Query(function(where){
+      const item = where(Item);
+
+      this.order.set(item.number, "asc, 1" as any);
+    }));
+
+    expect(query).toThrow("Unsupported order: asc, 1");
+  });
+
+  it("will throw on a limit that is not a whole number", () => {
+    const limit = (value: unknown) => () => String(Query(function(where){
+      where(Item);
+      this.limit = value as number;
+    }));
+
+    const offset = (value: unknown) => () => String(Query(function(where){
+      where(Item);
+      this.offset = value as number;
+    }));
+
+    expect(limit("1 OFFSET 1")).toThrow("Limit and offset must be whole numbers, not 1 OFFSET 1.");
+    expect(limit(1.5)).toThrow("Limit and offset must be whole numbers, not 1.5.");
+    expect(offset(-1)).toThrow("Limit and offset must be whole numbers, not -1.");
+  });
+
   it("will add IN clause", () => {
     const results = Query(where => {
       const item = where(Item);

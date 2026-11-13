@@ -227,6 +227,39 @@ In place of the string, pass a `Memory.Adapter` - `{ load, save }`: `load()` ret
 
 Each connection holds its own copy. Two tabs or processes on the same store don't see each other's writes, and the last to save a table wins it - inserts from both can share an id. Open one connection per store. Each save rewrites every changed table whole - a file is rewritten - so keep stores small.
 
+### Remote
+
+`Remote` runs entities in a client against a connection on a server - every read and write forwarded through a function you give it, over any transport:
+
+```ts
+import { Remote, SQLiteConnection } from '@expressive/sql';
+import { types } from './entities';   // { User, Post }, shared by both sides
+
+// client
+const db = Remote.new(types, request => api.database(request));
+
+// server
+const serve = Remote.handle(await SQLiteConnection.new(types, "app.db"), {
+  expose: { User: ["name", "email"], Post: ["author", "title"] },
+  check(request, user: Session){
+    if (!user)
+      throw new Error("Sign in first.");
+  }
+});
+
+export const database = (request: unknown, user: Session) => serve(request, user);
+```
+
+Requests name each class by the key it is bound under and each field by its property - `{ op: "select", type: "Post", where: [["author", "=", 1]] }` - never a table or column, so the server alone decides where they are stored. Bind classes as an object, under the same keys on both sides. `Remote.new` throws when given an array, or two classes sharing a table - a subset can't travel.
+
+The server validates each request and runs it as the class's own statics would: fields check values, a subset scopes every read and write - an upsert can't take over a row outside it - a fixed field rejects updates and a key can't change, and fields defaulting to `now`, like `created` and `updated`, take the server's clock. Its `before` and `after` hooks run. Values must be plain - a relation travels as its id, and an object reaches only a `json` field. A request may carry up to 100 conditions and 1000 values in a list.
+
+A malformed request, unknown class or unshared property rejects with what was wrong, as does a value its field refuses. Anything that fails after that - a constraint, a hook, the database - rejects as `Request failed.`, with the original error as its `cause` for your logs, so table and column names never reach the client.
+
+`Remote.handle` serves every class its connection binds by key, to anyone who reaches it. `expose` names the classes served and the properties each shares - read, filtered and written; a class it leaves out isn't served, and properties it leaves out never leave the server and can't be filtered on. `id` and key parts are always shared. A hidden field the client fills on its own - a default, `created`, `updated` - is dropped quietly so the server sets it, and the recency field can still order reads. `check` runs for each valid request with the context you pass the handler - throw to refuse it, or push onto a select's `where` to narrow its rows.
+
+Reads, inserts and writes by id travel, with relations and instance writes. `count`, writes by filter, `Query`, `transaction` and live rows don't. Values must survive your transport: send `Date` with a codec that keeps it.
+
 ### Command line
 
 ```sh

@@ -66,10 +66,8 @@ export class SQLiteGenerator extends Generator {
 
   protected limit(){
     const { limit, offset } = this.query;
+    const clauses = super.limit();
 
-    if (offset && !limit)
-      return ["LIMIT -1", `OFFSET ${offset}`];
-
-    return super.limit();
+    return offset && !limit ? ["LIMIT -1", ...clauses] : clauses;
   }
 }
