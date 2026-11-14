@@ -1,4 +1,4 @@
 #!/usr/bin/env node
-import { dispatch } from './dispatch';
+import { trunk } from '@expressive/cli/bin';
 
-process.exitCode = await dispatch(process.argv.slice(2), process.cwd(), console);
+process.exitCode = await trunk("expressive")(process.argv.slice(2), console);

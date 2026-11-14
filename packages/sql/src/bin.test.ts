@@ -1,16 +1,18 @@
 import { expect, it, vi } from 'vitest';
 
-it("will dispatch argv and set the exit code", async () => {
-  const dispatch = vi.fn(async () => 7);
+it("will run the expressive trunk and set the exit code", async () => {
+  const run = vi.fn(async () => 7);
+  const trunk = vi.fn(() => run);
   const { argv, exitCode } = process;
 
-  vi.doMock("./dispatch", () => ({ dispatch }));
+  vi.doMock("@expressive/cli/bin", () => ({ trunk }));
   process.argv = ["node", "expressive", "sql", "check"];
 
   try {
     await import("./bin");
 
-    expect(dispatch).toHaveBeenCalledWith(["sql", "check"], process.cwd(), console);
+    expect(trunk).toHaveBeenCalledWith("expressive");
+    expect(run).toHaveBeenCalledWith(["sql", "check"], console);
     expect(process.exitCode).toBe(7);
   }
   finally {
