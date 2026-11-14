@@ -45,6 +45,6 @@ jobs:
       - name: Pack validation
         continue-on-error: true
         run: |
-          for pkg in sql postgres orm; do
+          for pkg in sql postgres mysql orm; do
             (cd packages/$pkg && npm publish --dry-run)
           done
