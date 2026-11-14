@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Memory, num, str, Type } from '@expressive/orm';
 
@@ -21,9 +21,11 @@ const out = {
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "expressive-cli-"));
   lines = [];
+  vi.spyOn(console, "log").mockImplementation(out.log);
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   rmSync(dir, { recursive: true });
   delete (globalThis as { entry?: unknown }).entry;
 });
@@ -52,14 +54,21 @@ async function database(ddl?: string){
 
 describe("usage", () => {
   it.each([
-    [[]],
-    [["check"]],
-    [["drop", "entry.ts"]],
-    [["check", "--force", "entry.ts"]],
-    [["sync", "a.ts", "b.ts"]]
-  ])("will print usage for %j", async (args) => {
+    [[], /^Usage: sql \[options\] <command>/],
+    [["check"], /^Missing <entry>\.\nUsage: sql check/],
+    [["drop", "entry.ts"], /^Unknown command "drop"\./],
+    [["check", "--force", "entry.ts"], /^Unknown option --force\./],
+    [["sync", "a.mjs", "b.mjs"], /^<entry>: no such file "a.mjs"\./]
+  ])("will print usage for %j", async (args, expected) => {
     expect(await sql(args, out)).toBe(2);
-    expect(lines[0]).toMatch(/^Usage: expressive sql/);
+    expect(lines[0]).toMatch(expected);
+  })
+
+  it("will reject a second entry", async () => {
+    const file = entry(() => {});
+
+    expect(await sql(["sync", file, file], out)).toBe(2);
+    expect(lines[0]).toMatch(/^Unexpected argument/);
   })
 
   it("will fail for an entry with no connection", async () => {

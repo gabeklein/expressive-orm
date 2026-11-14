@@ -106,7 +106,8 @@ Awaiting a connection runs `sync`:
 ```sh
 expressive sql check src/db.ts        # list what sync would change; exit 1 if anything would
 expressive sql sync src/db.ts         # create missing tables, columns and indexes
-expressive sql sync --force src/db.ts # also rebuild drifted columns
+expressive sql sync --force src/db.ts # also rebuild drifted columns (-f)
+expressive sql sync --help            # inputs for any command
 ```
 
 The entry is the module that creates the connections - imported with `sync` held back, so `await Connection.new()` resolves without touching the database; the command plans and syncs each connection awaited while it loads. The entry must not query at load - the tables may not exist yet. A TypeScript entry needs Bun (`bunx --bun expressive ...`) or Node 22.18+.

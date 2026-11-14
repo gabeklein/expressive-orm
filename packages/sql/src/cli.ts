@@ -1,20 +1,11 @@
-import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+import { arg, command, flag, sub } from '@expressive/cli';
+import { Model } from '@expressive/mvc';
 
 import type { Connection } from './connection/Connection';
 
 const COLLECT = Symbol.for("@expressive/orm.collect");
-
-const USAGE = `Usage: expressive sql <check | sync [--force]> <entry>
-
-  check    list what sync would change; exits 1 if anything would
-  sync     create missing tables, columns and indexes
-  --force  sync also rebuilds columns whose type or nullability drifted
-
-<entry> is the module that creates your connections, imported without syncing them.
-Connections must be created while it loads.`;
-
-type Output = Pick<Console, "log" | "error">;
 
 async function collect(entry: string){
   const found = new Set<Connection>();
@@ -23,94 +14,104 @@ async function collect(entry: string){
   scope[COLLECT] = found;
 
   try {
-    await import(pathToFileURL(resolve(entry)).href);
+    await import(pathToFileURL(entry).href);
+  }
+  catch (error) {
+    throw new Error(`Could not import ${entry}: ${(error as Error).message}`);
   }
   finally {
     delete scope[COLLECT];
   }
 
+  if (!found.size)
+    throw new Error(`${entry} created no connection.`);
+
   return found;
 }
 
-async function report(conn: Connection, problems: string[], force: boolean, out: Output){
+async function report(conn: Connection, problems: string[], force: boolean){
   const remain = force || !problems.length ? undefined : new Set((await conn.plan(true)).problems);
 
   for (const problem of problems)
-    out.log(`  ! ${problem}${remain && !remain.has(problem) ? " (sync --force rebuilds it)" : ""}`);
+    console.log(`  ! ${problem}${remain && !remain.has(problem) ? " (sync --force rebuilds it)" : ""}`);
 }
 
-async function check(conn: Connection, out: Output){
-  const { steps, problems } = await conn.plan();
-  const current = !steps.length && !problems.length;
-
-  out.log(`${conn.constructor.name}: ${current ? "up to date" : "out of date"}`);
-
-  for (const step of steps)
-    out.log(`  + ${step.action}`);
-
-  await report(conn, problems, false, out);
-
-  return current;
-}
-
-async function sync(conn: Connection, force: boolean, out: Output){
-  const { steps, problems } = await conn.plan(force);
-
-  if (problems.length) {
-    out.log(`${conn.constructor.name}: not synced`);
-    await report(conn, problems, force, out);
-
-    return false;
-  }
-
-  await conn.sync(true, force);
-
-  out.log(`${conn.constructor.name}: ${steps.length ? "synced" : "up to date"}`);
-
-  for (const step of steps)
-    out.log(`  + ${step.action}`);
-
-  return true;
-}
-
-export default async function sql(args: string[], out: Output): Promise<number> {
-  const [command, ...rest] = args;
-  const force = rest.includes("--force");
-  const [entry, ...extra] = rest.filter(arg => arg != "--force");
-  const valid = command == "sync" || command == "check" && !force;
-
-  if (!entry || extra.length || !valid) {
-    out.error(USAGE);
-    return 2;
-  }
-
-  const connections = await collect(entry).catch((error: Error) => {
-    out.error(`Could not import ${entry}: ${error.message}`);
+abstract class Schema extends Model {
+  entry = arg({
+    type: "file",
+    exists: true,
+    required: true,
+    help: "module that creates your connections, imported without syncing them"
   });
 
-  if (!connections)
-    return 1;
+  abstract apply(conn: Connection): Promise<boolean>;
 
-  if (!connections.size) {
-    out.error(`${entry} created no connection.`);
-    return 1;
+  async run(){
+    const connections = await collect(this.entry);
+    let ok = true;
+
+    try {
+      for (const conn of connections)
+        if (typeof conn.plan != "function") {
+          console.log(`${conn.constructor.name}: cannot plan a sync`);
+          ok = false;
+        }
+        else
+          ok = await this.apply(conn) && ok;
+    }
+    finally {
+      for (const conn of connections)
+        await conn.close();
+    }
+
+    return ok;
   }
-
-  let ok = true;
-
-  try {
-    for (const conn of connections)
-      if (typeof conn.plan != "function") {
-        out.log(`${conn.constructor.name}: cannot plan a sync`);
-        ok = false;
-      }
-      else
-        ok = await (command == "check" ? check(conn, out) : sync(conn, force, out)) && ok;
-  }
-  finally {
-    for (const conn of connections)
-      await conn.close();
-  }
-
-  return ok ? 0 : 1;
 }
+
+class Check extends Schema {
+  async apply(conn: Connection){
+    const { steps, problems } = await conn.plan();
+    const current = !steps.length && !problems.length;
+
+    console.log(`${conn.constructor.name}: ${current ? "up to date" : "out of date"}`);
+
+    for (const step of steps)
+      console.log(`  + ${step.action}`);
+
+    await report(conn, problems, false);
+
+    return current;
+  }
+}
+
+class Sync extends Schema {
+  force = flag({ short: "f", help: "also rebuild columns whose type or nullability drifted" });
+
+  async apply(conn: Connection){
+    const { force } = this;
+    const { steps, problems } = await conn.plan(force);
+
+    if (problems.length) {
+      console.log(`${conn.constructor.name}: not synced`);
+      await report(conn, problems, force);
+
+      return false;
+    }
+
+    await conn.sync(true, force);
+
+    console.log(`${conn.constructor.name}: ${steps.length ? "synced" : "up to date"}`);
+
+    for (const step of steps)
+      console.log(`  + ${step.action}`);
+
+    return true;
+  }
+}
+
+class Sql extends Model {
+  check = sub(Check, { help: "list what sync would change; exits 1 if anything would" });
+  sync = sub(Sync, { help: "create missing tables, columns and indexes" });
+}
+
+export default command(Sql);
