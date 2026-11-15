@@ -33,6 +33,9 @@ export class PGConnection extends PostgresConnection {
   constructor(using: Connection.Types, arg2: string | PoolConfig | Pool) {
     super(using);
 
+    if (typeof arg2 == "object" && pooled(arg2))
+      this._client = arg2;
+
     this.engine = new Promise((resolve, reject) => {
       import("pg").then(({ default: { Pool } }) => {
         if (arg2 instanceof Pool)
