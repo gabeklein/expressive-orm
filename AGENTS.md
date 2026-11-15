@@ -14,6 +14,7 @@ Monorepo: bun workspaces + changesets. Install, scripts and builds run under bun
 packages/orm      - Entities, fields, relations, Connection (driver base and identity map), memory driver, Query (@expressive/orm)
 packages/sql      - SQL generator and connection base, datatype vocabulary, SQLite driver with runtime-selected engine (@expressive/sql)
 packages/postgres - Postgres and PGLite driver (@expressive/postgres)
+packages/mongo    - MongoDB driver, experimental and unpublished (@expressive/mongo)
 packages/*/skills - Each package's agent skill, shipped in the package
 ```
 
