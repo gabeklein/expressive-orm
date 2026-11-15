@@ -2601,6 +2601,65 @@ describe("session", () => {
     client.close();
   })
 
+  it("will hold statements outside a session for its transaction on the same engine", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const engine = await createEngine(":memory:");
+    const db = await SQLiteConnection.new([User], engine);
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+    let entered!: () => void;
+    const inside = new Promise<void>(resolve => entered = resolve);
+
+    const failed = db.session(() => db.transaction(async () => {
+      await User.insert({ name: "Gabe" });
+      entered();
+      await held;
+      throw new Error("nope");
+    }), engine);
+
+    await inside;
+
+    const outside = User.insert({ name: "Bob" });
+    let done = false;
+
+    outside.then(() => done = true);
+    await new Promise(res => setTimeout(res, 20));
+    expect(done).toBe(false);
+
+    release();
+    await expect(failed).rejects.toThrow("nope");
+    await outside;
+
+    expect((await User.query()).map(row => row.name)).toEqual(["Bob"]);
+
+    await db.close();
+    await engine.close();
+  })
+
+  it("will sync each session's source without marking the connection ready", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = SQLiteConnection.new([User]);
+    const a = await createEngine(":memory:");
+    const b = await createEngine(":memory:");
+
+    await db.session(() => db.sync(), a);
+    await db.session(() => db.sync(), b);
+
+    expect(db.ready).toBe(false);
+    expect(await a.all(`SELECT name FROM sqlite_master WHERE name = 'user'`)).toEqual([{ name: "user" }]);
+    expect(await b.all(`SELECT name FROM sqlite_master WHERE name = 'user'`)).toEqual([{ name: "user" }]);
+
+    await db.close();
+    await a.close();
+    await b.close();
+  })
+
   it("will reject statements for an unknown source", async () => {
     class User extends Type {
       name = str();
@@ -2665,6 +2724,41 @@ describe("d1", () => {
     await expect(engine.all("SELECT title FROM post")).resolves.toEqual([{ title: "Hello" }]);
 
     await conn.close();
+    await dispose();
+  })
+
+  it("will run sessions on a binding", async () => {
+    const { DB, Author, Post, dispose } = await open();
+    const db = SQLiteConnection.new([Author, Post]);
+
+    await db.session(() => db.sync(), DB);
+
+    const { id } = await db.session(() => Author.insert({ name: "Gabe" }), DB);
+
+    await db.session(async () => {
+      const author = await Author.get(id);
+
+      expect(await Author.get(id)).toBe(author);
+
+      const [a, b] = await Promise.all([
+        db.session(() => Author.get(id)),
+        db.session(() => Author.get(id))
+      ]);
+
+      expect(a).not.toBe(author);
+      expect(b).not.toBe(a);
+
+      await DB.prepare(`UPDATE author SET name = 'Bob' WHERE id = ?`).bind(id).run();
+
+      expect(author.name).toBe("Gabe");
+      expect((await db.session(() => Author.get(id))).name).toBe("Bob");
+    }, DB);
+
+    expect((await db.session(() => Author.get(id), DB)).name).toBe("Bob");
+    expect(db._loaded.get(Author)?.size ?? 0).toBe(0);
+    expect(db.ready).toBe(false);
+
+    await db.close();
     await dispose();
   })
 
