@@ -552,15 +552,16 @@ function drifted(field: Field, info: TableInfo){
 const NUMBER = (column: string) =>
   `typeof(${column}) = 'text' AND CASE WHEN json_valid(trim(${column})) THEN json_type(trim(${column})) ELSE '' END IN ('integer', 'real')`;
 
+const REAL = (column: string) =>
+  `typeof(${column}) IN ('integer', 'real') OR ${NUMBER(column)}`;
+
 const FITS: Record<string, (column: string) => string> = {
   INTEGER: column =>
     `typeof(${column}) = 'integer' OR typeof(${column}) = 'real' AND ${column} = CAST(${column} AS INTEGER) ` +
     `OR ${NUMBER(column)} AND ${column} NOT GLOB '*[eE]*' AND CAST(${column} AS REAL) = CAST(${column} AS INTEGER)`,
-  REAL: column =>
-    `typeof(${column}) IN ('integer', 'real') OR ${NUMBER(column)}`
+  REAL,
+  NUMERIC: REAL
 };
-
-FITS.NUMERIC = FITS.REAL;
 
 function definition(field: Field, adding?: boolean){
   const {
