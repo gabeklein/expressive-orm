@@ -31,12 +31,16 @@ export class PGLiteConnection extends PostgresConnection {
     });
   }
 
+  #engine(){
+    return this._session()?.client as PGlite | undefined || this.engine;
+  }
+
   async query(sql: string, params?: any[]) {
-    return (await this.engine).query(sql, params, { parsers: { [DATE]: (value: string) => value } });
+    return (await this.#engine()).query(sql, params, { parsers: { [DATE]: (value: string) => value } });
   }
 
   async exec(sql: string): Promise<void> {
-    await (await this.engine).exec(sql);
+    await (await this.#engine()).exec(sql);
   }
 
   protected async listen(channel: string, callback: (payload: string) => void) {

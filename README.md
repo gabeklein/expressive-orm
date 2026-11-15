@@ -533,6 +533,31 @@ A connection keeps one identity map for the process: `get(id)` returns an entity
 
 `db.session(fn, client)` also runs every statement inside on `client`, the driver's own handle, a transaction included: statements on one client wait out its open transaction, while other clients run alongside. The connection never closes a session's client. A nested session starts a fresh identity map and keeps the outer client unless given one. Like transactions, sessions need `AsyncLocalStorage` from `process.getBuiltinModule`.
 
+On Postgres the client is a `pg` `Client` or `Pool` for `PGConnection`, a `PGlite` for `PGLiteConnection`. A `Client` runs transactions one at a time, as it must; a `Pool` lends each transaction its own client. On Cloudflare Workers, open a client per request from Hyperdrive:
+
+```ts
+import pg from 'pg';
+
+const db = PGConnection.new(types, "postgres://localhost/app");
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext){
+    const client = new pg.Client({ connectionString: env.HYPERDRIVE.connectionString });
+
+    await client.connect();
+
+    try {
+      return await db.session(() => handle(request), client);
+    }
+    finally {
+      ctx.waitUntil(client.end());
+    }
+  }
+};
+```
+
+Statements outside a session use the connection's own pool, which opens a socket only when one runs - awaiting the connection runs `sync` there, so on Workers leave it unawaited and sync the schema from a deploy step.
+
 ## Hooks
 
 ```ts

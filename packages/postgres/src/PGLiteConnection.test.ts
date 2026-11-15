@@ -27,6 +27,25 @@ class TestConnection extends PGLiteConnection {
   }
 }
 
+describe("session", () => {
+  it("will run statements on the session's PGlite", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = await TestConnection.new([User]);
+    const other = new PGlite();
+
+    await other.exec(db.schema);
+    await db.session(() => User.insert({ name: "Gabe" }), other);
+
+    expect(await User.count()).toBe(0);
+    expect(await db.session(() => User.count(), other)).toBe(1);
+
+    await other.close();
+  })
+})
+
 describe("persistence", () => {
   // Expensive so do not run in watch mode
   const it = isWatchMode ? test.skip : test;

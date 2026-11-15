@@ -58,6 +58,10 @@ class Job extends Type {
 
 `db.transaction(fn)` as in `expressive-orm`. `PGConnection` runs each transaction on its own pool client, side by side; statements outside one don't wait. `PGLiteConnection` runs them one at a time, and other statements wait until one ends. PGlite transactions need `AsyncLocalStorage`, so they throw in a browser.
 
+## Sessions
+
+`db.session(fn, client)` (`expressive-orm/SKILL.md#sessions`) runs every statement inside `fn` on `client` and gives `fn` its own identity map. `PGConnection` takes a `pg` `Client` - transactions run on it one at a time, other statements on it wait - or a `Pool`, lending each transaction its own client. `PGLiteConnection` takes a `PGlite`. The connection never ends a session's client. On Workers, open a `pg.Client` per request from `env.HYPERDRIVE.connectionString`, run the request in `db.session(fn, client)`, then `client.end()`; statements outside a session - `sync` when the connection is awaited included - use the connection's own pool, which connects only then.
+
 ## Live rows
 
 Loaded entities follow changes made by any client, as in `expressive-orm/SKILL.md#live-rows`.
