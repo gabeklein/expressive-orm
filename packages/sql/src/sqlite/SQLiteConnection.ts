@@ -1,11 +1,24 @@
-import { Field, now, Query, Type } from '@expressive/orm';
+import { date, Field, now, Query, Type } from '@expressive/orm';
 import { Builder } from '@expressive/orm/driver';
 import { codecs } from '../codecs';
 import { Connection } from '../connection/Connection';
 import { format } from 'sql-formatter';
 
 import { createEngine, type D1Database, Engine, host, type LibSQLClient, migrations } from './engine';
-import { now as current, SQLiteGenerator } from './SQLiteGenerator';
+import { now as current, SQLiteGenerator, type Timestamps } from './SQLiteGenerator';
+
+export declare namespace SQLiteConnection {
+  /** How a SQLite connection stores what the database can't type itself. */
+  interface Options {
+    /**
+     * Storage of a `timestamp` - `"ms"` INTEGER epoch milliseconds, `"seconds"` INTEGER epoch seconds, `"iso"` ISO 8601 UTC text.
+     *
+     * Defaults to `"ms"`. `"seconds"` drops the milliseconds. `sql.now` and `fallback: now` render in the same storage.
+     * A `date` or `time` type stays text. `sync` refuses a column holding the other storage.
+     */
+    timestamps?: Timestamps;
+  }
+}
 
 type TableInfo = {
   name: string;
@@ -25,8 +38,10 @@ type TableInfo = {
  */
 export class SQLiteConnection extends Connection {
   protected get codecs(){
-    return affinities;
+    return STORAGE[this.timestamps || "ms"];
   }
+
+  protected timestamps: Timestamps;
 
   protected filename: string;
   protected engine?: Promise<Engine>;
@@ -40,8 +55,10 @@ export class SQLiteConnection extends Connection {
    * A D1 binding, a libSQL client or an `Engine` is used as given - foreign keys are not switched on, and `close()` leaves it open.
    * D1 refuses `transaction`. libSQL runs each `transaction` on a libSQL write transaction, one at a time.
    */
-  constructor(using: Connection.Types, source?: string | Engine | D1Database | LibSQLClient) {
+  constructor(using: Connection.Types, source?: string | Engine | D1Database | LibSQLClient, options: SQLiteConnection.Options = {}) {
     super(using);
+
+    this.timestamps = options.timestamps || "ms";
 
     if (typeof source == "object") {
       (this.engine = Promise.resolve(source).then(host)).catch(() => {});
@@ -72,7 +89,7 @@ export class SQLiteConnection extends Connection {
    * A failure when run rethrows as `Error running SQL: <message>` with the statement.
    */
   prepare(builder: Builder){
-    const sql = String(new SQLiteGenerator(builder));
+    const sql = String(new SQLiteGenerator(builder, this.timestamps));
     const string = (x?: unknown[]) => x
       ? x.map(x => (
         x !== null && typeof x === 'object' ? JSON.stringify(x) :
@@ -329,9 +346,12 @@ export class SQLiteConnection extends Connection {
         continue;
       }
 
-      const message = drifted(field, info);
+      const stored = restored(field, info);
+      const message = !stored && drifted(field, info);
 
-      if (message)
+      if (stored)
+        issues.push(stored);
+      else if (message)
         drift.push({ field, message });
 
       issues.push(...await this.references(field, planning));
@@ -495,6 +515,27 @@ function index(field: Field){
   return `CREATE INDEX IF NOT EXISTS \`${indexName(field)}\` ON ${field.parent!.table} (\`${field.column}\`);`;
 }
 
+function restored(field: Field, info: TableInfo){
+  const target = field.reference || field;
+  const found = info.type.toUpperCase();
+  const expected = affinity(field);
+
+  if (target.type !== "timestamp" || found === expected || !["INTEGER", "TEXT"].includes(found))
+    return;
+
+  const mode = connection(field)["timestamps"];
+  const keep = found == "TEXT" ? `{ timestamps: "iso" }` : `{ timestamps: "ms" } or { timestamps: "seconds" }`;
+
+  return `Column ${field.column} in table ${field.parent!.table} holds timestamps as ${found}, but this connection stores them as ${STORED[mode]}. ` +
+    `Pass ${keep} to SQLiteConnection.new to keep them, or migrate the column.`;
+}
+
+const STORED: Record<Timestamps, string> = {
+  ms: "INTEGER epoch milliseconds",
+  seconds: "INTEGER epoch seconds",
+  iso: "ISO 8601 TEXT"
+};
+
 function drifted(field: Field, info: TableInfo){
   const { column, nullable, primary } = field;
   const parent = field.parent!;
@@ -598,13 +639,36 @@ const AFFINITY: Record<string, string> = {
   json: "TEXT"
 };
 
-const affinities: ReadonlyMap<Function, Connection.Codec> = new Map(Array.from(codecs, ([helper, codec]) => [
-  helper,
-  { ...codec, datatype: (field: Field) => AFFINITY[field.type] }
-]));
+function storage(timestamps: Timestamps): ReadonlyMap<Function, Connection.Codec> {
+  const scale = timestamps == "seconds" ? 1000 : 1;
+
+  return new Map(Array.from(codecs, ([helper, codec]) => {
+    const datatype = (field: Field) => AFFINITY[field.type];
+
+    if (helper !== date || timestamps == "iso")
+      return [helper, { ...codec, datatype }];
+
+    return [helper, {
+      ...codec,
+      datatype: (field: Field) => field.type == "timestamp" ? "INTEGER" : datatype(field),
+      encode: (field: Field, value: unknown) => field.type == "timestamp"
+        ? Math.floor((value as Date).getTime() / scale)
+        : codec.encode(field, value),
+      decode: (field: Field, value: unknown) => field.type == "timestamp" && typeof value == "number"
+        ? new Date(value * scale)
+        : codec.decode(field, value)
+    }];
+  }));
+}
+
+const STORAGE: Record<Timestamps, ReadonlyMap<Function, Connection.Codec>> = {
+  ms: storage("ms"),
+  seconds: storage("seconds"),
+  iso: storage("iso")
+};
 
 function connection(field: Field){
-  return (field.parent as Type.Class).connection;
+  return (field.parent as Type.Class).connection as SQLiteConnection;
 }
 
 function affinity(field: Field){
@@ -613,7 +677,7 @@ function affinity(field: Field){
 
 function literal(field: Field, value: unknown){
   if (value === "NOW" || value === now)
-    return `(${current(field)})`;
+    return `(${current(field, connection(field)["timestamps"])})`;
 
   if (value === null)
     return "NULL";

@@ -143,7 +143,11 @@ describe("schema", () => {
           name TEXT NOT NULL DEFAULT 'it''s',
           rank INTEGER NOT NULL UNIQUE DEFAULT 3,
           note TEXT DEFAULT NULL,
-          created TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now'))
+          created INTEGER NOT NULL DEFAULT (
+            CAST(
+              ROUND((JULIANDAY('now') - 2440587.5) * 86400000) AS INTEGER
+            )
+          )
         );"
     `);
   });
@@ -200,7 +204,7 @@ describe("types", () => {
       "CREATE TABLE
         test (
           id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-          date TEXT NOT NULL
+          date INTEGER NOT NULL
         );"
     `);
 
@@ -1469,13 +1473,12 @@ describe("timestamps", () => {
       updated = date.updated();
     }
 
-    const conn = await TestConnection.new([Post]);
+    await TestConnection.new([Post]);
     const before = Date.now();
     const post = await Post.insert({ title: "a" });
 
-    expect(conn.schema.replace(/\s+/g, " ")).toContain("created TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now'))");
-    expect(post.created.getTime()).toBeGreaterThanOrEqual(before - 5);
-    expect(post.updated.toISOString()).toMatch(/\.\d{3}Z$/);
+    expect(post.created.getTime()).toBeGreaterThanOrEqual(before);
+    expect(post.created.getTime()).toBeLessThanOrEqual(Date.now());
 
     await Post.update(post.id, { title: "b" });
 
@@ -1495,7 +1498,7 @@ describe("timestamps", () => {
     const conn = SQLiteConnection.new([Image]);
     const db = await conn["db"]();
 
-    await db.exec("CREATE TABLE image (id INTEGER NOT NULL PRIMARY KEY, status TEXT, created TEXT, legacy TEXT)");
+    await db.exec("CREATE TABLE image (id INTEGER NOT NULL PRIMARY KEY, status TEXT, created INTEGER, legacy INTEGER)");
     await conn.sync();
 
     const image = await Image.insert({});
@@ -1579,6 +1582,133 @@ describe("timestamps", () => {
     await db.exec("CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT NOT NULL)");
     await expect(conn.sync()).rejects.toThrow("Column at in table post defaults to the current time and cannot be added by SQLite.");
     await conn.close();
+  })
+
+  describe("storage", () => {
+    class Session extends Type {
+      id = key({ type: "text" });
+      created = date.created();
+      expires = date();
+    }
+
+    async function open(options?: SQLiteConnection.Options, ddl?: string){
+      const conn = SQLiteConnection.new([Session], undefined, options);
+      const db = await conn["db"]();
+
+      if (ddl)
+        await db.exec(ddl);
+
+      return { conn, db, raw: () => db.all("SELECT id, created, expires FROM session ORDER BY id") };
+    }
+
+    it("will store epoch milliseconds by default", async () => {
+      const { conn, raw } = await open();
+      const expires = new Date(1793845205641);
+      const before = Date.now();
+
+      await conn;
+      await Session.insert({ id: "a", expires });
+
+      const [row] = await raw();
+
+      expect(conn.schema).toContain("expires INTEGER NOT NULL");
+      expect(row.expires).toBe(1793845205641);
+      expect(row.created).toBeGreaterThanOrEqual(before);
+      expect(row.created).toBeLessThanOrEqual(Date.now());
+      expect((await Session.one({ id: "a" })).expires).toEqual(expires);
+      await conn.close();
+    })
+
+    it("will store epoch seconds", async () => {
+      const { conn, raw } = await open({ timestamps: "seconds" });
+      const before = Math.floor(Date.now() / 1000);
+
+      await conn;
+      await Session.insert({ id: "a", expires: new Date(1793845205641) });
+
+      const [row] = await raw();
+
+      expect(row.expires).toBe(1793845205);
+      expect(row.created).toBeGreaterThanOrEqual(before);
+      expect(row.created).toBeLessThanOrEqual(Date.now() / 1000);
+      expect((await Session.one({ id: "a" })).expires).toEqual(new Date(1793845205000));
+      await conn.close();
+    })
+
+    it("will store ISO 8601 text", async () => {
+      const { conn, raw } = await open({ timestamps: "iso" });
+      const expires = new Date(1793845205641);
+
+      await conn;
+      await Session.insert({ id: "a", expires });
+
+      expect(conn.schema.replace(/\s+/g, " ")).toContain("created TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now'))");
+      expect((await raw())[0].expires).toBe(expires.toISOString());
+      expect((await raw())[0].created).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
+      expect((await Session.one({ id: "a" })).expires).toEqual(expires);
+      await conn.close();
+    })
+
+    it.each(["ms", "seconds", "iso"] as const)("will compare and write now as %s", async timestamps => {
+      const { conn, raw } = await open({ timestamps });
+
+      await conn;
+      await Session.insert({ id: "old", expires: new Date(Date.now() - 5000) });
+      await Session.insert({ id: "new", expires: new Date(Date.now() + 5000) });
+
+      expect(await Session.delete({ expires: lessThan(now) })).toBe(1);
+
+      const before = Date.now();
+
+      await Query(where => {
+        const session = where(Session);
+
+        where(session).update({ expires: now });
+      });
+
+      const [row] = await raw();
+      const { expires } = await Session.one({ id: "new" });
+
+      expect(typeof row.expires).toBe(timestamps == "iso" ? "string" : "number");
+      expect(expires.getTime()).toBeGreaterThanOrEqual(timestamps == "seconds" ? before - 1000 : before);
+      expect(expires.getTime()).toBeLessThanOrEqual(Date.now());
+      await conn.close();
+    })
+
+    it("will read text an epoch column already holds", async () => {
+      const { conn } = await open(undefined, "CREATE TABLE session (id TEXT NOT NULL PRIMARY KEY, created INTEGER NOT NULL, expires INTEGER NOT NULL); INSERT INTO session VALUES ('a', 0, '2026-01-02T03:04:05.006Z');");
+
+      await conn;
+
+      expect((await Session.one({ id: "a" })).expires).toEqual(new Date("2026-01-02T03:04:05.006Z"));
+      await conn.close();
+    })
+
+    it("will refuse epoch columns under text storage", async () => {
+      const { conn } = await open({ timestamps: "iso" }, "CREATE TABLE session (id TEXT NOT NULL PRIMARY KEY, created INTEGER NOT NULL, expires INTEGER NOT NULL)");
+      const message = `Column expires in table session holds timestamps as INTEGER, but this connection stores them as ISO 8601 TEXT. Pass { timestamps: "ms" } or { timestamps: "seconds" } to SQLiteConnection.new to keep them, or migrate the column.`;
+
+      expect((await conn.plan(true)).problems).toContain(message);
+      await expect(conn.sync(true, true)).rejects.toThrow(message);
+      await expect(conn.valid(Session)).rejects.toThrow("Column created in table session holds timestamps as INTEGER");
+      await conn.close();
+    })
+
+    it("will refuse text columns under epoch storage", async () => {
+      const { conn } = await open({ timestamps: "seconds" }, "CREATE TABLE session (id TEXT NOT NULL PRIMARY KEY, created TEXT NOT NULL, expires TEXT NOT NULL)");
+
+      await expect(conn.sync(true, true)).rejects.toThrow(
+        `Column created in table session holds timestamps as TEXT, but this connection stores them as INTEGER epoch seconds. Pass { timestamps: "iso" } to SQLiteConnection.new to keep them, or migrate the column.`
+      );
+      await conn.close();
+    })
+
+    it("will treat other timestamp types as drift", async () => {
+      const { conn } = await open(undefined, "CREATE TABLE session (id TEXT NOT NULL PRIMARY KEY, created DATETIME NOT NULL, expires INTEGER NOT NULL)");
+
+      expect((await conn.plan()).problems).toEqual(["Column created in table session has type DATETIME, expected INTEGER"]);
+      await conn.close();
+    })
   })
 })
 
