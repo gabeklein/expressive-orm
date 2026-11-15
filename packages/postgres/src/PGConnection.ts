@@ -3,6 +3,28 @@ import type { Client, Notification, Pool, PoolClient, PoolConfig } from 'pg';
 
 import { PostgresConnection } from './PostgresConnection';
 
+type Queryable = Pool | PoolClient | Client;
+
+const QUEUES = new WeakMap<object, Promise<unknown>>();
+
+function pooled(client: object): client is Pool {
+  return "totalCount" in client && "idleCount" in client;
+}
+
+function send(client: Queryable, sql: string, ...params: [any[]?]){
+  const run = () => client.query(sql, ...params);
+
+  if (pooled(client))
+    return run();
+
+  const prior = QUEUES.get(client);
+  const next = prior ? prior.then(run) : run();
+
+  QUEUES.set(client, next.catch(() => {}));
+
+  return next;
+}
+
 export class PGConnection extends PostgresConnection {
   protected declare engine: Promise<Pool>;
 
@@ -24,24 +46,18 @@ export class PGConnection extends PostgresConnection {
     });
   }
 
-  protected async client(): Promise<Pool | PoolClient | Client> {
+  protected async client(): Promise<Queryable> {
     return (this._journal()?.session as PoolClient | undefined) || this._session()?.client as Client | undefined || this.engine;
   }
 
-  async #pool(){
+  #pool(){
     const client = this._session()?.client as Pool | Client | undefined;
 
-    if (!client)
-      return this.engine;
-
-    const { default: { Pool } } = await import("pg");
-
-    return client instanceof Pool ? client : undefined;
+    return !client ? this.engine : pooled(client) ? client : undefined;
   }
 
   async query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }> {
-    const engine = await this.client();
-    const result = await engine.query(sql, params);
+    const result = await send(await this.client(), sql, params);
     return {
       rows: result.rows,
       affectedRows: result.rowCount || undefined
@@ -49,7 +65,7 @@ export class PGConnection extends PostgresConnection {
   }
 
   async exec(sql: string): Promise<void> {
-    await (await this.client()).query(sql);
+    await send(await this.client(), sql);
   }
 
   protected async lock(){
@@ -66,25 +82,25 @@ export class PGConnection extends PostgresConnection {
     const client = pool ? await pool.connect() : this._session()!.client as Client;
     let broken: Error | undefined;
 
-    const send = (sql: string) => client.query(sql).catch((error: Error) => {
+    const control = (sql: string) => send(client, sql).catch((error: Error) => {
       throw broken = error;
     });
 
     this._journal()!.session = client;
 
     try {
-      await send("BEGIN");
+      await control("BEGIN");
 
       try {
         const result = await fn();
 
-        await send("COMMIT");
+        await control("COMMIT");
 
         return result;
       }
       catch (error) {
         if (!broken)
-          await send("ROLLBACK").catch(() => {});
+          await control("ROLLBACK").catch(() => {});
 
         throw error;
       }

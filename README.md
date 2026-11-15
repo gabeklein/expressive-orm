@@ -547,18 +547,25 @@ const db = PGConnection.new(types, "postgres://localhost/app");
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext){
     const client = new pg.Client({ connectionString: env.HYPERDRIVE.connectionString });
+    const background: Promise<unknown>[] = [];
 
     await client.connect();
 
-    try {
-      return await db.session(() => handle(request), client);
-    }
-    finally {
-      ctx.waitUntil(client.end());
-    }
+    const response = db.session(() => handle(request, task => background.push(task)), client);
+
+    ctx.waitUntil(
+      response
+        .catch(() => {})
+        .then(() => Promise.allSettled(background))
+        .then(() => client.end())
+    );
+
+    return response;
   }
 };
 ```
+
+Work the request starts in the background still runs in the session, on its client - so end the client only once that work settles. Here `handle` hands it over instead of calling `ctx.waitUntil` itself; anything it starts after the response, and doesn't hand over, may find the client ended. Statements on one `Client` queue, one at a time, as `pg` requires; a `Pool` - `pg`'s or any with its `totalCount` and `idleCount` - runs them side by side.
 
 Statements outside a session use the connection's own pool, which opens a socket only when one runs - awaiting the connection runs `sync` there, so on Workers leave it unawaited and sync the schema from a deploy step.
 
