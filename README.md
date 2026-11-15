@@ -250,6 +250,8 @@ const serve = Remote.handle(await SQLiteConnection.new(types, "app.db"), {
 export const database = (request: unknown, user: Session) => serve(request, user);
 ```
 
+The packages declare no side effects, so a client bundle importing only `Type`, fields and `Remote` from `@expressive/sql` or `@expressive/postgres` leaves out the drivers and `sql-formatter` - it is the same size as importing them from `@expressive/orm`.
+
 Requests name each class by the key it is bound under and each field by its property - `{ op: "select", type: "Post", where: [["author", "=", 1]] }` - never a table or column, so the server alone decides where they are stored. Bind classes as an object, under the same keys on both sides. `Remote.new` throws when given an array, or two classes sharing a table - a subset can't travel.
 
 The server validates each request and runs it as the class's own statics would: fields check values, a subset scopes every read and write - an upsert can't take over a row outside it - a fixed field rejects updates and a key can't change, and fields defaulting to `now`, like `created` and `updated`, take the server's clock. Its `before` and `after` hooks run. Values must be plain - a relation travels as its id, and an object reaches only a `json` field. A request may carry up to 100 conditions and 1000 values in a list.

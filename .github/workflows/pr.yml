@@ -38,6 +38,9 @@ jobs:
       - name: Declarations
         run: bun .github/scripts/dts-check.ts
 
+      - name: Tree-shaking
+        run: bun .github/scripts/bundle-check.ts
+
       - name: Changeset status
         continue-on-error: true
         run: bunx changeset status --since origin/${{ github.base_ref }}

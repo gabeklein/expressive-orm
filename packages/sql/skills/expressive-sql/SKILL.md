@@ -5,7 +5,7 @@ description: Expressive ORM on SQL (@expressive/sql) - SQLiteConnection with a b
 
 # @expressive/sql
 
-Expressive ORM on SQL, with embedded SQLite. Re-exports `@expressive/orm` - entities, fields, relations, `Query`, transactions and `Memory` are in `expressive-orm`. Apps import everything from `@expressive/sql`.
+Expressive ORM on SQL, with embedded SQLite. Re-exports `@expressive/orm` - entities, fields, relations, `Query`, transactions and `Memory` are in `expressive-orm`. Apps import everything from `@expressive/sql`. The package has no side effects - a browser bundle importing only entities and `Remote` from it carries no SQLite code or `sql-formatter`.
 
 ```bash
 npm install @expressive/sql @expressive/mvc

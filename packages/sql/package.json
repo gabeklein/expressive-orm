@@ -23,6 +23,9 @@
     "url": "https://github.com/gabeklein/expressive-orm/issues"
   },
   "type": "module",
+  "sideEffects": [
+    "./dist/bin.js"
+  ],
   "publishConfig": {
     "access": "public"
   },
