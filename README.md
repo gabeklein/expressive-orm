@@ -531,7 +531,11 @@ export default {
 
 A connection keeps one identity map for the process: `get(id)` returns an entity already loaded without reading its row again, and only [live rows](#live-rows) keep it current. When other processes write to the same database - Workers isolates on one D1 or Postgres, several servers - wrap each request in `db.session(fn)`. Inside it the connection keeps a fresh identity map, so `get` and relations read their rows afresh and the same row loads into one entity per session; entities loaded inside follow no live rows and stay usable after `fn` settles. Code outside a session keeps the process-wide map.
 
-`db.session(fn, client)` also runs every statement inside on `client`, the driver's own handle, a transaction included: statements on one client wait out its open transaction, while other clients run alongside. The connection never closes a session's client. A nested session starts a fresh identity map and keeps the outer client unless given one. Like transactions, sessions need `AsyncLocalStorage` from `process.getBuiltinModule`.
+`db.session(fn, client)` also runs every statement inside on `client`, the driver's own handle, a transaction included: statements on one client wait out its open transaction, while other clients run alongside - the handle a connection was built on counts as one. The connection never closes a session's client. Like transactions, sessions need `AsyncLocalStorage` from `process.getBuiltinModule`.
+
+- A nested session starts a fresh identity map and keeps the outer client unless given one. Its writes don't reach the outer map: an entity it deletes or changes stays as the outer session loaded it, until the outer one reads it again with `load` or `query`.
+- Work started inside that outlives `fn` - a promise not awaited, `ctx.waitUntil` - still runs in the session, on its map and client. End the client only once that work settles.
+- `close()` destroys the entities of the process-wide map only; those loaded in a session stay, unbound.
 
 On Postgres the client is a `pg` `Client` or `Pool` for `PGConnection`, a `PGlite` for `PGLiteConnection`. A `Client` runs transactions one at a time, as it must; a `Pool` lends each transaction its own client. On Cloudflare Workers, open a client per request from Hyperdrive:
 
