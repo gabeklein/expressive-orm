@@ -72,6 +72,25 @@ describe('PGConnection', () => {
     expect(pool.end).not.toHaveBeenCalled();
   });
 
+  it('will not hold a client with live off', async () => {
+    class Item extends Type {}
+
+    const pool = new pg.Pool();
+    const connect = vi.spyOn(pool, 'connect');
+
+    vi.spyOn(pool, 'query').mockResolvedValue({ rows: [{ id: 1 }], rowCount: 1 } as never);
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = PGConnection.new([Item], pool, { live: false });
+
+    expect(conn.subscribe).toBeUndefined();
+    await Item.get(1);
+    expect(connect).not.toHaveBeenCalled();
+
+    await conn.close();
+    Reflect.deleteProperty(Item, "connection");
+  });
+
   it('will run a transaction on one client', async () => {
     class Item extends Type {}
 

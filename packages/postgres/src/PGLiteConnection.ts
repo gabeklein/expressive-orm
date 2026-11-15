@@ -11,8 +11,16 @@ export class PGLiteConnection extends PostgresConnection {
 
   private owned = false;
 
-  constructor(using: Connection.Types, arg2?: string | PGlite, config?: PGliteOptions) {
-    super(using);
+  /**
+   * Bind `using` to PGlite. Construct with `PGLiteConnection.new`.
+   *
+   * `arg2` is a data directory, in memory when omitted, or a `PGlite` - `close()` leaves a given one open.
+   * `config` is `PGliteOptions` for a PGlite it opens, plus `live` - `{ live: false }` turns off live rows.
+   */
+  constructor(using: Connection.Types, arg2?: string | PGlite, config: PGliteOptions & PostgresConnection.Options = {}) {
+    const { live, ...options } = config;
+
+    super(using, { live });
 
     this.engine = new Promise((resolve, reject) => {
       import('@electric-sql/pglite').then(({ PGlite }) => {
@@ -23,7 +31,7 @@ export class PGLiteConnection extends PostgresConnection {
         else {
           this.owned = true;
           this.dataDir = arg2 as string;
-          resolve(new PGlite(this.dataDir, config));
+          resolve(new PGlite(this.dataDir, options));
         }
       }).catch(err => {
         reject(new Error(`Failed to load PGlite: ${err.message}`));

@@ -8,8 +8,14 @@ export class PGConnection extends PostgresConnection {
 
   private owned = false;
 
-  constructor(using: Connection.Types, arg2: string | PoolConfig | Pool) {
-    super(using);
+  /**
+   * Bind `using` to Postgres through `pg`. Construct with `PGConnection.new`.
+   *
+   * `arg2` is a connection string, a `PoolConfig` or a `Pool` - `close()` leaves a given `Pool` open.
+   * `{ live: false }` turns off live rows, so no client is held for LISTEN.
+   */
+  constructor(using: Connection.Types, arg2: string | PoolConfig | Pool, options?: PostgresConnection.Options) {
+    super(using, options);
 
     this.engine = new Promise((resolve, reject) => {
       import("pg").then(({ default: { Pool } }) => {

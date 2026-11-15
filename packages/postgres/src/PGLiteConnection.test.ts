@@ -1534,6 +1534,42 @@ describe("live rows", () => {
     await expect(User.query()).resolves.toEqual([]);
   })
 
+  it("will not listen with live off", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const pglite = new PGlite();
+    const listen = vi.spyOn(pglite, "listen");
+    const db = await PGLiteConnection.new([User], pglite, { live: false });
+
+    expect(db.subscribe).toBeUndefined();
+
+    const user = await User.new({ name: "Gabe" });
+
+    await pglite.query(`UPDATE "user" SET name = 'Bob' WHERE id = $1`, [user.id]);
+    await new Promise(res => setTimeout(res, 50));
+
+    expect(user.name).toBe("Gabe");
+    expect(listen).not.toHaveBeenCalled();
+
+    await db.close();
+    await pglite.close();
+  })
+
+  it("will pass PGlite options through without live", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = await PGLiteConnection.new([User], undefined, { live: false, debug: 0 });
+
+    await User.insert({ name: "Gabe" });
+    expect(await User.count()).toBe(1);
+
+    await db.close();
+  })
+
   it("will ignore tables not used", async () => {
     class User extends Type {
       name = str();

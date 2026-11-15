@@ -72,9 +72,29 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;`;
 
+export declare namespace PostgresConnection {
+  /** How a Postgres connection runs alongside the database. */
+  interface Options {
+    /**
+     * Follow row changes over LISTEN/NOTIFY, so loaded entities stay current.
+     *
+     * Defaults to `true`, holding one client for LISTEN from the first load until `close()`.
+     * `false` never listens - loaded entities change only through this connection's own writes. `sync` installs the triggers either way.
+     */
+    live?: boolean;
+  }
+}
+
 export abstract class PostgresConnection extends Connection {
   protected get codecs(){
     return codecs;
+  }
+
+  constructor(using: Connection.Types, options: PostgresConnection.Options = {}){
+    super(using);
+
+    if (options.live === false)
+      Object.defineProperty(this, "subscribe", { value: undefined });
   }
 
   protected engine: unknown;

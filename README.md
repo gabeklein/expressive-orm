@@ -147,7 +147,7 @@ const pg = await PGConnection.new([User], "postgres://localhost/app");
 const lite = await PGLiteConnection.new([Account], "./data");
 ```
 
-`PGConnection` takes a connection string, a `pg` `PoolConfig` or a `Pool`. `PGLiteConnection` takes a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`. `close()` leaves a passed `Pool` or `PGlite` open.
+`PGConnection` takes a connection string, a `pg` `PoolConfig` or a `Pool`. `PGLiteConnection` takes a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`. `close()` leaves a passed `Pool` or `PGlite` open. Both take `{ live: false }` last - in `PGLiteConnection`'s options - to turn off [live rows](#live-rows).
 
 `SQLiteConnection` takes a filename, or an `Engine` in its place for a SQLite the built-in loader can't open, such as on React Native: any object with `all(sql, params)`, `get(sql, params)`, `run(sql, params)` returning `{ changes }`, `exec(sql)` and `close()`, each async. A given engine is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
 
@@ -571,7 +571,7 @@ await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 - A delete destroys the entity.
 - An insert changes nothing loaded.
 
-`Memory` reports every write, floor or `Query`. Postgres uses LISTEN/NOTIFY: `sync` installs a trigger per table (Postgres 14+) - see [`@expressive/postgres`](packages/postgres). SQLite has no live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
+`Memory` reports every write, floor or `Query`. Postgres uses LISTEN/NOTIFY: `sync` installs a trigger per table (Postgres 14+) - see [`@expressive/postgres`](packages/postgres). Listening holds a client from the first load until `close()`; where that can't be - Cloudflare Workers, Hyperdrive, a transaction-mode pooler - pass `{ live: false }`, and loaded entities change only through the connection's own writes. SQLite has no live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
 
 ## Datatypes
 
