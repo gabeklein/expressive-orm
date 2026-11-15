@@ -1,6 +1,6 @@
 ---
 name: expressive-orm
-description: Expressive ORM core (@expressive/orm) - entities as @expressive/mvc Models extending Type, field helpers, keys, relations, references and the identity map, Query, transactions, live rows, the Memory driver and the driver contract. Use when defining entities, reading or writing rows, building a Query, observing entities, testing on Memory, or writing a driver.
+description: Expressive ORM core (@expressive/orm) - entities as @expressive/mvc Models extending Type, field helpers, keys, relations, references and the identity map, Query, transactions and sessions, live rows, the Memory driver and the driver contract. Use when defining entities, reading or writing rows, building a Query, observing entities, testing on Memory, or writing a driver.
 ---
 
 # Expressive ORM
@@ -290,6 +290,14 @@ const ann = await db.transaction(async () => {
 ```
 
 Commits when `fn` resolves, rolls back and rethrows when it throws. Every statement inside - statics, `Query`, instance writes, effects they trigger - joins without a handle. A nested `transaction` joins the open one. Rollback restores what instances changed, destroys entities created inside, keeps entities deleted inside. Other statements on the connection wait until it ends, except on a pooled driver. Needs `AsyncLocalStorage` from `process.getBuiltinModule` (Bun, Node 20.16+/22.3+, Deno, Workers with `nodejs_compat`); throws without it - in a browser and on React Native.
+
+## Sessions
+
+```ts
+export default { fetch: (request: Request) => db.session(() => handle(request)) };
+```
+
+The identity map is process-wide by default: `get(id)` returns an entity already loaded without selecting again, kept current only by live rows. Where other processes write the database - Workers isolates, several servers - wrap each request in `db.session(fn, client?)`: a fresh identity map for that call tree, no live rows for entities loaded inside, and every statement (transactions too) on `client` when the driver takes one. Statements on one client wait out its transaction; other clients run alongside. The connection never closes `client`. Nested sessions get a fresh map and inherit the client. Outside a session nothing changes. Needs `AsyncLocalStorage`, as transactions do.
 
 ## Hooks
 

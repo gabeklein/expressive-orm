@@ -91,6 +91,10 @@ declare namespace Connection {
 
 type Scope = Map<Connection, Connection.Journal>;
 
+type Session = { loaded: Map<Type.Class, Map<unknown, Type>>; client?: unknown };
+type Sessions = Map<Connection, Session>;
+type Holder = { _active?: Promise<void> };
+
 type Codecs = ReadonlyMap<Function, Connection.Codec>;
 
 type Hook<H> = { type: Type.Class; hooks: H };
@@ -100,20 +104,25 @@ const synced = new WeakMap<Connection, Promise<unknown>>();
 const HOOKED = new WeakSet<Connection>();
 const NAMED = new WeakMap<Query.Table, string>();
 const COLLECT = Symbol.for("@expressive/orm.collect");
+const HOLDERS = new WeakMap<object, Holder>();
 
-let context: import('node:async_hooks').AsyncLocalStorage<Scope> | undefined;
+type Storage<T> = import('node:async_hooks').AsyncLocalStorage<T>;
 
-function scope(){
-  if (context)
-    return context;
+let context: Storage<Scope> | undefined;
+let sessions: Storage<Sessions> | undefined;
 
+function local<T>(what: string): Storage<T> {
   const hooks: typeof import('node:async_hooks') | undefined =
     (globalThis as any).process?.getBuiltinModule?.("node:async_hooks");
 
   if (!hooks)
-    throw new Error("Transactions need AsyncLocalStorage from process.getBuiltinModule, which this runtime does not provide.");
+    throw new Error(`${what} need AsyncLocalStorage from process.getBuiltinModule, which this runtime does not provide.`);
 
-  return context = new hooks.AsyncLocalStorage<Scope>();
+  return new hooks.AsyncLocalStorage<T>();
+}
+
+function scope(){
+  return context ??= local<Scope>("Transactions");
 }
 
 function resolve(codecs: Codecs, name: string, field: Field): [Connection.Codec, Field] {
@@ -280,6 +289,60 @@ abstract class Connection extends Model {
 
   _journal(){
     return context?.getStore()?.get(this);
+  }
+
+  _session(){
+    return sessions?.getStore()?.get(this);
+  }
+
+  _identity(){
+    return this._session()?.loaded || this._loaded;
+  }
+
+  _types(){
+    return new Set([...this.using, ...this._loaded.keys(), ...this._identity().keys()]);
+  }
+
+  _holder(): Holder {
+    const client = this._session()?.client as object | undefined;
+    let holder: Holder | undefined;
+
+    if (!client)
+      return this;
+
+    if (!(holder = HOLDERS.get(client)))
+      HOLDERS.set(client, holder = {});
+
+    return holder;
+  }
+
+  /**
+   * Run `fn` in a session - its own identity map and, on a driver that takes one, its own client.
+   *
+   * Entities loaded inside are kept apart from those loaded outside or in another session - `get` inside loads afresh, never returning an entity loaded elsewhere.
+   * Entities loaded inside do not follow live rows, and stay usable once `fn` settles.
+   * `client` is the driver's own handle - a `pg` client or pool for `PGConnection`, a PGlite for `PGLiteConnection`, an `Engine`, D1 binding or libSQL client for `SQLiteConnection`. Other drivers ignore it.
+   * Every statement inside runs on `client`, a transaction included; statements on one client wait out its open transaction, while other clients run alongside. The connection never closes it.
+   * A nested call starts a fresh identity map and keeps the outer client unless given one.
+   * Outside any session the connection keeps one identity map for the process.
+   * Throws where the runtime has no `AsyncLocalStorage`.
+   *
+   * @example
+   * const client = await open();
+   *
+   * try {
+   *   return await db.session(() => handle(request), client);
+   * }
+   * finally {
+   *   await client.end();
+   * }
+   */
+  async session<T>(fn: () => T | Promise<T>, client?: unknown): Promise<T> {
+    const storage = sessions ??= local<Sessions>("Sessions");
+    const outer = storage.getStore();
+    const session: Session = { loaded: new Map(), client: client ?? outer?.get(this)?.client };
+
+    return storage.run(new Map(outer).set(this, session), fn);
   }
 
   /**
@@ -468,15 +531,17 @@ abstract class Connection extends Model {
    * Waits out the open one. A pooled driver overrides it.
    */
   protected async lock(){
-    while (this._active)
-      await this._active;
+    const holder = this._holder();
+
+    while (holder._active)
+      await holder._active;
 
     let release!: () => void;
 
-    this._active = new Promise(resolve => release = resolve);
+    holder._active = new Promise(resolve => release = resolve);
 
     return () => {
-      this._active = undefined;
+      holder._active = undefined;
       release();
     };
   }
@@ -487,8 +552,10 @@ abstract class Connection extends Model {
    * Returns at once inside the open one.
    */
   protected async idle(){
-    while (this._active && !this._journal())
-      await this._active;
+    const holder = this._holder();
+
+    while (holder._active && !this._journal())
+      await holder._active;
   }
 
   /** Compile a `Query` builder into a statement. Without it a `Query` rejects when run. */

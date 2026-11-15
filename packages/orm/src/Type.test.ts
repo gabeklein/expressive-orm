@@ -2092,6 +2092,21 @@ describe("live rows", () => {
     expect(db._subscribed).toBe(1);
   })
 
+  it("will not subscribe inside a session", async () => {
+    class User extends Type {
+      static connection = Live.new();
+      name = str();
+    }
+
+    const db = User.connection as Live;
+
+    await db.session(() => User.new({ name: "Gabe" }));
+    expect(db._subscribed).toBe(0);
+
+    await User.new({ name: "Bob" });
+    expect(db._subscribed).toBe(1);
+  })
+
   it("will settle a loaded entity on static update", async () => {
     class User extends Type {
       static connection = Live.new();

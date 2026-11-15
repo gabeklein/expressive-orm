@@ -534,6 +534,150 @@ describe("identity map", () => {
   })
 })
 
+describe("session", () => {
+  class User extends Type {
+    name = str();
+  }
+
+  it("will keep its own identity map", async () => {
+    const db = Store.new([User]);
+    const outer = await User.new({ name: "Gabe" });
+
+    await db.update(User.ref, outer.id, { name: "Bob" });
+
+    const inner = await db.session(() => User.get(outer.id));
+
+    expect(inner).not.toBe(outer);
+    expect(inner.name).toBe("Bob");
+    expect(outer.name).toBe("Gabe");
+    expect(await User.get(outer.id)).toBe(outer);
+    expect(db._loaded.get(User)!.size).toBe(1);
+
+    await db.close();
+  })
+
+  it("will not share entities between sessions", async () => {
+    const db = Store.new([User]);
+    const { id } = await User.insert({ name: "Gabe" });
+
+    const [a, b] = await Promise.all([
+      db.session(() => User.get(id)),
+      db.session(() => User.get(id))
+    ]);
+
+    expect(a).not.toBe(b);
+    expect(db._loaded.get(User)!.size).toBe(0);
+
+    await db.close();
+  })
+
+  it("will share entities within a session", async () => {
+    const db = Store.new([User]);
+    const { id } = await User.insert({ name: "Gabe" });
+
+    await db.session(async () => {
+      expect(await User.get(id)).toBe(await User.get(id));
+      expect(db._types()).toContain(User);
+    });
+
+    await db.close();
+  })
+
+  it("will return what fn returns", async () => {
+    const db = Store.new([User]);
+
+    expect(await db.session(() => 3)).toBe(3);
+    await expect(db.session(() => { throw new Error("nope") })).rejects.toThrow("nope");
+
+    await db.close();
+  })
+
+  it("will expose the client to the driver", async () => {
+    const db = Store.new();
+    const client = {};
+    const other = {};
+
+    expect(db._session()).toBeUndefined();
+
+    await db.session(async () => {
+      expect(db._session()!.client).toBe(client);
+
+      await db.session(() => {
+        expect(db._session()!.client).toBe(client);
+      });
+
+      await db.session(() => {
+        expect(db._session()!.client).toBe(other);
+      }, other);
+    }, client);
+
+    await db.session(() => {
+      expect(db._session()!.client).toBeUndefined();
+    });
+
+    await db.close();
+  })
+
+  it("will start a fresh identity map when nested", async () => {
+    const db = Store.new([User]);
+    const { id } = await User.insert({ name: "Gabe" });
+
+    await db.session(async () => {
+      const outer = await User.get(id);
+      const inner = await db.session(() => User.get(id));
+
+      expect(inner).not.toBe(outer);
+    });
+
+    await db.close();
+  })
+
+  it("will hold a transaction per client", async () => {
+    const db = Memory.new();
+    const a = {};
+    const b = {};
+    const order: string[] = [];
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+
+    const first = db.session(() => db.transaction(async () => {
+      order.push("a1");
+      await held;
+      order.push("a1 done");
+    }), a);
+
+    await new Promise(res => setTimeout(res));
+
+    const second = db.session(() => db.transaction(() => { order.push("b") }), b);
+    const third = db.session(() => db.transaction(() => { order.push("a2") }), a);
+
+    await second;
+    expect(order).toEqual(["a1", "b"]);
+
+    release();
+    await Promise.all([first, third]);
+    expect(order).toEqual(["a1", "b", "a1 done", "a2"]);
+
+    await db.close();
+  })
+
+  it("will throw without AsyncLocalStorage", async () => {
+    vi.resetModules();
+    vi.spyOn(process, "getBuiltinModule" as any).mockReturnValue(undefined);
+
+    try {
+      const { Memory } = await import('./memory');
+      const db = Memory.new();
+
+      await expect(db.session(() => {})).rejects.toThrow("Sessions need AsyncLocalStorage from process.getBuiltinModule, which this runtime does not provide.");
+    }
+    finally {
+      vi.restoreAllMocks();
+      vi.resetModules();
+    }
+  })
+})
+
 describe("transaction", () => {
   it("will throw without driver support", async () => {
     const db = Store.new();
