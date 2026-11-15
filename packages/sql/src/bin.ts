@@ -7,7 +7,7 @@ export { default } from './cli';
 class Expressive extends Model {
   dev = cmd({
     peer: "@expressive/dev",
-    help: "Run the app - Vite with HMR and the /__inspect relay. `dev build` for production."
+    help: "Run the app - Vite with HMR. `dev build` for production."
   });
 
   sql = cmd({
