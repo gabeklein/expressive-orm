@@ -148,7 +148,7 @@ describe("sqlite", () => {
     double REAL NOT NULL,
     decimal NUMERIC NOT NULL,
     flag INTEGER NOT NULL,
-    at TEXT NOT NULL,
+    at INTEGER NOT NULL,
     day TEXT NOT NULL,
     time TEXT NOT NULL,
     data TEXT NOT NULL,

@@ -45,9 +45,9 @@ describe.each(["Asia/Tokyo", "America/Los_Angeles", "UTC"])("in %s", zone => {
     await Event.insert({ day: "2026-01-02", at: late });
 
     expect(await stored()).toEqual([
-      { day: "2026-01-02", at: late.toISOString(), clock: null },
-      { day: "2026-01-02", at: late.toISOString(), clock: null },
-      { day: "2026-01-02", at: late.toISOString(), clock: null }
+      { day: "2026-01-02", at: late.getTime(), clock: null },
+      { day: "2026-01-02", at: late.getTime(), clock: null },
+      { day: "2026-01-02", at: late.getTime(), clock: null }
     ]);
 
     for (const row of await Event.query())

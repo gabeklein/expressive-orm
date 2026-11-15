@@ -1,21 +1,35 @@
 import { Field } from '@expressive/orm';
 import { DataTable } from '@expressive/orm/driver';
+import { Builder } from '@expressive/orm/driver';
 import { Generator } from '../connection/Generator';
 
-export function now(field?: Field){
+export type Timestamps = "ms" | "seconds" | "iso";
+
+export function now(field?: Field, timestamps: Timestamps = "ms"){
   switch (field?.type) {
     case "date":
       return "date('now')";
     case "time":
       return "time('now')";
-    default:
+  }
+
+  switch (timestamps) {
+    case "iso":
       return "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')";
+    case "seconds":
+      return "CAST(strftime('%s', 'now') AS INTEGER)";
+    default:
+      return "CAST(ROUND((julianday('now') - 2440587.5) * 86400000) AS INTEGER)";
   }
 }
 
 export class SQLiteGenerator extends Generator {
+  constructor(query: Builder, protected timestamps?: Timestamps){
+    super(query);
+  }
+
   protected now(field?: Field){
-    return now(field);
+    return now(field, this.timestamps);
   }
 
   protected jsonTable(table: DataTable): string {
