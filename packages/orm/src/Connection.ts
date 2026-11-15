@@ -105,6 +105,7 @@ const HOOKED = new WeakSet<Connection>();
 const NAMED = new WeakMap<Query.Table, string>();
 const COLLECT = Symbol.for("@expressive/orm.collect");
 const HOLDERS = new WeakMap<object, Holder>();
+const OWNERS = new WeakMap<Connection.Journal, Holder>();
 
 type Storage<T> = import('node:async_hooks').AsyncLocalStorage<T>;
 
@@ -241,6 +242,7 @@ abstract class Connection extends Model {
    * Lets the connection be awaited - runs `sync` once, then resolves the connection.
    *
    * `sync` runs only when the driver has one.
+   * Inside a session with a client it rejects instead of starting `sync`, which belongs to the connection's own handle - await it outside, or sync from a deploy step.
    */
   async then(
     onfulfilled?: (value: Connection.Ready<this>) => any,
@@ -254,6 +256,8 @@ abstract class Connection extends Model {
 
     if (this.ready || !this.sync || collect)
       sync = Promise.resolve();
+    else if (!sync && this._session()?.client)
+      sync = Promise.reject(new Error(`${this.constructor.name} can't sync inside a session - await it outside one, or sync from a deploy step.`));
     else if (!sync)
       synced.set(this, sync = this.sync());
 
@@ -289,7 +293,9 @@ abstract class Connection extends Model {
   abstract remove(table: string, id: Connection.Key): Promise<void>;
 
   _journal(){
-    return context?.getStore()?.get(this);
+    const journal = context?.getStore()?.get(this);
+
+    return journal && OWNERS.get(journal) === this._holder() ? journal : undefined;
   }
 
   _session(){
@@ -478,6 +484,7 @@ abstract class Connection extends Model {
    * Run `fn` in a transaction - commit when it resolves, roll back and rethrow when it throws.
    *
    * Every statement inside joins without a handle - statics, `Query`, instance writes. A nested call joins the open one.
+   * A transaction belongs to the client it opened on - inside it, a nested `session` with another client runs on that client, outside the transaction.
    * Rollback restores entities changed inside and destroys those created; entities deleted inside are destroyed on commit.
    * Other statements on the connection wait until it ends, unless the driver pools.
    * Throws when the driver has no `transact`, or the runtime no `AsyncLocalStorage`.
@@ -495,11 +502,13 @@ abstract class Connection extends Model {
     const storage = scope();
     const outer = storage.getStore();
 
-    if (outer?.has(this))
+    if (this._journal())
       return fn();
 
     const release = await this.lock();
     const journal: Connection.Journal = { undo: [], done: [] };
+
+    OWNERS.set(journal, this._holder());
     let result: T;
     let effects: unknown[];
 
