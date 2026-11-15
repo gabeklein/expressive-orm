@@ -2557,6 +2557,63 @@ describe("engine", () => {
   })
 })
 
+describe("session", () => {
+  it("will run statements on the session's engine", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = await SQLiteConnection.new([User]);
+    const other = await createEngine(":memory:");
+    const close = vi.spyOn(other, "close");
+
+    await other.exec(db.schema);
+    await db.session(() => db.transaction(() => User.insert({ name: "Gabe" })), other);
+
+    expect(await User.count()).toBe(0);
+    expect(await db.session(() => User.count(), other)).toBe(1);
+    expect(await other.all(`SELECT name FROM user`)).toEqual([{ name: "Gabe" }]);
+
+    await db.close();
+
+    expect(close).not.toHaveBeenCalled();
+    await other.close();
+  })
+
+  it("will run statements on a libSQL client", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = await SQLiteConnection.new([User]);
+    const client = createClient({ url: ":memory:" });
+
+    await client.executeMultiple(db.schema);
+    await db.session(async () => {
+      await User.insert({ name: "Gabe" });
+      await User.insert({ name: "Bob" });
+    }, client);
+
+    expect(await db.session(() => User.count(), client)).toBe(2);
+    expect(await User.count()).toBe(0);
+
+    await db.close();
+    client.close();
+  })
+
+  it("will reject statements for an unknown source", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = await SQLiteConnection.new([User]);
+
+    await expect(db.session(() => User.count(), {})).rejects.toThrow("Unknown SQLite source.");
+
+    await db.close();
+  })
+})
+
 describe("d1", () => {
   async function open(){
     const mf = new Miniflare({

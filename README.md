@@ -183,6 +183,8 @@ export default {
 };
 ```
 
+To run each request on that request's binding, and give it its own identity map so `get` never returns a row another isolate has since changed, wrap it in a [session](#sessions): `db.session(() => handle(request), env.DB)`. A session takes a D1 binding, a libSQL client or an `Engine`, used as is and left open, and swaps nothing outside it.
+
 `sync` costs a few D1 round trips per table on each cold start, and applies as one batch. D1 has no interactive transactions - `transaction` throws. It keeps foreign keys on, so `sync(true, true)` refuses to rebuild a table.
 
 ```ts

@@ -83,6 +83,7 @@ export default {
 };
 ```
 
+- Per request - `db.session(() => handle(request), env.DB)` runs the request on that binding with its own identity map (`expressive-orm/SKILL.md#sessions`), so `get` never serves a row another isolate changed. A session takes a D1 binding, libSQL client or `Engine`, used as given and left open; it replaces swapping a connection's engine.
 - D1 - `sync` applies as one batch, a few round trips per table each cold start. `transaction` throws. Foreign keys stay on, so `sync(true, true)` refuses a rebuild.
 - libSQL address - `libsql:`, `https:`, `http:`, `ws:` or `wss:` opens `@libsql/client` 0.18+; token as `?authToken=`. Loaded at runtime, so under a bundler (Workers) pass a `createClient` client instead. An `undefined` or empty source opens in memory - check an address from the environment first.
 - Every libSQL client - each `transaction` is a libSQL write transaction (`BEGIN IMMEDIATE`) holding the connection's lock, so transactions run one at a time app-wide. `sync` is one batch; a rebuild runs through `client.migrate`, foreign keys off for it alone. Local libSQL enforces foreign keys by default; remote gets the server's setting.

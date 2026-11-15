@@ -20,6 +20,10 @@ export declare namespace SQLiteConnection {
   }
 }
 
+type Source = Engine | D1Database | LibSQLClient;
+
+const HOSTED = new WeakMap<Source, Promise<Engine>>();
+
 type TableInfo = {
   name: string;
   type: string;
@@ -54,6 +58,7 @@ export class SQLiteConnection extends Connection {
    * A `libsql:`, `https:`, `http:`, `ws:` or `wss:` address opens a `@libsql/client` 0.18 or later - pass a token as `?authToken=`.
    * A D1 binding, a libSQL client or an `Engine` is used as given - foreign keys are not switched on, and `close()` leaves it open.
    * D1 refuses `transaction`. libSQL runs each `transaction` on a libSQL write transaction, one at a time.
+   * `session(fn, source)` runs `fn` on another D1 binding, libSQL client or `Engine`, used as given and left open.
    */
   constructor(using: Connection.Types, source?: string | Engine | D1Database | LibSQLClient, options: SQLiteConnection.Options = {}) {
     super(using);
@@ -69,7 +74,16 @@ export class SQLiteConnection extends Connection {
   }
 
   protected db(){
-    return this.engine ??= createEngine(this.filename);
+    const client = this._session()?.client as Source | undefined;
+    let engine: Promise<Engine> | undefined;
+
+    if (!client)
+      return this.engine ??= createEngine(this.filename);
+
+    if (!(engine = HOSTED.get(client)))
+      HOSTED.set(client, engine = Promise.resolve(client).then(host));
+
+    return engine;
   }
 
   async #statements(): Promise<Engine.Statements> {
