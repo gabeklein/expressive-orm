@@ -1577,7 +1577,7 @@ describe("live rows", () => {
 
     const db = await TestConnection.new([User]);
     const listener = vi.fn();
-    const stop = db.subscribe(listener);
+    const stop = db.subscribe!(listener);
 
     await shared.query(`SELECT pg_notify('expressive_orm', '{"table":"other","op":"delete","id":1}')`);
     await shared.query(`SELECT pg_notify('expressive_orm', '{"table":"user","op":"delete","id":1}')`);

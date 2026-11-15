@@ -571,7 +571,7 @@ await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 - A delete destroys the entity.
 - An insert changes nothing loaded.
 
-`Memory` reports every write, floor or `Query`. Postgres uses LISTEN/NOTIFY: `sync` installs a trigger per table (Postgres 14+) - see [`@expressive/postgres`](packages/postgres). Listening holds a client from the first load until `close()`; where that can't be - Cloudflare Workers, Hyperdrive, a transaction-mode pooler - pass `{ live: false }`, and loaded entities change only through the connection's own writes. SQLite has no live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
+`Memory` reports every write, floor or `Query`. Postgres uses LISTEN/NOTIFY: `sync` installs a trigger per table (Postgres 14+) - see [`@expressive/postgres`](packages/postgres). Listening holds a client from the first load until `close()`; where that can't be - Cloudflare Workers, Hyperdrive, a transaction-mode pooler - pass `{ live: false }`. Loaded entities then change only through `entity.set`, `Type.update` and deletes by id on that connection - a `Query` write, or another client's, leaves them as they were; read them again with `load`, `query` or in a fresh [session](#sessions). `sync` still installs the triggers - replacing their function and each table's trigger every time it runs - and every write still sends its full row through `pg_notify`, harmless with nobody listening. SQLite has no live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
 
 ## Datatypes
 

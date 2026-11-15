@@ -79,7 +79,8 @@ export declare namespace PostgresConnection {
      * Follow row changes over LISTEN/NOTIFY, so loaded entities stay current.
      *
      * Defaults to `true`, holding one client for LISTEN from the first load until `close()`.
-     * `false` never listens - loaded entities change only through this connection's own writes. `sync` installs the triggers either way.
+     * `false` leaves `subscribe` undefined and never listens. Loaded entities then change only through `entity.set`, `Type.update` and deletes by id on this connection - a `Query` write, or any other client's, leaves them as they were.
+     * `sync` installs the triggers either way - their function and one trigger per table, replaced each time it runs - and every write still sends its row through `pg_notify`.
      */
     live?: boolean;
   }
@@ -93,8 +94,8 @@ export abstract class PostgresConnection extends Connection {
   constructor(using: Connection.Types, options: PostgresConnection.Options = {}){
     super(using);
 
-    if (options.live === false)
-      Object.defineProperty(this, "subscribe", { value: undefined });
+    if (options.live !== false)
+      Object.defineProperty(this, "subscribe", { value: this._follow, configurable: true });
   }
 
   protected engine: unknown;
@@ -155,7 +156,7 @@ export abstract class PostgresConnection extends Connection {
 
   protected abstract listen(channel: string, callback: (payload: string) => void): Promise<() => Promise<void>>;
 
-  subscribe(listener: (change: Connection.Change) => void){
+  _follow(listener: (change: Connection.Change) => void){
     const listening = this.listen(CHANNEL, payload => {
       const change = parse(payload);
       const type = change && Array.from(this.using).find(type => type.table === change.table) as typeof Type | undefined;

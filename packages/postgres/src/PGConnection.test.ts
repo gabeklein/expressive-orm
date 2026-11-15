@@ -47,7 +47,7 @@ describe('PGConnection', () => {
 
     const conn = PGConnection.new([TestType], pool);
     const listener = vi.fn();
-    const stop = conn.subscribe(listener);
+    const stop = conn.subscribe!(listener);
 
     await vi.waitFor(() => expect(client.query).toHaveBeenCalledWith('LISTEN expressive_orm'));
 
@@ -84,6 +84,9 @@ describe('PGConnection', () => {
     const conn = PGConnection.new([Item], pool, { live: false });
 
     expect(conn.subscribe).toBeUndefined();
+    expect(PGConnection.new([TestType], pool).subscribe).toBeTypeOf("function");
+    Reflect.deleteProperty(TestType, "connection");
+
     await Item.get(1);
     expect(connect).not.toHaveBeenCalled();
 
