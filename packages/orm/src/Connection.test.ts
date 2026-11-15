@@ -539,6 +539,17 @@ describe("session", () => {
     name = str();
   }
 
+  class Clients extends Store {
+    async select(...args: Parameters<Connection["select"]>){
+      await this.idle();
+      return super.select(...args);
+    }
+
+    protected async transact<T>(fn: () => Promise<T>){
+      return fn();
+    }
+  }
+
   it("will keep its own identity map", async () => {
     const db = Store.new([User]);
     const outer = await User.new({ name: "Gabe" });
@@ -633,7 +644,7 @@ describe("session", () => {
   })
 
   it("will hold a transaction per client", async () => {
-    const db = Memory.new();
+    const db = Clients.new();
     const a = {};
     const b = {};
     const order: string[] = [];
@@ -662,7 +673,7 @@ describe("session", () => {
   })
 
   it("will lock a session on the connection's own client", async () => {
-    const db = Memory.new();
+    const db = Clients.new();
     const client = {};
     const order: string[] = [];
     let release!: () => void;
@@ -691,7 +702,7 @@ describe("session", () => {
   })
 
   it("will keep a transaction to the client it opened on", async () => {
-    const db = Memory.new();
+    const db = Clients.new();
     const a = {};
     const b = {};
     const order: string[] = [];
@@ -733,6 +744,41 @@ describe("session", () => {
 
     await other;
     expect(order).toEqual(["b1", "b1 done", "b2"]);
+
+    await db.close();
+  })
+
+  it("will rejoin a client's transaction after a nested one on another", async () => {
+    const db = Clients.new();
+    const a = {};
+    const b = {};
+
+    const found = await db.session(() => db.transaction(async () => {
+      const outer = db._journal();
+
+      return db.session(() => db.transaction(() => (
+        db.session(async () => {
+          await db.select("item", []);
+          return db._journal() === outer;
+        }, a)
+      )), b);
+    }), a);
+
+    expect(found).toBe(true);
+
+    await db.transaction(async () => {
+      await db.select("item", []);
+      expect(db._journal()).toBeDefined();
+    });
+
+    await db.close();
+  })
+
+  it("will reject a client that is not an object", async () => {
+    const db = Store.new();
+
+    await expect(db.session(() => {}, "tenant")).rejects.toThrow("A session client is the driver's handle, an object - not string.");
+    await expect(db.session(() => 1, () => {})).resolves.toBe(1);
 
     await db.close();
   })
