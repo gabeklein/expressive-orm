@@ -180,6 +180,7 @@ abstract class Connection extends Model {
   readonly ready: boolean = false;
 
   _active?: Promise<void>;
+  _client?: object;
   _loaded = new Map<Type.Class, Map<unknown, Type>>();
   _hooks = new Map<string, Hooks>();
 
@@ -304,7 +305,7 @@ abstract class Connection extends Model {
   }
 
   _holder(): Holder {
-    const client = this._session()?.client as object | undefined;
+    const client = (this._session()?.client ?? this._client) as object | undefined;
     let holder: Holder | undefined;
 
     if (!client)
@@ -322,9 +323,10 @@ abstract class Connection extends Model {
    * Entities loaded inside are kept apart from those loaded outside or in another session - `get` inside loads afresh, never returning an entity loaded elsewhere.
    * Entities loaded inside do not follow live rows, and stay usable once `fn` settles.
    * `client` is the driver's own handle - a `pg` client or pool for `PGConnection`, a PGlite for `PGLiteConnection`, an `Engine`, D1 binding or libSQL client for `SQLiteConnection`. Other drivers ignore it.
-   * Every statement inside runs on `client`, a transaction included; statements on one client wait out its open transaction, while other clients run alongside. The connection never closes it.
-   * A nested call starts a fresh identity map and keeps the outer client unless given one.
-   * Outside any session the connection keeps one identity map for the process.
+   * Every statement inside runs on `client`, a transaction included; statements on one client wait out its open transaction, while other clients run alongside - the connection's own handle counts as a client. The connection never closes it.
+   * A nested call starts a fresh identity map and keeps the outer client unless given one - an entity the inner call deletes or changes stays as it was in the outer map.
+   * Work started inside that outlives `fn` - a promise not awaited, a `waitUntil` - keeps the session's map and client; end a client only once that work settles.
+   * Outside any session the connection keeps one identity map for the process. `close()` destroys only the entities in that map.
    * Throws where the runtime has no `AsyncLocalStorage`.
    *
    * @example

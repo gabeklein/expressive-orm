@@ -661,6 +661,83 @@ describe("session", () => {
     await db.close();
   })
 
+  it("will lock a session on the connection's own client", async () => {
+    const db = Memory.new();
+    const client = {};
+    const order: string[] = [];
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+
+    db._client = client;
+
+    const outside = db.transaction(async () => {
+      order.push("outside");
+      await held;
+      order.push("outside done");
+    });
+
+    await new Promise(res => setTimeout(res));
+
+    const inside = db.session(() => db.transaction(() => { order.push("inside") }), client);
+
+    await new Promise(res => setTimeout(res));
+    expect(order).toEqual(["outside"]);
+
+    release();
+    await Promise.all([outside, inside]);
+    expect(order).toEqual(["outside", "outside done", "inside"]);
+
+    await db.close();
+  })
+
+  it("will keep an entity a nested session deleted", async () => {
+    const db = Store.new([User]);
+    const { id } = await User.insert({ name: "Gabe" });
+
+    await db.session(async () => {
+      const user = await User.get(id);
+
+      await db.session(() => User.delete(id));
+
+      expect(User.get(id)).toBe(user);
+      expect(user.get(null)).toBe(false);
+      await expect(User.one({ id }, false)).resolves.toBeUndefined();
+    });
+
+    await db.close();
+  })
+
+  it("will keep its map and client for work that outlives it", async () => {
+    const db = Store.new([User]);
+    const client = {};
+    const { id } = await User.insert({ name: "Gabe" });
+    let later!: Promise<[unknown, User]>;
+
+    await db.session(() => {
+      later = new Promise(res => setTimeout(res)).then(async () => [db._session()!.client, await User.get(id)]);
+    }, client);
+
+    const [seen, user] = await later;
+
+    expect(seen).toBe(client);
+    expect(db._loaded.get(User)?.get(id)).toBeUndefined();
+    expect(user.name).toBe("Gabe");
+
+    await db.close();
+  })
+
+  it("will not destroy session entities on close", async () => {
+    const db = Store.new([User]);
+    const { id } = await User.insert({ name: "Gabe" });
+    const user = await db.session(() => User.get(id));
+    const destroyed = vi.fn();
+
+    user.get(null, destroyed);
+    await db.close();
+
+    expect(destroyed).not.toHaveBeenCalled();
+  })
+
   it("will throw without AsyncLocalStorage", async () => {
     vi.resetModules();
     vi.spyOn(process, "getBuiltinModule" as any).mockReturnValue(undefined);
