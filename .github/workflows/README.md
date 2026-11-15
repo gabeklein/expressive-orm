@@ -12,13 +12,6 @@ Blocking:
   source.
 - `dts-check.ts` - every JSDoc block in the built `.d.ts` attaches to a
   declaration, so it shows on hover.
-- `bundle-check.ts` - a browser bundle of `{ Type, str, Remote }` from
-  `@expressive/sql` or `@expressive/postgres` is the same size as the same
-  names from `@expressive/orm`, with no driver code or `sql-formatter`; and a
-  probe app (SQLite, `Query`, `Remote`, `Memory`) bundled with tree-shaking
-  prints the same as bundled whole, so a module dropped under `"sideEffects"`
-  takes nothing the app relies on. It covers what the probe exercises, not
-  every path. Bundles with `rolldown`, a root dev dependency.
 
 The frozen-lockfile install in the `setup` action doubles as the
 internal-dependency desync guard - a workspace version outside a sibling's range
