@@ -1,5 +1,18 @@
 # @expressive/sql
 
+## 0.12.0
+
+### Minor Changes
+
+- [#78](https://github.com/gabeklein/expressive-orm/pull/78) [`3a60a89`](https://github.com/gabeklein/expressive-orm/commit/3a60a895b1e2418fec9d4b41dfbd18b74a9dfb7b) SQLite stores a `timestamp` as INTEGER epoch milliseconds again, and the connection chooses: `SQLiteConnection.new(types, source, { timestamps })` takes `"ms"` (default), `"seconds"` or `"iso"` (ISO 8601 UTC text). `sql.now` in a `Query` or comparison, and a `fallback: sql.now` column default, render in the connection's storage, so `lessThan(sql.now)` and `date.created()` are right on an integer column. `sync`, `plan` and `expressive sql check` refuse a timestamp column declared the other way - INTEGER under `"iso"`, TEXT under `"ms"` - naming the option that keeps it, where before they reported plain type drift and `sync --force` would cast epoch numbers to unreadable text. `date` and `time` types stay text. Published packages now include `CHANGELOG.md`.
+  
+  **Breaking:** a SQLite or D1 database created by 0.6 through 0.11 keeps timestamps as ISO text; `sync` now refuses it until you pass `{ timestamps: "iso" }` or migrate the columns.
+
+### Patch Changes
+
+- Updated dependencies [[`3a60a89`](https://github.com/gabeklein/expressive-orm/commit/3a60a895b1e2418fec9d4b41dfbd18b74a9dfb7b)]:
+  - @expressive/orm@0.21.1
+
 ## 0.11.0
 
 ### Minor Changes
