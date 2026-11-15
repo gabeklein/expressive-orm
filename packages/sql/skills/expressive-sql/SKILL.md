@@ -95,6 +95,7 @@ Awaiting a connection runs `sync`:
 - Missing tables are created, missing columns and indexes added, existing ones checked against the classes.
 - A new column reads `undefined` or its `fallback` on old rows. One that cannot fill existing rows - primary, `UNIQUE`, `NOT NULL` without a `fallback` or defaulting to now - is reported and nothing changes. A nullable column defaulting to now is added without the default; inserts fill it.
 - Type and nullability drift is reported. `sync(true, true)` rebuilds the table, refusing while a row would not fit or a value would not convert. A rebuild keeps columns not on the class, indexes and triggers, but not UNIQUE or REFERENCES on columns the class doesn't declare, and refuses while any row references a missing one.
+- A timestamp column declared INTEGER under `"iso"`, or TEXT under `"ms"` or `"seconds"`, is reported with the `timestamps` option that keeps it. `sync(true, true)` does not convert it - converting would guess the unit.
 - `static schema` is reported - SQLite has none.
 - A relation column missing while `<table>_id` exists is reported, not added - set `{ column: "<table>_id" }` to keep the old one.
 - `sync(false)` only verifies. `plan(force?)` returns `{ steps, problems }` - each step with `action`, `reason` and `sql` - without doing it. A sync applies in one transaction.
@@ -119,7 +120,7 @@ Datatypes are orm's (`expressive-orm/SKILL.md#entities`); `sql.*` is shorthand f
 | `str` | TEXT |
 | `num` | INTEGER; `real`, `double` REAL; `numeric`, `decimal` NUMERIC |
 | `bool` | INTEGER, 1 or 0 |
-| `date` | TEXT - ISO 8601 UTC to the ms; `date` the local day `YYYY-MM-DD`; `time` UTC `HH:MM:SS` |
+| `date` | INTEGER epoch ms by default - see `timestamps` below; `date` the local day `YYYY-MM-DD`; `time` UTC `HH:MM:SS` |
 | `json` | TEXT |
 | `one` | the related key's |
 
@@ -136,6 +137,7 @@ class Product extends Type {
 ```
 
 - `num()` is a 32-bit integer - a fraction or a value outside 32-bit range throws on write. `sql.bigint` for large integers, `sql.real` or `sql.numeric(p, s)` for fractions.
+- A `timestamp`'s storage is the connection's: `SQLiteConnection.new(types, "app.db", { timestamps: "seconds" })`. `"ms"` (default) and `"seconds"` are INTEGER epoch values; `"iso"` is ISO 8601 UTC text, for reading in a DB browser or D1 console. Every connection to one file must agree. A database written by 0.6-0.11 holds ISO text - open it with `{ timestamps: "iso" }`.
 - Options a factory doesn't take go in an object - `date({ type: "timestamp", precision: 3 })`.
 - `sql.now` is the database's current time in the column's storage - as a `fallback`, in a statics write or comparison (`lessThan(sql.now)`), or in a `Query`. Statics read it from the app's clock.
 - The SQL floor checks values again before storing, so rows forwarded from a client meet the same rules.
