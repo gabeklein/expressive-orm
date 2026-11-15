@@ -89,7 +89,7 @@ declare namespace Connection {
   }
 }
 
-type Scope = Map<Connection, Connection.Journal>;
+type Scope = Map<Connection, Map<object, Connection.Journal>>;
 
 type Session = { loaded: Map<Type.Class, Map<unknown, Type>>; client?: unknown };
 type Sessions = Map<Connection, Session>;
@@ -105,7 +105,6 @@ const HOOKED = new WeakSet<Connection>();
 const NAMED = new WeakMap<Query.Table, string>();
 const COLLECT = Symbol.for("@expressive/orm.collect");
 const HOLDERS = new WeakMap<object, Holder>();
-const OWNERS = new WeakMap<Connection.Journal, Holder>();
 
 type Storage<T> = import('node:async_hooks').AsyncLocalStorage<T>;
 
@@ -293,9 +292,7 @@ abstract class Connection extends Model {
   abstract remove(table: string, id: Connection.Key): Promise<void>;
 
   _journal(){
-    const journal = context?.getStore()?.get(this);
-
-    return journal && OWNERS.get(journal) === this._holder() ? journal : undefined;
+    return context?.getStore()?.get(this)?.get(this._holder());
   }
 
   _session(){
@@ -333,7 +330,7 @@ abstract class Connection extends Model {
    * A nested call starts a fresh identity map and keeps the outer client unless given one - an entity the inner call deletes or changes stays as it was in the outer map.
    * Work started inside that outlives `fn` - a promise not awaited, a `waitUntil` - keeps the session's map and client; end a client only once that work settles.
    * Outside any session the connection keeps one identity map for the process. `close()` destroys only the entities in that map.
-   * Throws where the runtime has no `AsyncLocalStorage`.
+   * Throws where the runtime has no `AsyncLocalStorage`, or for a `client` that isn't an object.
    *
    * @example
    * const client = await open();
@@ -346,6 +343,9 @@ abstract class Connection extends Model {
    * }
    */
   async session<T>(fn: () => T | Promise<T>, client?: unknown): Promise<T> {
+    if (client != null && typeof client != "object" && typeof client != "function")
+      throw new TypeError(`A session client is the driver's handle, an object - not ${typeof client}.`);
+
     const storage = sessions ??= local<Sessions>("Sessions");
     const outer = storage.getStore();
     const session: Session = { loaded: new Map(), client: client ?? outer?.get(this)?.client };
@@ -507,13 +507,12 @@ abstract class Connection extends Model {
 
     const release = await this.lock();
     const journal: Connection.Journal = { undo: [], done: [] };
-
-    OWNERS.set(journal, this._holder());
+    const open = new Map(outer?.get(this)).set(this._holder(), journal);
     let result: T;
     let effects: unknown[];
 
     try {
-      result = await storage.run(new Map(outer).set(this, journal), () => this.transact!(async () => fn()));
+      result = await storage.run(new Map(outer).set(this, open), () => this.transact!(async () => fn()));
       effects = journal.done.map(apply => apply());
     }
     catch (error) {

@@ -311,6 +311,39 @@ describe("subscribe", () => {
 })
 
 describe("transaction", () => {
+  it("will run one at a time across session clients", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = Memory.new([User]);
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+    let entered!: () => void;
+    const inside = new Promise<void>(resolve => entered = resolve);
+
+    const failed = db.session(() => db.transaction(async () => {
+      await User.insert({ name: "A" });
+      entered();
+      await held;
+      throw new Error("nope");
+    }), {});
+
+    await inside;
+
+    const committed = db.session(() => db.transaction(() => User.insert({ name: "B" })), {});
+
+    await new Promise(res => setTimeout(res));
+    release();
+
+    await expect(failed).rejects.toThrow("nope");
+    await committed;
+
+    expect((await User.query()).map(user => user.name)).toEqual(["B"]);
+
+    await db.close();
+  })
+
   it("will count inside a transaction", async () => {
     class User extends Type {
       name = str();
