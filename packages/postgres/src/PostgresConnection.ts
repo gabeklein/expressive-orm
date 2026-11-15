@@ -341,6 +341,9 @@ export abstract class PostgresConnection extends Connection {
   }
 
   async sync(fix = true, force = false) {
+    if (this._session()?.client)
+      throw new Error(`${this.constructor.name} can't sync inside a session - sync outside one, or from a deploy step.`);
+
     if(!this.engine)
       throw new Error("Connection engine is not initialized.");
 

@@ -28,6 +28,66 @@ class TestConnection extends PGLiteConnection {
 }
 
 describe("session", () => {
+  it("will hold statements outside a session for a transaction on its own PGlite", async () => {
+    class Item extends Type {
+      name = str();
+    }
+
+    const lite = new PGlite();
+    const db = await PGLiteConnection.new([Item], lite);
+    const log: string[] = [];
+    const exec = lite.exec.bind(lite);
+    const query = lite.query.bind(lite);
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+    let entered!: () => void;
+    const inside = new Promise<void>(resolve => entered = resolve);
+
+    vi.spyOn(lite, "exec").mockImplementation(async (sql, ...rest) => {
+      log.push(sql);
+      return exec(sql, ...rest);
+    });
+
+    vi.spyOn(lite, "query").mockImplementation(async (sql, ...rest) => {
+      log.push(sql);
+      return query(sql, ...rest) as never;
+    });
+
+    const transaction = db.session(() => db.transaction(async () => {
+      entered();
+      await held;
+    }), lite);
+
+    await inside;
+
+    const outside = db.prepare('SELECT 1').all();
+
+    await new Promise(res => setTimeout(res, 20));
+    release();
+    await Promise.all([transaction, outside]);
+
+    expect(log).toEqual(["BEGIN", "COMMIT", "SELECT 1"]);
+
+    await db.close();
+    await lite.close();
+  })
+
+  it("will refuse to sync inside a session with a client", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = PGLiteConnection.new([User], shared);
+    const other = new PGlite();
+
+    await expect(db.session(() => db.sync(), other)).rejects.toThrow("PGLiteConnection can't sync inside a session - sync outside one, or from a deploy step.");
+    await expect(db.session(async () => { await db }, other)).rejects.toThrow("PGLiteConnection can't sync inside a session - await it outside one, or sync from a deploy step.");
+
+    await db.close();
+    await other.close();
+    await shared.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
+  })
+
   it("will run statements on the session's PGlite", async () => {
     class User extends Type {
       name = str();

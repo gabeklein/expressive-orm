@@ -569,7 +569,7 @@ export default {
 
 Work the request starts in the background still runs in the session, on its client - so end the client only once that work settles. Here `handle` hands it over instead of calling `ctx.waitUntil` itself; anything it starts after the response, and doesn't hand over, may find the client ended. Statements on one `Client` queue, one at a time, as `pg` requires; a `Pool` - `pg`'s or any with its `totalCount` and `idleCount` - runs them side by side.
 
-Statements outside a session use the connection's own pool, which opens a socket only when one runs - awaiting the connection runs `sync` there, so on Workers leave it unawaited and sync the schema from a deploy step.
+Statements outside a session use the connection's own pool, which opens a socket only when one runs - awaiting the connection runs `sync` there, so on Workers leave it unawaited and sync the schema from a deploy step. Inside a session with a client, `sync` and awaiting the connection reject. A `PGlite` given to `PGLiteConnection` counts as a client, so statements outside a session wait out a session's transaction on it.
 
 ## Hooks
 

@@ -14,6 +14,9 @@ export class PGLiteConnection extends PostgresConnection {
   constructor(using: Connection.Types, arg2?: string | PGlite, config?: PGliteOptions) {
     super(using);
 
+    if (arg2 && typeof arg2 == "object")
+      this._client = arg2;
+
     this.engine = new Promise((resolve, reject) => {
       import('@electric-sql/pglite').then(({ PGlite }) => {
         if(arg2 instanceof PGlite) {
