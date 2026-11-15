@@ -5,8 +5,15 @@ import { Model } from '@expressive/mvc';
 export { default } from './cli';
 
 class Expressive extends Model {
-  dev = cmd({ peer: "@expressive/dev", help: "Vite dev server with HMR; dev build for production" });
-  sql = cmd({ peer: "@expressive/sql", help: "check and sync your database schema" });
+  dev = cmd({
+    peer: "@expressive/dev",
+    help: "Run the app - Vite with HMR and the /__inspect relay. `dev build` for production."
+  });
+
+  sql = cmd({
+    lazy: () => import("./cli"),
+    help: "Check or sync a database schema against your entities."
+  });
 }
 
 main(import.meta, Expressive);

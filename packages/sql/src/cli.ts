@@ -41,7 +41,7 @@ abstract class Schema extends Model {
     type: "file",
     exists: true,
     required: true,
-    help: "module that creates your connections, imported without syncing them"
+    help: "module that creates your connections (e.g. src/db.ts) - imported with sync held back"
   });
 
   abstract apply(conn: Connection): Promise<boolean>;
@@ -110,6 +110,6 @@ class Sync extends Schema {
 }
 
 export default class Sql extends Model {
-  check = cmd({ from: Check, help: "list what sync would change; exits 1 if anything would" });
-  sync = cmd({ from: Sync, help: "create missing tables, columns and indexes" });
+  check = cmd({ from: Check, help: "List what sync would change, without changing anything. Exits 1 if anything would." });
+  sync = cmd({ from: Sync, help: "Create missing tables, columns and indexes. Drifted columns need --force." });
 }

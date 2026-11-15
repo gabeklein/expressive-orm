@@ -14,6 +14,9 @@ it("will export Sql and run the expressive command as entry", async () => {
   expect(Sql).toBe((await import("./cli")).default);
   expect(meta.url).toMatch(/bin\.ts$/);
 
+  expect(await command(Expressive)(["sql", "help", "sync"], out)).toBe(0);
+  expect(out.log.mock.calls.pop()![0]).toMatch(/^Usage: expressive sql sync \[options\] <entry>\n\nCreate missing tables/);
+
   expect(await command(Expressive)([], out)).toBe(0);
-  expect(out.log.mock.calls[0][0]).toMatch(/^Usage: expressive \[options\] <command>\n\nCommands:\n {2}dev +Vite dev server[^\n]*\n {2}sql +check and sync/);
+  expect(out.log.mock.calls[0][0]).toMatch(/^Usage: expressive \[options\] <command>\n\nCommands:\n {2}dev +Run the app - Vite[^\n]*\n {2}sql +Check or sync/);
 })
