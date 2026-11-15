@@ -690,6 +690,94 @@ describe("session", () => {
     await db.close();
   })
 
+  it("will keep a transaction to the client it opened on", async () => {
+    const db = Memory.new();
+    const a = {};
+    const b = {};
+    const order: string[] = [];
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+
+    const other = db.session(() => db.transaction(async () => {
+      order.push("b1");
+      await held;
+      order.push("b1 done");
+    }), b);
+
+    await new Promise(res => setTimeout(res));
+
+    await db.session(() => db.transaction(async () => {
+      const outer = db._journal();
+
+      expect(outer).toBeDefined();
+
+      const inner = db.session(async () => {
+        expect(db._journal()).toBeUndefined();
+
+        await db.transaction(() => {
+          order.push("b2");
+          expect(db._journal()).not.toBe(outer);
+        });
+      }, b);
+
+      await db.transaction(() => {
+        expect(db._journal()).toBe(outer);
+      });
+
+      await new Promise(res => setTimeout(res));
+      expect(order).toEqual(["b1"]);
+
+      release();
+      await inner;
+    }), a);
+
+    await other;
+    expect(order).toEqual(["b1", "b1 done", "b2"]);
+
+    await db.close();
+  })
+
+  it("will refuse to sync when awaited inside a session with a client", async () => {
+    const sync = vi.fn(async () => {});
+
+    class Synced extends Store {
+      sync = sync;
+    }
+
+    const db = Synced.new();
+
+    await expect(db.session(async () => { await db }, {})).rejects.toThrow("Synced can't sync inside a session - await it outside one, or sync from a deploy step.");
+    expect(sync).not.toHaveBeenCalled();
+
+    await db.session(async () => { await db });
+    expect(sync).toHaveBeenCalledTimes(1);
+
+    await db.close();
+  })
+
+  it("will join an outside sync when awaited inside a session", async () => {
+    let finish!: () => void;
+    const sync = vi.fn(() => new Promise<void>(resolve => finish = resolve));
+
+    class Synced extends Store {
+      sync = sync;
+    }
+
+    const db = Synced.new();
+    const outside = Promise.resolve(db);
+
+    await new Promise(res => setTimeout(res));
+
+    const inside = db.session(async () => { await db }, {});
+
+    finish();
+    await Promise.all([outside, inside]);
+
+    expect(sync).toHaveBeenCalledTimes(1);
+
+    await db.close();
+  })
+
   it("will keep an entity a nested session deleted", async () => {
     const db = Store.new([User]);
     const { id } = await User.insert({ name: "Gabe" });
