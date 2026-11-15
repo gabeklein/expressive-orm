@@ -171,13 +171,13 @@ export class SQLiteConnection extends Connection {
    *
    * Creates missing tables and adds missing columns and indexes, in one transaction. Throws for any problem `plan` reports, changing nothing.
    * `fix` false only verifies - anything missing throws too. `force` rebuilds a table whose column type or nullability drifted.
-   * Throws when the connection is already ready.
-   * Inside a session with a source it brings that source in line instead, resolving nothing and leaving the connection unready.
+   * Throws when the connection is already ready, or inside a session with a source - sync from a deploy step instead.
    */
-  async sync(fix = true, force = false): Promise<this | undefined> {
-    const scoped = !!this._session()?.client;
+  async sync(fix = true, force = false){
+    if (this._session()?.client)
+      throw new Error(`${this.constructor.name} can't sync inside a session - sync outside one, or from a deploy step.`);
 
-    if (this.ready && !scoped)
+    if (this.ready)
       throw new Error("Connection is already active.");
 
     const { steps, problems } = await this.plan(force);
@@ -188,9 +188,6 @@ export class SQLiteConnection extends Connection {
 
     if (steps.length)
       await this.apply(steps);
-
-    if (scoped)
-      return;
 
     (this as Connection).set({ ready: true });
 

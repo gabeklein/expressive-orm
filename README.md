@@ -195,7 +195,7 @@ export default {
 };
 ```
 
-A connection built without a source opens SQLite through the built-in loader the first time something runs outside a session - in workerd that rejects with `No compatible SQLite driver found`, so there run everything in a session and never await the connection itself. `sync` inside a session brings that source in line and leaves the connection unready, so each source can be synced - from a deploy step, or `db.session(() => db.sync(), env.DB)`.
+A connection built without a source opens SQLite through the built-in loader the first time something runs outside a session - in workerd that rejects with `No compatible SQLite driver found`, so there run everything in a session and never await the connection itself. Sync the schema from a deploy step, not the Worker: `sync`, or awaiting the connection, inside a session with a source rejects rather than check one request's database against the classes.
 
 `sync` costs a few D1 round trips per table on each cold start, and applies as one batch. D1 has no interactive transactions - `transaction` throws. It keeps foreign keys on, so `sync(true, true)` refuses to rebuild a table.
 

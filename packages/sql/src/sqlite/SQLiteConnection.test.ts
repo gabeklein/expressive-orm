@@ -2639,25 +2639,25 @@ describe("session", () => {
     await engine.close();
   })
 
-  it("will sync each session's source without marking the connection ready", async () => {
+  it("will refuse to sync inside a session with a source", async () => {
     class User extends Type {
       name = str();
     }
 
     const db = SQLiteConnection.new([User]);
-    const a = await createEngine(":memory:");
-    const b = await createEngine(":memory:");
+    const other = await createEngine(":memory:");
 
-    await db.session(() => db.sync(), a);
-    await db.session(() => db.sync(), b);
+    await expect(db.session(() => db.sync(), other)).rejects.toThrow("SQLiteConnection can't sync inside a session - sync outside one, or from a deploy step.");
+    await expect(db.session(async () => { await db }, other)).rejects.toThrow("SQLiteConnection can't sync inside a session - await it outside one, or sync from a deploy step.");
+    expect(await other.all(`SELECT name FROM sqlite_master WHERE name = 'user'`)).toEqual([]);
 
-    expect(db.ready).toBe(false);
-    expect(await a.all(`SELECT name FROM sqlite_master WHERE name = 'user'`)).toEqual([{ name: "user" }]);
-    expect(await b.all(`SELECT name FROM sqlite_master WHERE name = 'user'`)).toEqual([{ name: "user" }]);
+    await db;
+
+    expect(db.ready).toBe(true);
+    expect(await User.count()).toBe(0);
 
     await db.close();
-    await a.close();
-    await b.close();
+    await other.close();
   })
 
   it("will reject statements for an unknown source", async () => {
@@ -2730,8 +2730,9 @@ describe("d1", () => {
   it("will run sessions on a binding", async () => {
     const { DB, Author, Post, dispose } = await open();
     const db = SQLiteConnection.new([Author, Post]);
+    const { steps } = await db.plan();
 
-    await db.session(() => db.sync(), DB);
+    await host(DB).batch!(steps.flatMap(step => step.sql));
 
     const { id } = await db.session(() => Author.insert({ name: "Gabe" }), DB);
 

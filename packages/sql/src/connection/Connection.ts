@@ -66,9 +66,8 @@ abstract class Connection extends Base {
    *
    * Creates missing tables, columns and indexes. `fix` false changes nothing and throws for anything missing.
    * `force` also converts columns whose type or nullability drifted. Throws for any problem `plan` reports.
-   * Resolves the connection, or nothing where a driver synced a session's source instead.
    */
-  abstract sync(fix?: boolean, force?: boolean): Promise<this | undefined>;
+  abstract sync(fix?: boolean, force?: boolean): Promise<this>;
 
   /** List what `sync` would change, and what it could not, without applying anything. */
   abstract plan(force?: boolean): Promise<Connection.Plan>;
