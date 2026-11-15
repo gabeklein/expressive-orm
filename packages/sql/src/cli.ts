@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'node:url';
 
-import { arg, command, flag, sub } from '@expressive/cli';
+import { arg, cmd, flag } from '@expressive/cli';
 import { Model } from '@expressive/mvc';
 
 import type { Connection } from './connection/Connection';
@@ -109,9 +109,7 @@ class Sync extends Schema {
   }
 }
 
-class Sql extends Model {
-  check = sub(Check, { help: "list what sync would change; exits 1 if anything would" });
-  sync = sub(Sync, { help: "create missing tables, columns and indexes" });
+export default class Sql extends Model {
+  check = cmd({ from: Check, help: "list what sync would change; exits 1 if anything would" });
+  sync = cmd({ from: Sync, help: "create missing tables, columns and indexes" });
 }
-
-export default command(Sql);

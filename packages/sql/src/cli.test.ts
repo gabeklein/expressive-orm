@@ -2,13 +2,16 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { command } from '@expressive/cli';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Memory, num, str, Type } from '@expressive/orm';
 
-import sql from './cli';
+import Sql from './cli';
 import { createEngine } from './sqlite/engine';
 import { SQLiteConnection } from './sqlite/SQLiteConnection';
+
+const sql = command(Sql);
 
 let dir: string;
 let lines: string[];

@@ -1,4 +1,12 @@
 #!/usr/bin/env node
-import { trunk } from '@expressive/cli/bin';
+import { cmd, main } from '@expressive/cli';
+import { Model } from '@expressive/mvc';
 
-process.exitCode = await trunk("expressive")(process.argv.slice(2), console);
+export { default } from './cli';
+
+class Expressive extends Model {
+  dev = cmd({ peer: "@expressive/dev", help: "Vite dev server with HMR; dev build for production" });
+  sql = cmd({ peer: "@expressive/sql", help: "check and sync your database schema" });
+}
+
+main(import.meta, Expressive);

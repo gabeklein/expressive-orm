@@ -45,16 +45,6 @@
   "bin": {
     "expressive": "./dist/bin.js"
   },
-  "expressive": {
-    "bin": "./dist/cli.js",
-    "help": "check and sync your database schema",
-    "suggest": {
-      "dev": {
-        "package": "@expressive/dev",
-        "help": "Vite dev server and production build"
-      }
-    }
-  },
   "files": [
     "dist",
     "skills",

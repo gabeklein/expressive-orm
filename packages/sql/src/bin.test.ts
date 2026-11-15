@@ -1,22 +1,19 @@
+import { command } from '@expressive/cli';
+import type { Model } from '@expressive/mvc';
 import { expect, it, vi } from 'vitest';
 
-it("will run the expressive trunk and set the exit code", async () => {
-  const run = vi.fn(async () => 7);
-  const trunk = vi.fn(() => run);
-  const { argv, exitCode } = process;
+const main = vi.hoisted(() => vi.fn());
 
-  vi.doMock("@expressive/cli/bin", () => ({ trunk }));
-  process.argv = ["node", "expressive", "sql", "check"];
+vi.mock("@expressive/cli", async (actual) => ({ ...(await actual<object>()), main }));
 
-  try {
-    await import("./bin");
+it("will export Sql and run the expressive command as entry", async () => {
+  const { default: Sql } = await import("./bin");
+  const [[meta, Expressive]] = main.mock.calls as [[ImportMeta, Model.Type]];
+  const out = { log: vi.fn(), error: vi.fn() };
 
-    expect(trunk).toHaveBeenCalledWith("expressive");
-    expect(run).toHaveBeenCalledWith(["sql", "check"], console);
-    expect(process.exitCode).toBe(7);
-  }
-  finally {
-    process.argv = argv;
-    process.exitCode = exitCode;
-  }
+  expect(Sql).toBe((await import("./cli")).default);
+  expect(meta.url).toMatch(/bin\.ts$/);
+
+  expect(await command(Expressive)([], out)).toBe(0);
+  expect(out.log.mock.calls[0][0]).toMatch(/^Usage: expressive \[options\] <command>\n\nCommands:\n {2}dev +Vite dev server[^\n]*\n {2}sql +check and sync/);
 })
