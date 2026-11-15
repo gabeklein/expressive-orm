@@ -2,13 +2,16 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { command } from '@expressive/cli';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Memory, num, str, Type } from '@expressive/orm';
 
-import sql from './cli';
+import Sql from './cli';
 import { createEngine } from './sqlite/engine';
 import { SQLiteConnection } from './sqlite/SQLiteConnection';
+
+const sql = command(Sql);
 
 let dir: string;
 let lines: string[];
@@ -54,7 +57,6 @@ async function database(ddl?: string){
 
 describe("usage", () => {
   it.each([
-    [[], /^Usage: sql \[options\] <command>/],
     [["check"], /^Missing <entry>\.\nUsage: sql check/],
     [["drop", "entry.ts"], /^Unknown command "drop"\./],
     [["check", "--force", "entry.ts"], /^Unknown option --force\./],
@@ -62,6 +64,13 @@ describe("usage", () => {
   ])("will print usage for %j", async (args, expected) => {
     expect(await sql(args, out)).toBe(2);
     expect(lines[0]).toMatch(expected);
+  })
+
+  it("will print help when run alone, or for help", async () => {
+    expect(await sql([], out)).toBe(0);
+    expect(await sql(["help", "sync"], out, "expressive sql")).toBe(0);
+    expect(lines[0]).toMatch(/^Usage: sql \[options\] <command>/);
+    expect(lines[1]).toMatch(/^Usage: expressive sql sync \[options\] <entry>\n[^]*-f, --force/);
   })
 
   it("will reject a second entry", async () => {

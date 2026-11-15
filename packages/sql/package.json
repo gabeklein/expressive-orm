@@ -45,9 +45,6 @@
   "bin": {
     "expressive": "./dist/bin.js"
   },
-  "expressive": {
-    "bin": "./dist/cli.js"
-  },
   "files": [
     "dist",
     "skills",
@@ -60,7 +57,7 @@
     "test": "bun run typecheck && bun run coverage"
   },
   "dependencies": {
-    "@expressive/cli": "^0.1.0",
+    "@expressive/cli": "^0.2.0",
     "@expressive/orm": "^0.21.1",
     "sql-formatter": "^10.7.2"
   },

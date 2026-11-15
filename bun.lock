@@ -16,7 +16,7 @@
     },
     "packages/orm": {
       "name": "@expressive/orm",
-      "version": "0.21.0",
+      "version": "0.21.1",
       "devDependencies": {
         "@expressive/mvc": "^0.94.2",
         "fake-indexeddb": "^6.2.7",
@@ -28,7 +28,7 @@
     },
     "packages/postgres": {
       "name": "@expressive/postgres",
-      "version": "0.10.0",
+      "version": "0.10.1",
       "dependencies": {
         "@expressive/orm": "^0.13.0",
         "@expressive/sql": "^0.5.0",
@@ -53,13 +53,13 @@
     },
     "packages/sql": {
       "name": "@expressive/sql",
-      "version": "0.11.0",
+      "version": "0.12.0",
       "bin": {
         "expressive": "./dist/bin.js",
       },
       "dependencies": {
-        "@expressive/cli": "^0.1.0",
-        "@expressive/orm": "^0.21.0",
+        "@expressive/cli": "^0.2.0",
+        "@expressive/orm": "^0.21.1",
         "sql-formatter": "^10.7.2",
       },
       "devDependencies": {
@@ -172,7 +172,7 @@
 
     "@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w=="],
 
-    "@expressive/cli": ["@expressive/cli@0.1.0", "", { "peerDependencies": { "@expressive/mvc": "^0.94.5" }, "optionalPeers": ["@expressive/mvc"] }, "sha512-MCdqGPYsGFp718OhDRXtb7wNt6EfEuF8CP2N5guzX1v9rXW6TzTypn3kHJZnJwk6AZJOZZNnLhgT1Xn1tBI8Fw=="],
+    "@expressive/cli": ["@expressive/cli@0.2.0", "", { "peerDependencies": { "@expressive/mvc": "^0.94.5" }, "optionalPeers": ["@expressive/mvc"] }, "sha512-9OwqTq2AGuGVxhRZfsvGA380zjAjJz4AhYcQYx9n+DW6H0Bm3Khn+RVxrCZOdMzECoUuSvuKlIGkGiBob/sNAw=="],
 
     "@expressive/mvc": ["@expressive/mvc@0.94.2", "", {}, "sha512-IFI1qrG9O+jUnLopAPJEFJGqmBJWZinxxWjp81D5pXZUnyxK1P+tQzk8UgkP0l+UsOEY9mejSRUOeiVgmASMAQ=="],
 

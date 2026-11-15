@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'node:url';
 
-import { arg, command, flag, sub } from '@expressive/cli';
+import { arg, cmd, flag } from '@expressive/cli';
 import { Model } from '@expressive/mvc';
 
 import type { Connection } from './connection/Connection';
@@ -41,7 +41,7 @@ abstract class Schema extends Model {
     type: "file",
     exists: true,
     required: true,
-    help: "module that creates your connections, imported without syncing them"
+    help: "module that creates your connections (e.g. src/db.ts) - imported with sync held back"
   });
 
   abstract apply(conn: Connection): Promise<boolean>;
@@ -109,9 +109,7 @@ class Sync extends Schema {
   }
 }
 
-class Sql extends Model {
-  check = sub(Check, { help: "list what sync would change; exits 1 if anything would" });
-  sync = sub(Sync, { help: "create missing tables, columns and indexes" });
+export default class Sql extends Model {
+  check = cmd({ from: Check, help: "List what sync would change, without changing anything. Exits 1 if anything would." });
+  sync = cmd({ from: Sync, help: "Create missing tables, columns and indexes. Drifted columns need --force." });
 }
-
-export default command(Sql);
