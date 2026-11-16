@@ -822,6 +822,67 @@ describe("session", () => {
     await b.close();
   })
 
+  it("will refuse to sync when awaited inside a transaction on its handle", async () => {
+    const handle = {};
+    const sync = vi.fn(async () => {});
+
+    class Synced extends Clients {
+      sync = sync;
+    }
+
+    const a = Clients.new();
+    const b = Synced.new();
+
+    a._client = handle;
+    b._client = handle;
+
+    await expect(a.transaction(async () => { await b })).rejects.toThrow("Synced can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    expect(sync).not.toHaveBeenCalled();
+
+    await b;
+    expect(sync).toHaveBeenCalledTimes(1);
+
+    await a.close();
+    await b.close();
+  })
+
+  it("will not join a transaction that ended", async () => {
+    const handle = {};
+    const a = Clients.new();
+    const b = Clients.new();
+    const order: string[] = [];
+    let resume!: () => void;
+    let release!: () => void;
+    let late!: Promise<unknown>;
+
+    a._client = handle;
+    b._client = handle;
+
+    await a.transaction(async () => {
+      late = new Promise<void>(res => resume = res).then(async () => {
+        expect(b._journal()).toBeUndefined();
+        await b.select("item", []);
+        order.push("late");
+      });
+    });
+
+    const next = a.transaction(async () => {
+      resume();
+      await new Promise<void>(res => release = res);
+      order.push("next");
+    });
+
+    await new Promise(res => setTimeout(res));
+    expect(order).toEqual([]);
+
+    release();
+    await Promise.all([next, late]);
+    expect(order).toEqual(["next", "late"]);
+
+    await a.close();
+    await b.close();
+  })
+
   it("will run transactions one at a time on a driver that ignores the client", async () => {
     class Plain extends Store {
       async select(...args: Parameters<Connection["select"]>){
