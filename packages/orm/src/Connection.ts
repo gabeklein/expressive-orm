@@ -243,7 +243,7 @@ abstract class Connection extends Model {
    *
    * `sync` runs only when the driver has one.
    * Inside a session with a client it rejects instead of starting `sync`, which belongs to the connection's own handle - await it outside, or sync from a deploy step.
-   * Inside a transaction on its handle it rejects too - a rollback would undo the schema.
+   * Inside a transaction on its handle it rejects too, even while a sync started outside runs - a rollback would undo the schema, and that sync waits for the transaction.
    */
   async then(
     onfulfilled?: (value: Connection.Ready<this>) => any,
@@ -259,7 +259,7 @@ abstract class Connection extends Model {
       sync = Promise.resolve();
     else if (!sync && this._foreign())
       sync = Promise.reject(new Error(`${this.constructor.name} can't sync inside a session - await it outside one, or sync from a deploy step.`));
-    else if (!sync && this._journal())
+    else if (this._journal())
       sync = Promise.reject(new Error(`${this.constructor.name} can't sync inside a transaction - await it before one, or sync from a deploy step.`));
     else if (!sync)
       synced.set(this, sync = this.sync());
