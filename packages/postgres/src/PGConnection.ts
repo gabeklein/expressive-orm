@@ -1,7 +1,29 @@
 import type { Connection } from '@expressive/sql';
-import type { Notification, Pool, PoolClient, PoolConfig } from 'pg';
+import type { Client, Notification, Pool, PoolClient, PoolConfig } from 'pg';
 
 import { PostgresConnection } from './PostgresConnection';
+
+type Queryable = Pool | PoolClient | Client;
+
+const QUEUES = new WeakMap<object, Promise<unknown>>();
+
+function pooled(client: object): client is Pool {
+  return "totalCount" in client && "idleCount" in client;
+}
+
+function send(client: Queryable, sql: string, ...params: [any[]?]){
+  const run = () => client.query(sql, ...params);
+
+  if (pooled(client))
+    return run();
+
+  const prior = QUEUES.get(client);
+  const next = prior ? prior.then(run) : run();
+
+  QUEUES.set(client, next.catch(() => {}));
+
+  return next;
+}
 
 export class PGConnection extends PostgresConnection {
   protected declare engine: Promise<Pool>;
@@ -10,6 +32,9 @@ export class PGConnection extends PostgresConnection {
 
   constructor(using: Connection.Types, arg2: string | PoolConfig | Pool) {
     super(using);
+
+    if (typeof arg2 == "object" && pooled(arg2))
+      this._client = arg2;
 
     this.engine = new Promise((resolve, reject) => {
       import("pg").then(({ default: { Pool } }) => {
@@ -24,13 +49,23 @@ export class PGConnection extends PostgresConnection {
     });
   }
 
-  protected async client(): Promise<Pool | PoolClient> {
-    return (this._journal()?.session as PoolClient | undefined) || this.engine;
+  protected async client(): Promise<Queryable> {
+    return (this._journal()?.session as PoolClient | undefined) || this._session()?.client as Client | undefined || this.engine;
+  }
+
+  _admit(client: object){
+    if (typeof (client as Client).query != "function")
+      throw new TypeError("PGConnection runs a session on a pg Client or Pool - this has no query().");
+  }
+
+  #pool(){
+    const client = this._session()?.client as Pool | Client | undefined;
+
+    return !client ? this.engine : pooled(client) ? client : undefined;
   }
 
   async query(sql: string, params?: any[]): Promise<{ rows: any[], affectedRows?: number }> {
-    const engine = await this.client();
-    const result = await engine.query(sql, params);
+    const result = await send(await this.client(), sql, params);
     return {
       rows: result.rows,
       affectedRows: result.rowCount || undefined
@@ -38,44 +73,49 @@ export class PGConnection extends PostgresConnection {
   }
 
   async exec(sql: string): Promise<void> {
-    await (await this.client()).query(sql);
+    await send(await this.client(), sql);
   }
 
   protected async lock(){
-    return () => {};
+    return await this.#pool() ? () => {} : super.lock();
   }
 
-  protected async idle(){}
+  protected async idle(){
+    if (!await this.#pool())
+      await super.idle();
+  }
 
   protected async transact<T>(fn: () => Promise<T>): Promise<T> {
-    const client = await (await this.engine).connect();
+    const pool = await this.#pool();
+    const client = pool ? await pool.connect() : this._session()!.client as Client;
     let broken: Error | undefined;
 
-    const send = (sql: string) => client.query(sql).catch((error: Error) => {
+    const control = (sql: string) => send(client, sql).catch((error: Error) => {
       throw broken = error;
     });
 
     this._journal()!.session = client;
 
     try {
-      await send("BEGIN");
+      await control("BEGIN");
 
       try {
         const result = await fn();
 
-        await send("COMMIT");
+        await control("COMMIT");
 
         return result;
       }
       catch (error) {
         if (!broken)
-          await send("ROLLBACK").catch(() => {});
+          await control("ROLLBACK").catch(() => {});
 
         throw error;
       }
     }
     finally {
-      client.release(broken);
+      if (pool)
+        (client as PoolClient).release(broken);
     }
   }
 

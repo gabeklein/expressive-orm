@@ -1,3 +1,3 @@
 import { suite } from '../../vitest.config.ts';
 
-export default suite({ statements: 96, branches: 92, functions: 92, lines: 97 });
+export default suite({ statements: 98, branches: 95, functions: 94, lines: 98 });

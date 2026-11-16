@@ -14,6 +14,9 @@ export class PGLiteConnection extends PostgresConnection {
   constructor(using: Connection.Types, arg2?: string | PGlite, config?: PGliteOptions) {
     super(using);
 
+    if (arg2 && typeof arg2 == "object")
+      this._client = arg2;
+
     this.engine = new Promise((resolve, reject) => {
       import('@electric-sql/pglite').then(({ PGlite }) => {
         if(arg2 instanceof PGlite) {
@@ -31,12 +34,21 @@ export class PGLiteConnection extends PostgresConnection {
     });
   }
 
+  _admit(client: object){
+    if (typeof (client as PGlite).query != "function" || typeof (client as PGlite).exec != "function")
+      throw new TypeError("PGLiteConnection runs a session on a PGlite - this has no query() and exec().");
+  }
+
+  #engine(){
+    return this._session()?.client as PGlite | undefined || this.engine;
+  }
+
   async query(sql: string, params?: any[]) {
-    return (await this.engine).query(sql, params, { parsers: { [DATE]: (value: string) => value } });
+    return (await this.#engine()).query(sql, params, { parsers: { [DATE]: (value: string) => value } });
   }
 
   async exec(sql: string): Promise<void> {
-    await (await this.engine).exec(sql);
+    await (await this.#engine()).exec(sql);
   }
 
   protected async listen(channel: string, callback: (payload: string) => void) {

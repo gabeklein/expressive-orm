@@ -169,6 +169,287 @@ describe('PGConnection', () => {
     Reflect.deleteProperty(Item, "connection");
   });
 
+  it('will run statements on a session client', async () => {
+    const pool = new pg.Pool();
+    const query = vi.spyOn(pool, 'query').mockResolvedValue({ rows: [], rowCount: 0 } as never);
+    const client = { query: vi.fn(async () => ({ rows: [{ id: 1 }], rowCount: 1 })) };
+
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = PGConnection.new([TestType], pool);
+    const rows = await conn.session(() => conn.prepare('SELECT 1').all(), client);
+
+    expect(rows).toEqual([{ id: 1 }]);
+    expect(client.query).toHaveBeenCalledWith('SELECT 1', undefined);
+    expect(query).not.toHaveBeenCalled();
+
+    await conn.close();
+  });
+
+  it('will hold a session client for its transaction', async () => {
+    class Item extends Type {}
+
+    const pool = new pg.Pool();
+    const log: string[] = [];
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        log.push(sql);
+        return { rows: [], rowCount: 0 };
+      })
+    };
+
+    vi.spyOn(pool, 'query').mockResolvedValue({ rows: [], rowCount: 0 } as never);
+    const connect = vi.spyOn(pool, 'connect');
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = await PGConnection.new([Item], pool);
+    const step = () => new Promise(resolve => setTimeout(resolve));
+
+    await conn.session(() => Promise.all([
+      conn.transaction(async () => {
+        await step();
+        await conn.prepare('UPDATE "item" SET id = id').run();
+      }),
+      conn.prepare('SELECT 1').all()
+    ]), client);
+
+    expect(log).toEqual(["BEGIN", 'UPDATE "item" SET id = id', "COMMIT", "SELECT 1"]);
+
+    log.length = 0;
+
+    await expect(conn.session(() => conn.transaction(() => {
+      throw new Error("nope");
+    }), client)).rejects.toThrow("nope");
+
+    expect(log).toEqual(["BEGIN", "ROLLBACK"]);
+    expect(connect).not.toHaveBeenCalled();
+
+    await conn.close();
+    Reflect.deleteProperty(Item, "connection");
+  });
+
+  it('will take transaction clients from a session pool', async () => {
+    class Item extends Type {}
+
+    const pool = new pg.Pool();
+    const session = new pg.Pool();
+    const client = {
+      query: vi.fn(async (_sql: string) => ({ rows: [], rowCount: 0 })),
+      release: vi.fn()
+    };
+
+    const query = vi.spyOn(pool, 'query').mockResolvedValue({ rows: [], rowCount: 0 } as never);
+    const direct = vi.spyOn(session, 'query').mockResolvedValue({ rows: [], rowCount: 0 } as never);
+    vi.spyOn(session, 'connect').mockResolvedValue(client as never);
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = await PGConnection.new([Item], pool);
+
+    query.mockClear();
+
+    await conn.session(async () => {
+      await conn.prepare('SELECT 1').all();
+      await conn.transaction(() => conn.prepare('SELECT 2').all());
+    }, session);
+
+    expect(direct).toHaveBeenCalledWith('SELECT 1', undefined);
+    expect(client.query.mock.calls.map(([sql]) => sql)).toEqual(["BEGIN", "SELECT 2", "COMMIT"]);
+    expect(client.release).toHaveBeenCalled();
+    expect(query).not.toHaveBeenCalled();
+
+    await conn.close();
+    Reflect.deleteProperty(Item, "connection");
+  });
+
+  it('will join a transaction another connection opened on the same pool', async () => {
+    class A extends Type {}
+    class B extends Type {}
+
+    const pool = new pg.Pool();
+    const client = {
+      query: vi.fn(async (_sql: string) => ({ rows: [], rowCount: 0 })),
+      release: vi.fn()
+    };
+
+    const query = vi.spyOn(pool, 'query').mockResolvedValue({ rows: [], rowCount: 0 } as never);
+    vi.spyOn(pool, 'connect').mockResolvedValue(client as never);
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const a = PGConnection.new([A], pool);
+    const b = PGConnection.new([B], pool);
+
+    await a.transaction(() => b.prepare('SELECT 1').all());
+
+    expect(client.query.mock.calls.map(([sql]) => sql)).toEqual(["BEGIN", "SELECT 1", "COMMIT"]);
+    expect(client.release).toHaveBeenCalledTimes(1);
+    expect(query).not.toHaveBeenCalled();
+
+    await b.prepare('SELECT 2').all();
+    expect(query).toHaveBeenCalledWith('SELECT 2', undefined);
+
+    await a.close();
+    await b.close();
+    Reflect.deleteProperty(A, "connection");
+    Reflect.deleteProperty(B, "connection");
+  });
+
+  it('will queue concurrent statements on a session client', async () => {
+    const pool = new pg.Pool();
+    let active = 0;
+    let most = 0;
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        most = Math.max(most, ++active);
+        await new Promise(res => setTimeout(res));
+        active--;
+
+        if (sql == "SELECT 2")
+          throw new Error("bad");
+
+        return { rows: [{ sql }], rowCount: 1 };
+      })
+    };
+
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = PGConnection.new([TestType], pool);
+    const results = await conn.session(() => Promise.allSettled([
+      conn.prepare('SELECT 1').all(),
+      conn.prepare('SELECT 2').all(),
+      conn.prepare('SELECT 3').all()
+    ]), client);
+
+    expect(most).toBe(1);
+    expect(client.query.mock.calls.map(([sql]) => sql)).toEqual(["SELECT 1", "SELECT 2", "SELECT 3"]);
+    expect(results.map(result => result.status)).toEqual(["fulfilled", "rejected", "fulfilled"]);
+
+    await conn.close();
+  });
+
+  it('will run sessions on separate clients side by side', async () => {
+    const pool = new pg.Pool();
+    const log: string[] = [];
+    const client = (name: string) => ({
+      query: vi.fn(async (sql: string) => {
+        log.push(`${name} ${sql}`);
+        await new Promise(res => setTimeout(res));
+        log.push(`${name} done`);
+        return { rows: [], rowCount: 0 };
+      })
+    });
+
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = PGConnection.new([TestType], pool);
+
+    await Promise.all([
+      conn.session(() => conn.transaction(() => conn.prepare('SELECT 1').all()), client("a")),
+      conn.session(() => conn.transaction(() => conn.prepare('SELECT 1').all()), client("b"))
+    ]);
+
+    expect(log.slice(0, 2)).toEqual(["a BEGIN", "b BEGIN"]);
+    expect(log.filter(line => line.startsWith("a"))).toEqual(["a BEGIN", "a done", "a SELECT 1", "a done", "a COMMIT", "a done"]);
+
+    await conn.close();
+  });
+
+  it('will take a pg-compatible pool by shape', async () => {
+    class Item extends Type {}
+
+    const pool = new pg.Pool();
+    const client = {
+      query: vi.fn(async (_sql: string) => ({ rows: [], rowCount: 0 })),
+      release: vi.fn()
+    };
+    const other = {
+      totalCount: 0,
+      idleCount: 0,
+      query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
+      connect: vi.fn(async () => client)
+    };
+
+    vi.spyOn(pool, 'query').mockResolvedValue({ rows: [], rowCount: 0 } as never);
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = await PGConnection.new([Item], pool);
+
+    await conn.session(() => conn.transaction(() => conn.prepare('SELECT 1').all()), other);
+
+    expect(other.connect).toHaveBeenCalledTimes(1);
+    expect(client.query.mock.calls.map(([sql]) => sql)).toEqual(["BEGIN", "SELECT 1", "COMMIT"]);
+    expect(client.release).toHaveBeenCalled();
+
+    await conn.close();
+    Reflect.deleteProperty(Item, "connection");
+  });
+
+  it('will keep a session on its own pool inside an open transaction', async () => {
+    class Item extends Type {}
+
+    const pool = new pg.Pool();
+    const client = {
+      query: vi.fn(async (_sql: string) => ({ rows: [], rowCount: 0 })),
+      release: vi.fn()
+    };
+
+    const query = vi.spyOn(pool, 'query').mockResolvedValue({ rows: [], rowCount: 0 } as never);
+    vi.spyOn(pool, 'connect').mockResolvedValue(client as never);
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = await PGConnection.new([Item], pool);
+
+    query.mockClear();
+
+    await conn.transaction(() => conn.session(() => conn.prepare('SELECT 1').all(), pool));
+
+    expect(client.query.mock.calls.map(([sql]) => sql)).toEqual(["BEGIN", "SELECT 1", "COMMIT"]);
+    expect(query).not.toHaveBeenCalled();
+
+    await conn.close();
+    Reflect.deleteProperty(Item, "connection");
+  });
+
+  it('will refuse a session client without query', async () => {
+    const pool = new pg.Pool();
+    const fn = vi.fn();
+
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = PGConnection.new([TestType], pool);
+
+    await expect(conn.session(fn, { connectionString: "postgres://" })).rejects.toThrow("PGConnection runs a session on a pg Client or Pool - this has no query().");
+    expect(fn).not.toHaveBeenCalled();
+
+    await conn.close();
+  });
+
+  it('will release a session client whose BEGIN failed', async () => {
+    const pool = new pg.Pool();
+    const failure = new Error("connection lost");
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql == "BEGIN")
+          throw failure;
+
+        return { rows: [{ sql }], rowCount: 1 };
+      })
+    };
+
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = PGConnection.new([TestType], pool);
+
+    await conn.session(async () => {
+      await expect(conn.transaction(() => conn.prepare('SELECT 1').all())).rejects.toBe(failure);
+      await expect(conn.prepare('SELECT 2').all()).resolves.toEqual([{ sql: 'SELECT 2' }]);
+      await expect(conn.transaction(() => {})).rejects.toBe(failure);
+    }, client);
+
+    expect(client.query.mock.calls.map(([sql]) => sql)).toEqual(["BEGIN", "SELECT 2", "BEGIN"]);
+
+    await conn.close();
+  });
+
   it('will end a pool it created', async () => {
     const end = vi.spyOn(pg.Pool.prototype, 'end').mockResolvedValue();
     const conn = PGConnection.new([TestType], 'postgresql://localhost');

@@ -81,6 +81,10 @@ export abstract class PostgresConnection extends Connection {
 
   _unlisten?: Promise<void>;
 
+  _routes(){
+    return true;
+  }
+
   get schema() {
     return format(this.generateSchema(this.using));
   }
@@ -341,6 +345,12 @@ export abstract class PostgresConnection extends Connection {
   }
 
   async sync(fix = true, force = false) {
+    if (this._foreign())
+      throw new Error(`${this.constructor.name} can't sync inside a session - sync outside one, or from a deploy step.`);
+
+    if (this._journal())
+      throw new Error(`${this.constructor.name} can't sync inside a transaction - sync before one, or from a deploy step.`);
+
     if(!this.engine)
       throw new Error("Connection engine is not initialized.");
 
@@ -351,32 +361,39 @@ export abstract class PostgresConnection extends Connection {
       if (type.schema)
         throw new Error(`static schema is not supported by ${this.constructor.name}.`);
 
-    if (fix) {
-      const { steps, problems } = await this.plan(force);
+    const release = await this.lock();
 
-      if (problems.length)
-        throw new Error("Schema verification failed:\n" + problems.join('\n'));
+    try {
+      if (fix) {
+        const { steps, problems } = await this.plan(force);
 
-      await this.exec([...steps.flatMap(step => step.sql), this.generateTriggers(this.using)].join('\n'));
-    }
-    else {
-      const { tables: required } = await this.verify(false);
+        if (problems.length)
+          throw new Error("Schema verification failed:\n" + problems.join('\n'));
 
-      if (required.size) {
-        const missing = Array.from(required).map(t => t.table);
-        const message = missing.length > 1
-          ? `Tables ${missing.join(', ')} are expected but do not exist.`
-          : `Table ${missing[0]} is expected but does not exist.`;
-
-        throw new Error(message);
+        await this.exec([...steps.flatMap(step => step.sql), this.generateTriggers(this.using)].join('\n'));
       }
+      else {
+        const { tables: required } = await this.verify(false);
 
-      const unindexed = await this.unindexed();
+        if (required.size) {
+          const missing = Array.from(required).map(t => t.table);
+          const message = missing.length > 1
+            ? `Tables ${missing.join(', ')} are expected but do not exist.`
+            : `Table ${missing[0]} is expected but does not exist.`;
 
-      if (unindexed.length)
-        throw new Error(unindexed.map(field => indexStep(field).reason).join('\n'));
+          throw new Error(message);
+        }
 
-      await this.exec(this.generateTriggers(this.using));
+        const unindexed = await this.unindexed();
+
+        if (unindexed.length)
+          throw new Error(unindexed.map(field => indexStep(field).reason).join('\n'));
+
+        await this.exec(this.generateTriggers(this.using));
+      }
+    }
+    finally {
+      release();
     }
 
     (this as Connection).set({ ready: true });
