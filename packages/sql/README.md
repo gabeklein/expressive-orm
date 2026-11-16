@@ -42,7 +42,7 @@ await gabe.set({ name: "Gabriel" });
 await db.close();
 ```
 
-`SQLiteConnection.new(types, filename?, { timestamps? })` binds the classes; awaiting it creates missing tables, adds missing columns and checks existing ones. SQLite cannot add a `unique` column or one defaulting to `"NOW"`; `sync` reports those. Omit `filename` for an in-memory database. `timestamps` is `"ms"` (default), `"seconds"` or `"iso"` - see [Datatypes](https://github.com/gabeklein/expressive-orm#datatypes). In its place, pass a Cloudflare D1 binding, a libSQL client or a `libsql://` address - see [SQLite hosts](https://github.com/gabeklein/expressive-orm#sqlite-hosts).
+`SQLiteConnection.new(types, filename?)` or `SQLiteConnection.new(types, { source?, timestamps? })` binds the classes; awaiting it creates missing tables, adds missing columns and checks existing ones. SQLite cannot add a `unique` column or one defaulting to `"NOW"`; `sync` reports those. Omit `filename` for an in-memory database. `timestamps` is `"ms"` (default), `"seconds"` or `"iso"` - see [Datatypes](https://github.com/gabeklein/expressive-orm#datatypes). As `source`, pass a Cloudflare D1 binding, a libSQL client or a `libsql://` address - see [SQLite hosts](https://github.com/gabeklein/expressive-orm#sqlite-hosts).
 
 ## Also here
 
