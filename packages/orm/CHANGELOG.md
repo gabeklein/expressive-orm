@@ -194,6 +194,16 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 # @expressive/orm
 
+## 0.22.0
+
+### Minor Changes
+
+- [#82](https://github.com/gabeklein/expressive-orm/pull/82) [`7c69ac6`](https://github.com/gabeklein/expressive-orm/commit/7c69ac699a94f3586b20db5cff161f1298640692) Add `connection.session(fn, client?)` - runs `fn` with its own identity map, so `get` reads rows afresh where other processes write the database, and hands drivers a per-call client. Code outside a session keeps the process-wide identity map.
+
+### Patch Changes
+
+- [#81](https://github.com/gabeklein/expressive-orm/pull/81) [`dd1d90c`](https://github.com/gabeklein/expressive-orm/commit/dd1d90c006305e824e1b48f75585856460b16561) Declare the packages free of side effects, so a bundle importing only entities from `@expressive/sql` or `@expressive/postgres` drops SQLite, Postgres and `sql-formatter` - it matches importing the same names from `@expressive/orm`.
+
 ## 0.21.1
 
 ### Patch Changes
