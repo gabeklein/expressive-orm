@@ -34,6 +34,11 @@ export class PGLiteConnection extends PostgresConnection {
     });
   }
 
+  _admit(client: object){
+    if (typeof (client as PGlite).query != "function" || typeof (client as PGlite).exec != "function")
+      throw new TypeError("PGLiteConnection runs a session on a PGlite - this has no query() and exec().");
+  }
+
   #engine(){
     return this._session()?.client as PGlite | undefined || this.engine;
   }

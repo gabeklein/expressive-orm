@@ -72,6 +72,21 @@ describe("session", () => {
     await lite.close();
   })
 
+  it("will refuse a session client that isn't a PGlite", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = PGLiteConnection.new([User], shared);
+    const fn = vi.fn();
+
+    await expect(db.session(fn, { query(){} })).rejects.toThrow("PGLiteConnection runs a session on a PGlite - this has no query() and exec().");
+    await expect(db.session(fn, {})).rejects.toThrow("PGLiteConnection runs a session on a PGlite");
+    expect(fn).not.toHaveBeenCalled();
+
+    await db.close();
+  })
+
   it("will refuse to sync inside a session with a client", async () => {
     class User extends Type {
       name = str();

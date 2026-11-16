@@ -53,6 +53,11 @@ export class PGConnection extends PostgresConnection {
     return (this._journal()?.session as PoolClient | undefined) || this._session()?.client as Client | undefined || this.engine;
   }
 
+  _admit(client: object){
+    if (typeof (client as Client).query != "function")
+      throw new TypeError("PGConnection runs a session on a pg Client or Pool - this has no query().");
+  }
+
   #pool(){
     const client = this._session()?.client as Pool | Client | undefined;
 

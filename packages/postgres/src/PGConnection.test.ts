@@ -377,6 +377,20 @@ describe('PGConnection', () => {
     Reflect.deleteProperty(Item, "connection");
   });
 
+  it('will refuse a session client without query', async () => {
+    const pool = new pg.Pool();
+    const fn = vi.fn();
+
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = PGConnection.new([TestType], pool);
+
+    await expect(conn.session(fn, { connectionString: "postgres://" })).rejects.toThrow("PGConnection runs a session on a pg Client or Pool - this has no query().");
+    expect(fn).not.toHaveBeenCalled();
+
+    await conn.close();
+  });
+
   it('will end a pool it created', async () => {
     const end = vi.spyOn(pg.Pool.prototype, 'end').mockResolvedValue();
     const conn = PGConnection.new([TestType], 'postgresql://localhost');
