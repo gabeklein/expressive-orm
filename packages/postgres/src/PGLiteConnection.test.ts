@@ -269,7 +269,7 @@ describe("persistence", () => {
 
     await expect(PGLiteConnection.new([ Post, Author ], pg).sync(false)).rejects.toThrow(
       'Schema verification failed:\n' +
-      'Column "title" in table post has incorrect nullable value\n' +
+      'Column "title" in table post allows NULL, but Post.title is required\n' +
       'Column "rank" in table post has type "text", expected "integer"\n' +
       'Referenced column id does not exist in table author\n' +
       'Referenced column id does not exist in table author\n' +
@@ -450,10 +450,10 @@ describe("plan", () => {
     const conn = PGLiteConnection.new([Post], pg);
 
     expect((await conn.plan()).problems).toEqual([
-      'Column "title" in table post has incorrect nullable value',
-      'Column "rank" in table post has incorrect nullable value',
+      'Column "title" in table post allows NULL, but Post.title is required',
+      'Column "rank" in table post is NOT NULL, but Post.rank is nullable',
       'Column "rank" in table post has type "text", expected "integer"',
-      'Column "note" in table post has incorrect nullable value'
+      'Column "note" in table post is NOT NULL, but Post.note is nullable'
     ]);
 
     await conn.sync(true, true);

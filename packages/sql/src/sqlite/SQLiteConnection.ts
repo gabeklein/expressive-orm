@@ -592,7 +592,7 @@ function drifted(field: Field, info: TableInfo){
     return `Column ${column} in table ${parent.table} has type ${info.type}, expected ${expected}`;
 
   if (!keyed && info.notnull === (nullable ? 1 : 0))
-    return `Column ${column} in table ${parent.table} has incorrect nullable value`;
+    return `Column ${column} in table ${parent.table} ${nullable ? "is NOT NULL, but" : "allows NULL, but"} ${parent.name}.${field.key} is ${nullable ? "nullable" : "required"}`;
 }
 
 const NUMBER = (column: string) =>

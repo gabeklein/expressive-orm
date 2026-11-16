@@ -1858,10 +1858,22 @@ describe("plan", () => {
 
     const { conn } = await open([Post], "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT)");
 
-    expect((await conn.plan()).problems).toEqual(["Column title in table post has incorrect nullable value"]);
+    expect((await conn.plan()).problems).toEqual(["Column title in table post allows NULL, but Post.title is required"]);
     expect((await conn.plan(true)).steps.map(step => [step.action, step.reason])).toEqual([
-      ["rebuild table post", "Column title in table post has incorrect nullable value"]
+      ["rebuild table post", "Column title in table post allows NULL, but Post.title is required"]
     ]);
+
+    await conn.close();
+  })
+
+  it("will name a NOT NULL column whose field is nullable", async () => {
+    class Post extends Type {
+      title = str(null);
+    }
+
+    const { conn } = await open([Post], "CREATE TABLE post (id INTEGER NOT NULL PRIMARY KEY, title TEXT NOT NULL)");
+
+    expect((await conn.plan()).problems).toEqual(["Column title in table post is NOT NULL, but Post.title is nullable"]);
 
     await conn.close();
   })
@@ -2051,7 +2063,7 @@ describe("valid", () => {
 
   it("will throw for a mismatched nullable", async () => {
     await expect(check(Author, "CREATE TABLE author (id INTEGER NOT NULL PRIMARY KEY, name TEXT, rank INTEGER)"))
-      .rejects.toThrow("Column name in table author has incorrect nullable value");
+      .rejects.toThrow("Column name in table author allows NULL, but Author.name is required");
   })
 
   it("will throw for a reference on another connection", async () => {
