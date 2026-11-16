@@ -774,6 +774,24 @@ describe("session", () => {
     await db.close();
   })
 
+  it("will let the driver refuse a client before fn runs", async () => {
+    class Picky extends Store {
+      _admit(client: object){
+        if (!("query" in client))
+          throw new TypeError("Picky takes a client with query.");
+      }
+    }
+
+    const db = Picky.new();
+    const fn = vi.fn();
+
+    await expect(db.session(fn, {})).rejects.toThrow("Picky takes a client with query.");
+    expect(fn).not.toHaveBeenCalled();
+    await expect(db.session(() => 1, { query(){} })).resolves.toBe(1);
+
+    await db.close();
+  })
+
   it("will reject a client that is not an object", async () => {
     const db = Store.new();
 
