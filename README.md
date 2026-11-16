@@ -195,7 +195,7 @@ export default {
 };
 ```
 
-A connection built without a source opens SQLite through the built-in loader the first time something runs outside a session - in workerd that rejects with `SQLiteConnection has no source, and no SQLite loads in this runtime`, so there run everything in a session and never await the connection itself. `session` checks its source before `fn` runs - something that isn't a D1 binding, libSQL client or `Engine`, such as `env` for `env.DB`, rejects at once. Sync the schema from a deploy step, not the Worker: `sync`, or awaiting the connection, inside a session with a source rejects rather than check one request's database against the classes.
+A connection built without a source opens SQLite through the built-in loader the first time something runs outside a session - in workerd that rejects with `SQLiteConnection has no source, and no SQLite loads in this runtime`, so there run everything in a session and never await the connection itself. `session` checks its source before `fn` runs - something that isn't a D1 binding, libSQL client or `Engine`, such as `env` for `env.DB`, rejects at once. Sync the schema from a deploy step, not the Worker: `sync`, or awaiting the connection, inside a session on a source other than the connection's own rejects rather than check one request's database against the classes.
 
 `sync` costs a few D1 round trips per table on each cold start, and applies as one batch. D1 has no interactive transactions - `transaction` throws. It keeps foreign keys on, so `sync(true, true)` refuses to rebuild a table.
 
@@ -545,12 +545,12 @@ export default {
 
 A connection keeps one identity map for the process: `get(id)` returns an entity already loaded without reading its row again, and only [live rows](#live-rows) keep it current. When other processes write to the same database - Workers isolates on one D1 or Postgres, several servers - wrap each request in `db.session(fn)`. Inside it the connection keeps a fresh identity map, so `get` and relations read their rows afresh and the same row loads into one entity per session; entities loaded inside follow no live rows and stay usable after `fn` settles. Code outside a session keeps the process-wide map.
 
-`db.session(fn, client)` also runs every statement inside on `client`, the driver's own handle, a transaction included: statements on one client wait out its open transaction, while other clients run alongside - the handle a connection was built on counts as one. The connection never closes a session's client. Like transactions, sessions need `AsyncLocalStorage` from `process.getBuiltinModule`.
+`db.session(fn, client)` also runs every statement inside on `client`, the driver's own handle, a transaction included: statements on one client - from any connection on it - join or wait out its open transaction, while other clients run alongside, and the handle a connection was built on counts as one. A driver that takes no client, like `Memory`, ignores it and runs transactions one at a time. The connection never closes a session's client. Like transactions, sessions need `AsyncLocalStorage` from `process.getBuiltinModule`.
 
 - A nested session starts a fresh identity map and keeps the outer client unless given one. Its writes don't reach the outer map: an entity it deletes or changes stays as the outer session loaded it, until the outer one reads it again with `load` or `query`.
 - Work started inside that outlives `fn` - a promise not awaited, `ctx.waitUntil` - still runs in the session, on its map and client. End the client only once that work settles.
 - A transaction belongs to the client it opened on. A nested session with another client, inside it, runs on that client and outside the transaction.
-- Awaiting the connection inside a session with a client rejects rather than run `sync`, which belongs to the connection's own handle - await it outside any session, or sync the schema from a deploy step.
+- Awaiting the connection inside a session on a client other than its own rejects rather than run `sync`, which belongs to the connection's own handle - await it outside any session, or sync the schema from a deploy step.
 - `close()` destroys the entities of the process-wide map only; those loaded in a session stay, unbound.
 
 ## Hooks
