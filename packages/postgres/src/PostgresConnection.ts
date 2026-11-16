@@ -348,6 +348,9 @@ export abstract class PostgresConnection extends Connection {
     if (this._foreign())
       throw new Error(`${this.constructor.name} can't sync inside a session - sync outside one, or from a deploy step.`);
 
+    if (this._journal())
+      throw new Error(`${this.constructor.name} can't sync inside a transaction - sync before one, or from a deploy step.`);
+
     if(!this.engine)
       throw new Error("Connection engine is not initialized.");
 

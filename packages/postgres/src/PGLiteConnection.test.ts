@@ -159,6 +159,30 @@ describe("session", () => {
     await shared.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
   })
 
+  it("will refuse to sync inside a transaction on its PGlite", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const a = await TestConnection.new([A]);
+    const b = PGLiteConnection.new([B], shared);
+
+    await expect(a.transaction(() => b.sync())).rejects.toThrow("PGLiteConnection can't sync inside a transaction - sync before one, or from a deploy step.");
+    await expect(a.transaction(async () => { await b })).rejects.toThrow("PGLiteConnection can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    expect(b.ready).toBe(false);
+
+    await b;
+
+    expect(await B.count()).toBe(0);
+
+    await b.close();
+    await a.close();
+  })
+
   it("will run statements on the session's PGlite", async () => {
     class User extends Type {
       name = str();

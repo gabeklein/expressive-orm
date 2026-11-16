@@ -261,6 +261,38 @@ describe('PGConnection', () => {
     Reflect.deleteProperty(Item, "connection");
   });
 
+  it('will join a transaction another connection opened on the same pool', async () => {
+    class A extends Type {}
+    class B extends Type {}
+
+    const pool = new pg.Pool();
+    const client = {
+      query: vi.fn(async (_sql: string) => ({ rows: [], rowCount: 0 })),
+      release: vi.fn()
+    };
+
+    const query = vi.spyOn(pool, 'query').mockResolvedValue({ rows: [], rowCount: 0 } as never);
+    vi.spyOn(pool, 'connect').mockResolvedValue(client as never);
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const a = PGConnection.new([A], pool);
+    const b = PGConnection.new([B], pool);
+
+    await a.transaction(() => b.prepare('SELECT 1').all());
+
+    expect(client.query.mock.calls.map(([sql]) => sql)).toEqual(["BEGIN", "SELECT 1", "COMMIT"]);
+    expect(client.release).toHaveBeenCalledTimes(1);
+    expect(query).not.toHaveBeenCalled();
+
+    await b.prepare('SELECT 2').all();
+    expect(query).toHaveBeenCalledWith('SELECT 2', undefined);
+
+    await a.close();
+    await b.close();
+    Reflect.deleteProperty(A, "connection");
+    Reflect.deleteProperty(B, "connection");
+  });
+
   it('will queue concurrent statements on a session client', async () => {
     const pool = new pg.Pool();
     let active = 0;
