@@ -5,6 +5,7 @@ import { Connection } from '../connection/Connection';
 import { format } from 'sql-formatter';
 
 import { createEngine, type D1Database, Engine, host, type LibSQLClient, migrations } from './engine';
+import { missing } from './load';
 import { now as current, SQLiteGenerator, type Timestamps } from './SQLiteGenerator';
 
 export declare namespace SQLiteConnection {
@@ -72,19 +73,37 @@ export class SQLiteConnection extends Connection {
     }
 
     this.filename = typeof source == "string" && source || ':memory:';
+    this.#sourceless = !source;
+  }
+
+  #sourceless: boolean;
+
+  _admit(client: object){
+    if (!HOSTED.has(client as Source))
+      HOSTED.set(client as Source, Promise.resolve(host(client as Source)));
   }
 
   protected db(){
     const client = this._session()?.client as Source | undefined;
-    let engine: Promise<Engine> | undefined;
 
     if (!client)
-      return this.engine ??= createEngine(this.filename);
+      return this.engine ??= this.#open();
 
-    if (!(engine = HOSTED.get(client)))
-      HOSTED.set(client, engine = Promise.resolve(client).then(host));
+    this._admit(client);
 
-    return engine;
+    return HOSTED.get(client)!;
+  }
+
+  async #open(){
+    try {
+      return await createEngine(this.filename);
+    }
+    catch (error) {
+      if (this.#sourceless && error instanceof Error && error.message == missing)
+        throw new Error(`${this.constructor.name} has no source, and no SQLite loads in this runtime - run statements inside db.session(fn, source), or pass a source.`);
+
+      throw error;
+    }
   }
 
   async #statements(): Promise<Engine.Statements> {
@@ -114,8 +133,10 @@ export class SQLiteConnection extends Connection {
       : [];
 
     const run = async <R>(op: (engine: Engine.Statements) => Promise<R>) => {
+      const engine = await this.#statements();
+
       try {
-        return await op(await this.#statements());
+        return await op(engine);
       }
       catch (err) {
         if(err instanceof Error)

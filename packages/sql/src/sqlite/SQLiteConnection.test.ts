@@ -2660,16 +2660,55 @@ describe("session", () => {
     await other.close();
   })
 
-  it("will reject statements for an unknown source", async () => {
+  it("will refuse an unknown source before fn runs", async () => {
     class User extends Type {
       name = str();
     }
 
     const db = await SQLiteConnection.new([User]);
+    const fn = vi.fn();
 
-    await expect(db.session(() => User.count(), {})).rejects.toThrow("Unknown SQLite source.");
+    await expect(db.session(fn, {})).rejects.toThrow("Unknown SQLite source.");
+    expect(fn).not.toHaveBeenCalled();
 
     await db.close();
+  })
+
+  it("will say a connection without a source needs a session where SQLite can't load", async () => {
+    const drivers = ["bun:sqlite", "node:sqlite", "better-sqlite3", "sqlite3", "@libsql/client"];
+
+    vi.resetModules();
+
+    for (const name of drivers)
+      vi.doMock(name, () => { throw new Error(`Cannot find module '${name}'`) });
+
+    try {
+      const { SQLiteConnection } = await import('./SQLiteConnection');
+      const { Type, str } = await import('@expressive/orm');
+
+      class User extends Type {
+        name = str();
+      }
+
+      class Post extends Type {
+        title = str();
+      }
+
+      const bare = SQLiteConnection.new([User]);
+      const named = SQLiteConnection.new([Post], "app.db");
+
+      await expect(User.count()).rejects.toThrow("SQLiteConnection has no source, and no SQLite loads in this runtime - run statements inside db.session(fn, source), or pass a source.");
+      await expect(Post.count()).rejects.toThrow("No compatible SQLite driver found.");
+
+      await bare.close();
+      await named.close();
+    }
+    finally {
+      for (const name of drivers)
+        vi.doUnmock(name);
+
+      vi.resetModules();
+    }
   })
 })
 
