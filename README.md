@@ -149,13 +149,13 @@ const lite = await PGLiteConnection.new([Account], "./data");
 
 `PGConnection` takes a connection string, a `pg` `PoolConfig` or a `Pool`. `PGLiteConnection` takes a data directory (in memory when omitted) or a `PGlite` instance, then `PGliteOptions`. `close()` leaves a passed `Pool` or `PGlite` open.
 
-`SQLiteConnection` takes a filename, or an `Engine` in its place for a SQLite the built-in loader can't open, such as on React Native: any object with `all(sql, params)`, `get(sql, params)`, `run(sql, params)` returning `{ changes }`, `exec(sql)` and `close()`, each async. A given engine is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
+`SQLiteConnection` takes a filename, or `{ source, timestamps }`. A `source` may be an `Engine` for a SQLite the built-in loader can't open, such as on React Native: any object with `all(sql, params)`, `get(sql, params)`, `run(sql, params)` returning `{ changes }`, `exec(sql)` and `close()`, each async. A given engine is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
 
 Two optional members cover hosts without `BEGIN` and `COMMIT` on one connection. `transaction()` returns a session - the same four statements plus `commit()` and `rollback()` - and every statement inside `transaction(fn)` runs on it. `batch(sql)` runs statements atomically, and `sync` applies through it. A rebuild in a batch needs foreign keys off, or dropping the old table would cascade; on an engine that keeps them on, it is refused.
 
 ### SQLite hosts
 
-In place of the filename, `SQLiteConnection` also takes a Cloudflare D1 binding, a libSQL client or a libSQL address, told apart by shape. A given binding or client is used as is, and `close()` leaves it open.
+As `source`, `SQLiteConnection` also takes a Cloudflare D1 binding, a libSQL client or a libSQL address, told apart by shape - an object always goes in `{ source }`, and any other object in its place throws. A given binding or client is used as is, and `close()` leaves it open.
 
 On Workers, open the connection once, from the first request's binding, and drop it when `sync` fails so the next request retries:
 
@@ -165,7 +165,7 @@ import { SQLiteConnection } from '@expressive/sql';
 let ready: Promise<unknown> | undefined;
 
 function open(DB: D1Database){
-  const db = SQLiteConnection.new([User], DB);
+  const db = SQLiteConnection.new([User], { source: DB });
 
   return Promise.resolve(db).catch(async error => {
     ready = undefined;
@@ -186,7 +186,7 @@ export default {
 To run each request on that request's binding, and give it its own identity map so `get` never returns a row another isolate has since changed, wrap it in a [session](#sessions): `db.session(() => handle(request), env.DB)`. A session takes a D1 binding, a libSQL client or an `Engine`, used as is and left open, and swaps nothing outside it. Transactions lock on the source, so statements outside a session wait out one on the source the connection was built with.
 
 ```ts
-const db = SQLiteConnection.new([User]);   // no source - never awaited in a Worker
+const db = SQLiteConnection.new([User], { timestamps: "iso" });   // no source - never awaited in a Worker
 
 export default {
   async fetch(request: Request, env: { DB: D1Database }) {
@@ -618,7 +618,7 @@ A field declares a portable datatype; each connection decides how to store it. T
 | `json` | - | TEXT | TEXT |
 | `one` | the related key's | the key's | the key's |
 
-SQLite's `timestamp` storage belongs to the connection: `SQLiteConnection.new(types, source, { timestamps })` takes `"ms"` (default, INTEGER epoch milliseconds), `"seconds"` (INTEGER epoch seconds, milliseconds dropped) or `"iso"` (ISO 8601 UTC text, readable in a DB browser or the D1 console). `sql.now` and `fallback: sql.now` render in the same storage, so `lessThan(sql.now)` compares like with like. `sync` refuses a timestamp column declared the other way - INTEGER under `"iso"`, TEXT under `"ms"` - and names the option that keeps it; a database written by 0.6 through 0.11 holds ISO text and needs `{ timestamps: "iso" }`.
+SQLite's `timestamp` storage belongs to the connection: `SQLiteConnection.new(types, { source, timestamps })` takes `"ms"` (default, INTEGER epoch milliseconds), `"seconds"` (INTEGER epoch seconds, milliseconds dropped) or `"iso"` (ISO 8601 UTC text, readable in a DB browser or the D1 console). `sql.now` and `fallback: sql.now` render in the same storage, so `lessThan(sql.now)` compares like with like. `sync` refuses a timestamp column declared the other way - INTEGER under `"iso"`, TEXT under `"ms"` - and names the option that keeps it; a database written by 0.6 through 0.11 holds ISO text and needs `{ timestamps: "iso" }`.
 
 A datatype of another helper, like `num(sql.text)`, is a type error, whatever the module imports. Options a factory doesn't take, like `precision` on `timestamp`, go in an object: `date({ type: "timestamp", precision: 3 })`. `@expressive/postgres` adds `sql.timestamptz` and `sql.timetz`.
 

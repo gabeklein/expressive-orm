@@ -1592,7 +1592,7 @@ describe("timestamps", () => {
     }
 
     async function open(options?: SQLiteConnection.Options, ddl?: string){
-      const conn = SQLiteConnection.new([Session], undefined, options);
+      const conn = SQLiteConnection.new([Session], options);
       const db = await conn["db"]();
 
       if (ddl)
@@ -2329,7 +2329,7 @@ describe("engine", () => {
     const engine = await createEngine(":memory:");
     const all = vi.spyOn(engine, "all");
     const close = vi.spyOn(engine, "close");
-    const conn = await SQLiteConnection.new([Foo], engine);
+    const conn = await SQLiteConnection.new([Foo], { source: engine });
 
     await Foo.insert({ name: "bar" });
 
@@ -2342,11 +2342,39 @@ describe("engine", () => {
     await engine.close();
   })
 
-  it("will not type an unknown source", async () => {
+  it("will throw for a source passed in place of options", async () => {
+    const message = "SQLiteConnection takes a filename or address, or { source, timestamps } - pass a D1 binding, libSQL client or Engine as { source }.";
+    const engine = await createEngine(":memory:");
+
     // @ts-expect-error
-    const conn = SQLiteConnection.new([], { execute: () => {} });
+    expect(() => SQLiteConnection.new([], { execute: () => {} })).toThrow(message);
+    // @ts-expect-error
+    expect(() => SQLiteConnection.new([], engine)).toThrow(message);
+    // @ts-expect-error
+    expect(() => SQLiteConnection.new([], new (class { prepare(){} })())).toThrow(message);
+    // @ts-expect-error
+    expect(() => SQLiteConnection.new([], null)).toThrow(message);
+    // @ts-expect-error
+    expect(() => SQLiteConnection.new([], undefined, { timestamps: "iso" })).toThrow(message);
+
+    await engine.close();
+  })
+
+  it("will take a source and timestamps together", async () => {
+    class Stamp extends Type {
+      at = date();
+    }
+
+    const engine = await createEngine(":memory:");
+    const conn = await SQLiteConnection.new([Stamp], { source: engine, timestamps: "iso" });
+    const at = new Date("2024-01-02T03:04:05.006Z");
+
+    await Stamp.insert({ at });
+
+    expect(await engine.all(`SELECT at FROM stamp`)).toEqual([{ at: "2024-01-02T03:04:05.006Z" }]);
 
     await conn.close();
+    await engine.close();
   })
 
   it.each([
@@ -2357,7 +2385,7 @@ describe("engine", () => {
       name = str();
     }
 
-    const conn = SQLiteConnection.new([Foo], source as Engine);
+    const conn = SQLiteConnection.new([Foo], { source: source as Engine });
 
     await expect(conn).rejects.toThrow("Unknown SQLite source. Pass a filename, a libSQL address, a D1 binding, a libSQL client or an Engine.");
     await conn.close();
@@ -2421,7 +2449,7 @@ describe("engine", () => {
     }
 
     const engine = await hosted();
-    const conn = await SQLiteConnection.new([Foo], engine);
+    const conn = await SQLiteConnection.new([Foo], { source: engine });
 
     await conn.transaction(async () => {
       await Foo.insert({ name: "kept" });
@@ -2450,7 +2478,7 @@ describe("engine", () => {
     }
 
     const engine = await createEngine(":memory:");
-    const conn = await SQLiteConnection.new([Foo], engine);
+    const conn = await SQLiteConnection.new([Foo], { source: engine });
 
     engine.transaction = async () => ({
       ...engine,
@@ -2472,7 +2500,7 @@ describe("engine", () => {
     }
 
     const engine = await hosted();
-    const conn = await SQLiteConnection.new([Foo], engine);
+    const conn = await SQLiteConnection.new([Foo], { source: engine });
 
     expect(engine.batch).toHaveBeenCalledWith([
       expect.stringMatching(/^CREATE TABLE foo \(.*\);$/),
@@ -2497,7 +2525,7 @@ describe("engine", () => {
       "INSERT INTO post (author_id) VALUES (1), (1);"
     );
 
-    const conn = SQLiteConnection.new([Author], engine);
+    const conn = SQLiteConnection.new([Author], { source: engine });
 
     await conn.sync(true, true);
 
@@ -2525,7 +2553,7 @@ describe("engine", () => {
       "PRAGMA foreign_keys = ON;"
     );
 
-    const conn = SQLiteConnection.new([Author], engine);
+    const conn = SQLiteConnection.new([Author], { source: engine });
 
     await expect(conn.sync(true, true)).rejects.toThrow("Cannot rebuild: post has references to missing rows (1).");
     expect(engine.batch).not.toHaveBeenCalled();
@@ -2546,7 +2574,7 @@ describe("engine", () => {
 
     engine.exec = sql => sql.includes("foreign_keys") ? Promise.reject(new Error("not authorized")) : exec(sql);
 
-    const conn = SQLiteConnection.new([Author], engine);
+    const conn = SQLiteConnection.new([Author], { source: engine });
 
     await expect(conn.sync(true, true)).rejects.toThrow("Cannot rebuild: this engine keeps foreign keys on");
     expect(engine.batch).not.toHaveBeenCalled();
@@ -2607,7 +2635,7 @@ describe("session", () => {
     }
 
     const engine = await createEngine(":memory:");
-    const db = await SQLiteConnection.new([User], engine);
+    const db = await SQLiteConnection.new([User], { source: engine });
     let release!: () => void;
     const held = new Promise<void>(resolve => release = resolve);
     let entered!: () => void;
@@ -2736,7 +2764,7 @@ describe("d1", () => {
 
   it("will sync and query", async () => {
     const { DB, engine, Author, Post, dispose } = await open();
-    const conn = await SQLiteConnection.new([Author, Post], DB);
+    const conn = await SQLiteConnection.new([Author, Post], { source: DB });
     const author = await Author.insert({ name: "Gabe" });
 
     await Post.insert({ author, title: "Hello" });
@@ -2756,7 +2784,7 @@ describe("d1", () => {
     await engine.exec("INSERT INTO author (name) VALUES ('Gabe')");
     await engine.exec("INSERT INTO post (author_id, title) VALUES (1, 'Hello')");
 
-    const conn = SQLiteConnection.new([Author, Post], DB);
+    const conn = SQLiteConnection.new([Author, Post], { source: DB });
 
     await expect(conn.sync(true, true)).rejects.toThrow("Cannot rebuild: this engine keeps foreign keys on");
     await expect(engine.all("SELECT type FROM pragma_table_info('author') WHERE name = 'name'")).resolves.toEqual([{ type: "INTEGER" }]);
@@ -2804,7 +2832,7 @@ describe("d1", () => {
 
   it("will refuse a transaction", async () => {
     const { DB, Author, Post, dispose } = await open();
-    const conn = await SQLiteConnection.new([Author, Post], DB);
+    const conn = await SQLiteConnection.new([Author, Post], { source: DB });
 
     await expect(conn.transaction(() => Author.insert({ name: "Gabe" }))).rejects.toThrow("D1 has no interactive transactions.");
     await expect(Author.query({})).resolves.toEqual([]);
@@ -2842,7 +2870,7 @@ describe.each([
 
   it("will sync each statement", async () => {
     const { client, engine, Author, Post } = open();
-    const conn = await SQLiteConnection.new([Author, Post], client);
+    const conn = await SQLiteConnection.new([Author, Post], { source: client });
     const author = await Author.insert({ name: "Gabe" });
 
     await Post.insert({ author, title: "Hello" });
@@ -2855,7 +2883,7 @@ describe.each([
 
   it("will commit and roll back", async () => {
     const { client, Author, Post } = open();
-    const conn = await SQLiteConnection.new([Author, Post], client);
+    const conn = await SQLiteConnection.new([Author, Post], { source: client });
 
     await conn.transaction(() => Author.insert({ name: "kept" }));
     await expect(conn.transaction(async () => {
@@ -2871,7 +2899,7 @@ describe.each([
 
   it("will inspect inside a transaction", async () => {
     const { client, Author, Post } = open();
-    const conn = await SQLiteConnection.new([Author, Post], client);
+    const conn = await SQLiteConnection.new([Author, Post], { source: client });
 
     await expect(conn.transaction(() => conn.valid(Post))).resolves.toEqual([]);
 
@@ -2881,7 +2909,7 @@ describe.each([
 
   it("will inspect after a transaction elsewhere", async () => {
     const { client, Author, Post } = open();
-    const conn = await SQLiteConnection.new([Author, Post], client);
+    const conn = await SQLiteConnection.new([Author, Post], { source: client });
     let release!: () => void;
     let started!: () => void;
     const holding = new Promise<void>(resolve => release = resolve);
@@ -2916,7 +2944,7 @@ describe.each([
       "INSERT INTO post (author_id, title) VALUES (1, 'Hello')"
     ]);
 
-    const conn = SQLiteConnection.new([Author, Post], client);
+    const conn = SQLiteConnection.new([Author, Post], { source: client });
 
     await conn.sync(true, true);
 
@@ -2939,7 +2967,7 @@ describe.each([
       "INSERT INTO post (author_id, title) VALUES (9, 'Orphan')"
     ]);
 
-    const conn = SQLiteConnection.new([Author, Post], client);
+    const conn = SQLiteConnection.new([Author, Post], { source: client });
 
     await expect(conn.sync(true, true)).rejects.toThrow("Cannot rebuild: post has references to missing rows (1).");
 
