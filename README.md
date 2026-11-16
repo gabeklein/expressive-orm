@@ -195,7 +195,7 @@ export default {
 };
 ```
 
-A connection built without a source opens SQLite through the built-in loader the first time something runs outside a session - in workerd that rejects with `SQLiteConnection has no source, and no SQLite loads in this runtime`, so there run everything in a session and never await the connection itself. `session` checks its source before `fn` runs - something that isn't a D1 binding, libSQL client or `Engine`, such as `env` for `env.DB`, rejects at once. Sync the schema from a deploy step, not the Worker: `sync`, or awaiting the connection, inside a session with a source rejects rather than check one request's database against the classes.
+A connection built without a source opens SQLite through the built-in loader the first time something runs outside a session - in workerd that rejects with `SQLiteConnection has no source, and no SQLite loads in this runtime`, so there run everything in a session and never await the connection itself. `session` checks its source before `fn` runs - something that isn't a D1 binding, libSQL client or `Engine`, such as `env` for `env.DB`, rejects at once. Sync the schema from a deploy step, not the Worker: `sync`, or awaiting the connection, inside a session on a source other than the connection's own rejects rather than check one request's database against the classes.
 
 `sync` costs a few D1 round trips per table on each cold start, and applies as one batch. D1 has no interactive transactions - `transaction` throws. It keeps foreign keys on, so `sync(true, true)` refuses to rebuild a table.
 

@@ -2660,6 +2660,57 @@ describe("session", () => {
     await other.close();
   })
 
+  it("will join a transaction another connection opened on the same engine", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const engine = await createEngine(":memory:");
+    const a = await SQLiteConnection.new([A], engine);
+    const b = await SQLiteConnection.new([B], engine);
+
+    await expect(a.transaction(async () => {
+      await A.insert({ name: "a" });
+      await B.insert({ name: "b" });
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    expect(await A.count()).toBe(0);
+    expect(await B.count()).toBe(0);
+
+    await a.transaction(async () => {
+      await A.insert({ name: "a" });
+      return B.count();
+    });
+
+    expect(await A.count()).toBe(1);
+
+    await a.close();
+    await b.close();
+    await engine.close();
+  })
+
+  it("will sync in a session on its own source", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const engine = await createEngine(":memory:");
+    const db = SQLiteConnection.new([User], engine);
+
+    await db.session(async () => { await db }, engine);
+
+    expect(db.ready).toBe(true);
+    expect(await engine.all(`SELECT name FROM sqlite_master WHERE name = 'user'`)).toEqual([{ name: "user" }]);
+
+    await db.close();
+    await engine.close();
+  })
+
   it("will refuse an unknown source before fn runs", async () => {
     class User extends Type {
       name = str();

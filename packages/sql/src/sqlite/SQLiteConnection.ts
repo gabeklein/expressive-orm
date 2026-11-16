@@ -78,6 +78,10 @@ export class SQLiteConnection extends Connection {
 
   #sourceless: boolean;
 
+  _routes(){
+    return true;
+  }
+
   _admit(client: object){
     if (!HOSTED.has(client as Source))
       HOSTED.set(client as Source, Promise.resolve(host(client as Source)));
@@ -86,7 +90,7 @@ export class SQLiteConnection extends Connection {
   protected db(){
     const client = this._session()?.client as Source | undefined;
 
-    if (!client)
+    if (!client || client === this._client)
       return this.engine ??= this.#open();
 
     this._admit(client);
@@ -192,10 +196,10 @@ export class SQLiteConnection extends Connection {
    *
    * Creates missing tables and adds missing columns and indexes, in one transaction. Throws for any problem `plan` reports, changing nothing.
    * `fix` false only verifies - anything missing throws too. `force` rebuilds a table whose column type or nullability drifted.
-   * Throws when the connection is already ready, or inside a session with a source - sync from a deploy step instead.
+   * Throws when the connection is already ready, or inside a session on another source - sync from a deploy step instead.
    */
   async sync(fix = true, force = false){
-    if (this._session()?.client)
+    if (this._foreign())
       throw new Error(`${this.constructor.name} can't sync inside a session - sync outside one, or from a deploy step.`);
 
     if (this.ready)
