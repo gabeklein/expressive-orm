@@ -5,6 +5,7 @@ import { Connection } from '../connection/Connection';
 import { format } from 'sql-formatter';
 
 import { createEngine, type D1Database, Engine, host, type LibSQLClient, migrations } from './engine';
+import { missing } from './load';
 import { now as current, SQLiteGenerator, type Timestamps } from './SQLiteGenerator';
 
 export declare namespace SQLiteConnection {
@@ -19,6 +20,10 @@ export declare namespace SQLiteConnection {
     timestamps?: Timestamps;
   }
 }
+
+type Source = Engine | D1Database | LibSQLClient;
+
+const HOSTED = new WeakMap<Source, Promise<Engine>>();
 
 type TableInfo = {
   name: string;
@@ -54,6 +59,7 @@ export class SQLiteConnection extends Connection {
    * A `libsql:`, `https:`, `http:`, `ws:` or `wss:` address opens a `@libsql/client` 0.18 or later - pass a token as `?authToken=`.
    * A D1 binding, a libSQL client or an `Engine` is used as given - foreign keys are not switched on, and `close()` leaves it open.
    * D1 refuses `transaction`. libSQL runs each `transaction` on a libSQL write transaction, one at a time.
+   * `session(fn, source)` runs `fn` on another D1 binding, libSQL client or `Engine`, used as given and left open.
    */
   constructor(using: Connection.Types, source?: string | Engine | D1Database | LibSQLClient, options: SQLiteConnection.Options = {}) {
     super(using);
@@ -63,13 +69,45 @@ export class SQLiteConnection extends Connection {
     if (typeof source == "object") {
       (this.engine = Promise.resolve(source).then(host)).catch(() => {});
       this.owned = false;
+      this._client = source;
     }
 
     this.filename = typeof source == "string" && source || ':memory:';
+    this.#sourceless = !source;
+  }
+
+  #sourceless: boolean;
+
+  _routes(){
+    return true;
+  }
+
+  _admit(client: object){
+    if (!HOSTED.has(client as Source))
+      HOSTED.set(client as Source, Promise.resolve(host(client as Source)));
   }
 
   protected db(){
-    return this.engine ??= createEngine(this.filename);
+    const client = this._session()?.client as Source | undefined;
+
+    if (!client || client === this._client)
+      return this.engine ??= this.#open();
+
+    this._admit(client);
+
+    return HOSTED.get(client)!;
+  }
+
+  async #open(){
+    try {
+      return await createEngine(this.filename);
+    }
+    catch (error) {
+      if (this.#sourceless && error instanceof Error && error.message == missing)
+        throw new Error(`${this.constructor.name} has no source, and no SQLite loads in this runtime - run statements inside db.session(fn, source), or pass a source.`);
+
+      throw error;
+    }
   }
 
   async #statements(): Promise<Engine.Statements> {
@@ -99,8 +137,10 @@ export class SQLiteConnection extends Connection {
       : [];
 
     const run = async <R>(op: (engine: Engine.Statements) => Promise<R>) => {
+      const engine = await this.#statements();
+
       try {
-        return await op(await this.#statements());
+        return await op(engine);
       }
       catch (err) {
         if(err instanceof Error)
@@ -156,9 +196,15 @@ export class SQLiteConnection extends Connection {
    *
    * Creates missing tables and adds missing columns and indexes, in one transaction. Throws for any problem `plan` reports, changing nothing.
    * `fix` false only verifies - anything missing throws too. `force` rebuilds a table whose column type or nullability drifted.
-   * Throws when the connection is already ready.
+   * Throws when the connection is already ready, inside a session on another source, or inside a transaction on its source - sync from a deploy step instead.
    */
   async sync(fix = true, force = false){
+    if (this._foreign())
+      throw new Error(`${this.constructor.name} can't sync inside a session - sync outside one, or from a deploy step.`);
+
+    if (this._journal())
+      throw new Error(`${this.constructor.name} can't sync inside a transaction - sync before one, or from a deploy step.`);
+
     if (this.ready)
       throw new Error("Connection is already active.");
 

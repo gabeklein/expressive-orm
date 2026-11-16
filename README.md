@@ -183,6 +183,20 @@ export default {
 };
 ```
 
+To run each request on that request's binding, and give it its own identity map so `get` never returns a row another isolate has since changed, wrap it in a [session](#sessions): `db.session(() => handle(request), env.DB)`. A session takes a D1 binding, a libSQL client or an `Engine`, used as is and left open, and swaps nothing outside it. Transactions lock on the source, so statements outside a session wait out one on the source the connection was built with.
+
+```ts
+const db = SQLiteConnection.new([User]);   // no source - never awaited in a Worker
+
+export default {
+  async fetch(request: Request, env: { DB: D1Database }) {
+    return db.session(() => handle(request), env.DB);
+  }
+};
+```
+
+A connection built without a source opens SQLite through the built-in loader the first time something runs outside a session - in workerd that rejects with `SQLiteConnection has no source, and no SQLite loads in this runtime`, so there run everything in a session and never await the connection itself. `session` checks its source before `fn` runs - something that isn't a D1 binding, libSQL client or `Engine`, such as `env` for `env.DB`, rejects at once. Sync the schema from a deploy step, not the Worker: `sync`, or awaiting the connection, inside a session on a source other than the connection's own rejects rather than check one request's database against the classes.
+
 `sync` costs a few D1 round trips per table on each cold start, and applies as one batch. D1 has no interactive transactions - `transaction` throws. It keeps foreign keys on, so `sync(true, true)` refuses to rebuild a table.
 
 ```ts

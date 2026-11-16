@@ -2557,6 +2557,322 @@ describe("engine", () => {
   })
 })
 
+describe("session", () => {
+  it("will run statements on the session's engine", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = await SQLiteConnection.new([User]);
+    const other = await createEngine(":memory:");
+    const close = vi.spyOn(other, "close");
+
+    await other.exec(db.schema);
+    await db.session(() => db.transaction(() => User.insert({ name: "Gabe" })), other);
+
+    expect(await User.count()).toBe(0);
+    expect(await db.session(() => User.count(), other)).toBe(1);
+    expect(await other.all(`SELECT name FROM user`)).toEqual([{ name: "Gabe" }]);
+
+    await db.close();
+
+    expect(close).not.toHaveBeenCalled();
+    await other.close();
+  })
+
+  it("will run statements on a libSQL client", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = await SQLiteConnection.new([User]);
+    const client = createClient({ url: ":memory:" });
+
+    await client.executeMultiple(db.schema);
+    await db.session(async () => {
+      await User.insert({ name: "Gabe" });
+      await User.insert({ name: "Bob" });
+    }, client);
+
+    expect(await db.session(() => User.count(), client)).toBe(2);
+    expect(await User.count()).toBe(0);
+
+    await db.close();
+    client.close();
+  })
+
+  it("will hold statements outside a session for its transaction on the same engine", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const engine = await createEngine(":memory:");
+    const db = await SQLiteConnection.new([User], engine);
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+    let entered!: () => void;
+    const inside = new Promise<void>(resolve => entered = resolve);
+
+    const failed = db.session(() => db.transaction(async () => {
+      await User.insert({ name: "Gabe" });
+      entered();
+      await held;
+      throw new Error("nope");
+    }), engine);
+
+    await inside;
+
+    const outside = User.insert({ name: "Bob" });
+    let done = false;
+
+    outside.then(() => done = true);
+    await new Promise(res => setTimeout(res, 20));
+    expect(done).toBe(false);
+
+    release();
+    await expect(failed).rejects.toThrow("nope");
+    await outside;
+
+    expect((await User.query()).map(row => row.name)).toEqual(["Bob"]);
+
+    await db.close();
+    await engine.close();
+  })
+
+  it("will refuse to sync inside a session with a source", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = SQLiteConnection.new([User]);
+    const other = await createEngine(":memory:");
+
+    await expect(db.session(() => db.sync(), other)).rejects.toThrow("SQLiteConnection can't sync inside a session - sync outside one, or from a deploy step.");
+    await expect(db.session(async () => { await db }, other)).rejects.toThrow("SQLiteConnection can't sync inside a session - await it outside one, or sync from a deploy step.");
+    expect(await other.all(`SELECT name FROM sqlite_master WHERE name = 'user'`)).toEqual([]);
+
+    await db;
+
+    expect(db.ready).toBe(true);
+    expect(await User.count()).toBe(0);
+
+    await db.close();
+    await other.close();
+  })
+
+  it("will join a transaction another connection opened on the same engine", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const engine = await createEngine(":memory:");
+    const a = await SQLiteConnection.new([A], engine);
+    const b = await SQLiteConnection.new([B], engine);
+
+    await expect(a.transaction(async () => {
+      await A.insert({ name: "a" });
+      await B.insert({ name: "b" });
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    expect(await A.count()).toBe(0);
+    expect(await B.count()).toBe(0);
+
+    await a.transaction(async () => {
+      await A.insert({ name: "a" });
+      return B.count();
+    });
+
+    expect(await A.count()).toBe(1);
+
+    await a.close();
+    await b.close();
+    await engine.close();
+  })
+
+  it("will refuse to sync inside a transaction on its engine", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const engine = await createEngine(":memory:");
+    const a = await SQLiteConnection.new([A], engine);
+    const b = SQLiteConnection.new([B], engine);
+
+    await expect(a.transaction(() => b.sync())).rejects.toThrow("SQLiteConnection can't sync inside a transaction - sync before one, or from a deploy step.");
+    await expect(a.transaction(async () => { await b })).rejects.toThrow("SQLiteConnection can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    expect(b.ready).toBe(false);
+
+    await b;
+
+    expect(await B.count()).toBe(0);
+
+    await a.close();
+    await b.close();
+    await engine.close();
+  })
+
+  it("will refuse to wait inside a transaction for a sync started outside", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const engine = await createEngine(":memory:");
+    const a = await SQLiteConnection.new([A], engine);
+    const b = SQLiteConnection.new([B], engine);
+    let enter!: () => void;
+    let proceed!: () => void;
+    const entered = new Promise<void>(res => enter = res);
+    const gate = new Promise<void>(res => proceed = res);
+
+    const transaction = a.transaction(async () => {
+      enter();
+      await gate;
+      await b;
+    });
+
+    await entered;
+
+    const outside = Promise.resolve(b);
+
+    await new Promise(res => setTimeout(res));
+    proceed();
+
+    await expect(transaction).rejects.toThrow("SQLiteConnection can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    await outside;
+
+    expect(b.ready).toBe(true);
+    expect(await B.count()).toBe(0);
+
+    await a.close();
+    await b.close();
+    await engine.close();
+  })
+
+  it("will refuse to wait for a sync started outside from a session on another source inside a transaction", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const engine = await createEngine(":memory:");
+    const other = await createEngine(":memory:");
+    const a = await SQLiteConnection.new([A], engine);
+    const b = SQLiteConnection.new([B], engine);
+    let enter!: () => void;
+    let proceed!: () => void;
+    const entered = new Promise<void>(res => enter = res);
+    const gate = new Promise<void>(res => proceed = res);
+
+    const transaction = a.transaction(async () => {
+      enter();
+      await gate;
+      await b.session(async () => { await b }, other);
+    });
+
+    await entered;
+
+    const outside = Promise.resolve(b);
+
+    await new Promise(res => setTimeout(res));
+    proceed();
+
+    await expect(transaction).rejects.toThrow("SQLiteConnection can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    await outside;
+
+    expect(b.ready).toBe(true);
+    expect(await B.count()).toBe(0);
+
+    await a.close();
+    await b.close();
+    await engine.close();
+    await other.close();
+  })
+
+  it("will sync in a session on its own source", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const engine = await createEngine(":memory:");
+    const db = SQLiteConnection.new([User], engine);
+
+    await db.session(async () => { await db }, engine);
+
+    expect(db.ready).toBe(true);
+    expect(await engine.all(`SELECT name FROM sqlite_master WHERE name = 'user'`)).toEqual([{ name: "user" }]);
+
+    await db.close();
+    await engine.close();
+  })
+
+  it("will refuse an unknown source before fn runs", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = await SQLiteConnection.new([User]);
+    const fn = vi.fn();
+
+    await expect(db.session(fn, {})).rejects.toThrow("Unknown SQLite source.");
+    expect(fn).not.toHaveBeenCalled();
+
+    await db.close();
+  })
+
+  it("will say a connection without a source needs a session where SQLite can't load", async () => {
+    const drivers = ["bun:sqlite", "node:sqlite", "better-sqlite3", "sqlite3", "@libsql/client"];
+
+    vi.resetModules();
+
+    for (const name of drivers)
+      vi.doMock(name, () => { throw new Error(`Cannot find module '${name}'`) });
+
+    try {
+      const { SQLiteConnection } = await import('./SQLiteConnection');
+      const { Type, str } = await import('@expressive/orm');
+
+      class User extends Type {
+        name = str();
+      }
+
+      class Post extends Type {
+        title = str();
+      }
+
+      const bare = SQLiteConnection.new([User]);
+      const named = SQLiteConnection.new([Post], "app.db");
+
+      await expect(User.count()).rejects.toThrow("SQLiteConnection has no source, and no SQLite loads in this runtime - run statements inside db.session(fn, source), or pass a source.");
+      await expect(Post.count()).rejects.toThrow("No compatible SQLite driver found.");
+
+      await bare.close();
+      await named.close();
+    }
+    finally {
+      for (const name of drivers)
+        vi.doUnmock(name);
+
+      vi.resetModules();
+    }
+  })
+})
+
 describe("d1", () => {
   async function open(){
     const mf = new Miniflare({
@@ -2608,6 +2924,42 @@ describe("d1", () => {
     await expect(engine.all("SELECT title FROM post")).resolves.toEqual([{ title: "Hello" }]);
 
     await conn.close();
+    await dispose();
+  })
+
+  it("will run sessions on a binding", async () => {
+    const { DB, Author, Post, dispose } = await open();
+    const db = SQLiteConnection.new([Author, Post]);
+    const { steps } = await db.plan();
+
+    await host(DB).batch!(steps.flatMap(step => step.sql));
+
+    const { id } = await db.session(() => Author.insert({ name: "Gabe" }), DB);
+
+    await db.session(async () => {
+      const author = await Author.get(id);
+
+      expect(await Author.get(id)).toBe(author);
+
+      const [a, b] = await Promise.all([
+        db.session(() => Author.get(id)),
+        db.session(() => Author.get(id))
+      ]);
+
+      expect(a).not.toBe(author);
+      expect(b).not.toBe(a);
+
+      await DB.prepare(`UPDATE author SET name = 'Bob' WHERE id = ?`).bind(id).run();
+
+      expect(author.name).toBe("Gabe");
+      expect((await db.session(() => Author.get(id))).name).toBe("Bob");
+    }, DB);
+
+    expect((await db.session(() => Author.get(id), DB)).name).toBe("Bob");
+    expect(db._loaded.get(Author)?.size ?? 0).toBe(0);
+    expect(db.ready).toBe(false);
+
+    await db.close();
     await dispose();
   })
 
