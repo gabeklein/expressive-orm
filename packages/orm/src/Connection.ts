@@ -243,7 +243,8 @@ abstract class Connection extends Model {
    *
    * `sync` runs only when the driver has one.
    * Inside a session with a client it rejects instead of starting `sync`, which belongs to the connection's own handle - await it outside, or sync from a deploy step.
-   * Inside a transaction on its handle it rejects too, even while a sync started outside runs - a rollback would undo the schema, and that sync waits for the transaction.
+   * Inside a transaction on its handle it rejects too, even while a sync started outside runs, or from a session on another client - a rollback would undo the schema, and that sync waits for the transaction.
+   * A promise of the connection taken outside the transaction and awaited inside still waits on that sync and hangs - await the connection before opening a transaction on its handle.
    */
   async then(
     onfulfilled?: (value: Connection.Ready<this>) => any,
@@ -259,7 +260,7 @@ abstract class Connection extends Model {
       sync = Promise.resolve();
     else if (!sync && this._foreign())
       sync = Promise.reject(new Error(`${this.constructor.name} can't sync inside a session - await it outside one, or sync from a deploy step.`));
-    else if (this._journal())
+    else if (this._journal() || this._foreign() && this._journal(this._client ? this._holder(this._client) : this))
       sync = Promise.reject(new Error(`${this.constructor.name} can't sync inside a transaction - await it before one, or sync from a deploy step.`));
     else if (!sync)
       synced.set(this, sync = this.sync());
@@ -295,8 +296,8 @@ abstract class Connection extends Model {
   /** Delete the row with primary key `id`. A missing row is not an error. */
   abstract remove(table: string, id: Connection.Key): Promise<void>;
 
-  _journal(){
-    const journal = context?.getStore()?.get(this._holder());
+  _journal(holder: Holder = this._holder()){
+    const journal = context?.getStore()?.get(holder);
 
     return journal && !CLOSED.has(journal) ? journal : undefined;
   }
@@ -325,8 +326,7 @@ abstract class Connection extends Model {
     return this._routes() && client && client !== this._client ? client : undefined;
   }
 
-  _holder(): Holder {
-    const client = this._routes() ? (this._session()?.client ?? this._client) as object | undefined : undefined;
+  _holder(client = this._routes() ? (this._session()?.client ?? this._client) as object | undefined : undefined): Holder {
     let holder: Holder | undefined;
 
     if (!client)

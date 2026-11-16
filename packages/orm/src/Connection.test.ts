@@ -886,6 +886,46 @@ describe("session", () => {
     await b.close();
   })
 
+  it("will refuse to wait for a sync started outside from a session on another client inside a transaction", async () => {
+    const handle = {};
+
+    class Synced extends Clients {
+      sync = vi.fn(async () => {
+        await this.select("item", []);
+      });
+    }
+
+    const a = Clients.new();
+    const b = Synced.new();
+    let enter!: () => void;
+    let proceed!: () => void;
+    const entered = new Promise<void>(res => enter = res);
+    const gate = new Promise<void>(res => proceed = res);
+
+    a._client = handle;
+    b._client = handle;
+
+    const transaction = a.transaction(async () => {
+      enter();
+      await gate;
+      await b.session(async () => { await b }, {});
+    });
+
+    await entered;
+
+    const outside = Promise.resolve(b);
+
+    await new Promise(res => setTimeout(res));
+    proceed();
+
+    await expect(transaction).rejects.toThrow("Synced can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    await outside;
+    expect(b.sync).toHaveBeenCalledTimes(1);
+
+    await a.close();
+    await b.close();
+  })
+
   it("will not join a transaction that ended", async () => {
     const handle = {};
     const a = Clients.new();
