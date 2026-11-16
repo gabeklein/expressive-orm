@@ -1,5 +1,27 @@
 # @expressive/sql
 
+## 0.13.0
+
+### Minor Changes
+
+- [#85](https://github.com/gabeklein/expressive-orm/pull/85) [`95fbe6b`](https://github.com/gabeklein/expressive-orm/commit/95fbe6bb05b9b03d7fab5b66359881c5010a2d28) `db.session(fn, source)` runs every statement inside on `source` - a D1 binding, a libSQL client or an `Engine` - with its own identity map, so a Worker can run each request on that request's binding without swapping the connection's engine.
+  
+  `sync`, or awaiting the connection, inside a session on a source other than the connection's own rejects - sync from a deploy step.
+
+- [#92](https://github.com/gabeklein/expressive-orm/pull/92) [`1ee58d4`](https://github.com/gabeklein/expressive-orm/commit/1ee58d4b607af3edcf3f8fdabf8c8c58fabefd35) `SQLiteConnection.new(types, options)` takes the source in options - `{ source, timestamps }` - or a filename or address string as before. A D1 binding, libSQL client or `Engine` moves into `{ source }`: `new(types, env.DB)` becomes `new(types, { source: env.DB })`, and `new(types, source, { timestamps })` becomes `new(types, { source, timestamps })`. Any other object in its place, or a third argument, throws instead of being misread.
+
+### Patch Changes
+
+- [#89](https://github.com/gabeklein/expressive-orm/pull/89) [`7f58539`](https://github.com/gabeklein/expressive-orm/commit/7f58539bc120268aa6b8f0953232c9f4c17904fd) A nullability mismatch names both sides - `Column title in table post allows NULL, but Post.title is required` - in place of `has incorrect nullable value`.
+
+- [#81](https://github.com/gabeklein/expressive-orm/pull/81) [`dd1d90c`](https://github.com/gabeklein/expressive-orm/commit/dd1d90c006305e824e1b48f75585856460b16561) Declare the packages free of side effects, so a bundle importing only entities from `@expressive/sql` or `@expressive/postgres` drops SQLite, Postgres and `sql-formatter` - it matches importing the same names from `@expressive/orm`.
+
+- [#75](https://github.com/gabeklein/expressive-orm/pull/75) [`0c262b3`](https://github.com/gabeklein/expressive-orm/commit/0c262b3bed35a4f70d469d8b568bcef01a642355) **`expressive sql` is built on `@expressive/cli`.** `--help` works at every level, `sync -f` is short for `--force`, and usage errors name the problem - a missing or nonexistent entry, an unknown command or option.
+
+- [#80](https://github.com/gabeklein/expressive-orm/pull/80) [`cc010a9`](https://github.com/gabeklein/expressive-orm/commit/cc010a9c6d05aeb9887fcff8e765c898eb9c82d7) The `expressive` bin is the shared command `@expressive/dev` also ships: whichever package links the bin runs both `expressive sql` and `expressive dev`, and lists the other as not installed when it is missing. `expressive sql` alone, or `expressive sql help`, prints help.
+- Updated dependencies [[`7c69ac6`](https://github.com/gabeklein/expressive-orm/commit/7c69ac699a94f3586b20db5cff161f1298640692), [`dd1d90c`](https://github.com/gabeklein/expressive-orm/commit/dd1d90c006305e824e1b48f75585856460b16561)]:
+  - @expressive/orm@0.22.0
+
 ## 0.12.0
 
 ### Minor Changes

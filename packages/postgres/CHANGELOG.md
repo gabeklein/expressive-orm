@@ -1,5 +1,24 @@
 # @expressive/postgres
 
+## 0.11.0
+
+### Minor Changes
+
+- [#84](https://github.com/gabeklein/expressive-orm/pull/84) [`ffe020c`](https://github.com/gabeklein/expressive-orm/commit/ffe020ccb92b4beb80447a3002f3687b0cb7605f) `PGConnection` and `PGLiteConnection` take `{ live: false }` to turn off live rows - no LISTEN, so no client is held between requests, as Cloudflare Workers and Hyperdrive need.
+
+- [#91](https://github.com/gabeklein/expressive-orm/pull/91) [`8774661`](https://github.com/gabeklein/expressive-orm/commit/8774661aef7f1406ff9013c335413c0fcf298ae6) `db.session(fn, client)` runs every statement inside on `client` - a `pg` `Client` or `Pool` for `PGConnection`, a `PGlite` for `PGLiteConnection` - transactions included, so a Worker can open a client per request from Hyperdrive and close it after.
+  
+  `sync`, or awaiting the connection, inside a session on a client other than the connection's own rejects - sync from a deploy step.
+
+### Patch Changes
+
+- [#89](https://github.com/gabeklein/expressive-orm/pull/89) [`7f58539`](https://github.com/gabeklein/expressive-orm/commit/7f58539bc120268aa6b8f0953232c9f4c17904fd) A nullability mismatch names both sides - `Column title in table post allows NULL, but Post.title is required` - in place of `has incorrect nullable value`.
+
+- [#81](https://github.com/gabeklein/expressive-orm/pull/81) [`dd1d90c`](https://github.com/gabeklein/expressive-orm/commit/dd1d90c006305e824e1b48f75585856460b16561) Declare the packages free of side effects, so a bundle importing only entities from `@expressive/sql` or `@expressive/postgres` drops SQLite, Postgres and `sql-formatter` - it matches importing the same names from `@expressive/orm`.
+- Updated dependencies [[`7c69ac6`](https://github.com/gabeklein/expressive-orm/commit/7c69ac699a94f3586b20db5cff161f1298640692), [`7f58539`](https://github.com/gabeklein/expressive-orm/commit/7f58539bc120268aa6b8f0953232c9f4c17904fd), [`dd1d90c`](https://github.com/gabeklein/expressive-orm/commit/dd1d90c006305e824e1b48f75585856460b16561), [`0c262b3`](https://github.com/gabeklein/expressive-orm/commit/0c262b3bed35a4f70d469d8b568bcef01a642355), [`cc010a9`](https://github.com/gabeklein/expressive-orm/commit/cc010a9c6d05aeb9887fcff8e765c898eb9c82d7), [`95fbe6b`](https://github.com/gabeklein/expressive-orm/commit/95fbe6bb05b9b03d7fab5b66359881c5010a2d28), [`1ee58d4`](https://github.com/gabeklein/expressive-orm/commit/1ee58d4b607af3edcf3f8fdabf8c8c58fabefd35)]:
+  - @expressive/orm@0.22.0
+  - @expressive/sql@0.13.0
+
 ## 0.10.1
 
 ### Patch Changes
