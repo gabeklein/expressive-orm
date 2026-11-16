@@ -105,6 +105,7 @@ const HOOKED = new WeakSet<Connection>();
 const NAMED = new WeakMap<Query.Table, string>();
 const COLLECT = Symbol.for("@expressive/orm.collect");
 const HOLDERS = new WeakMap<object, Holder>();
+const CLOSED = new WeakSet<Connection.Journal>();
 
 type Storage<T> = import('node:async_hooks').AsyncLocalStorage<T>;
 
@@ -242,6 +243,7 @@ abstract class Connection extends Model {
    *
    * `sync` runs only when the driver has one.
    * Inside a session with a client it rejects instead of starting `sync`, which belongs to the connection's own handle - await it outside, or sync from a deploy step.
+   * Inside a transaction on its handle it rejects too - a rollback would undo the schema.
    */
   async then(
     onfulfilled?: (value: Connection.Ready<this>) => any,
@@ -257,6 +259,8 @@ abstract class Connection extends Model {
       sync = Promise.resolve();
     else if (!sync && this._foreign())
       sync = Promise.reject(new Error(`${this.constructor.name} can't sync inside a session - await it outside one, or sync from a deploy step.`));
+    else if (!sync && this._journal())
+      sync = Promise.reject(new Error(`${this.constructor.name} can't sync inside a transaction - await it before one, or sync from a deploy step.`));
     else if (!sync)
       synced.set(this, sync = this.sync());
 
@@ -292,7 +296,9 @@ abstract class Connection extends Model {
   abstract remove(table: string, id: Connection.Key): Promise<void>;
 
   _journal(){
-    return context?.getStore()?.get(this._holder());
+    const journal = context?.getStore()?.get(this._holder());
+
+    return journal && !CLOSED.has(journal) ? journal : undefined;
   }
 
   _session(){
@@ -499,6 +505,7 @@ abstract class Connection extends Model {
    * Run `fn` in a transaction - commit when it resolves, roll back and rethrow when it throws.
    *
    * Every statement inside joins without a handle - statics, `Query`, instance writes. A nested call joins the open one.
+   * A statement left running after it ends runs on its own, as one outside would.
    * A transaction belongs to the client it opened on - inside it, a nested `session` with another client runs on that client, outside the transaction.
    * Rollback restores entities changed inside and destroys those created; entities deleted inside are destroyed on commit.
    * Other statements on the connection wait until it ends, unless the driver pools.
@@ -534,6 +541,7 @@ abstract class Connection extends Model {
       throw error;
     }
     finally {
+      CLOSED.add(journal);
       release();
     }
 

@@ -2748,6 +2748,32 @@ describe("session", () => {
     await engine.close();
   })
 
+  it("will refuse to sync inside a transaction on its engine", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const engine = await createEngine(":memory:");
+    const a = await SQLiteConnection.new([A], engine);
+    const b = SQLiteConnection.new([B], engine);
+
+    await expect(a.transaction(() => b.sync())).rejects.toThrow("SQLiteConnection can't sync inside a transaction - sync before one, or from a deploy step.");
+    await expect(a.transaction(async () => { await b })).rejects.toThrow("SQLiteConnection can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    expect(b.ready).toBe(false);
+
+    await b;
+
+    expect(await B.count()).toBe(0);
+
+    await a.close();
+    await b.close();
+    await engine.close();
+  })
+
   it("will sync in a session on its own source", async () => {
     class User extends Type {
       name = str();
