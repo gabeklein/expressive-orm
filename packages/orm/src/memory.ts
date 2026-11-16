@@ -92,7 +92,7 @@ class Memory extends Connection {
   }
 
   _key(name: string) {
-    for (const type of [...this.using, ...this._loaded.keys()])
+    for (const type of this._types())
       if ((type.schema ? `${type.schema}.${type.table}` : type.table) === name)
         return key(type);
 

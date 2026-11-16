@@ -244,11 +244,11 @@ async function receive(connection: Type.Connection, { table, op, id, row }: Conn
 
 function register(type: typeof Type){
   const { connection } = type;
-  const types = connection._loaded;
+  const types = connection._identity();
   let map = types.get(type);
 
   if (!map) {
-    if (!types.size && connection.subscribe && !connection.get(null))
+    if (!types.size && types === connection._loaded && connection.subscribe && !connection.get(null))
       connection.get(null, connection.subscribe(change => receive(connection, change)));
 
     types.set(type, map = new Map());

@@ -534,6 +534,620 @@ describe("identity map", () => {
   })
 })
 
+describe("session", () => {
+  class User extends Type {
+    name = str();
+  }
+
+  class Clients extends Store {
+    _routes(){
+      return true;
+    }
+
+    async select(...args: Parameters<Connection["select"]>){
+      await this.idle();
+      return super.select(...args);
+    }
+
+    protected async transact<T>(fn: () => Promise<T>){
+      return fn();
+    }
+  }
+
+  it("will keep its own identity map", async () => {
+    const db = Store.new([User]);
+    const outer = await User.new({ name: "Gabe" });
+
+    await db.update(User.ref, outer.id, { name: "Bob" });
+
+    const inner = await db.session(() => User.get(outer.id));
+
+    expect(inner).not.toBe(outer);
+    expect(inner.name).toBe("Bob");
+    expect(outer.name).toBe("Gabe");
+    expect(await User.get(outer.id)).toBe(outer);
+    expect(db._loaded.get(User)!.size).toBe(1);
+
+    await db.close();
+  })
+
+  it("will not share entities between sessions", async () => {
+    const db = Store.new([User]);
+    const { id } = await User.insert({ name: "Gabe" });
+
+    const [a, b] = await Promise.all([
+      db.session(() => User.get(id)),
+      db.session(() => User.get(id))
+    ]);
+
+    expect(a).not.toBe(b);
+    expect(db._loaded.get(User)!.size).toBe(0);
+
+    await db.close();
+  })
+
+  it("will share entities within a session", async () => {
+    const db = Store.new([User]);
+    const { id } = await User.insert({ name: "Gabe" });
+
+    await db.session(async () => {
+      expect(await User.get(id)).toBe(await User.get(id));
+      expect(db._types()).toContain(User);
+    });
+
+    await db.close();
+  })
+
+  it("will return what fn returns", async () => {
+    const db = Store.new([User]);
+
+    expect(await db.session(() => 3)).toBe(3);
+    await expect(db.session(() => { throw new Error("nope") })).rejects.toThrow("nope");
+
+    await db.close();
+  })
+
+  it("will expose the client to the driver", async () => {
+    const db = Store.new();
+    const client = {};
+    const other = {};
+
+    expect(db._session()).toBeUndefined();
+
+    await db.session(async () => {
+      expect(db._session()!.client).toBe(client);
+
+      await db.session(() => {
+        expect(db._session()!.client).toBe(client);
+      });
+
+      await db.session(() => {
+        expect(db._session()!.client).toBe(other);
+      }, other);
+    }, client);
+
+    await db.session(() => {
+      expect(db._session()!.client).toBeUndefined();
+    });
+
+    await db.close();
+  })
+
+  it("will start a fresh identity map when nested", async () => {
+    const db = Store.new([User]);
+    const { id } = await User.insert({ name: "Gabe" });
+
+    await db.session(async () => {
+      const outer = await User.get(id);
+      const inner = await db.session(() => User.get(id));
+
+      expect(inner).not.toBe(outer);
+    });
+
+    await db.close();
+  })
+
+  it("will hold a transaction per client", async () => {
+    const db = Clients.new();
+    const a = {};
+    const b = {};
+    const order: string[] = [];
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+
+    const first = db.session(() => db.transaction(async () => {
+      order.push("a1");
+      await held;
+      order.push("a1 done");
+    }), a);
+
+    await new Promise(res => setTimeout(res));
+
+    const second = db.session(() => db.transaction(() => { order.push("b") }), b);
+    const third = db.session(() => db.transaction(() => { order.push("a2") }), a);
+
+    await second;
+    expect(order).toEqual(["a1", "b"]);
+
+    release();
+    await Promise.all([first, third]);
+    expect(order).toEqual(["a1", "b", "a1 done", "a2"]);
+
+    await db.close();
+  })
+
+  it("will lock a session on the connection's own client", async () => {
+    const db = Clients.new();
+    const client = {};
+    const order: string[] = [];
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+
+    db._client = client;
+
+    const outside = db.transaction(async () => {
+      order.push("outside");
+      await held;
+      order.push("outside done");
+    });
+
+    await new Promise(res => setTimeout(res));
+
+    const inside = db.session(() => db.transaction(() => { order.push("inside") }), client);
+
+    await new Promise(res => setTimeout(res));
+    expect(order).toEqual(["outside"]);
+
+    release();
+    await Promise.all([outside, inside]);
+    expect(order).toEqual(["outside", "outside done", "inside"]);
+
+    await db.close();
+  })
+
+  it("will keep a transaction to the client it opened on", async () => {
+    const db = Clients.new();
+    const a = {};
+    const b = {};
+    const order: string[] = [];
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+
+    const other = db.session(() => db.transaction(async () => {
+      order.push("b1");
+      await held;
+      order.push("b1 done");
+    }), b);
+
+    await new Promise(res => setTimeout(res));
+
+    await db.session(() => db.transaction(async () => {
+      const outer = db._journal();
+
+      expect(outer).toBeDefined();
+
+      const inner = db.session(async () => {
+        expect(db._journal()).toBeUndefined();
+
+        await db.transaction(() => {
+          order.push("b2");
+          expect(db._journal()).not.toBe(outer);
+        });
+      }, b);
+
+      await db.transaction(() => {
+        expect(db._journal()).toBe(outer);
+      });
+
+      await new Promise(res => setTimeout(res));
+      expect(order).toEqual(["b1"]);
+
+      release();
+      await inner;
+    }), a);
+
+    await other;
+    expect(order).toEqual(["b1", "b1 done", "b2"]);
+
+    await db.close();
+  })
+
+  it("will rejoin a client's transaction after a nested one on another", async () => {
+    const db = Clients.new();
+    const a = {};
+    const b = {};
+
+    const found = await db.session(() => db.transaction(async () => {
+      const outer = db._journal();
+
+      return db.session(() => db.transaction(() => (
+        db.session(async () => {
+          await db.select("item", []);
+          return db._journal() === outer;
+        }, a)
+      )), b);
+    }), a);
+
+    expect(found).toBe(true);
+
+    await db.transaction(async () => {
+      await db.select("item", []);
+      expect(db._journal()).toBeDefined();
+    });
+
+    await db.close();
+  })
+
+  it("will let the driver refuse a client before fn runs", async () => {
+    class Picky extends Store {
+      _admit(client: object){
+        if (!("query" in client))
+          throw new TypeError("Picky takes a client with query.");
+      }
+    }
+
+    const db = Picky.new();
+    const fn = vi.fn();
+
+    await expect(db.session(fn, {})).rejects.toThrow("Picky takes a client with query.");
+    expect(fn).not.toHaveBeenCalled();
+    await expect(db.session(() => 1, { query(){} })).resolves.toBe(1);
+
+    await db.close();
+  })
+
+  it("will join a transaction another connection opened on the same handle", async () => {
+    const handle = {};
+    const a = Clients.new();
+    const b = Clients.new();
+
+    a._client = handle;
+    b._client = handle;
+
+    await a.transaction(async () => {
+      await b.select("item", []);
+      expect(b._journal()).toBe(a._journal());
+    });
+
+    const c = {};
+
+    await a.session(() => a.transaction(() => (
+      b.session(async () => {
+        await b.select("item", []);
+        expect(b._journal()).toBe(a._journal());
+      }, c)
+    )), c);
+
+    await a.close();
+    await b.close();
+  })
+
+  it("will refuse to sync when awaited inside a transaction on its handle", async () => {
+    const handle = {};
+    const sync = vi.fn(async () => {});
+
+    class Synced extends Clients {
+      sync = sync;
+    }
+
+    const a = Clients.new();
+    const b = Synced.new();
+
+    a._client = handle;
+    b._client = handle;
+
+    await expect(a.transaction(async () => { await b })).rejects.toThrow("Synced can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    expect(sync).not.toHaveBeenCalled();
+
+    await b;
+    expect(sync).toHaveBeenCalledTimes(1);
+
+    await a.close();
+    await b.close();
+  })
+
+  it("will refuse to wait inside a transaction for a sync started outside", async () => {
+    const handle = {};
+
+    class Synced extends Clients {
+      sync = vi.fn(async () => {
+        await this.select("item", []);
+      });
+    }
+
+    const a = Clients.new();
+    const b = Synced.new();
+    let enter!: () => void;
+    let proceed!: () => void;
+    const entered = new Promise<void>(res => enter = res);
+    const gate = new Promise<void>(res => proceed = res);
+
+    a._client = handle;
+    b._client = handle;
+
+    const transaction = a.transaction(async () => {
+      enter();
+      await gate;
+      await b;
+    });
+
+    await entered;
+
+    const outside = Promise.resolve(b);
+
+    await new Promise(res => setTimeout(res));
+    proceed();
+
+    await expect(transaction).rejects.toThrow("Synced can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    await outside;
+    expect(b.sync).toHaveBeenCalledTimes(1);
+
+    await a.close();
+    await b.close();
+  })
+
+  it("will refuse to wait for a sync started outside from a session on another client inside a transaction", async () => {
+    const handle = {};
+
+    class Synced extends Clients {
+      sync = vi.fn(async () => {
+        await this.select("item", []);
+      });
+    }
+
+    const a = Clients.new();
+    const b = Synced.new();
+    let enter!: () => void;
+    let proceed!: () => void;
+    const entered = new Promise<void>(res => enter = res);
+    const gate = new Promise<void>(res => proceed = res);
+
+    a._client = handle;
+    b._client = handle;
+
+    const transaction = a.transaction(async () => {
+      enter();
+      await gate;
+      await b.session(async () => { await b }, {});
+    });
+
+    await entered;
+
+    const outside = Promise.resolve(b);
+
+    await new Promise(res => setTimeout(res));
+    proceed();
+
+    await expect(transaction).rejects.toThrow("Synced can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    await outside;
+    expect(b.sync).toHaveBeenCalledTimes(1);
+
+    await a.close();
+    await b.close();
+  })
+
+  it("will not join a transaction that ended", async () => {
+    const handle = {};
+    const a = Clients.new();
+    const b = Clients.new();
+    const order: string[] = [];
+    let resume!: () => void;
+    let release!: () => void;
+    let late!: Promise<unknown>;
+
+    a._client = handle;
+    b._client = handle;
+
+    await a.transaction(async () => {
+      late = new Promise<void>(res => resume = res).then(async () => {
+        expect(b._journal()).toBeUndefined();
+        await b.select("item", []);
+        order.push("late");
+      });
+    });
+
+    const next = a.transaction(async () => {
+      resume();
+      await new Promise<void>(res => release = res);
+      order.push("next");
+    });
+
+    await new Promise(res => setTimeout(res));
+    expect(order).toEqual([]);
+
+    release();
+    await Promise.all([next, late]);
+    expect(order).toEqual(["next", "late"]);
+
+    await a.close();
+    await b.close();
+  })
+
+  it("will run transactions one at a time on a driver that ignores the client", async () => {
+    class Plain extends Store {
+      async select(...args: Parameters<Connection["select"]>){
+        await this.idle();
+        return super.select(...args);
+      }
+
+      protected async transact<T>(fn: () => Promise<T>){
+        return fn();
+      }
+    }
+
+    const db = Plain.new();
+    const order: string[] = [];
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+
+    const first = db.session(() => db.transaction(async () => {
+      order.push("a");
+      await held;
+      order.push("a done");
+    }), {});
+
+    await new Promise(res => setTimeout(res));
+
+    const second = db.session(() => db.transaction(() => { order.push("b") }), {});
+
+    await new Promise(res => setTimeout(res));
+    expect(order).toEqual(["a"]);
+
+    release();
+    await Promise.all([first, second]);
+    expect(order).toEqual(["a", "a done", "b"]);
+
+    await db.close();
+  })
+
+  it("will sync when awaited in a session on a driver that ignores the client", async () => {
+    const sync = vi.fn(async () => {});
+
+    class Plain extends Store {
+      sync = sync;
+    }
+
+    const db = Plain.new();
+
+    await db.session(async () => { await db }, {});
+    expect(sync).toHaveBeenCalledTimes(1);
+
+    await db.close();
+  })
+
+  it("will sync when awaited in a session on the connection's own handle", async () => {
+    const sync = vi.fn(async () => {});
+    const own = {};
+
+    class Synced extends Clients {
+      sync = sync;
+    }
+
+    const db = Synced.new();
+
+    db._client = own;
+
+    await db.session(async () => { await db }, own);
+    expect(sync).toHaveBeenCalledTimes(1);
+
+    await db.close();
+  })
+
+  it("will reject a client that is not an object", async () => {
+    const db = Store.new();
+
+    await expect(db.session(() => {}, "tenant")).rejects.toThrow("A session client is the driver's handle, an object - not string.");
+    await expect(db.session(() => 1, () => {})).resolves.toBe(1);
+
+    await db.close();
+  })
+
+  it("will refuse to sync when awaited inside a session with a client", async () => {
+    const sync = vi.fn(async () => {});
+
+    class Synced extends Clients {
+      sync = sync;
+    }
+
+    const db = Synced.new();
+
+    await expect(db.session(async () => { await db }, {})).rejects.toThrow("Synced can't sync inside a session - await it outside one, or sync from a deploy step.");
+    expect(sync).not.toHaveBeenCalled();
+
+    await db.session(async () => { await db });
+    expect(sync).toHaveBeenCalledTimes(1);
+
+    await db.close();
+  })
+
+  it("will join an outside sync when awaited inside a session", async () => {
+    let finish!: () => void;
+    const sync = vi.fn(() => new Promise<void>(resolve => finish = resolve));
+
+    class Synced extends Clients {
+      sync = sync;
+    }
+
+    const db = Synced.new();
+    const outside = Promise.resolve(db);
+
+    await new Promise(res => setTimeout(res));
+
+    const inside = db.session(async () => { await db }, {});
+
+    finish();
+    await Promise.all([outside, inside]);
+
+    expect(sync).toHaveBeenCalledTimes(1);
+
+    await db.close();
+  })
+
+  it("will keep an entity a nested session deleted", async () => {
+    const db = Store.new([User]);
+    const { id } = await User.insert({ name: "Gabe" });
+
+    await db.session(async () => {
+      const user = await User.get(id);
+
+      await db.session(() => User.delete(id));
+
+      expect(User.get(id)).toBe(user);
+      expect(user.get(null)).toBe(false);
+      await expect(User.one({ id }, false)).resolves.toBeUndefined();
+    });
+
+    await db.close();
+  })
+
+  it("will keep its map and client for work that outlives it", async () => {
+    const db = Store.new([User]);
+    const client = {};
+    const { id } = await User.insert({ name: "Gabe" });
+    let later!: Promise<[unknown, User]>;
+
+    await db.session(() => {
+      later = new Promise(res => setTimeout(res)).then(async () => [db._session()!.client, await User.get(id)]);
+    }, client);
+
+    const [seen, user] = await later;
+
+    expect(seen).toBe(client);
+    expect(db._loaded.get(User)?.get(id)).toBeUndefined();
+    expect(user.name).toBe("Gabe");
+
+    await db.close();
+  })
+
+  it("will not destroy session entities on close", async () => {
+    const db = Store.new([User]);
+    const { id } = await User.insert({ name: "Gabe" });
+    const user = await db.session(() => User.get(id));
+    const destroyed = vi.fn();
+
+    user.get(null, destroyed);
+    await db.close();
+
+    expect(destroyed).not.toHaveBeenCalled();
+  })
+
+  it("will throw without AsyncLocalStorage", async () => {
+    vi.resetModules();
+    vi.spyOn(process, "getBuiltinModule" as any).mockReturnValue(undefined);
+
+    try {
+      const { Memory } = await import('./memory');
+      const db = Memory.new();
+
+      await expect(db.session(() => {})).rejects.toThrow("Sessions need AsyncLocalStorage from process.getBuiltinModule, which this runtime does not provide.");
+    }
+    finally {
+      vi.restoreAllMocks();
+      vi.resetModules();
+    }
+  })
+})
+
 describe("transaction", () => {
   it("will throw without driver support", async () => {
     const db = Store.new();

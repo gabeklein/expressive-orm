@@ -185,7 +185,7 @@ function check(field: Field, value: unknown, compare?: boolean){
 }
 
 function statement(connection: Connection, table: string){
-  const type = [...connection.using, ...connection._loaded.keys()].find(type => ref(type) === table);
+  const type = [...connection._types()].find(type => ref(type) === table);
 
   if (!type)
     throw new Error(`Table ${table} is not used by this connection.`);

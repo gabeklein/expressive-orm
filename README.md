@@ -524,6 +524,24 @@ const ann = await db.transaction(async () => {
 
 On SQLite, PGlite and `Memory`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `Memory` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` from `process.getBuiltinModule` - Bun, Node 20.16+ or 22.3+, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as React Native, or PGlite or `Memory` in a browser. D1 refuses `transaction`.
 
+## Sessions
+
+```ts
+export default {
+  fetch: (request: Request) => db.session(() => handle(request))
+};
+```
+
+A connection keeps one identity map for the process: `get(id)` returns an entity already loaded without reading its row again, and only [live rows](#live-rows) keep it current. When other processes write to the same database - Workers isolates on one D1 or Postgres, several servers - wrap each request in `db.session(fn)`. Inside it the connection keeps a fresh identity map, so `get` and relations read their rows afresh and the same row loads into one entity per session; entities loaded inside follow no live rows and stay usable after `fn` settles. Code outside a session keeps the process-wide map.
+
+`db.session(fn, client)` also runs every statement inside on `client`, the driver's own handle, a transaction included: statements on one client - from any connection on it - join or wait out its open transaction, while other clients run alongside, and the handle a connection was built on counts as one. A driver that takes no client, like `Memory`, ignores it and runs transactions one at a time. The connection never closes a session's client. Like transactions, sessions need `AsyncLocalStorage` from `process.getBuiltinModule`.
+
+- A nested session starts a fresh identity map and keeps the outer client unless given one. Its writes don't reach the outer map: an entity it deletes or changes stays as the outer session loaded it, until the outer one reads it again with `load` or `query`.
+- Work started inside that outlives `fn` - a promise not awaited, `ctx.waitUntil` - still runs in the session, on its map and client. End the client only once that work settles.
+- A transaction belongs to the client it opened on. A nested session with another client, inside it, runs on that client and outside the transaction.
+- Awaiting the connection inside a session on a client other than its own rejects rather than run `sync`, which belongs to the connection's own handle - await it outside any session, or sync the schema from a deploy step. Awaiting it unsynced inside a transaction on its handle rejects too, from any session - a rollback would undo the schema, and a sync already running waits for that transaction. A promise of the connection taken outside the transaction and awaited inside it can't be caught, and hangs: await the connection before opening a transaction on its handle.
+- `close()` destroys the entities of the process-wide map only; those loaded in a session stay, unbound.
+
 ## Hooks
 
 ```ts

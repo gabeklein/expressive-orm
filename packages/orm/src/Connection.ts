@@ -89,7 +89,11 @@ declare namespace Connection {
   }
 }
 
-type Scope = Map<Connection, Connection.Journal>;
+type Scope = Map<object, Connection.Journal>;
+
+type Session = { loaded: Map<Type.Class, Map<unknown, Type>>; client?: unknown };
+type Sessions = Map<Connection, Session>;
+type Holder = { _active?: Promise<void> };
 
 type Codecs = ReadonlyMap<Function, Connection.Codec>;
 
@@ -100,20 +104,26 @@ const synced = new WeakMap<Connection, Promise<unknown>>();
 const HOOKED = new WeakSet<Connection>();
 const NAMED = new WeakMap<Query.Table, string>();
 const COLLECT = Symbol.for("@expressive/orm.collect");
+const HOLDERS = new WeakMap<object, Holder>();
+const CLOSED = new WeakSet<Connection.Journal>();
 
-let context: import('node:async_hooks').AsyncLocalStorage<Scope> | undefined;
+type Storage<T> = import('node:async_hooks').AsyncLocalStorage<T>;
 
-function scope(){
-  if (context)
-    return context;
+let context: Storage<Scope> | undefined;
+let sessions: Storage<Sessions> | undefined;
 
+function local<T>(what: string): Storage<T> {
   const hooks: typeof import('node:async_hooks') | undefined =
     (globalThis as any).process?.getBuiltinModule?.("node:async_hooks");
 
   if (!hooks)
-    throw new Error("Transactions need AsyncLocalStorage from process.getBuiltinModule, which this runtime does not provide.");
+    throw new Error(`${what} need AsyncLocalStorage from process.getBuiltinModule, which this runtime does not provide.`);
 
-  return context = new hooks.AsyncLocalStorage<Scope>();
+  return new hooks.AsyncLocalStorage<T>();
+}
+
+function scope(){
+  return context ??= local<Scope>("Transactions");
 }
 
 function resolve(codecs: Codecs, name: string, field: Field): [Connection.Codec, Field] {
@@ -171,6 +181,7 @@ abstract class Connection extends Model {
   readonly ready: boolean = false;
 
   _active?: Promise<void>;
+  _client?: object;
   _loaded = new Map<Type.Class, Map<unknown, Type>>();
   _hooks = new Map<string, Hooks>();
 
@@ -231,6 +242,9 @@ abstract class Connection extends Model {
    * Lets the connection be awaited - runs `sync` once, then resolves the connection.
    *
    * `sync` runs only when the driver has one.
+   * Inside a session with a client it rejects instead of starting `sync`, which belongs to the connection's own handle - await it outside, or sync from a deploy step.
+   * Inside a transaction on its handle it rejects too, even while a sync started outside runs, or from a session on another client - a rollback would undo the schema, and that sync waits for the transaction.
+   * A promise of the connection taken outside the transaction and awaited inside still waits on that sync and hangs - await the connection before opening a transaction on its handle.
    */
   async then(
     onfulfilled?: (value: Connection.Ready<this>) => any,
@@ -244,6 +258,10 @@ abstract class Connection extends Model {
 
     if (this.ready || !this.sync || collect)
       sync = Promise.resolve();
+    else if (!sync && this._foreign())
+      sync = Promise.reject(new Error(`${this.constructor.name} can't sync inside a session - await it outside one, or sync from a deploy step.`));
+    else if (this._journal() || this._foreign() && this._journal(this._client ? this._holder(this._client) : this))
+      sync = Promise.reject(new Error(`${this.constructor.name} can't sync inside a transaction - await it before one, or sync from a deploy step.`));
     else if (!sync)
       synced.set(this, sync = this.sync());
 
@@ -278,8 +296,82 @@ abstract class Connection extends Model {
   /** Delete the row with primary key `id`. A missing row is not an error. */
   abstract remove(table: string, id: Connection.Key): Promise<void>;
 
-  _journal(){
-    return context?.getStore()?.get(this);
+  _journal(holder: Holder = this._holder()){
+    const journal = context?.getStore()?.get(holder);
+
+    return journal && !CLOSED.has(journal) ? journal : undefined;
+  }
+
+  _session(){
+    return sessions?.getStore()?.get(this);
+  }
+
+  _identity(){
+    return this._session()?.loaded || this._loaded;
+  }
+
+  _types(){
+    return new Set([...this.using, ...this._loaded.keys(), ...this._identity().keys()]);
+  }
+
+  _admit(_client: object){}
+
+  _routes(){
+    return false;
+  }
+
+  _foreign(){
+    const client = this._session()?.client;
+
+    return this._routes() && client && client !== this._client ? client : undefined;
+  }
+
+  _holder(client = this._routes() ? (this._session()?.client ?? this._client) as object | undefined : undefined): Holder {
+    let holder: Holder | undefined;
+
+    if (!client)
+      return this;
+
+    if (!(holder = HOLDERS.get(client)))
+      HOLDERS.set(client, holder = {});
+
+    return holder;
+  }
+
+  /**
+   * Run `fn` in a session - its own identity map and, on a driver that takes one, its own client.
+   *
+   * Entities loaded inside are kept apart from those loaded outside or in another session - `get` inside loads afresh, never returning an entity loaded elsewhere.
+   * Entities loaded inside do not follow live rows, and stay usable once `fn` settles.
+   * `client` is the driver's own handle, as the driver documents it; a driver that takes none ignores it, and its transactions run one at a time.
+   * On a driver that takes one, every statement inside runs on `client`, a transaction included; statements on one client - from any connection on it - join or wait out its open transaction, while other clients run alongside. The handle a connection was built on counts as a client. The connection never closes it.
+   * A nested call starts a fresh identity map and keeps the outer client unless given one - an entity the inner call deletes or changes stays as it was in the outer map.
+   * Work started inside that outlives `fn` - a promise not awaited, a `waitUntil` - keeps the session's map and client; end a client only once that work settles.
+   * Outside any session the connection keeps one identity map for the process. `close()` destroys only the entities in that map.
+   * Throws where the runtime has no `AsyncLocalStorage`, for a `client` that isn't an object, or for one the driver can't run statements on - before `fn` runs.
+   *
+   * @example
+   * const client = await open();
+   *
+   * try {
+   *   return await db.session(() => handle(request), client);
+   * }
+   * finally {
+   *   await client.end();
+   * }
+   */
+  async session<T>(fn: () => T | Promise<T>, client?: unknown): Promise<T> {
+    if (client != null && typeof client != "object" && typeof client != "function")
+      throw new TypeError(`A session client is the driver's handle, an object - not ${typeof client}.`);
+
+    if (client != null)
+      this._admit(client);
+
+    const storage = sessions ??= local<Sessions>("Sessions");
+    const outer = storage.getStore();
+    const session: Session = { loaded: new Map(), client: client ?? outer?.get(this)?.client };
+
+    return storage.run(new Map(outer).set(this, session), fn);
   }
 
   /**
@@ -413,6 +505,8 @@ abstract class Connection extends Model {
    * Run `fn` in a transaction - commit when it resolves, roll back and rethrow when it throws.
    *
    * Every statement inside joins without a handle - statics, `Query`, instance writes. A nested call joins the open one.
+   * A statement left running after it ends runs on its own, as one outside would.
+   * A transaction belongs to the client it opened on - inside it, a nested `session` with another client runs on that client, outside the transaction.
    * Rollback restores entities changed inside and destroys those created; entities deleted inside are destroyed on commit.
    * Other statements on the connection wait until it ends, unless the driver pools.
    * Throws when the driver has no `transact`, or the runtime no `AsyncLocalStorage`.
@@ -430,7 +524,7 @@ abstract class Connection extends Model {
     const storage = scope();
     const outer = storage.getStore();
 
-    if (outer?.has(this))
+    if (this._journal())
       return fn();
 
     const release = await this.lock();
@@ -439,7 +533,7 @@ abstract class Connection extends Model {
     let effects: unknown[];
 
     try {
-      result = await storage.run(new Map(outer).set(this, journal), () => this.transact!(async () => fn()));
+      result = await storage.run(new Map(outer).set(this._holder(), journal), () => this.transact!(async () => fn()));
       effects = journal.done.map(apply => apply());
     }
     catch (error) {
@@ -447,6 +541,7 @@ abstract class Connection extends Model {
       throw error;
     }
     finally {
+      CLOSED.add(journal);
       release();
     }
 
@@ -468,15 +563,17 @@ abstract class Connection extends Model {
    * Waits out the open one. A pooled driver overrides it.
    */
   protected async lock(){
-    while (this._active)
-      await this._active;
+    const holder = this._holder();
+
+    while (holder._active)
+      await holder._active;
 
     let release!: () => void;
 
-    this._active = new Promise(resolve => release = resolve);
+    holder._active = new Promise(resolve => release = resolve);
 
     return () => {
-      this._active = undefined;
+      holder._active = undefined;
       release();
     };
   }
@@ -487,8 +584,10 @@ abstract class Connection extends Model {
    * Returns at once inside the open one.
    */
   protected async idle(){
-    while (this._active && !this._journal())
-      await this._active;
+    const holder = this._holder();
+
+    while (holder._active && !this._journal())
+      await holder._active;
   }
 
   /** Compile a `Query` builder into a statement. Without it a `Query` rejects when run. */
