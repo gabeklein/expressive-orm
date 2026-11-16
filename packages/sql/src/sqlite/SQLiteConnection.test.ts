@@ -2758,8 +2758,8 @@ describe("session", () => {
     }
 
     const engine = await createEngine(":memory:");
-    const a = await SQLiteConnection.new([A], engine);
-    const b = SQLiteConnection.new([B], engine);
+    const a = await SQLiteConnection.new([A], { source: engine });
+    const b = SQLiteConnection.new([B], { source: engine });
 
     await expect(a.transaction(() => b.sync())).rejects.toThrow("SQLiteConnection can't sync inside a transaction - sync before one, or from a deploy step.");
     await expect(a.transaction(async () => { await b })).rejects.toThrow("SQLiteConnection can't sync inside a transaction - await it before one, or sync from a deploy step.");
