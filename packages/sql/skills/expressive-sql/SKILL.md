@@ -31,7 +31,7 @@ A filename or in-memory connection enforces foreign keys. `sync` covers the clas
 
 ### Engine
 
-In place of the filename, pass an `Engine` for a SQLite the built-in loader can't open - any object with these, each async:
+As `{ source }`, pass an `Engine` for a SQLite the built-in loader can't open - any object with these, each async:
 
 ```ts
 import type { Engine } from '@expressive/sql';
@@ -44,7 +44,7 @@ const engine: Engine = {
   close: () => ...,
 };
 
-const db = await SQLiteConnection.new([User], engine);
+const db = await SQLiteConnection.new([User], { source: engine });
 ```
 
 A given engine, binding or client is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
@@ -58,7 +58,7 @@ Two optional members, for hosts without `BEGIN` and `COMMIT` on one connection:
 
 ### Hosts
 
-In place of the filename, `new` also takes a D1 binding, a libSQL `Client` or a libSQL address, told apart by shape.
+As `source`, `new` also takes a D1 binding, a libSQL `Client` or a libSQL address, told apart by shape. The second argument is a filename or address string, or `{ source, timestamps }` - any other object there throws, so an object source always goes in `{ source }`.
 
 On Workers, open once from the first request's binding, and drop it when `sync` fails - a second `new` while entities hold a connection throws:
 
@@ -66,7 +66,7 @@ On Workers, open once from the first request's binding, and drop it when `sync` 
 let ready: Promise<unknown> | undefined;
 
 function open(DB: D1Database){
-  const db = SQLiteConnection.new([User], DB);
+  const db = SQLiteConnection.new([User], { source: DB });
 
   return Promise.resolve(db).catch(async error => {
     ready = undefined;
@@ -140,7 +140,7 @@ class Product extends Type {
 ```
 
 - `num()` is a 32-bit integer - a fraction or a value outside 32-bit range throws on write. `sql.bigint` for large integers, `sql.real` or `sql.numeric(p, s)` for fractions.
-- A `timestamp`'s storage is the connection's: `SQLiteConnection.new(types, "app.db", { timestamps: "seconds" })`. `"ms"` (default) and `"seconds"` are INTEGER epoch values; `"iso"` is ISO 8601 UTC text, for reading in a DB browser or D1 console. Every connection to one file must agree. A database written by 0.6-0.11 holds ISO text - open it with `{ timestamps: "iso" }`.
+- A `timestamp`'s storage is the connection's: `SQLiteConnection.new(types, { source: "app.db", timestamps: "seconds" })`. `"ms"` (default) and `"seconds"` are INTEGER epoch values; `"iso"` is ISO 8601 UTC text, for reading in a DB browser or D1 console. Every connection to one file must agree. A database written by 0.6-0.11 holds ISO text - open it with `{ timestamps: "iso" }`.
 - Options a factory doesn't take go in an object - `date({ type: "timestamp", precision: 3 })`.
 - `sql.now` is the database's current time in the column's storage - as a `fallback`, in a statics write or comparison (`lessThan(sql.now)`), or in a `Query`. Statics read it from the app's clock.
 - The SQL floor checks values again before storing, so rows forwarded from a client meet the same rules.
