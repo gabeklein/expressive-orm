@@ -2784,8 +2784,8 @@ describe("session", () => {
     }
 
     const engine = await createEngine(":memory:");
-    const a = await SQLiteConnection.new([A], engine);
-    const b = SQLiteConnection.new([B], engine);
+    const a = await SQLiteConnection.new([A], { source: engine });
+    const b = SQLiteConnection.new([B], { source: engine });
     let enter!: () => void;
     let proceed!: () => void;
     const entered = new Promise<void>(res => enter = res);
