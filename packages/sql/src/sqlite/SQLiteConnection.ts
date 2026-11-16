@@ -196,11 +196,14 @@ export class SQLiteConnection extends Connection {
    *
    * Creates missing tables and adds missing columns and indexes, in one transaction. Throws for any problem `plan` reports, changing nothing.
    * `fix` false only verifies - anything missing throws too. `force` rebuilds a table whose column type or nullability drifted.
-   * Throws when the connection is already ready, or inside a session on another source - sync from a deploy step instead.
+   * Throws when the connection is already ready, inside a session on another source, or inside a transaction on its source - sync from a deploy step instead.
    */
   async sync(fix = true, force = false){
     if (this._foreign())
       throw new Error(`${this.constructor.name} can't sync inside a session - sync outside one, or from a deploy step.`);
+
+    if (this._journal())
+      throw new Error(`${this.constructor.name} can't sync inside a transaction - sync before one, or from a deploy step.`);
 
     if (this.ready)
       throw new Error("Connection is already active.");
