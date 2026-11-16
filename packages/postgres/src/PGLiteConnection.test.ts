@@ -183,6 +183,45 @@ describe("session", () => {
     await a.close();
   })
 
+  it("will refuse to wait inside a transaction for a sync started outside", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const a = await TestConnection.new([A]);
+    const b = PGLiteConnection.new([B], shared);
+    let enter!: () => void;
+    let proceed!: () => void;
+    const entered = new Promise<void>(res => enter = res);
+    const gate = new Promise<void>(res => proceed = res);
+
+    const transaction = a.transaction(async () => {
+      enter();
+      await gate;
+      await b;
+    });
+
+    await entered;
+
+    const outside = Promise.resolve(b);
+
+    await new Promise(res => setTimeout(res));
+    proceed();
+
+    await expect(transaction).rejects.toThrow("PGLiteConnection can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    await outside;
+
+    expect(b.ready).toBe(true);
+    expect(await B.count()).toBe(0);
+
+    await b.close();
+    await a.close();
+  })
+
   it("will run statements on the session's PGlite", async () => {
     class User extends Type {
       name = str();
