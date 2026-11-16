@@ -89,7 +89,7 @@ declare namespace Connection {
   }
 }
 
-type Scope = Map<Connection, Map<object, Connection.Journal>>;
+type Scope = Map<object, Connection.Journal>;
 
 type Session = { loaded: Map<Type.Class, Map<unknown, Type>>; client?: unknown };
 type Sessions = Map<Connection, Session>;
@@ -255,7 +255,7 @@ abstract class Connection extends Model {
 
     if (this.ready || !this.sync || collect)
       sync = Promise.resolve();
-    else if (!sync && this._session()?.client)
+    else if (!sync && this._foreign())
       sync = Promise.reject(new Error(`${this.constructor.name} can't sync inside a session - await it outside one, or sync from a deploy step.`));
     else if (!sync)
       synced.set(this, sync = this.sync());
@@ -292,7 +292,7 @@ abstract class Connection extends Model {
   abstract remove(table: string, id: Connection.Key): Promise<void>;
 
   _journal(){
-    return context?.getStore()?.get(this)?.get(this._holder());
+    return context?.getStore()?.get(this._holder());
   }
 
   _session(){
@@ -309,8 +309,18 @@ abstract class Connection extends Model {
 
   _admit(_client: object){}
 
+  _routes(){
+    return false;
+  }
+
+  _foreign(){
+    const client = this._session()?.client;
+
+    return this._routes() && client && client !== this._client ? client : undefined;
+  }
+
   _holder(): Holder {
-    const client = (this._session()?.client ?? this._client) as object | undefined;
+    const client = this._routes() ? (this._session()?.client ?? this._client) as object | undefined : undefined;
     let holder: Holder | undefined;
 
     if (!client)
@@ -327,8 +337,8 @@ abstract class Connection extends Model {
    *
    * Entities loaded inside are kept apart from those loaded outside or in another session - `get` inside loads afresh, never returning an entity loaded elsewhere.
    * Entities loaded inside do not follow live rows, and stay usable once `fn` settles.
-   * `client` is the driver's own handle - a `pg` client or pool for `PGConnection`, a PGlite for `PGLiteConnection`, an `Engine`, D1 binding or libSQL client for `SQLiteConnection`. Other drivers ignore it.
-   * Every statement inside runs on `client`, a transaction included; statements on one client wait out its open transaction, while other clients run alongside - the connection's own handle counts as a client. The connection never closes it.
+   * `client` is the driver's own handle, as the driver documents it; a driver that takes none ignores it, and its transactions run one at a time.
+   * On a driver that takes one, every statement inside runs on `client`, a transaction included; statements on one client - from any connection on it - join or wait out its open transaction, while other clients run alongside. The handle a connection was built on counts as a client. The connection never closes it.
    * A nested call starts a fresh identity map and keeps the outer client unless given one - an entity the inner call deletes or changes stays as it was in the outer map.
    * Work started inside that outlives `fn` - a promise not awaited, a `waitUntil` - keeps the session's map and client; end a client only once that work settles.
    * Outside any session the connection keeps one identity map for the process. `close()` destroys only the entities in that map.
@@ -512,12 +522,11 @@ abstract class Connection extends Model {
 
     const release = await this.lock();
     const journal: Connection.Journal = { undo: [], done: [] };
-    const open = new Map(outer?.get(this)).set(this._holder(), journal);
     let result: T;
     let effects: unknown[];
 
     try {
-      result = await storage.run(new Map(outer).set(this, open), () => this.transact!(async () => fn()));
+      result = await storage.run(new Map(outer).set(this._holder(), journal), () => this.transact!(async () => fn()));
       effects = journal.done.map(apply => apply());
     }
     catch (error) {

@@ -91,10 +91,6 @@ class Memory extends Connection {
     return table;
   }
 
-  _holder() {
-    return this;
-  }
-
   _key(name: string) {
     for (const type of this._types())
       if ((type.schema ? `${type.schema}.${type.table}` : type.table) === name)

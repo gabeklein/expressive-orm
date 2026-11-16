@@ -540,6 +540,10 @@ describe("session", () => {
   }
 
   class Clients extends Store {
+    _routes(){
+      return true;
+    }
+
     async select(...args: Parameters<Connection["select"]>){
       await this.idle();
       return super.select(...args);
@@ -792,6 +796,102 @@ describe("session", () => {
     await db.close();
   })
 
+  it("will join a transaction another connection opened on the same handle", async () => {
+    const handle = {};
+    const a = Clients.new();
+    const b = Clients.new();
+
+    a._client = handle;
+    b._client = handle;
+
+    await a.transaction(async () => {
+      await b.select("item", []);
+      expect(b._journal()).toBe(a._journal());
+    });
+
+    const c = {};
+
+    await a.session(() => a.transaction(() => (
+      b.session(async () => {
+        await b.select("item", []);
+        expect(b._journal()).toBe(a._journal());
+      }, c)
+    )), c);
+
+    await a.close();
+    await b.close();
+  })
+
+  it("will run transactions one at a time on a driver that ignores the client", async () => {
+    class Plain extends Store {
+      async select(...args: Parameters<Connection["select"]>){
+        await this.idle();
+        return super.select(...args);
+      }
+
+      protected async transact<T>(fn: () => Promise<T>){
+        return fn();
+      }
+    }
+
+    const db = Plain.new();
+    const order: string[] = [];
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+
+    const first = db.session(() => db.transaction(async () => {
+      order.push("a");
+      await held;
+      order.push("a done");
+    }), {});
+
+    await new Promise(res => setTimeout(res));
+
+    const second = db.session(() => db.transaction(() => { order.push("b") }), {});
+
+    await new Promise(res => setTimeout(res));
+    expect(order).toEqual(["a"]);
+
+    release();
+    await Promise.all([first, second]);
+    expect(order).toEqual(["a", "a done", "b"]);
+
+    await db.close();
+  })
+
+  it("will sync when awaited in a session on a driver that ignores the client", async () => {
+    const sync = vi.fn(async () => {});
+
+    class Plain extends Store {
+      sync = sync;
+    }
+
+    const db = Plain.new();
+
+    await db.session(async () => { await db }, {});
+    expect(sync).toHaveBeenCalledTimes(1);
+
+    await db.close();
+  })
+
+  it("will sync when awaited in a session on the connection's own handle", async () => {
+    const sync = vi.fn(async () => {});
+    const own = {};
+
+    class Synced extends Clients {
+      sync = sync;
+    }
+
+    const db = Synced.new();
+
+    db._client = own;
+
+    await db.session(async () => { await db }, own);
+    expect(sync).toHaveBeenCalledTimes(1);
+
+    await db.close();
+  })
+
   it("will reject a client that is not an object", async () => {
     const db = Store.new();
 
@@ -804,7 +904,7 @@ describe("session", () => {
   it("will refuse to sync when awaited inside a session with a client", async () => {
     const sync = vi.fn(async () => {});
 
-    class Synced extends Store {
+    class Synced extends Clients {
       sync = sync;
     }
 
@@ -823,7 +923,7 @@ describe("session", () => {
     let finish!: () => void;
     const sync = vi.fn(() => new Promise<void>(resolve => finish = resolve));
 
-    class Synced extends Store {
+    class Synced extends Clients {
       sync = sync;
     }
 
