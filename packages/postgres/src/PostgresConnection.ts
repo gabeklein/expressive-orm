@@ -217,7 +217,7 @@ export abstract class PostgresConnection extends Connection {
 
         if ((info.nullable === 'YES') === !field.nullable)
           messages.push({
-            message: `Column "${field.column}" in table ${parent.table} has incorrect nullable value`,
+            message: `Column "${field.column}" in table ${parent.table} ${field.nullable ? "is NOT NULL, but" : "allows NULL, but"} ${parent.name}.${field.key} is ${field.nullable ? "nullable" : "required"}`,
             drift: field
           });
 
