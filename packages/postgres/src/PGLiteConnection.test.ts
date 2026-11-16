@@ -27,6 +27,260 @@ class TestConnection extends PGLiteConnection {
   }
 }
 
+describe("session", () => {
+  it("will hold statements outside a session for a transaction on its own PGlite", async () => {
+    class Item extends Type {
+      name = str();
+    }
+
+    const lite = new PGlite();
+    const db = await PGLiteConnection.new([Item], lite);
+    const log: string[] = [];
+    const exec = lite.exec.bind(lite);
+    const query = lite.query.bind(lite);
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+    let entered!: () => void;
+    const inside = new Promise<void>(resolve => entered = resolve);
+
+    vi.spyOn(lite, "exec").mockImplementation(async (sql, ...rest) => {
+      log.push(sql);
+      return exec(sql, ...rest);
+    });
+
+    vi.spyOn(lite, "query").mockImplementation(async (sql, ...rest) => {
+      log.push(sql);
+      return query(sql, ...rest) as never;
+    });
+
+    const transaction = db.session(() => db.transaction(async () => {
+      entered();
+      await held;
+    }), lite);
+
+    await inside;
+
+    const outside = db.prepare('SELECT 1').all();
+
+    await new Promise(res => setTimeout(res, 20));
+    release();
+    await Promise.all([transaction, outside]);
+
+    expect(log).toEqual(["BEGIN", "COMMIT", "SELECT 1"]);
+
+    await db.close();
+    await lite.close();
+  })
+
+  it("will join a transaction another connection opened on the same PGlite", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const lite = new PGlite();
+    const a = await PGLiteConnection.new([A], lite);
+    const b = await PGLiteConnection.new([B], lite);
+
+    await expect(a.transaction(async () => {
+      await A.new({ name: "a" });
+      await B.new({ name: "b" });
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    expect(await A.count()).toBe(0);
+    expect(await B.count()).toBe(0);
+
+    await a.close();
+    await b.close();
+    await lite.close();
+  })
+
+  it("will rejoin its own PGlite's transaction from a nested session on it", async () => {
+    class Item extends Type {
+      name = str();
+    }
+
+    const lite = new PGlite();
+    const other = new PGlite();
+    const db = await PGLiteConnection.new([Item], lite);
+
+    await other.exec(db.schema);
+
+    await expect(db.transaction(async () => {
+      const outer = db._journal();
+
+      await db.session(() => db.session(async () => {
+        expect(db._journal()).toBe(outer);
+        await Item.insert({ name: "inner" });
+      }, lite), other);
+
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    expect(await Item.count()).toBe(0);
+
+    await db.close();
+    await lite.close();
+    await other.close();
+  })
+
+  it("will refuse a session client that isn't a PGlite", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = PGLiteConnection.new([User], shared);
+    const fn = vi.fn();
+
+    await expect(db.session(fn, { query(){} })).rejects.toThrow("PGLiteConnection runs a session on a PGlite - this has no query() and exec().");
+    await expect(db.session(fn, {})).rejects.toThrow("PGLiteConnection runs a session on a PGlite");
+    expect(fn).not.toHaveBeenCalled();
+
+    await db.close();
+  })
+
+  it("will refuse to sync inside a session with a client", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = PGLiteConnection.new([User], shared);
+    const other = new PGlite();
+
+    await expect(db.session(() => db.sync(), other)).rejects.toThrow("PGLiteConnection can't sync inside a session - sync outside one, or from a deploy step.");
+    await expect(db.session(async () => { await db }, other)).rejects.toThrow("PGLiteConnection can't sync inside a session - await it outside one, or sync from a deploy step.");
+
+    await db.close();
+    await other.close();
+    await shared.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
+  })
+
+  it("will refuse to sync inside a transaction on its PGlite", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const a = await TestConnection.new([A]);
+    const b = PGLiteConnection.new([B], shared);
+
+    await expect(a.transaction(() => b.sync())).rejects.toThrow("PGLiteConnection can't sync inside a transaction - sync before one, or from a deploy step.");
+    await expect(a.transaction(async () => { await b })).rejects.toThrow("PGLiteConnection can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    expect(b.ready).toBe(false);
+
+    await b;
+
+    expect(await B.count()).toBe(0);
+
+    await b.close();
+    await a.close();
+  })
+
+  it("will refuse to wait inside a transaction for a sync started outside", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const a = await TestConnection.new([A]);
+    const b = PGLiteConnection.new([B], shared);
+    let enter!: () => void;
+    let proceed!: () => void;
+    const entered = new Promise<void>(res => enter = res);
+    const gate = new Promise<void>(res => proceed = res);
+
+    const transaction = a.transaction(async () => {
+      enter();
+      await gate;
+      await b;
+    });
+
+    await entered;
+
+    const outside = Promise.resolve(b);
+
+    await new Promise(res => setTimeout(res));
+    proceed();
+
+    await expect(transaction).rejects.toThrow("PGLiteConnection can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    await outside;
+
+    expect(b.ready).toBe(true);
+    expect(await B.count()).toBe(0);
+
+    await b.close();
+    await a.close();
+  })
+
+  it("will refuse to wait for a sync started outside from a session on another PGlite inside a transaction", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const a = await TestConnection.new([A]);
+    const b = PGLiteConnection.new([B], shared);
+    const other = new PGlite();
+    let enter!: () => void;
+    let proceed!: () => void;
+    const entered = new Promise<void>(res => enter = res);
+    const gate = new Promise<void>(res => proceed = res);
+
+    const transaction = a.transaction(async () => {
+      enter();
+      await gate;
+      await b.session(async () => { await b }, other);
+    });
+
+    await entered;
+
+    const outside = Promise.resolve(b);
+
+    await new Promise(res => setTimeout(res));
+    proceed();
+
+    await expect(transaction).rejects.toThrow("PGLiteConnection can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    await outside;
+
+    expect(b.ready).toBe(true);
+    expect(await B.count()).toBe(0);
+
+    await b.close();
+    await a.close();
+    await other.close();
+  })
+
+  it("will run statements on the session's PGlite", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const db = await TestConnection.new([User]);
+    const other = new PGlite();
+
+    await other.exec(db.schema);
+    await db.session(() => User.insert({ name: "Gabe" }), other);
+
+    expect(await User.count()).toBe(0);
+    expect(await db.session(() => User.count(), other)).toBe(1);
+
+    await other.close();
+  })
+})
+
 describe("persistence", () => {
   // Expensive so do not run in watch mode
   const it = isWatchMode ? test.skip : test;
