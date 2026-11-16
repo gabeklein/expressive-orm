@@ -72,6 +72,62 @@ describe("session", () => {
     await lite.close();
   })
 
+  it("will join a transaction another connection opened on the same PGlite", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const lite = new PGlite();
+    const a = await PGLiteConnection.new([A], lite);
+    const b = await PGLiteConnection.new([B], lite);
+
+    await expect(a.transaction(async () => {
+      await A.new({ name: "a" });
+      await B.new({ name: "b" });
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    expect(await A.count()).toBe(0);
+    expect(await B.count()).toBe(0);
+
+    await a.close();
+    await b.close();
+    await lite.close();
+  })
+
+  it("will rejoin its own PGlite's transaction from a nested session on it", async () => {
+    class Item extends Type {
+      name = str();
+    }
+
+    const lite = new PGlite();
+    const other = new PGlite();
+    const db = await PGLiteConnection.new([Item], lite);
+
+    await other.exec(db.schema);
+
+    await expect(db.transaction(async () => {
+      const outer = db._journal();
+
+      await db.session(() => db.session(async () => {
+        expect(db._journal()).toBe(outer);
+        await Item.insert({ name: "inner" });
+      }, lite), other);
+
+      throw new Error("nope");
+    })).rejects.toThrow("nope");
+
+    expect(await Item.count()).toBe(0);
+
+    await db.close();
+    await lite.close();
+    await other.close();
+  })
+
   it("will refuse a session client that isn't a PGlite", async () => {
     class User extends Type {
       name = str();

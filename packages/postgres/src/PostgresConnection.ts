@@ -77,6 +77,10 @@ export abstract class PostgresConnection extends Connection {
     return codecs;
   }
 
+  _routes(){
+    return true;
+  }
+
   protected engine: unknown;
 
   _unlisten?: Promise<void>;
@@ -341,7 +345,7 @@ export abstract class PostgresConnection extends Connection {
   }
 
   async sync(fix = true, force = false) {
-    if (this._session()?.client)
+    if (this._foreign())
       throw new Error(`${this.constructor.name} can't sync inside a session - sync outside one, or from a deploy step.`);
 
     if(!this.engine)

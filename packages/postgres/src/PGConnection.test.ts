@@ -391,6 +391,33 @@ describe('PGConnection', () => {
     await conn.close();
   });
 
+  it('will release a session client whose BEGIN failed', async () => {
+    const pool = new pg.Pool();
+    const failure = new Error("connection lost");
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql == "BEGIN")
+          throw failure;
+
+        return { rows: [{ sql }], rowCount: 1 };
+      })
+    };
+
+    vi.spyOn(pool, 'end').mockResolvedValue();
+
+    const conn = PGConnection.new([TestType], pool);
+
+    await conn.session(async () => {
+      await expect(conn.transaction(() => conn.prepare('SELECT 1').all())).rejects.toBe(failure);
+      await expect(conn.prepare('SELECT 2').all()).resolves.toEqual([{ sql: 'SELECT 2' }]);
+      await expect(conn.transaction(() => {})).rejects.toBe(failure);
+    }, client);
+
+    expect(client.query.mock.calls.map(([sql]) => sql)).toEqual(["BEGIN", "SELECT 2", "BEGIN"]);
+
+    await conn.close();
+  });
+
   it('will end a pool it created', async () => {
     const end = vi.spyOn(pg.Pool.prototype, 'end').mockResolvedValue();
     const conn = PGConnection.new([TestType], 'postgresql://localhost');
