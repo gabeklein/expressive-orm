@@ -77,13 +77,13 @@ export abstract class PostgresConnection extends Connection {
     return codecs;
   }
 
-  _routes(){
-    return true;
-  }
-
   protected engine: unknown;
 
   _unlisten?: Promise<void>;
+
+  _routes(){
+    return true;
+  }
 
   get schema() {
     return format(this.generateSchema(this.using));
