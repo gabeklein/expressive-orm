@@ -307,6 +307,8 @@ abstract class Connection extends Model {
     return new Set([...this.using, ...this._loaded.keys(), ...this._identity().keys()]);
   }
 
+  _admit(_client: object){}
+
   _holder(): Holder {
     const client = (this._session()?.client ?? this._client) as object | undefined;
     let holder: Holder | undefined;
@@ -330,7 +332,7 @@ abstract class Connection extends Model {
    * A nested call starts a fresh identity map and keeps the outer client unless given one - an entity the inner call deletes or changes stays as it was in the outer map.
    * Work started inside that outlives `fn` - a promise not awaited, a `waitUntil` - keeps the session's map and client; end a client only once that work settles.
    * Outside any session the connection keeps one identity map for the process. `close()` destroys only the entities in that map.
-   * Throws where the runtime has no `AsyncLocalStorage`, or for a `client` that isn't an object.
+   * Throws where the runtime has no `AsyncLocalStorage`, for a `client` that isn't an object, or for one the driver can't run statements on - before `fn` runs.
    *
    * @example
    * const client = await open();
@@ -345,6 +347,9 @@ abstract class Connection extends Model {
   async session<T>(fn: () => T | Promise<T>, client?: unknown): Promise<T> {
     if (client != null && typeof client != "object" && typeof client != "function")
       throw new TypeError(`A session client is the driver's handle, an object - not ${typeof client}.`);
+
+    if (client != null)
+      this._admit(client);
 
     const storage = sessions ??= local<Sessions>("Sessions");
     const outer = storage.getStore();
