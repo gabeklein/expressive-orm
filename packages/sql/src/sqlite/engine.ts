@@ -3,7 +3,7 @@ import { missing, optional } from './load';
 /**
  * A SQLite host - what `SQLiteConnection` runs statements on.
  *
- * Pass one in place of a filename for a SQLite the built-in loader cannot open.
+ * Pass one as `{ source }` for a SQLite the built-in loader cannot open, or as a session's client.
  * It is used as given - foreign keys are not switched on, and the connection's `close()` leaves it open.
  */
 export interface Engine extends Engine.Statements {
@@ -149,7 +149,7 @@ export function host(source: Engine | D1Database | LibSQLClient): Engine {
   if (has("prepare") && has("batch"))
     return d1Engine(source as D1Database);
 
-  throw new TypeError("Unknown SQLite source. Pass a filename, a libSQL address, a D1 binding, a libSQL client or an Engine.");
+  throw new TypeError("Unknown SQLite source - expected a D1 binding, a libSQL client or an Engine.");
 }
 
 export const migrations = new WeakMap<Engine, (sql: string[]) => Promise<unknown>>();

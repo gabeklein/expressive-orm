@@ -18,7 +18,36 @@ export declare namespace SQLiteConnection {
      * A `date` or `time` type stays text. `sync` refuses a column holding the other storage.
      */
     timestamps?: Timestamps;
+    /**
+     * The database - a filename, a libSQL address, a D1 binding, a libSQL client or an `Engine`.
+     *
+     * Absent, the database is in memory - or, in a runtime where SQLite can't load, only sessions run.
+     */
+    source?: string | Engine | D1Database | LibSQLClient;
   }
+}
+
+const OPTIONS = new Set(["source", "timestamps"]);
+
+function refuse(options: unknown, extra: boolean){
+  const object = "pass a D1 binding, libSQL client or Engine as { source }.";
+
+  if (extra)
+    return "SQLiteConnection takes (types, options) - put timestamps beside the source: { source, timestamps }.";
+
+  if (typeof options == "string")
+    return;
+
+  if (!options)
+    return "SQLiteConnection options can't be null - pass a filename, or { source, timestamps }.";
+
+  if (Object.getPrototypeOf(options) !== Object.prototype)
+    return `SQLiteConnection options are a plain object - ${object}`;
+
+  const unknown = Object.keys(options).filter(key => !OPTIONS.has(key));
+
+  if (unknown.length)
+    return `SQLiteConnection options take source and timestamps, not ${unknown.join(", ")} - ${object}`;
 }
 
 type Source = Engine | D1Database | LibSQLClient;
@@ -55,16 +84,24 @@ export class SQLiteConnection extends Connection {
   /**
    * Bind `using` to a SQLite database. Construct with `SQLiteConnection.new`.
    *
+   * `options` is a source alone as a string, or `{ source, timestamps }` - any other object throws, so pass a D1 binding, libSQL client or `Engine` as `{ source }`.
    * Without `source`, the database is in memory. A filename opens through the built-in loader.
    * A `libsql:`, `https:`, `http:`, `ws:` or `wss:` address opens a `@libsql/client` 0.18 or later - pass a token as `?authToken=`.
    * A D1 binding, a libSQL client or an `Engine` is used as given - foreign keys are not switched on, and `close()` leaves it open.
    * D1 refuses `transaction`. libSQL runs each `transaction` on a libSQL write transaction, one at a time.
    * `session(fn, source)` runs `fn` on another D1 binding, libSQL client or `Engine`, used as given and left open.
    */
-  constructor(using: Connection.Types, source?: string | Engine | D1Database | LibSQLClient, options: SQLiteConnection.Options = {}) {
+  constructor(using: Connection.Types, options: string | SQLiteConnection.Options = {}) {
+    const refused = refuse(options, arguments.length > 2);
+
+    if (refused)
+      throw new TypeError(refused);
+
     super(using);
 
-    this.timestamps = options.timestamps || "ms";
+    const { source, timestamps } = typeof options == "string" ? { source: options } : options;
+
+    this.timestamps = timestamps || "ms";
 
     if (typeof source == "object") {
       (this.engine = Promise.resolve(source).then(host)).catch(() => {});
