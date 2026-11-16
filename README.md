@@ -536,7 +536,7 @@ A connection keeps one identity map for the process: `get(id)` returns an entity
 - A nested session starts a fresh identity map and keeps the outer client unless given one. Its writes don't reach the outer map: an entity it deletes or changes stays as the outer session loaded it, until the outer one reads it again with `load` or `query`.
 - Work started inside that outlives `fn` - a promise not awaited, `ctx.waitUntil` - still runs in the session, on its map and client. End the client only once that work settles.
 - A transaction belongs to the client it opened on. A nested session with another client, inside it, runs on that client and outside the transaction.
-- Awaiting the connection inside a session with a client rejects rather than run `sync`, which belongs to the connection's own handle - await it outside any session, or sync the schema from a deploy step.
+- Awaiting the connection inside a session on a client other than its own rejects rather than run `sync`, which belongs to the connection's own handle - await it outside any session, or sync the schema from a deploy step.
 - `close()` destroys the entities of the process-wide map only; those loaded in a session stay, unbound.
 
 ## Hooks
