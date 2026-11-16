@@ -2720,6 +2720,47 @@ describe("session", () => {
     await engine.close();
   })
 
+  it("will refuse to wait inside a transaction for a sync started outside", async () => {
+    class A extends Type {
+      name = str();
+    }
+
+    class B extends Type {
+      name = str();
+    }
+
+    const engine = await createEngine(":memory:");
+    const a = await SQLiteConnection.new([A], engine);
+    const b = SQLiteConnection.new([B], engine);
+    let enter!: () => void;
+    let proceed!: () => void;
+    const entered = new Promise<void>(res => enter = res);
+    const gate = new Promise<void>(res => proceed = res);
+
+    const transaction = a.transaction(async () => {
+      enter();
+      await gate;
+      await b;
+    });
+
+    await entered;
+
+    const outside = Promise.resolve(b);
+
+    await new Promise(res => setTimeout(res));
+    proceed();
+
+    await expect(transaction).rejects.toThrow("SQLiteConnection can't sync inside a transaction - await it before one, or sync from a deploy step.");
+    await outside;
+
+    expect(b.ready).toBe(true);
+    expect(await B.count()).toBe(0);
+
+    await a.close();
+    await b.close();
+    await engine.close();
+  })
+
   it("will sync in a session on its own source", async () => {
     class User extends Type {
       name = str();
