@@ -29,6 +29,27 @@ export declare namespace SQLiteConnection {
 
 const OPTIONS = new Set(["source", "timestamps"]);
 
+function refuse(options: unknown, extra: boolean){
+  const object = "pass a D1 binding, libSQL client or Engine as { source }.";
+
+  if (extra)
+    return "SQLiteConnection takes (types, options) - put timestamps beside the source: { source, timestamps }.";
+
+  if (typeof options == "string")
+    return;
+
+  if (!options)
+    return "SQLiteConnection options can't be null - pass a filename, or { source, timestamps }.";
+
+  if (Object.getPrototypeOf(options) !== Object.prototype)
+    return `SQLiteConnection options are a plain object - ${object}`;
+
+  const unknown = Object.keys(options).filter(key => !OPTIONS.has(key));
+
+  if (unknown.length)
+    return `SQLiteConnection options take source and timestamps, not ${unknown.join(", ")} - ${object}`;
+}
+
 type Source = Engine | D1Database | LibSQLClient;
 
 const HOSTED = new WeakMap<Source, Promise<Engine>>();
@@ -71,8 +92,10 @@ export class SQLiteConnection extends Connection {
    * `session(fn, source)` runs `fn` on another D1 binding, libSQL client or `Engine`, used as given and left open.
    */
   constructor(using: Connection.Types, options: string | SQLiteConnection.Options = {}) {
-    if (arguments.length > 2 || typeof options != "string" && (!options || Object.getPrototypeOf(options) !== Object.prototype || Object.keys(options).some(key => !OPTIONS.has(key))))
-      throw new TypeError("SQLiteConnection takes a filename or address, or { source, timestamps } - pass a D1 binding, libSQL client or Engine as { source }.");
+    const refused = refuse(options, arguments.length > 2);
+
+    if (refused)
+      throw new TypeError(refused);
 
     super(using);
 

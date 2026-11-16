@@ -2342,22 +2342,48 @@ describe("engine", () => {
     await engine.close();
   })
 
-  it("will throw for a source passed in place of options", async () => {
-    const message = "SQLiteConnection takes a filename or address, or { source, timestamps } - pass a D1 binding, libSQL client or Engine as { source }.";
+  it("will name what it refuses in place of options", async () => {
+    const object = "pass a D1 binding, libSQL client or Engine as { source }.";
     const engine = await createEngine(":memory:");
 
     // @ts-expect-error
-    expect(() => SQLiteConnection.new([], { execute: () => {} })).toThrow(message);
+    expect(() => SQLiteConnection.new([], { execute: () => {} })).toThrow(`SQLiteConnection options take source and timestamps, not execute - ${object}`);
     // @ts-expect-error
-    expect(() => SQLiteConnection.new([], engine)).toThrow(message);
+    expect(() => SQLiteConnection.new([], { timestamps: "iso", filename: "app.db" })).toThrow(`SQLiteConnection options take source and timestamps, not filename - ${object}`);
     // @ts-expect-error
-    expect(() => SQLiteConnection.new([], new (class { prepare(){} })())).toThrow(message);
+    expect(() => SQLiteConnection.new([], engine)).toThrow("SQLiteConnection options take source and timestamps, not all, get, run, exec");
     // @ts-expect-error
-    expect(() => SQLiteConnection.new([], null)).toThrow(message);
+    expect(() => SQLiteConnection.new([], new (class { prepare(){} })())).toThrow(`SQLiteConnection options are a plain object - ${object}`);
     // @ts-expect-error
-    expect(() => SQLiteConnection.new([], undefined, { timestamps: "iso" })).toThrow(message);
+    expect(() => SQLiteConnection.new([], null)).toThrow("SQLiteConnection options can't be null - pass a filename, or { source, timestamps }.");
+    // @ts-expect-error
+    expect(() => SQLiteConnection.new([], undefined, { timestamps: "iso" })).toThrow("SQLiteConnection takes (types, options) - put timestamps beside the source: { source, timestamps }.");
 
     await engine.close();
+  })
+
+  it("will open a filename given as source", async () => {
+    class Stamp extends Type {
+      at = date();
+    }
+
+    const dir = mkdtempSync(join(tmpdir(), "source-"));
+    const file = join(dir, "app.db");
+
+    try {
+      const first = await SQLiteConnection.new([Stamp], { source: file, timestamps: "seconds" });
+
+      await Stamp.insert({ at: new Date(1700000000123) });
+      await first.close();
+
+      const engine = await createEngine(file);
+
+      expect(await engine.all(`SELECT at FROM stamp`)).toEqual([{ at: 1700000000 }]);
+      await engine.close();
+    }
+    finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   })
 
   it("will take a source and timestamps together", async () => {
@@ -2387,7 +2413,7 @@ describe("engine", () => {
 
     const conn = SQLiteConnection.new([Foo], { source: source as Engine });
 
-    await expect(conn).rejects.toThrow("Unknown SQLite source. Pass a filename, a libSQL address, a D1 binding, a libSQL client or an Engine.");
+    await expect(conn).rejects.toThrow("Unknown SQLite source - expected a D1 binding, a libSQL client or an Engine.");
     await conn.close();
 
     expect(Foo.hasOwnProperty("connection")).toBe(false);
@@ -2698,8 +2724,8 @@ describe("session", () => {
     }
 
     const engine = await createEngine(":memory:");
-    const a = await SQLiteConnection.new([A], engine);
-    const b = await SQLiteConnection.new([B], engine);
+    const a = await SQLiteConnection.new([A], { source: engine });
+    const b = await SQLiteConnection.new([B], { source: engine });
 
     await expect(a.transaction(async () => {
       await A.insert({ name: "a" });
@@ -2728,7 +2754,7 @@ describe("session", () => {
     }
 
     const engine = await createEngine(":memory:");
-    const db = SQLiteConnection.new([User], engine);
+    const db = SQLiteConnection.new([User], { source: engine });
 
     await db.session(async () => { await db }, engine);
 
@@ -2739,6 +2765,44 @@ describe("session", () => {
     await engine.close();
   })
 
+  it("will share the lock between a session and outside statements on its own libSQL client", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    const client = createClient({ url: ":memory:" });
+    const db = await SQLiteConnection.new([User], { source: client });
+    let release!: () => void;
+    const held = new Promise<void>(resolve => release = resolve);
+    let entered!: () => void;
+    const inside = new Promise<void>(resolve => entered = resolve);
+
+    const failed = db.session(() => db.transaction(async () => {
+      await User.insert({ name: "Gabe" });
+      entered();
+      await held;
+      throw new Error("nope");
+    }), client);
+
+    await inside;
+
+    const outside = User.insert({ name: "Bob" });
+    let done = false;
+
+    outside.then(() => done = true);
+    await new Promise(res => setTimeout(res, 20));
+    expect(done).toBe(false);
+
+    release();
+    await expect(failed).rejects.toThrow("nope");
+    await outside;
+
+    expect((await User.query()).map(row => row.name)).toEqual(["Bob"]);
+
+    await db.close();
+    client.close();
+  })
+
   it("will refuse an unknown source before fn runs", async () => {
     class User extends Type {
       name = str();
@@ -2747,7 +2811,7 @@ describe("session", () => {
     const db = await SQLiteConnection.new([User]);
     const fn = vi.fn();
 
-    await expect(db.session(fn, {})).rejects.toThrow("Unknown SQLite source.");
+    await expect(db.session(fn, {})).rejects.toThrow("Unknown SQLite source - expected a D1 binding, a libSQL client or an Engine.");
     expect(fn).not.toHaveBeenCalled();
 
     await db.close();
