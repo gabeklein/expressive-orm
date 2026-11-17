@@ -189,6 +189,8 @@ const users = await User.load({ admin: true }, 20);   // entities, one select
 
 `Type.load(where?, limit?, offset?)` - `query`'s filter and order, resolving entities. A loaded entity settles the fetched row and is returned itself; others join the identity map. Prefer it over `query` plus `get(id)` per row.
 
+The array `load` resolves is live. A deleted or destroyed entity drops out. Without `limit` or `offset`, an entity created through the class (`new`, `insert`, a `rows()` `insert`) or reported inserted by live rows joins first when it matches the filter - an update never moves one in or out, and new ones go first whatever the order. An effect reading `length`, an index or iterating it re-runs on those changes. `map` / `filter` return plain arrays. Hold it in a Model instead of copying it into your own observable list.
+
 `Type.get(id)` is synchronous through the identity map. A placeholder's columns suspend (a read throws a promise; an effect or a React component waits). In a Model, `get(User, id)` or `this.get(User, id)` resolves the same way. `User.get()` with no id stays Model's context lookup.
 
 ## Relations
@@ -205,13 +207,14 @@ class Post extends Type {
   editor = one(Author, null, lazy);
 }
 
-const post = await author.posts.insert({ title: "Hello", editor: author });
+const post = await author.posts.insert({ title: "Hello", editor: author }); // the entity
+const posts = await author.posts;                                           // load() - live
 await author.posts.query();
 await author.posts.one({ title: "Hello" });
 ```
 
 - `one(Other)` stores `<field>_id` and loads the related entity with its parent - with `lazy`, on first read, suspending. Related entities are shared references. A write takes an entity, an id, or an object - inserted as a new related row when it has no `id`. A filter takes the same; an object without `id` matches by its fields.
-- `rows(Other, key?)` - `query`, `load`, `one`, `insert` with the foreign key applied. `key` only when `Other` relates to this class more than once.
+- `rows(Other, key?)` - `query`, `load`, `one`, `insert` with the foreign key applied. `key` only when `Other` relates to this class more than once. `insert` is `Other.new` with the key filled - the entity, awaitable. Awaiting the handle is `load()`, a live array: in a Model, `notes = set(async () => this.claim.notes)`. A plain `set(() => this.claim.notes)` holds the handle, not the array.
 
 ## Observe
 
@@ -310,7 +313,7 @@ They run host-side for deletes by id - instance `delete()`, static `delete(id)`,
 
 ## Live rows
 
-A connection with `subscribe` keeps loaded entities current with changes made elsewhere: an update settles in, a delete destroys, an insert changes nothing loaded. `Memory` reports every write; Postgres uses LISTEN/NOTIFY; SQLite has none.
+A connection with `subscribe` keeps loaded entities current with changes made elsewhere: an update settles in, a delete destroys, an insert joins live `load` arrays it matches. `Memory` reports every write; Postgres uses LISTEN/NOTIFY; SQLite has none.
 
 ## Drivers
 

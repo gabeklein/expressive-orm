@@ -378,6 +378,8 @@ await users[0].set({ age: 36 });
 
 `Type.load(where?, limit?, offset?)` is `query` returning entities: the same filter and order, one select for the whole call. An entity already in the identity map settles the fetched row and is returned as is; the rest join the map loaded. Omit `limit` for every match.
 
+The array it resolves stays current. An entity deleted or destroyed drops out. Without `limit` or `offset`, an entity created through the class - `new`, `insert`, a relation's `insert` - or reported inserted by [live rows](#live-rows) joins it first when it matches the filter. An update does not move an entity in or out, and a new one goes first whatever the order. Reading its `length`, an index or iterating it inside an effect - a Model's `get(effect)`, a computed `set`, a component - subscribes to those changes. `map`, `filter` and `slice` return plain arrays.
+
 ## Relations
 
 ```ts
@@ -397,16 +399,19 @@ class Post extends Type {
 
 `author = one(Other)` stores `author_id` - `{ column }` names another, and two fields on one column throw - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. `set`, an insert or a filter takes an entity, an id or a row.
 
-`rows(Other, key?)` is a handle on the rows pointing back - `query`, `load`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class.
+`rows(Other, key?)` is a handle on the rows pointing back - `query`, `load`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class. `insert` creates the entity as `Type.new` does, foreign key filled. `load` resolves a live array, as `Type.load` does, and awaiting the handle is `load()` - so in a Model `notes = set(async () => this.claim.notes)` holds every note, kept current as notes are added and deleted.
 
 ```ts
 const author = await Author.new({ name: "Gabe" });
-const post = await author.posts.insert({ title: "Hello", editor: author });
+const post = await author.posts.insert({ title: "Hello", editor: author }); // the entity
 
+const posts = await author.posts;           // entities, [post] itself - live
 await author.posts.query();                 // rows, equal to [post]
-await author.posts.load();                  // entities, [post] itself
 await author.posts.one({ title: "Hello" }); // the entity
-console.log(post.author === author.id);     // true
+console.log(post.author === author);        // true
+
+await author.posts.insert({ title: "Again", editor: author });
+console.log(posts.length);                  // 2
 ```
 
 ## Entities are Models
@@ -636,7 +641,7 @@ await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 
 - An update settles into the entity.
 - A delete destroys the entity.
-- An insert changes nothing loaded.
+- An insert joins each live array from `load` whose filter it matches.
 
 `Memory` reports every write, floor or `Query`. Postgres uses LISTEN/NOTIFY: `sync` installs a trigger per table (Postgres 14+) - see [`@expressive/postgres`](packages/postgres). Listening holds a client from the first load until `close()`; where that can't be - Cloudflare Workers, Hyperdrive, a transaction-mode pooler - pass `{ live: false }`. Loaded entities then change only through `entity.set`, `Type.update` and deletes by id on that connection - a `Query` write, or another client's, leaves them as they were; read them again with `load`, `query` or in a fresh [session](#sessions). `sync` still installs the triggers - replacing their function and each table's trigger every time it runs - and every write still sends its full row through `pg_notify`, harmless with nobody listening. SQLite has no live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
 
