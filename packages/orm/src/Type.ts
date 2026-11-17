@@ -257,6 +257,40 @@ function register(type: typeof Type){
   return map;
 }
 
+const VIEWS = new WeakMap<typeof Type, boolean>();
+
+function adds(type: typeof Type, parent: typeof Type) {
+  const base = parent === Type ? ["id"] : [...parent.fields.keys()];
+
+  return [...type.fields.keys()].some(key => !base.includes(key));
+}
+
+function view(type: typeof Type): boolean {
+  let is = VIEWS.get(type);
+
+  if (is === undefined) {
+    const parent = Object.getPrototypeOf(type) as typeof Type;
+
+    is = parent !== Type && !adds(type, parent) && (view(parent) || adds(parent, Object.getPrototypeOf(parent)));
+    VIEWS.set(type, is);
+  }
+
+  return is;
+}
+
+function siblings(type: typeof Type, key: unknown) {
+  const found: [typeof Type, Type][] = [];
+
+  for (const [other, loaded] of type.connection._identity()) {
+    const entity = other.ref === type.ref && loaded.get(key);
+
+    if (entity)
+      found.push([other, entity]);
+  }
+
+  return found;
+}
+
 function slot(id: unknown) {
   return Array.isArray(id) ? JSON.stringify(id) : id;
 }
@@ -324,6 +358,7 @@ function awaitable<T extends Type>(entity: T): Type.Async<T> {
  *
  * Statics resolve plain frozen rows. Instances are read-only references from `get(id)`, `new(values)` or a relation; write with `await entity.set(patch)`.
  * The table is the class name in snake case unless `static table` is set, or the class is bound under a key.
+ * A subclass adding no fields shares its parent's table - see `table`.
  *
  * @example
  * class User extends Type {
@@ -419,7 +454,7 @@ abstract class Type extends Model {
   /**
    * Values every row of this class holds - merged into inserts and into every query filter.
    *
-   * Scopes a subclass to part of a shared table; give it the parent's `table`.
+   * Scopes a subclass to part of a shared table - a subclass without fields of its own takes its parent's `table`.
    * Reads by id (`get(id)`) are scoped; writes by id (`update(id)`, `delete(id)`) and instance writes (`set`, `delete`) are not.
    * `Insert` still types the fields as required.
    *
@@ -456,9 +491,16 @@ abstract class Type extends Model {
    * Table name - unless assigned, the key the class is bound under in snake case, else the class name.
    *
    * A key survives minification where a class name does not - bind with `Connection.new({ User })` to keep the default.
+   * A subclass that declares no fields of its own is a view - it takes its parent's table, and `get(id)` reuses the parent's loaded row.
+   * The parent must declare fields - a base holding only statics is not a table.
    */
   static get table(): string {
-    return underscore(NAMED.get(this) ?? this.name);
+    const named = NAMED.get(this);
+
+    if (named === undefined && view(this))
+      return (Object.getPrototypeOf(this) as typeof Type).table;
+
+    return underscore(named ?? this.name);
   }
 
   static set table(value: string) {
@@ -573,20 +615,12 @@ abstract class Type extends Model {
     if (isQuery(id))
       return updateWhere(this, id, data);
 
-    const { connection, loaded, ref } = this;
+    const { connection, ref } = this;
     const row = await this.prepare(data, true);
-    const key = slot(id);
-    const entity = loaded.get(key);
 
+    register(this);
     await connection.update(ref, locate(this, id), row);
-
-    if (entity) {
-      const values = await decode(this, row, true);
-
-      track(entity, values);
-      settle(entity, values);
-      rekey(entity, key);
-    }
+    await spread(this, slot(id), row);
   }
 
   /** Insert a row unless one exists - resolves the stored row, `undefined` when the existing one is left. */
@@ -897,6 +931,14 @@ function reference<T extends Type>(type: Type.Class<T>, id: Type.Id<T>): T {
   if (cached)
     return cached as T;
 
+  for (const [, sibling] of siblings(type, key))
+    if (!PENDING.has(sibling) && !sibling.get(null)) {
+      const entity = write(() => (Model.new as Function).call(type, sibling.columns) as T);
+
+      loaded.set(key, entity);
+      return entity;
+    }
+
   const { parts } = type.fields.get("id")!;
   const values = parts ? Object.fromEntries(parts.map((part, i) => [part.key, (locate(type, id) as unknown[])[i]])) : { id };
   const entity = placeholder(() => (Model.new as Function).call(type, values, load) as T);
@@ -944,8 +986,20 @@ async function persist(entity: Type, patch: Type.Update<Type>) {
   const updated = settle(entity, values);
 
   rekey(entity, key);
+  await spread(type, key, row, entity);
 
   return updated;
+}
+
+async function spread(type: typeof Type, key: unknown, row: Record<string, unknown>, except?: Type) {
+  for (const [other, entity] of siblings(type, key))
+    if (entity !== except) {
+      const values = await decode(other, row, true);
+
+      track(entity, values);
+      settle(entity, values);
+      rekey(entity, key);
+    }
 }
 
 function conflict<T extends Type>(type: typeof Type, given: Record<string, unknown>, set: Record<string, unknown>, options: Type.Conflict<T>) {
