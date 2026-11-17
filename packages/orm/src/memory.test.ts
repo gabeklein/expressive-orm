@@ -310,6 +310,82 @@ describe("subscribe", () => {
   })
 })
 
+describe("live list", () => {
+  class Table extends Type {
+    static connection = Memory.new();
+  }
+
+  class Post extends Table {
+    static table = "post";
+    title = str();
+    tag = str(null);
+  }
+
+  it("will add rows reported inserted", async () => {
+    const db = Table.connection as Memory;
+    const all = await Post.load();
+    const tagged = await Post.load({ tag: "a" });
+
+    await db.insert("post", { title: "raw", tag: "b" });
+    await Query(where => void where(Post, { title: "query", tag: "a" }));
+
+    await vi.waitFor(() => expect(all.map(post => post.title)).toEqual(["query", "raw"]));
+    expect(tagged.map(post => post.title)).toEqual(["query"]);
+    expect(all[0]).toBe(Post.get(all[0].id));
+  })
+
+  it("will select a row reported without values", async () => {
+    const db = Table.connection as Memory;
+    const notify = db._notify.bind(db);
+    const all = await Post.load({ tag: "c" });
+
+    db._notify = (table, op, id) => notify(table, op, id);
+
+    try {
+      await db.insert("post", { title: "bare", tag: "c" });
+    }
+    finally {
+      db._notify = notify;
+    }
+
+    await vi.waitFor(() => expect(all.map(post => post.title)).toEqual(["bare"]));
+  })
+
+  it("will match a null filter", async () => {
+    const untagged = await Post.load({ tag: null });
+
+    await (Table.connection as Memory).insert("post", { title: "plain" });
+    await vi.waitFor(() => expect(untagged.map(post => post.title)).toEqual(["plain"]));
+  })
+
+  it("will not select for a class without a list", async () => {
+    class Note extends Table {
+      static table = "note";
+      text = str();
+    }
+
+    const db = Table.connection as Memory;
+    const select = vi.spyOn(db, "select");
+
+    await Note.new({ text: "a" });
+    await db.insert("note", { text: "b" });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    expect(select).not.toHaveBeenCalled();
+  })
+
+  it("will not add a local insert twice", async () => {
+    const all = await Post.load({ tag: "d" });
+    const post = await Post.new({ title: "once", tag: "d" });
+
+    await Post.insert({ title: "twice", tag: "d" });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    expect(all.map(post => post.title)).toEqual(["twice", "once"]);
+    expect(all[1]).toBe(post);
+  })
+})
+
 describe("transaction", () => {
   it("will run one at a time across session clients", async () => {
     class User extends Type {

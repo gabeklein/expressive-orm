@@ -3,6 +3,7 @@ import { Context, Model } from '@expressive/mvc';
 import { ambient, Connection, forget, NAMED } from './Connection';
 import { FIELDS, Key, num, PEEK, placeholder, RECENT, write } from './fields';
 import { columns, Field, Fixes, fixes, match, Omits, Optional, present, row, underscore, updates } from './Field';
+import { live, listening, offer } from './list';
 import { Query } from './query/Query';
 import type { Moment } from './query/Value';
 import type { Rows } from './rows';
@@ -171,6 +172,7 @@ let DETACHED: Connection | undefined;
 const HANDLED = new WeakSet<object>();
 const AWAITED = new WeakSet<Type>();
 const PENDING = new WeakSet<Type>();
+const INSERTING = new WeakMap<typeof Type, Set<Promise<void>>>();
 
 async function decode(type: typeof Type, row: Record<string, any>, partial?: boolean) {
   const values: Record<string, unknown> = {};
@@ -226,10 +228,23 @@ async function receive(connection: Type.Connection, { table, op, id, row }: Conn
       continue;
 
     const primary = type.fields.get("id")!;
+
+    if (op == "insert") {
+      if (listening(type)) {
+        await Promise.all(INSERTING.get(type) || []);
+
+        for (const current of row ? [row] : await connection.select(table, match(primary, id), 1))
+          await arrive(type, current);
+      }
+
+      continue;
+    }
+
     const key = slot(await primary.get(id));
+
     const entity = loaded.get(key);
 
-    if (!entity || op == "insert")
+    if (!entity)
       continue;
 
     if (op == "delete") {
@@ -538,6 +553,7 @@ abstract class Type extends Model {
 
     return awaitable(placeholder(() => (Model.new as Function).call(type, async (entity: Type) => {
       const { loaded } = type;
+      const done = inserting(type);
 
       try {
         const row = await type.prepare({ ...values, ...type.subset } as Type.Update<Type>);
@@ -546,12 +562,16 @@ abstract class Type extends Model {
         settle(entity, await decode(type, inserted));
         loaded.set(slot(entity.id), entity);
         journal(entity)?.undo.push(() => evict(loaded, slot(entity.id), entity));
+        await offer(type, inserted, async () => [entity]);
       }
       catch (error) {
         if (AWAITED.has(entity))
           HANDLED.add(error as object);
 
         throw error;
+      }
+      finally {
+        done();
       }
     }) as T & Type));
   }
@@ -613,22 +633,31 @@ abstract class Type extends Model {
 
     register(this);
 
-    const inserted = await connection.insert(ref, input, true, options && conflict(this, given, set, options));
+    const done = inserting(this);
 
-    if (!inserted)
-      return;
+    try {
+      const inserted = await connection.insert(ref, input, true, options && conflict(this, given, set, options));
 
-    const columns = await row(fields, inserted) as Type.Columns<T>;
-    const entity = loaded.get(slot(columns.id));
+      if (!inserted)
+        return;
 
-    if (entity) {
-      const values = await decode(this, inserted);
+      const columns = await row(fields, inserted) as Type.Columns<T>;
+      const entity = loaded.get(slot(columns.id));
 
-      track(entity, values);
-      settle(entity, values);
+      if (entity) {
+        const values = await decode(this, inserted);
+
+        track(entity, values);
+        settle(entity, values);
+      }
+
+      await arrive(this, inserted);
+
+      return columns;
     }
-
-    return columns;
+    finally {
+      done();
+    }
   }
 
   /**
@@ -684,7 +713,7 @@ abstract class Type extends Model {
     if (!(where = newest(this, where)))
       throw new Error(`${this.name}.one() needs a filter - it has no created() column or incrementing id to order by.`);
 
-    const [entity] = await this.load(where, 1);
+    const [entity] = await entities(this, await select(this, where, 1));
 
     if (!entity && expect !== false)
       throw new Error(`No ${this.name} found with: \n${JSON.stringify(where, null, 2)}\n`);
@@ -773,10 +802,13 @@ abstract class Type extends Model {
   }
 
   /**
-   * Find live entities matching a filter - one select for the whole call.
+   * Find live entities matching a filter, as an array that keeps up with them - one select for the whole call.
    *
    * Filters and orders as `query` does. A loaded entity settles its fetched row and is returned as is; others are created and loaded.
    * Omit `limit` for every match.
+   * Reads of its length, indexes and iteration are tracked by an effect. An entity destroyed or deleted drops out.
+   * Without `limit` or `offset`, an entity inserted through this class, or reported inserted by the connection, that matches the filter is added first.
+   * A later update does not move an entity in or out. `map` and `filter` return plain arrays.
    *
    * @example
    * const posts = await Post.load({ author: user }, 20);
@@ -788,24 +820,58 @@ abstract class Type extends Model {
     limit?: number,
     offset?: number
   ): Promise<T[]> {
-    const rows = await select(this, where, limit, offset);
+    const query = await constrain(this, where, limit);
 
-    return Promise.all(rows.map(async raw => {
-      const values = await decode(this, raw);
-      const { loaded } = this;
-      const key = slot(values.id);
-      let entity = loaded.get(key) as T | undefined;
+    register(this);
 
-      if (entity) {
-        track(entity, values);
-        settle(entity, values);
-      }
-      else
-        loaded.set(key, entity = write(() => (Model.new as Function).call(this, values) as T));
+    const rows = await this.connection.select(this.ref, query, limit, offset);
+    const items = await entities(this, rows);
 
-      return entity;
-    }));
+    return live(this, items, limit === undefined && !offset ? query : undefined);
   }
+}
+
+function entities<T extends Type>(type: Type.Class<T>, rows: Record<string, any>[]): Promise<T[]> {
+  return Promise.all(rows.map(async raw => {
+    const values = await decode(type, raw);
+    const { loaded } = type;
+    const key = slot(values.id);
+    let entity = loaded.get(key) as T | undefined;
+
+    if (entity) {
+      track(entity, values);
+      settle(entity, values);
+    }
+    else
+      loaded.set(key, entity = write(() => (Model.new as Function).call(type, values) as T));
+
+    return entity;
+  }));
+}
+
+function inserting(type: typeof Type) {
+  let set = INSERTING.get(type);
+  let done!: () => void;
+
+  if (!set)
+    INSERTING.set(type, set = new Set());
+
+  const pending = new Promise<void>(resolve => done = resolve);
+
+  set.add(pending);
+
+  return () => {
+    set.delete(pending);
+    done();
+  };
+}
+
+function arrive(type: typeof Type, raw: Record<string, any>) {
+  return offer(type, raw, async (): Promise<[Type]> => {
+    const { id } = await row(type.fields, raw);
+    const entity = type.loaded.get(slot(id));
+    return entity ? [entity] : entities(type as Type.Class, [raw]) as Promise<[Type]>;
+  });
 }
 
 async function select(
@@ -814,7 +880,19 @@ async function select(
   limit?: number,
   offset: number = 0
 ){
-  const { connection, subset, ref } = type;
+  const query = await constrain(type, from, limit);
+
+  register(type);
+
+  return type.connection.select(type.ref, query, limit, offset);
+}
+
+async function constrain(
+  type: typeof Type,
+  from?: Type.Constraint[] | Type.Query<any>,
+  limit?: number
+){
+  const { subset } = type;
   const constraints = Array.isArray(from) ? [...from] : buildConstraints({ ...newest(type, from), ...subset });
   const query = [] as Type.Constraint[];
 
@@ -842,9 +920,7 @@ async function select(
     }
   }
 
-  register(type);
-
-  return connection.select(ref, query, limit, offset);
+  return query;
 }
 
 const BARE = new Set(["asc", "desc", "IS NULL", "IS NOT NULL"]);

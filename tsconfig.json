@@ -2,7 +2,7 @@
     "compilerOptions": {
         "baseUrl": ".",
         "esModuleInterop": true,
-        "lib": ["ES2020"],
+        "lib": ["ES2020", "ES2021.WeakRef"],
         "moduleResolution": "bundler",
         "noUnusedLocals": true,
         "sourceMap": true,
