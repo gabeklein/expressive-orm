@@ -187,6 +187,21 @@ describe("client", () => {
     Memory.new({ User, Admin });
   })
 
+  it("will unlist classes when it throws", () => {
+    class Base extends Type {
+      name = str();
+    }
+
+    class View extends Base {}
+
+    class Other extends Base {
+      static table = "view";
+    }
+
+    expect(() => Remote.new({ View, Other }, vi.fn())).toThrow();
+    expect(View.table).toBe("base");
+  })
+
   it("will throw if a class is not bound by key", async () => {
     class Foo extends Type {}
 

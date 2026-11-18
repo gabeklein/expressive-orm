@@ -1687,6 +1687,86 @@ describe("views", () => {
     await expect(EditUser.get(1)).resolves.toMatchObject({ name: "Ann" });
   })
 
+  it("will not reuse a row outside its subset", async () => {
+    class User extends connect() {
+      name = str();
+      role = str();
+    }
+
+    class Admin extends User {
+      static subset = { role: "admin" };
+    }
+
+    await User.insert({ name: "Ann", role: "user" });
+    await User.get(1);
+
+    await expect(Admin.get(1)).rejects.toThrow("No Admin found with id 1");
+  })
+
+  it("will not reuse a row of a class with other fields", async () => {
+    class User extends connect() {
+      static table = "user";
+      name = str();
+    }
+
+    class Admin extends User {
+      level = num();
+    }
+
+    await Admin.insert({ name: "Ann", level: 5 });
+    await User.get(1);
+
+    await expect(Admin.get(1)).resolves.toMatchObject({ name: "Ann", level: 5 });
+  })
+
+  it("will destroy every loaded instance on delete", async () => {
+    class User extends Type {
+      static connection = quiet();
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    await User.insert({ name: "Ann" });
+    await User.insert({ name: "Bob" });
+    await User.insert({ name: "Cy" });
+
+    const users = await User.load();
+    const [ann, bob, cy] = [1, 2, 3].map(id => EditUser.get(id));
+
+    await ann.delete();
+    await User.delete(2);
+    await EditUser.delete({ name: "Cy" });
+
+    for (const entity of [...users, ann, bob, cy])
+      expect(entity.get(null)).toBe(true);
+
+    await expect(EditUser.get(1)).rejects.toThrow("No EditUser found with id 1");
+  })
+
+  it("will settle every loaded instance on other writes", async () => {
+    class User extends Type {
+      static connection = quiet();
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    await User.insert({ name: "Ann" });
+
+    const edit = await EditUser.get(1);
+
+    await User.insert({ id: 1, name: "Bob" }, { conflict: "update" });
+    expect(edit.name).toBe("Bob");
+
+    await User.update({ name: "Bob" }, { name: "Cy" });
+    expect(edit.name).toBe("Cy");
+
+    await User.connection.update("user", 1, { name: "Dee" });
+    await User.load();
+    expect(edit.name).toBe("Dee");
+  })
+
   it("will settle every loaded instance of the row", async () => {
     class User extends Type {
       static connection = quiet();
