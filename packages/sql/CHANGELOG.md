@@ -1,5 +1,12 @@
 # @expressive/sql
 
+## 0.13.1
+
+### Patch Changes
+
+- Updated dependencies [[`7af88eb`](https://github.com/gabeklein/expressive-orm/commit/7af88ebb7c54500cf050327d81d07c7d2fa43b5a)]:
+  - @expressive/orm@0.23.0
+
 ## 0.13.0
 
 ### Minor Changes
