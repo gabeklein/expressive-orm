@@ -89,8 +89,10 @@ describe("rows", () => {
     const alice = await User.get(2);
     const profile = await alice.profiles.insert({ bio: "Manager" });
 
-    expect(profile).toEqual({ id: 4, user: 2, bio: "Manager" });
-    expect(Object.isFrozen(profile)).toBe(true);
+    expect(profile).toBeInstanceOf(Profile);
+    expect(profile.columns).toEqual({ id: 4, user: 2, bio: "Manager" });
+    expect(Profile.get(4)).toBe(profile);
+    expect(profile.user).toBe(alice);
   });
 
   it("will reuse handle", async () => {
