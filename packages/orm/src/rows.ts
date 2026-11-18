@@ -130,9 +130,12 @@ function rows<T extends Type, K extends keyof T = Related<T>>(Class: Type.Class<
             value(data: object) {
               const entity: Type.Async<T> = (Class.new as Function).call(Class, { ...data, [fk]: id });
 
-              Promise.resolve(entity.get(() => {}))
-                .then(() => state.loading?.then(() => add(entity, true)))
-                .catch(() => {});
+              entity.get(() => {}).then(() => {
+                if (state.loaded)
+                  add(entity, true);
+                else if (state.loading)
+                  state.loading.then(() => add(entity, true), () => {});
+              }, () => {});
 
               return entity;
             }

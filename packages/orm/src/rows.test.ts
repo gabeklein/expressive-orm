@@ -285,6 +285,22 @@ describe("live", () => {
     expect(notes.size).toBe(0);
   });
 
+  it("will not add an insert to a load that fails", async () => {
+    const claim = await Claim.new({ name: "K" });
+    let fail!: (error: Error) => void;
+
+    vi.spyOn(Note, "load").mockImplementationOnce(() => new Promise((_, reject) => fail = reject));
+
+    const loading = Promise.resolve(claim.notes);
+    const note = await claim.notes.insert({ text: "x" });
+
+    fail(new Error("offline"));
+
+    await expect(loading).rejects.toThrow("offline");
+    expect(texts(await claim.notes)).toEqual(["x"]);
+    expect(claim.notes.get(0)).toBe(note);
+  });
+
   it("will retry a failed load", async () => {
     const claim = await Claim.new({ name: "J" });
 
