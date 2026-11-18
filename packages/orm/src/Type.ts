@@ -1,6 +1,6 @@
 import { Context, Model } from '@expressive/mvc';
 
-import { ambient, Connection, forget, NAMED } from './Connection';
+import { ambient, Connection, forget, LISTED, NAMED } from './Connection';
 import { FIELDS, Key, num, PEEK, placeholder, RECENT, write } from './fields';
 import { columns, Field, Fixes, fixes, match, Omits, Optional, present, row, underscore, updates } from './Field';
 import { Query } from './query/Query';
@@ -493,11 +493,12 @@ abstract class Type extends Model {
    * A key survives minification where a class name does not - bind with `Connection.new({ User })` to keep the default.
    * A subclass that declares no fields of its own is a view - it takes its parent's table, and `get(id)` reuses the parent's loaded row.
    * The parent must declare fields - a base holding only statics is not a table.
+   * A class listed in `Connection.new` is never a view - bound without a connection, give a fieldless subclass of a base with columns its own `table`.
    */
   static get table(): string {
     const named = NAMED.get(this);
 
-    if (named === undefined && view(this))
+    if (named === undefined && !LISTED.has(this) && view(this))
       return (Object.getPrototypeOf(this) as typeof Type).table;
 
     return underscore(named ?? this.name);

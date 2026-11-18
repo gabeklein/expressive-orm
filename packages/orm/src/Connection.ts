@@ -103,6 +103,7 @@ type Hooks = { before: Set<Hook<Connection.Before<any>>>; after: Set<Hook<Connec
 const synced = new WeakMap<Connection, Promise<unknown>>();
 const HOOKED = new WeakSet<Connection>();
 const NAMED = new WeakMap<Query.Table, string>();
+const LISTED = new WeakSet<Query.Table>();
 const COLLECT = Symbol.for("@expressive/orm.collect");
 const HOLDERS = new WeakMap<object, Holder>();
 const CLOSED = new WeakSet<Connection.Journal>();
@@ -208,6 +209,8 @@ abstract class Connection extends Model {
       if (!Array.isArray(using))
         NAMED.set(type, key);
 
+      LISTED.add(type);
+
       type.connection = this;
       return type;
     }));
@@ -223,6 +226,7 @@ abstract class Connection extends Model {
         if (type.connection === this) {
           delete type.connection;
           NAMED.delete(type);
+          LISTED.delete(type);
         }
 
       for (const loaded of this._loaded.values())
@@ -608,4 +612,4 @@ abstract class Connection extends Model {
   sync?(fix?: boolean): Promise<unknown>;
 }
 
-export { ambient, Connection, forget, NAMED };
+export { ambient, Connection, forget, LISTED, NAMED };

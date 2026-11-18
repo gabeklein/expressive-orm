@@ -1608,6 +1608,27 @@ describe("views", () => {
     expect(Archive.table).toBe("archive");
   })
 
+  it("will not be a view when listed", async () => {
+    class Base extends Type {
+      created = date();
+    }
+
+    class Log extends Base {}
+    class Event extends Base {}
+
+    const db = Memory.new([Log]);
+
+    expect(Log.table).toBe("log");
+
+    await Memory.new({ Event });
+
+    expect(Event.table).toBe("event");
+
+    await db.close();
+
+    expect(Log.table).toBe("base");
+  })
+
   it("will not be a view of a base without fields", () => {
     class Base extends connect() {}
     class User extends Base {}
