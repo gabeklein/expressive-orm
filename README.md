@@ -104,7 +104,7 @@ const edit = await EditUser.get(1); // no query - same row as `user`
 await edit.set({ name: "Ann" });    // user.name is "Ann" too
 ```
 
-Give a subclass `static table` for a table of its own with the same columns.
+A class listed in the connection keeps its own table. Give an unlisted subclass `static table` for a table of its own with the same columns.
 
 Every entity has an incrementing integer `id`. Declare it with `key` to rename the column or change its type:
 
