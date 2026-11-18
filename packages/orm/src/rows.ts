@@ -15,7 +15,13 @@ interface Rows<T extends Type, K extends keyof T> {
   load(where?: Type.Query<T>, limit?: number, offset?: number): Promise<T[]>;
   one(where?: Type.Query<T>, expect?: true): Promise<T>;
   one(where: Type.Query<T> | undefined, expect: boolean): Promise<T | undefined>;
-  insert(data: Omit<Type.Insert<T>, K> & Partial<Type.Insert<T>>): Promise<Type.Columns<T>>;
+  /**
+   * Insert a related row with the foreign key filled, as `Class.new` does - the entity at once, awaitable.
+   *
+   * @example
+   * const post = await user.posts.insert({ title: "Hello" });
+   */
+  insert(data: Omit<Type.Insert<T>, K> & Partial<Type.Insert<T>>): Type.Async<T>;
 }
 
 /**
@@ -51,7 +57,7 @@ function rows<T extends Type, K extends keyof T = Related<T>>(Class: Type.Class<
           query: (where?: Type.Query<T>, limit?: number, offset?: number): any => Class.query(scope(where), limit, offset),
           load: (where, limit, offset) => Class.load(scope(where), limit, offset),
           one: (where?: Type.Query<T>, expect?: boolean) => Class.one(scope(where), expect as true),
-          insert: (data) => Class.insert({ ...data, [fk]: id } as Type.Insert<T>)
+          insert: (data) => (Class.new as Function).call(Class, { ...data, [fk]: id })
         };
       }
     };
