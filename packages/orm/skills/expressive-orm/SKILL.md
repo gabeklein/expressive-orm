@@ -211,7 +211,7 @@ await author.posts.one({ title: "Hello" });
 ```
 
 - `one(Other)` stores `<field>_id` and loads the related entity with its parent - with `lazy`, on first read, suspending. Related entities are shared references. A write takes an entity, an id, or an object - inserted as a new related row when it has no `id`. A filter takes the same; an object without `id` matches by its fields.
-- `rows(Other, key?)` - `query`, `load`, `one`, `insert` with the foreign key applied. `key` only when `Other` relates to this class more than once. `insert` is `Other.new` with the key filled - the entity at once, awaitable; read `.columns` for the row.
+- `rows(Other, key?)` - `query`, `load`, `one`, `insert` with the foreign key applied. `key` only when `Other` relates to this class more than once. `insert` is `Other.new` with the key filled - the entity at once, awaitable; read `.columns` for the row. Awaiting the handle is `load()`: in a Model, `posts = set(async () => this.author.posts)`. A sync `set(() => this.author.posts)` holds the handle itself.
 
 ## Observe
 

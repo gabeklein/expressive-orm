@@ -1,5 +1,5 @@
-import { Model } from '@expressive/mvc';
-import { describe, expect, it } from 'vitest';
+import { Model, set } from '@expressive/mvc';
+import { describe, expect, it, vi } from 'vitest';
 
 import { str } from './fields';
 import { Memory } from './memory';
@@ -93,6 +93,33 @@ describe("rows", () => {
     expect(profile.columns).toEqual({ id: 4, user: 2, bio: "Manager" });
     expect(Profile.get(4)).toBe(profile);
     expect(profile.user).toBe(alice);
+  });
+
+  it("will load when awaited", async () => {
+    await ready;
+    const gabe = await User.get(1);
+    const profiles = await gabe.profiles;
+
+    expect(profiles.map(p => p.bio)).toEqual(["Writer", "Dev"]);
+    expect(profiles[0]).toBe(Profile.get(3));
+  });
+
+  it("will resolve in an async set", async () => {
+    await ready;
+    const alice = await User.get(2);
+
+    class View extends Model {
+      profiles = set(async () => alice.profiles);
+    }
+
+    const view = View.new();
+    const seen: string[][] = [];
+
+    view.get(({ profiles }) => {
+      seen.push(profiles.map(p => p.bio));
+    });
+
+    await vi.waitFor(() => expect(seen).toEqual([["Manager", "Designer"]]));
   });
 
   it("will reuse handle", async () => {

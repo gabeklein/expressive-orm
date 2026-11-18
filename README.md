@@ -397,14 +397,14 @@ class Post extends Type {
 
 `author = one(Other)` stores `author_id` - `{ column }` names another, and two fields on one column throw - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. `set`, an insert or a filter takes an entity, an id or a row.
 
-`rows(Other, key?)` is a handle on the rows pointing back - `query`, `load`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class. `insert` creates the entity as `Type.new` does, foreign key filled.
+`rows(Other, key?)` is a handle on the rows pointing back - `query`, `load`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class. `insert` creates the entity as `Type.new` does, foreign key filled. Awaiting the handle is `load()` - in a Model, `posts = set(async () => this.author.posts)`.
 
 ```ts
 const author = await Author.new({ name: "Gabe" });
 const post = await author.posts.insert({ title: "Hello", editor: author }); // the entity
 
 await author.posts.query();                 // rows, equal to [post.columns]
-await author.posts.load();                  // entities, [post] itself
+await author.posts;                         // load() - entities, [post] itself
 await author.posts.one({ title: "Hello" }); // post
 console.log(post.author === author);        // true
 ```
