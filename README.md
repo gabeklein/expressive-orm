@@ -89,7 +89,7 @@ Every helper has `.and(...presets)`: a helper with the same signature and those 
 
 The table is the class name in snake case; `static table` overrides it. Bind classes as an object - `SQLiteConnection.new({ User, Post })` - and a class without `table` takes its key instead, in snake case. Keys survive minification where class names don't, so a bundled app keeps its tables.
 
-A subclass that declares no fields of its own is a view on its parent's table - it adds behaviour, not columns. Its instances read and write the parent's rows, `get(id)` builds one from the parent's loaded row without a query, and a write through either settles both.
+A subclass that declares no fields of its own is a view on its parent's table - it adds behaviour, not columns. Its instances read and write the parent's rows, `get(id)` builds one without a query when the row is already loaded through the parent or another of its views, and a write or delete through either reaches both.
 
 ```ts
 class EditUser extends User {
