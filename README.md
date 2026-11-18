@@ -397,16 +397,22 @@ class Post extends Type {
 
 `author = one(Other)` stores `author_id` - `{ column }` names another, and two fields on one column throw - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. `set`, an insert or a filter takes an entity, an id or a row.
 
-`rows(Other, key?)` is a handle on the rows pointing back - `query`, `load`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class. `insert` creates the entity as `Type.new` does, foreign key filled.
+`rows(Other, key?)` is the rows pointing back, as a live list - with `query`, `load`, `one` and `insert` applying the foreign key. `key` is needed only when `Other` has more than one relation to this class. `insert` creates the entity as `Type.new` does, foreign key filled.
+
+The field is a [`has.List`](https://github.com/gabeklein/expressive-mvc) of every related entity, newest first. It loads once, on first await or first read; a read before then suspends, as a reference's columns do, so an effect or component reading `claim.notes` waits for it. Awaiting it resolves the list itself - again and again the same one. An entity added through its `insert` joins it first, and one deleted or destroyed leaves it; effects reading it re-run. Nothing else changes it - an insert made another way, an update, or a write from elsewhere shows in `load()` and `query()`, which read afresh every call. `load(where?)` resolves a plain array.
 
 ```ts
 const author = await Author.new({ name: "Gabe" });
 const post = await author.posts.insert({ title: "Hello", editor: author }); // the entity
 
+const posts = await author.posts;           // the field itself - a live list of [post]
 await author.posts.query();                 // rows, equal to [post.columns]
-await author.posts.load();                  // entities, [post] itself
+await author.posts.load();                  // entities, [post] itself - an array
 await author.posts.one({ title: "Hello" }); // post
 console.log(post.author === author);        // true
+
+await posts.insert({ title: "Again", editor: author });
+console.log(posts.size);                    // 2
 ```
 
 ## Entities are Models

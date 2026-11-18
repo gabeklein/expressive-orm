@@ -1,5 +1,5 @@
-import { Model } from '@expressive/mvc';
-import { describe, expect, it } from 'vitest';
+import { has, Model, set } from '@expressive/mvc';
+import { describe, expect, it, vi } from 'vitest';
 
 import { str } from './fields';
 import { Memory } from './memory';
@@ -121,6 +121,179 @@ describe("rows", () => {
     await pending;
 
     await expect(bob.profiles.query()).resolves.toEqual([]);
+  });
+});
+
+describe("live", () => {
+  class Table extends Type {
+    static connection = Memory.new();
+  }
+
+  class Note extends Table {
+    static table = "note";
+    claim = one(Claim);
+    text = str();
+  }
+
+  class Claim extends Table {
+    static table = "claim";
+    name = str();
+    notes = rows(Note);
+  }
+
+  const texts = (list: Iterable<Note>) => Array.from(list, note => note.text);
+
+  it("will resolve itself when awaited", async () => {
+    const claim = await Claim.new({ name: "A" });
+
+    await claim.notes.insert({ text: "first" });
+    await claim.notes.insert({ text: "second" });
+
+    const notes = await claim.notes;
+
+    expect(notes).toBe(claim.notes);
+    expect(notes).toBeInstanceOf(has.List);
+    expect(texts(notes)).toEqual(["second", "first"]);
+    expect("then" in notes).toBe(false);
+    expect(await claim.notes).toBe(notes);
+  });
+
+  it("will suspend a read until loaded", async () => {
+    const claim = await Claim.new({ name: "B" });
+
+    await claim.notes.insert({ text: "x" });
+
+    const thrown = (() => { try { return claim.notes.size } catch (e) { return e } })();
+
+    expect(thrown).toBeInstanceOf(Promise);
+
+    await thrown;
+
+    expect(claim.notes.size).toBe(1);
+    expect(claim.notes.get(0)!.text).toBe("x");
+  });
+
+  it("will add inserted entity first", async () => {
+    const claim = await Claim.new({ name: "C" });
+    const notes = await claim.notes;
+    const first = await notes.insert({ text: "first" });
+    const second = await notes.insert({ text: "second" });
+
+    expect(texts(notes)).toEqual(["second", "first"]);
+    expect(notes.get(0)).toBe(second);
+    expect(notes.get(1)).toBe(first);
+  });
+
+  it("will drop deleted and destroyed entities", async () => {
+    const claim = await Claim.new({ name: "D" });
+    const first = await claim.notes.insert({ text: "first" });
+    const second = await claim.notes.insert({ text: "second" });
+    const third = await claim.notes.insert({ text: "third" });
+    const notes = await claim.notes;
+
+    await second.delete();
+    expect(texts(notes)).toEqual(["third", "first"]);
+
+    third.set(null);
+    expect(texts(notes)).toEqual(["first"]);
+
+    await Note.delete(first.id);
+    expect(notes.size).toBe(0);
+  });
+
+  it("will update an effect reading the entity", async () => {
+    const claim = await Claim.new({ name: "E" });
+    const seen: string[][] = [];
+
+    claim.get(({ notes }) => {
+      seen.push(texts(notes));
+    });
+
+    await vi.waitFor(() => expect(seen).toEqual([[]]));
+
+    const note = await claim.notes.insert({ text: "x" });
+
+    await vi.waitFor(() => expect(seen).toEqual([[], ["x"]]));
+
+    await note.delete();
+
+    await vi.waitFor(() => expect(seen).toEqual([[], ["x"], []]));
+  });
+
+  it("will resolve in an async set", async () => {
+    const claim = await Claim.new({ name: "F" });
+
+    class View extends Model {
+      notes = set(async () => claim.notes);
+    }
+
+    const view = View.new();
+    const seen: string[][] = [];
+
+    view.get(({ notes }) => {
+      seen.push(notes.map(note => note.text));
+    });
+
+    await vi.waitFor(() => expect(seen).toEqual([[]]));
+    expect(view.notes).toBe(claim.notes);
+
+    await claim.notes.insert({ text: "x" });
+
+    await vi.waitFor(() => expect(seen).toEqual([[], ["x"]]));
+  });
+
+  it("will not add an insert twice while loading", async () => {
+    const claim = await Claim.new({ name: "G" });
+    const load = Note.load.bind(Note);
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => release = resolve);
+
+    vi.spyOn(Note, "load").mockImplementationOnce(async (...args: any[]) => {
+      await gate;
+      return load(...args);
+    });
+
+    const loading = Promise.resolve(claim.notes);
+    const note = await claim.notes.insert({ text: "x" });
+
+    release();
+
+    const notes = await loading;
+
+    await vi.waitFor(() => expect(texts(notes)).toEqual(["x"]));
+    expect(notes.get(0)).toBe(note);
+  });
+
+  it("will not change on other writes", async () => {
+    const claim = await Claim.new({ name: "H" });
+    const notes = await claim.notes;
+
+    await Note.new({ claim, text: "elsewhere" });
+    await Note.insert({ claim: claim.id, text: "inserted" });
+    await claim.notes.insert({ text: "here" });
+
+    expect(texts(notes)).toEqual(["here"]);
+    expect((await claim.notes.load()).map(note => note.text)).toEqual(["here", "inserted", "elsewhere"]);
+  });
+
+  it("will not add a failed insert", async () => {
+    const claim = await Claim.new({ name: "I" });
+    const notes = await claim.notes;
+
+    // @ts-expect-error
+    await expect(claim.notes.insert({})).rejects.toThrow("Missing required field: text");
+    expect(notes.size).toBe(0);
+  });
+
+  it("will retry a failed load", async () => {
+    const claim = await Claim.new({ name: "J" });
+
+    vi.spyOn(Note, "load").mockRejectedValueOnce(new Error("offline"));
+
+    await expect(Promise.resolve(claim.notes)).rejects.toThrow("offline");
+    await claim.notes.insert({ text: "x" });
+
+    expect(texts(await claim.notes)).toEqual(["x"]);
   });
 });
 

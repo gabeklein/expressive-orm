@@ -206,12 +206,14 @@ class Post extends Type {
 }
 
 const post = await author.posts.insert({ title: "Hello", editor: author }); // the entity
+const posts = await author.posts;                                           // the field - a live has.List
 await author.posts.query();
 await author.posts.one({ title: "Hello" });
 ```
 
 - `one(Other)` stores `<field>_id` and loads the related entity with its parent - with `lazy`, on first read, suspending. Related entities are shared references. A write takes an entity, an id, or an object - inserted as a new related row when it has no `id`. A filter takes the same; an object without `id` matches by its fields.
 - `rows(Other, key?)` - `query`, `load`, `one`, `insert` with the foreign key applied. `key` only when `Other` relates to this class more than once. `insert` is `Other.new` with the key filled - the entity at once, awaitable; read `.columns` for the row.
+- The `rows()` field is itself a live `has.List` (mvc) of every related entity, newest first. It loads once, on first await or first read - a read before that suspends (throws the load promise), so an effect or component can read `claim.notes` directly. `await claim.notes` resolves the same list, then drops `then`, as a reference does. Only its own `insert` adds (first, once stored) and a deleted or destroyed entity leaves it - `Other.new`, updates, another parent and outside writes never show in it; use `load(where?)` (a fresh array) or `query`. Read it as a `has.List` - `size`, `get(i)`, iteration, `map` - not an array. In a Model, `notes = set(async () => this.claim.notes)` or read `this.claim.notes` in place.
 
 ## Observe
 
