@@ -194,6 +194,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 # @expressive/orm
 
+## 0.23.0
+
+### Minor Changes
+
+- [#95](https://github.com/gabeklein/expressive-orm/pull/95) [`7af88eb`](https://github.com/gabeklein/expressive-orm/commit/7af88ebb7c54500cf050327d81d07c7d2fa43b5a) Breaking: a `rows()` relation's `insert` returns the entity, as `Type.new` does with the foreign key filled, instead of the stored row. It is usable at once and resolves when awaited; read `entity.columns` for the row.
+
 ## 0.22.0
 
 ### Minor Changes
