@@ -1565,6 +1565,8 @@ describe("types", () => {
       prefs = json<{ theme: string }>();
       tags = json<string[]>(null);
       meta = json<any>();
+      data = json();
+      prefer = json<{ theme: string } | null>();
       draft = new Draft();
       input = { name: { value: "" } } as { readonly name: { value: string } };
       label() {
@@ -1573,19 +1575,25 @@ describe("types", () => {
     }
 
     const check = async () => {
-      User.new({ name: "A", prefs: { theme: "dark" }, meta: 1 });
-      User.insert({ name: "A", prefs: { theme: "dark" }, meta: 1 });
+      User.new({ name: "A", prefs: { theme: "dark" }, meta: 1, data: "x", prefer: null });
+      User.insert({ name: "A", prefs: { theme: "dark" }, meta: 1, data: { a: 1 }, prefer: { theme: "dark" } });
+      Query(where => where(User, { name: "A", prefs: { theme: "dark" }, meta: 1, data: [1], prefer: null }));
+
+      // @ts-expect-error
+      Query(where => where(User).draft);
 
       const [row] = await User.query();
       const user = await User.get(1);
 
       expectTypeOf(row).toEqualTypeOf<Type.Columns<User>>();
-      expectTypeOf<keyof Type.Columns<User>>().toEqualTypeOf<"id" | "name" | "prefs" | "tags" | "meta">();
-      expectTypeOf<keyof Type.Compat<User>>().toEqualTypeOf<"name" | "prefs" | "tags" | "meta">();
+      expectTypeOf<keyof Type.Columns<User>>().toEqualTypeOf<"id" | "name" | "prefs" | "tags" | "meta" | "data" | "prefer">();
+      expectTypeOf<keyof Type.Compat<User>>().toEqualTypeOf<"name" | "prefs" | "tags" | "meta" | "data" | "prefer">();
+      expectTypeOf(user.data).toEqualTypeOf<unknown>();
+      expectTypeOf(user.prefer).toExtend<{ theme: string } | null>();
       expectTypeOf(user.prefs.theme).toEqualTypeOf<string>();
       expectTypeOf(user.tags).toExtend<string[] | undefined>();
 
-      user.set({ prefs: { theme: "light" }, tags: null });
+      user.set({ prefs: { theme: "light" }, tags: null, data: 1, prefer: null });
     };
 
     expect(check).toBeTypeOf("function");

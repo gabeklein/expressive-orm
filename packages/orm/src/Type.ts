@@ -8,8 +8,8 @@ import type { Moment } from './query/Value';
 import type { Rows } from './rows';
 import { desc, equal, Where } from './where';
 
-type Stored<V> =
-  0 extends 1 & V ? true :
+export type Stored<V> =
+  unknown extends V ? true :
   V extends Type.Class | Rows<any, any> | ((...args: any[]) => any) ? false :
   NonNullable<V> extends string | number | bigint | boolean | Date | Type ? true :
   "~object" extends keyof NonNullable<V> ? true : false;
