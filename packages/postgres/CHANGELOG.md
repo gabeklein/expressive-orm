@@ -1,5 +1,17 @@
 # @expressive/postgres
 
+## 0.12.0
+
+### Minor Changes
+
+- [#104](https://github.com/gabeklein/expressive-orm/pull/104) [`6ab19e0`](https://github.com/gabeklein/expressive-orm/commit/6ab19e07b62924febeeddbb0a6c06218bab40e14) Peer `@expressive/mvc` `^0.96.0`, the release `@expressive/ui`'s `form` builds on. Upgrade mvc alongside.
+
+### Patch Changes
+
+- Updated dependencies [[`6ab19e0`](https://github.com/gabeklein/expressive-orm/commit/6ab19e07b62924febeeddbb0a6c06218bab40e14), [`37153ce`](https://github.com/gabeklein/expressive-orm/commit/37153ce6646b28f8b790fb62a0a675ccfd170b7b), [`ef6d021`](https://github.com/gabeklein/expressive-orm/commit/ef6d021a19f49cd45b72684ad92ed5d840ccb5d4)]:
+  - @expressive/orm@0.24.0
+  - @expressive/sql@0.14.0
+
 ## 0.11.1
 
 ### Patch Changes
