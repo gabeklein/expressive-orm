@@ -84,7 +84,13 @@ class OneToOneField<T extends Type = Type> extends Field {
 }
 
 export function getRelated<T extends Type.Class>(Class: T, type: Type.Class) {
-  const rel = ONE.get(Class)?.get(type);
+  const related = ONE.get(Class);
+  let from = type;
+
+  while (related && !related.has(from) && from !== Type)
+    from = Object.getPrototypeOf(from);
+
+  const rel = related?.get(from);
 
   if (rel) return rel.key as keyof Type.Instance<T>;
 

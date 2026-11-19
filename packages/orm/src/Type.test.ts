@@ -7,7 +7,7 @@ import { Memory } from './memory';
 import { Query } from './query/Query';
 import { Type } from './Type';
 import { asc, desc, equal, greaterThan, isIn, isLike, isNull, lessThan, notEqual, notNull, Where } from './where';
-import { bool, date, json, key, lazy, now, num, one, optional, orNull, str, uuid } from '.';
+import { bool, date, json, key, lazy, now, num, one, optional, orNull, rows, str, uuid } from '.';
 
 function spy<K extends "select" | "insert" | "update" | "remove">(connection: Connection, key: K) {
   void connection[key];
@@ -1606,6 +1606,101 @@ describe("views", () => {
     }
 
     expect(Archive.table).toBe("archive");
+  })
+
+  it("will throw if listed with its parent", () => {
+    class User extends Type {
+      name = str();
+    }
+
+    class EditUser extends User {}
+    class AdminEditUser extends EditUser {}
+
+    class Archive extends User {
+      static table = "archive";
+    }
+
+    expect(() => Memory.new({ User, EditUser })).toThrow("EditUser is a view of User - leave it out of the connection, or give it a static table.");
+    expect(() => Memory.new([User, AdminEditUser])).toThrow("AdminEditUser is a view of User");
+    expect(() => Memory.new([User, Archive])).not.toThrow();
+  })
+
+  it("will read its own table while collecting fields", () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class Author extends User {
+      bio = str();
+      from = def(() => ({ value: (Author as typeof Type).table }));
+    }
+
+    expect(Author.table).toBe("author");
+  })
+
+  it("will throw if fields fail to collect", () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class Broken extends User {
+      other = str({ column: "name" });
+    }
+
+    expect(() => Broken.table).toThrow("both use column name");
+  })
+
+  it("will wait for a parent still loading", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    await User.insert({ name: "Ann" });
+
+    const select = spy(User.connection, "select");
+    const user = User.get(1);
+    const edit = EditUser.get(1);
+
+    await expect(edit).resolves.toMatchObject({ name: "Ann" });
+    await user;
+    expect(select).toHaveBeenCalledTimes(1);
+  })
+
+  it("will select if a loading parent fails", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    const user = User.get(1);
+    const edit = EditUser.get(1);
+
+    await expect(user).rejects.toThrow("No User found with id 1");
+    await expect(edit).rejects.toThrow("No EditUser found with id 1");
+  })
+
+  it("will query inherited rows", async () => {
+    class Post extends connect() {
+      title = str();
+      author = one(User);
+    }
+
+    class User extends connect() {
+      name = str();
+      posts = rows(Post);
+    }
+
+    class EditUser extends User {}
+
+    await User.insert({ name: "Ann" });
+    await Post.insert({ title: "Hi", author: 1 });
+
+    const edit = await EditUser.get(1);
+
+    await expect(edit.posts.query()).resolves.toMatchObject([{ title: "Hi" }]);
   })
 
   it("will not be a view when listed", async () => {

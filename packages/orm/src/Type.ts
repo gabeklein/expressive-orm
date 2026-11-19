@@ -1,6 +1,6 @@
 import { Context, Model } from '@expressive/mvc';
 
-import { ambient, Connection, forget, LISTED, NAMED } from './Connection';
+import { ambient, Connection, forget, LISTED, NAMED, VIEW } from './Connection';
 import { FIELDS, Key, num, PEEK, placeholder, RECENT, write } from './fields';
 import { columns, Field, Fixes, fixes, match, Omits, Optional, present, row, underscore, updates } from './Field';
 import { Query } from './query/Query';
@@ -271,12 +271,23 @@ function view(type: typeof Type): boolean {
   if (is === undefined) {
     const parent = Object.getPrototypeOf(type) as typeof Type;
 
-    is = parent !== Type && !adds(type, parent) && (view(parent) || adds(parent, Object.getPrototypeOf(parent)));
+    VIEWS.set(type, false);
+
+    try {
+      is = parent !== Type && !adds(type, parent) && (view(parent) || adds(parent, Object.getPrototypeOf(parent)));
+    }
+    catch (error) {
+      VIEWS.delete(type);
+      throw error;
+    }
+
     VIEWS.set(type, is);
   }
 
   return is;
 }
+
+VIEW.of = type => view(type as typeof Type);
 
 function root(type: typeof Type): typeof Type {
   return !LISTED.has(type) && view(type) ? root(Object.getPrototypeOf(type)) : type;
@@ -508,9 +519,10 @@ abstract class Type extends Model {
    * Table name - unless assigned, the key the class is bound under in snake case, else the class name.
    *
    * A key survives minification where a class name does not - bind with `Connection.new({ User })` to keep the default.
-   * A subclass that declares no fields of its own is a view - it takes its parent's table, and `get(id)` reuses a row already loaded through the parent or another of its views.
+   * A subclass that declares no fields of its own is a view - it takes its parent's table, and `get(id)` reuses a row loaded or loading through the parent or another of its views.
    * The parent must declare fields - a base holding only statics is not a table.
-   * A class listed in `Connection.new` is never a view. Under ambient binding, give a fieldless subclass of a base with columns its own `table`.
+   * A class listed in `Connection.new` is never a view - listing one beside a class it would view throws, unless it sets `table`.
+   * Under ambient binding, give a fieldless subclass of a base with columns its own `table`.
    */
   static get table(): string {
     if (!LISTED.has(this) && view(this))
@@ -939,8 +951,15 @@ function reference<T extends Type>(type: Type.Class<T>, id: Type.Id<T>): T {
   if (cached)
     return cached as T;
 
+  let kin: Type | undefined;
+
   for (const [other, sibling] of type.subset ? [] : siblings(type, key))
-    if (root(other) === root(type) && !PENDING.has(sibling) && !sibling.get(null)) {
+    if (root(other) === root(type) && !sibling.get(null)) {
+      if (PENDING.has(sibling)) {
+        kin ??= sibling;
+        continue;
+      }
+
       const entity = write(() => (Model.new as Function).call(type, sibling.columns) as T);
 
       loaded.set(key, entity);
@@ -953,6 +972,11 @@ function reference<T extends Type>(type: Type.Class<T>, id: Type.Id<T>): T {
 
   async function load(){
     try {
+      if (kin && await kin.get(() => {}).then(() => !kin!.get(null), () => false)) {
+        settle(entity, kin.columns);
+        return;
+      }
+
       const [row] = await select(type, { id: equal(id) }, 1);
 
       if (!row) {
