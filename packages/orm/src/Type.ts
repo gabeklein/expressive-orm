@@ -8,29 +8,31 @@ import type { Moment } from './query/Value';
 import type { Rows } from './rows';
 import { desc, equal, Where } from './where';
 
+type Stored<V> =
+  0 extends 1 & V ? true :
+  V extends Type.Class | Rows<any, any> | ((...args: any[]) => any) ? false :
+  NonNullable<V> extends string | number | bigint | boolean | Date | Type ? true :
+  "~object" extends keyof NonNullable<V> ? true : false;
+
+type Own<T extends Type> = {
+  [K in Exclude<keyof T, keyof Type>]-?: Stored<T[K]> extends true ? K : never
+}[Exclude<keyof T, keyof Type>];
+
 type Compat<T extends Type> = {
-  [K in Exclude<keyof T, keyof Type> as (
-    T[K] extends Type.Class | Rows<any, any> ? never : K
-  )]?: T[K];
+  [K in Exclude<keyof T, keyof Type> as Stored<T[K]> extends true ? K : never]?: T[K];
 }
 
 type Update<T extends Type> = {
   [K in Exclude<keyof T, keyof Type>]?: Fixes<T[K]> extends true ? never : Inserts<T[K]> | Clears<T[K]>
 }
 
-type ClassKeys<T> = {
-  [K in keyof T]: T[K] extends Type.Class | Rows<any, any> | ((...args: any[]) => any) ? K : never
-}[keyof T];
-
-type Fields<T extends Type> = Exclude<keyof T, Exclude<keyof Type, "id"> | ClassKeys<T>>;
+type Fields<T extends Type> = Own<T> | "id";
 
 type Column<T> = T extends Type ? T["id"] : T;
 
 /** A row as statics resolve it - frozen, decoded by property, a relation as its id. */
 type Columns<T extends Type> = Pick<T, "id"> & {
-  [K in Exclude<keyof T, keyof Type> as (
-    T[K] extends Type.Class | Rows<any, any> | ((...args: any[]) => any) ? never : K
-  )]: Column<T[K]>;
+  [K in Exclude<keyof T, keyof Type> as Stored<T[K]> extends true ? K : never]: Column<T[K]>;
 }
 
 type Clears<T> = undefined extends T ? null : never;

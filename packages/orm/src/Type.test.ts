@@ -1555,6 +1555,42 @@ describe("types", () => {
     expect(check).toBeTypeOf("function");
   })
 
+  it("will type only stored members as columns", () => {
+    class Draft extends Model {
+      value = "";
+    }
+
+    class User extends Type {
+      name = str();
+      prefs = json<{ theme: string }>();
+      tags = json<string[]>(null);
+      meta = json<any>();
+      draft = new Draft();
+      input = { name: { value: "" } } as { readonly name: { value: string } };
+      label() {
+        return this.name;
+      }
+    }
+
+    const check = async () => {
+      User.new({ name: "A", prefs: { theme: "dark" }, meta: 1 });
+      User.insert({ name: "A", prefs: { theme: "dark" }, meta: 1 });
+
+      const [row] = await User.query();
+      const user = await User.get(1);
+
+      expectTypeOf(row).toEqualTypeOf<Type.Columns<User>>();
+      expectTypeOf<keyof Type.Columns<User>>().toEqualTypeOf<"id" | "name" | "prefs" | "tags" | "meta">();
+      expectTypeOf<keyof Type.Compat<User>>().toEqualTypeOf<"name" | "prefs" | "tags" | "meta">();
+      expectTypeOf(user.prefs.theme).toEqualTypeOf<string>();
+      expectTypeOf(user.tags).toExtend<string[] | undefined>();
+
+      user.set({ prefs: { theme: "light" }, tags: null });
+    };
+
+    expect(check).toBeTypeOf("function");
+  })
+
   class Bar extends Type {}
   class FooBar extends Type {
     a = str();
