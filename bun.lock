@@ -16,34 +16,34 @@
     },
     "packages/orm": {
       "name": "@expressive/orm",
-      "version": "0.21.1",
+      "version": "0.23.0",
       "devDependencies": {
-        "@expressive/mvc": "^0.94.2",
+        "@expressive/mvc": "^0.96.0",
         "fake-indexeddb": "^6.2.7",
         "tsdown": "^0.20.1",
       },
       "peerDependencies": {
-        "@expressive/mvc": "^0.94.0",
+        "@expressive/mvc": "^0.96.0",
       },
     },
     "packages/postgres": {
       "name": "@expressive/postgres",
-      "version": "0.10.1",
+      "version": "0.11.1",
       "dependencies": {
-        "@expressive/orm": "^0.13.0",
-        "@expressive/sql": "^0.5.0",
+        "@expressive/orm": "^0.23.0",
+        "@expressive/sql": "^0.13.1",
         "sql-formatter": "^10.7.2",
       },
       "devDependencies": {
         "@electric-sql/pglite": "^0.2.16",
-        "@expressive/mvc": "^0.94.2",
+        "@expressive/mvc": "^0.96.0",
         "@types/pg": "^8.11.11",
         "pg": "^8.14.0",
         "tsdown": "^0.20.1",
       },
       "peerDependencies": {
         "@electric-sql/pglite": ">=0.2.16",
-        "@expressive/mvc": "^0.94.0",
+        "@expressive/mvc": "^0.96.0",
         "pg": "^8.0.0",
       },
       "optionalPeers": [
@@ -53,23 +53,23 @@
     },
     "packages/sql": {
       "name": "@expressive/sql",
-      "version": "0.12.0",
+      "version": "0.13.1",
       "bin": {
         "expressive": "./dist/bin.js",
       },
       "dependencies": {
         "@expressive/cli": "^0.2.0",
-        "@expressive/orm": "^0.21.1",
+        "@expressive/orm": "^0.23.0",
         "sql-formatter": "^10.7.2",
       },
       "devDependencies": {
-        "@expressive/mvc": "^0.94.2",
+        "@expressive/mvc": "^0.96.0",
         "@libsql/client": "^0.18.0",
         "miniflare": "^4.20260730.0",
         "tsdown": "^0.20.1",
       },
       "peerDependencies": {
-        "@expressive/mvc": "^0.94.0",
+        "@expressive/mvc": "^0.96.0",
         "@libsql/client": ">=0.18.0",
         "better-sqlite3": ">=11.0.0",
         "sqlite3": ">=5.0.0",
@@ -174,7 +174,7 @@
 
     "@expressive/cli": ["@expressive/cli@0.2.0", "", { "peerDependencies": { "@expressive/mvc": "^0.94.5" }, "optionalPeers": ["@expressive/mvc"] }, "sha512-9OwqTq2AGuGVxhRZfsvGA380zjAjJz4AhYcQYx9n+DW6H0Bm3Khn+RVxrCZOdMzECoUuSvuKlIGkGiBob/sNAw=="],
 
-    "@expressive/mvc": ["@expressive/mvc@0.94.2", "", {}, "sha512-IFI1qrG9O+jUnLopAPJEFJGqmBJWZinxxWjp81D5pXZUnyxK1P+tQzk8UgkP0l+UsOEY9mejSRUOeiVgmASMAQ=="],
+    "@expressive/mvc": ["@expressive/mvc@0.96.0", "", {}, "sha512-DpA0N6iN0cIGGy5lapjWfyAVvTchy47iiCIdvjzKIFbK3FO8g8MkMCOyI4jEyKZKURzi2f2YeOWw5Ylzql33hg=="],
 
     "@expressive/orm": ["@expressive/orm@workspace:packages/orm"],
 
@@ -651,6 +651,8 @@
     "@changesets/git/picomatch": ["picomatch@4.0.7", "", {}, "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA=="],
 
     "@cspotcode/source-map-support/@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.9", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.0.3", "@jridgewell/sourcemap-codec": "^1.4.10" } }, "sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ=="],
+
+    "@expressive/cli/@expressive/mvc": ["@expressive/mvc@0.94.2", "", {}, "sha512-IFI1qrG9O+jUnLopAPJEFJGqmBJWZinxxWjp81D5pXZUnyxK1P+tQzk8UgkP0l+UsOEY9mejSRUOeiVgmASMAQ=="],
 
     "@img/sharp-wasm32/@emnapi/runtime": ["@emnapi/runtime@1.11.3", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA=="],
 
