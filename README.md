@@ -87,7 +87,7 @@ Every helper has `.and(...presets)`: a helper with the same signature and those 
 
 `orNull` and `uuid()` are deprecated for `null` and `str(sql.uuid)`.
 
-Other members of an entity - methods, child models, a form - are behaviour, not columns. The types count a property as a column when its value is a primitive, a `Date`, a related entity, or a `Field.Object` such as `json` returns, so `insert`, `new` and query rows leave the rest out. A custom helper storing an object declares its value as `Field.Object<T>` to be counted.
+Other members of an entity - methods, child models, a form - are behaviour, not columns. The types count a property as a column when its value is a primitive, a `Date`, a related entity, or a `Field.Object` such as `json` returns, so `insert`, `new`, query rows and `Query` tables leave the rest out. A custom helper storing an object declares its value as `Field.Object<T>` to be counted.
 
 The table is the class name in snake case; `static table` overrides it. Bind classes as an object - `SQLiteConnection.new({ User, Post })` - and a class without `table` takes its key instead, in snake case. Keys survive minification where class names don't, so a bundled app keeps its tables.
 
