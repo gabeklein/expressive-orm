@@ -511,7 +511,7 @@ declare namespace json {
 }
 
 /** A nullable JSON column - reads `T | undefined`. */
-function json<T>(nullable: Nullable): T | undefined;
+function json<T>(nullable: Nullable): Field.Object<T> | undefined;
 /**
  * A column holding `T` as JSON.
  *
@@ -520,9 +520,9 @@ function json<T>(nullable: Nullable): T | undefined;
  * @example
  * prefs = json<{ theme: string }>();
  */
-function json<T>(config?: Config): T;
+function json<T>(config?: Config): Field.Object<T>;
 function json<T>(...config: Config[]){
-  return column<T>(json, Field, {
+  return column<Field.Object<T>>(json, Field, {
     kind: Object,
     type: "json",
     set: (value: T) => value ?? null,

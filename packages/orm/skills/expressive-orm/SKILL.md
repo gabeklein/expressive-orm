@@ -43,7 +43,9 @@ The field checks each write itself, on every connection: a string within `length
 
 Every helper has `.and(...presets)` - the same helper with those options first: `const money = num.and({ type: "decimal", precision: 10, scale: 2 })`, then `price = money(null)`. Types follow every option, preset or given; a preset helper chains `.and` again, and `.base` is the helper it presets.
 
-`json<T>()` holds a JSON value and takes one option - `json<T>(null)` or `json<T>({ column })`. SQL stores it as text; unparseable text reads `undefined`.
+`json<T>()` holds a JSON value and takes one option - `json<T>(null)` or `json<T>({ column })`. SQL stores it as text; unparseable text reads `undefined`. It types as `Field.Object<T>`.
+
+`Insert`, `Columns` and `Compat` count a property as a column only when its value is a primitive, a `Date`, a related entity or a `Field.Object` - a child model, a form or other non-column member stays out, so `new`, `insert`, query rows and `Query` tables don't ask for or claim it. A custom helper storing an object returns `Field.Object<T>`.
 
 `date.created()` and `date.updated()` are presets of `date`. `date.created()` is written on insert only - upserts leave it, an update giving it fails to compile and throws. It is also the class's recency order; two on one class throw. `date.updated()` is set to now on every update and upsert that doesn't give it. Any column takes `fixed` and `update`; `update` also takes a function, called once per write. A `Query` assignment still writes a fixed column.
 

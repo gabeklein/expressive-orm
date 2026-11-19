@@ -127,6 +127,16 @@ export class Field<T = unknown> {
   }
 }
 
+export declare namespace Field {
+  /**
+   * An object a column stores - what a field helper returning one declares, as `json` does.
+   *
+   * Entity types count a property as a column when its value is a primitive, a `Date`, a related entity, or this - other members, such as a `Model` or a form, stay out of `Insert`, `Columns`, `Compat` and a `Query` table.
+   * `unknown` passes through unmarked, as do `null` and `undefined` in a union.
+   */
+  type Object<T> = unknown extends T ? T : T extends null | undefined ? T : T & { readonly "~object"?: true };
+}
+
 export function updates({ update }: Field) {
   return typeof update == "function" ? update() : update;
 }

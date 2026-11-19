@@ -1,6 +1,5 @@
 import { Field, type Omits } from '../Field';
-import type { Rows } from '../rows';
-import type { Type } from '../Type';
+import type { Stored, Type } from '../Type';
 import { Builder } from './Builder';
 import { BitWise, Computed, MathOps } from './Computed';
 import { Cond, Expression, Group, type Moment, QueryTemplate } from './Value';
@@ -21,7 +20,7 @@ declare namespace Query {
   };
 
   type Members<T> = {
-    [K in keyof T]: T[K] extends Type.Class | Rows<any, any> | ((...args: any[]) => any) ? never : K
+    [K in keyof T]-?: Stored<T[K]> extends true ? K : never
   }[keyof T];
 
   type Keys<T> = Exclude<Members<T>, Exclude<keyof Type, "id">>;
