@@ -103,6 +103,8 @@ type Hooks = { before: Set<Hook<Connection.Before<any>>>; after: Set<Hook<Connec
 const synced = new WeakMap<Connection, Promise<unknown>>();
 const HOOKED = new WeakSet<Connection>();
 const NAMED = new WeakMap<Query.Table, string>();
+const LISTED = new WeakSet<Query.Table>();
+const VIEW = {} as { of(type: Query.Table): boolean };
 const COLLECT = Symbol.for("@expressive/orm.collect");
 const HOLDERS = new WeakMap<object, Holder>();
 const CLOSED = new WeakSet<Connection.Journal>();
@@ -202,11 +204,21 @@ abstract class Connection extends Model {
       check(new.target, type);
     }
 
+    for (const type of seen)
+      for (let of = type; !of.hasOwnProperty("table") && VIEW.of(of);) {
+        of = Object.getPrototypeOf(of);
+
+        if (seen.has(of))
+          throw new Error(`${type.name} is a view of ${of.name} - leave it out of the connection, or give it a static table.`);
+      }
+
     super();
 
     this.using = new Set(entries.map(([key, type]) => {
       if (!Array.isArray(using))
         NAMED.set(type, key);
+
+      LISTED.add(type);
 
       type.connection = this;
       return type;
@@ -223,6 +235,7 @@ abstract class Connection extends Model {
         if (type.connection === this) {
           delete type.connection;
           NAMED.delete(type);
+          LISTED.delete(type);
         }
 
       for (const loaded of this._loaded.values())
@@ -608,4 +621,4 @@ abstract class Connection extends Model {
   sync?(fix?: boolean): Promise<unknown>;
 }
 
-export { ambient, Connection, forget, NAMED };
+export { ambient, Connection, forget, LISTED, NAMED, VIEW };

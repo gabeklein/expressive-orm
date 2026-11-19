@@ -89,6 +89,23 @@ Every helper has `.and(...presets)`: a helper with the same signature and those 
 
 The table is the class name in snake case; `static table` overrides it. Bind classes as an object - `SQLiteConnection.new({ User, Post })` - and a class without `table` takes its key instead, in snake case. Keys survive minification where class names don't, so a bundled app keeps its tables.
 
+A subclass that declares no fields of its own is a view on its parent's table - it adds behaviour, not columns. Its instances read and write the parent's rows, `get(id)` builds one without a query when the row is loaded or loading through the parent or another of its views, and a write or delete through either reaches both.
+
+```ts
+class EditUser extends User {
+  get label() {
+    return `Editing ${this.name}`;
+  }
+}
+
+const user = await User.get(1);
+const edit = await EditUser.get(1); // no query - same row as `user`
+
+await edit.set({ name: "Ann" });    // user.name is "Ann" too
+```
+
+Leave views out of the connection - listing one beside the class it views throws. A listed class keeps its own table, so give a subclass `static table` for a table of its own with the same columns. Inherited `rows()` relations work on a view as on its parent.
+
 Every entity has an incrementing integer `id`. Declare it with `key` to rename the column or change its type:
 
 ```ts

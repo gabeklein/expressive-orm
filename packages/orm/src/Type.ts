@@ -1,6 +1,6 @@
 import { Context, Model } from '@expressive/mvc';
 
-import { ambient, Connection, forget, NAMED } from './Connection';
+import { ambient, Connection, forget, LISTED, NAMED, VIEW } from './Connection';
 import { FIELDS, Key, num, PEEK, placeholder, RECENT, write } from './fields';
 import { columns, Field, Fixes, fixes, match, Omits, Optional, present, row, underscore, updates } from './Field';
 import { Query } from './query/Query';
@@ -257,6 +257,68 @@ function register(type: typeof Type){
   return map;
 }
 
+const VIEWS = new WeakMap<typeof Type, boolean>();
+
+function adds(type: typeof Type, parent: typeof Type) {
+  const base = parent === Type ? ["id"] : [...parent.fields.keys()];
+
+  return [...type.fields.keys()].some(key => !base.includes(key));
+}
+
+function view(type: typeof Type): boolean {
+  let is = VIEWS.get(type);
+
+  if (is === undefined) {
+    const parent = Object.getPrototypeOf(type) as typeof Type;
+
+    VIEWS.set(type, false);
+
+    try {
+      is = parent !== Type && !adds(type, parent) && (view(parent) || adds(parent, Object.getPrototypeOf(parent)));
+    }
+    catch (error) {
+      VIEWS.delete(type);
+      throw error;
+    }
+
+    VIEWS.set(type, is);
+  }
+
+  return is;
+}
+
+VIEW.of = type => view(type as typeof Type);
+
+function root(type: typeof Type): typeof Type {
+  return !LISTED.has(type) && view(type) ? root(Object.getPrototypeOf(type)) : type;
+}
+
+function shared(type: typeof Type) {
+  for (const [other, loaded] of type.connection._identity())
+    if (loaded.size && other.ref === type.ref)
+      return true;
+
+  return false;
+}
+
+function drop(type: typeof Type, key: unknown) {
+  for (const [, entity] of siblings(type, key))
+    retire(entity, key);
+}
+
+function siblings(type: typeof Type, key: unknown) {
+  const found: [typeof Type, Type][] = [];
+
+  for (const [other, loaded] of type.connection._identity()) {
+    const entity = other.ref === type.ref && loaded.get(key);
+
+    if (entity)
+      found.push([other, entity]);
+  }
+
+  return found;
+}
+
 function slot(id: unknown) {
   return Array.isArray(id) ? JSON.stringify(id) : id;
 }
@@ -324,6 +386,7 @@ function awaitable<T extends Type>(entity: T): Type.Async<T> {
  *
  * Statics resolve plain frozen rows. Instances are read-only references from `get(id)`, `new(values)` or a relation; write with `await entity.set(patch)`.
  * The table is the class name in snake case unless `static table` is set, or the class is bound under a key.
+ * A subclass adding no fields shares its parent's table - see `table`.
  *
  * @example
  * class User extends Type {
@@ -411,7 +474,7 @@ abstract class Type extends Model {
       await this.onDelete();
 
     await connection.remove(ref, locate(type, this.id));
-    retire(this, slot(this.id));
+    drop(type, slot(this.id));
   }
 
   /** Schema qualifying the table, as `schema.table`. */
@@ -419,7 +482,7 @@ abstract class Type extends Model {
   /**
    * Values every row of this class holds - merged into inserts and into every query filter.
    *
-   * Scopes a subclass to part of a shared table; give it the parent's `table`.
+   * Scopes a subclass to part of a shared table - a subclass without fields of its own takes its parent's `table`.
    * Reads by id (`get(id)`) are scoped; writes by id (`update(id)`, `delete(id)`) and instance writes (`set`, `delete`) are not.
    * `Insert` still types the fields as required.
    *
@@ -456,8 +519,15 @@ abstract class Type extends Model {
    * Table name - unless assigned, the key the class is bound under in snake case, else the class name.
    *
    * A key survives minification where a class name does not - bind with `Connection.new({ User })` to keep the default.
+   * A subclass that declares no fields of its own is a view - it takes its parent's table, and `get(id)` reuses a row loaded or loading through the parent or another of its views.
+   * The parent must declare fields - a base holding only statics is not a table.
+   * A class listed in `Connection.new` is never a view - listing one beside a class it would view throws, unless it sets `table`.
+   * Under ambient binding, give a fieldless subclass of a base with columns its own `table`.
    */
   static get table(): string {
+    if (!LISTED.has(this) && view(this))
+      return (Object.getPrototypeOf(this) as typeof Type).table;
+
     return underscore(NAMED.get(this) ?? this.name);
   }
 
@@ -559,7 +629,7 @@ abstract class Type extends Model {
   /**
    * Update one row by id.
    *
-   * Settles the change into its loaded entity. Columns with an `update` option are written too. Throws for a fixed column.
+   * Settles the change into every loaded entity of the row, views included. Columns with an `update` option are written too. Throws for a fixed column.
    * A missing row is not an error.
    */
   static async update<T extends Type>(this: Type.Class<T>, id: Type.Id<T>, data: Type.Update<T>): Promise<void>;
@@ -573,20 +643,12 @@ abstract class Type extends Model {
     if (isQuery(id))
       return updateWhere(this, id, data);
 
-    const { connection, loaded, ref } = this;
+    const { connection, ref } = this;
     const row = await this.prepare(data, true);
-    const key = slot(id);
-    const entity = loaded.get(key);
 
+    register(this);
     await connection.update(ref, locate(this, id), row);
-
-    if (entity) {
-      const values = await decode(this, row, true);
-
-      track(entity, values);
-      settle(entity, values);
-      rekey(entity, key);
-    }
+    await spread(this, slot(id), row);
   }
 
   /** Insert a row unless one exists - resolves the stored row, `undefined` when the existing one is left. */
@@ -606,7 +668,7 @@ abstract class Type extends Model {
   /** Insert with a conflict mode chosen at runtime - `undefined` when `"ignore"` leaves an existing row. */
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options: Type.Conflict<T>): Promise<Type.Columns<T> | undefined>;
   static async insert<T extends Type>(this: Type.Class<T>, data: Type.Insert<T>, options?: Type.Conflict<T>){
-    const { connection, fields, loaded, ref, subset } = this;
+    const { connection, fields, ref, subset } = this;
     const given = { ...data, ...subset } as Type.Update<T>;
     const input = await this.prepare(given);
     const set = options && options.conflict != "ignore" ? await this.prepare({}, true) : {};
@@ -619,14 +681,8 @@ abstract class Type extends Model {
       return;
 
     const columns = await row(fields, inserted) as Type.Columns<T>;
-    const entity = loaded.get(slot(columns.id));
 
-    if (entity) {
-      const values = await decode(this, inserted);
-
-      track(entity, values);
-      settle(entity, values);
-    }
+    await spread(this, slot(columns.id), inserted);
 
     return columns;
   }
@@ -647,15 +703,11 @@ abstract class Type extends Model {
     if (isQuery(id))
       return deleteWhere(this, id);
 
-    const { connection, loaded, ref } = this;
-    const key = slot(id);
+    const { connection, ref } = this;
 
+    register(this);
     await connection.remove(ref, locate(this, id));
-
-    const entity = loaded.get(key);
-
-    if (entity)
-      retire(entity, key);
+    drop(this, slot(id));
   }
 
   /** Count rows matching a filter - the whole table when omitted. */
@@ -803,6 +855,8 @@ abstract class Type extends Model {
       else
         loaded.set(key, entity = write(() => (Model.new as Function).call(this, values) as T));
 
+      await spread(this, key, raw, entity);
+
       return entity;
     }));
   }
@@ -897,12 +951,32 @@ function reference<T extends Type>(type: Type.Class<T>, id: Type.Id<T>): T {
   if (cached)
     return cached as T;
 
+  let kin: Type | undefined;
+
+  for (const [other, sibling] of type.subset ? [] : siblings(type, key))
+    if (root(other) === root(type) && !sibling.get(null)) {
+      if (PENDING.has(sibling)) {
+        kin ??= sibling;
+        continue;
+      }
+
+      const entity = write(() => (Model.new as Function).call(type, sibling.columns) as T);
+
+      loaded.set(key, entity);
+      return entity;
+    }
+
   const { parts } = type.fields.get("id")!;
   const values = parts ? Object.fromEntries(parts.map((part, i) => [part.key, (locate(type, id) as unknown[])[i]])) : { id };
   const entity = placeholder(() => (Model.new as Function).call(type, values, load) as T);
 
   async function load(){
     try {
+      if (kin && await kin.get(() => {}).then(() => !kin!.get(null), () => false)) {
+        settle(entity, kin.columns);
+        return;
+      }
+
       const [row] = await select(type, { id: equal(id) }, 1);
 
       if (!row) {
@@ -944,8 +1018,20 @@ async function persist(entity: Type, patch: Type.Update<Type>) {
   const updated = settle(entity, values);
 
   rekey(entity, key);
+  await spread(type, key, row, entity);
 
   return updated;
+}
+
+async function spread(type: typeof Type, key: unknown, row: Record<string, unknown>, except?: Type) {
+  for (const [other, entity] of siblings(type, key))
+    if (entity !== except) {
+      const values = await decode(other, row, true);
+
+      track(entity, values);
+      settle(entity, values);
+      rekey(entity, key);
+    }
 }
 
 function conflict<T extends Type>(type: typeof Type, given: Record<string, unknown>, set: Record<string, unknown>, options: Type.Conflict<T>) {
@@ -1053,8 +1139,10 @@ function matching(type: typeof Type, constraints: Type.Constraint[], act?: (verb
 }
 
 async function updateWhere(type: typeof Type, where: Type.Query<any>, data: Type.Update<any>){
-  const { fields, loaded } = type;
+  const { fields } = type;
   const constraints = await conditions(type, where);
+
+  register(type);
   const values: Record<string, unknown> = {};
 
   for (const [key, field] of fields) {
@@ -1067,41 +1155,29 @@ async function updateWhere(type: typeof Type, where: Type.Query<any>, data: Type
       values[key] = present(value);
   }
 
-  const affected = loaded.size ? await select(type, constraints) : [];
+  const affected = shared(type) ? await select(type, constraints) : [];
   const count = await matching(type, constraints, verbs => verbs.update(values));
 
   if (affected.length) {
-    const changed = await decode(type, await type["prepare"](values as Type.Update<Type>, true), true);
+    const changed = await type["prepare"](values as Type.Update<Type>, true);
 
-    for (const raw of affected) {
-      const { id } = await row(fields, raw);
-      const key = slot(id);
-      const entity = loaded.get(key);
-
-      if (entity) {
-        track(entity, changed);
-        settle(entity, changed);
-        rekey(entity, key);
-      }
-    }
+    for (const raw of affected)
+      await spread(type, slot((await row(fields, raw)).id), changed);
   }
 
   return count;
 }
 
 async function deleteWhere(type: typeof Type, where: Type.Query<any>){
-  const { fields, loaded } = type;
+  const { fields } = type;
   const constraints = await conditions(type, where);
-  const affected = loaded.size ? await select(type, constraints) : [];
+
+  register(type);
+  const affected = shared(type) ? await select(type, constraints) : [];
   const count = await matching(type, constraints, verbs => verbs.delete());
 
-  for (const raw of affected) {
-    const key = slot((await row(fields, raw)).id);
-    const entity = loaded.get(key);
-
-    if (entity)
-      retire(entity, key);
-  }
+  for (const raw of affected)
+    drop(type, slot((await row(fields, raw)).id));
 
   return count;
 }

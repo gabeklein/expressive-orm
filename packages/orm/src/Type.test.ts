@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
-import { get, Model } from '@expressive/mvc';
+import { def, get, Model } from '@expressive/mvc';
 
 import { Connection } from './Connection';
 import { Field } from './Field';
@@ -7,7 +7,7 @@ import { Memory } from './memory';
 import { Query } from './query/Query';
 import { Type } from './Type';
 import { asc, desc, equal, greaterThan, isIn, isLike, isNull, lessThan, notEqual, notNull, Where } from './where';
-import { bool, date, json, key, lazy, now, num, one, optional, orNull, str, uuid } from '.';
+import { bool, date, json, key, lazy, now, num, one, optional, orNull, rows, str, uuid } from '.';
 
 function spy<K extends "select" | "insert" | "update" | "remove">(connection: Connection, key: K) {
   void connection[key];
@@ -1521,6 +1521,404 @@ describe("extended types", () => {
     expect(user.displayName()).toBe("User: Alice Doe");
     await expect(UserExt.one({ id: 2 })).resolves.toEqual({ id: 2, name: "Alice Doe" });
   });
+})
+
+describe("views", () => {
+  function quiet(){
+    const db = Memory.new();
+    Object.defineProperty(db, "subscribe", { value: undefined });
+    return db;
+  }
+
+  it("will read and write the parent's table", async () => {
+    class User extends Type {
+      static connection = quiet();
+      name = str();
+    }
+
+    class EditUser extends User {
+      draft = def(() => ({ value: {} }));
+
+      greet() {
+        return `Hi ${this.name}`;
+      }
+    }
+
+    expect(EditUser.table).toBe("user");
+
+    await User.insert({ name: "Ann" });
+
+    const edit = await EditUser.get(1);
+
+    expect(edit).toBeInstanceOf(EditUser);
+    expect(edit.greet()).toBe("Hi Ann");
+
+    await edit.set({ name: "Bob" });
+
+    await expect(User.one({ id: 1 })).resolves.toEqual({ id: 1, name: "Bob" });
+  })
+
+  it("will take the parent's bound key", async () => {
+    class User extends Type {
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    await Memory.new({ Person: User });
+
+    expect(EditUser.table).toBe("person");
+  })
+
+  it("will chain views", () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class EditUser extends User {}
+    class AdminEditUser extends EditUser {}
+
+    expect(AdminEditUser.table).toBe("user");
+  })
+
+  it("will not be a view when adding a field", () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class Author extends User {
+      bio = str();
+    }
+
+    class Writer extends Author {}
+
+    expect(Author.table).toBe("author");
+    expect(Writer.table).toBe("author");
+  })
+
+  it("will not be a view when given a table", () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class Archive extends User {
+      static table = "archive";
+    }
+
+    expect(Archive.table).toBe("archive");
+  })
+
+  it("will throw if listed with its parent", () => {
+    class User extends Type {
+      name = str();
+    }
+
+    class EditUser extends User {}
+    class AdminEditUser extends EditUser {}
+
+    class Archive extends User {
+      static table = "archive";
+    }
+
+    expect(() => Memory.new({ User, EditUser })).toThrow("EditUser is a view of User - leave it out of the connection, or give it a static table.");
+    expect(() => Memory.new([User, AdminEditUser])).toThrow("AdminEditUser is a view of User");
+    expect(() => Memory.new([User, Archive])).not.toThrow();
+  })
+
+  it("will read its own table while collecting fields", () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class Author extends User {
+      bio = str();
+      from = def(() => ({ value: (Author as typeof Type).table }));
+    }
+
+    expect(Author.table).toBe("author");
+  })
+
+  it("will throw if fields fail to collect", () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class Broken extends User {
+      other = str({ column: "name" });
+    }
+
+    expect(() => Broken.table).toThrow("both use column name");
+  })
+
+  it("will wait for a parent still loading", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    await User.insert({ name: "Ann" });
+
+    const select = spy(User.connection, "select");
+    const user = User.get(1);
+    const edit = EditUser.get(1);
+
+    await expect(edit).resolves.toMatchObject({ name: "Ann" });
+    await user;
+    expect(select).toHaveBeenCalledTimes(1);
+  })
+
+  it("will select if a loading parent fails", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    const user = User.get(1);
+    const edit = EditUser.get(1);
+
+    await expect(user).rejects.toThrow("No User found with id 1");
+    await expect(edit).rejects.toThrow("No EditUser found with id 1");
+  })
+
+  it("will query inherited rows", async () => {
+    class Post extends connect() {
+      title = str();
+      author = one(User);
+    }
+
+    class User extends connect() {
+      name = str();
+      posts = rows(Post);
+    }
+
+    class EditUser extends User {}
+
+    await User.insert({ name: "Ann" });
+    await Post.insert({ title: "Hi", author: 1 });
+
+    const edit = await EditUser.get(1);
+
+    await expect(edit.posts.query()).resolves.toMatchObject([{ title: "Hi" }]);
+  })
+
+  it("will not be a view when listed", async () => {
+    class Base extends Type {
+      created = date();
+    }
+
+    class Log extends Base {}
+    class Event extends Base {}
+
+    const db = Memory.new([Log]);
+
+    expect(Log.table).toBe("log");
+
+    await Memory.new({ Event });
+
+    expect(Event.table).toBe("event");
+
+    await db.close();
+
+    expect(Log.table).toBe("base");
+  })
+
+  it("will not be a view of a base without fields", () => {
+    class Base extends connect() {}
+    class User extends Base {}
+
+    expect(User.table).toBe("user");
+  })
+
+  it("will reuse a loaded row of the parent", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    await User.insert({ name: "Ann" });
+
+    const user = await User.get(1);
+    const select = spy(User.connection, "select");
+    const edit = EditUser.get(1);
+
+    expect(select).not.toHaveBeenCalled();
+    expect(edit).not.toBe(user);
+    expect(edit.name).toBe("Ann");
+    expect(EditUser.get(1)).toBe(edit);
+  })
+
+  it("will not reuse a parent still loading", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    await User.insert({ name: "Ann" });
+
+    const user = User.get(1);
+    const edit = EditUser.get(1);
+
+    await expect(edit).resolves.toBeInstanceOf(EditUser);
+    await user;
+  })
+
+  it("will not reuse a deleted parent", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    await User.insert({ name: "Ann" });
+
+    const user = await User.get(1);
+
+    user.set(null);
+
+    await expect(EditUser.get(1)).resolves.toMatchObject({ name: "Ann" });
+  })
+
+  it("will not reuse a row outside its subset", async () => {
+    class User extends connect() {
+      name = str();
+      role = str();
+    }
+
+    class Admin extends User {
+      static subset = { role: "admin" };
+    }
+
+    await User.insert({ name: "Ann", role: "user" });
+    await User.get(1);
+
+    await expect(Admin.get(1)).rejects.toThrow("No Admin found with id 1");
+  })
+
+  it("will not reuse a row of a class with other fields", async () => {
+    class User extends connect() {
+      static table = "user";
+      name = str();
+    }
+
+    class Admin extends User {
+      level = num();
+    }
+
+    await Admin.insert({ name: "Ann", level: 5 });
+    await User.get(1);
+
+    await expect(Admin.get(1)).resolves.toMatchObject({ name: "Ann", level: 5 });
+  })
+
+  it("will destroy every loaded instance on delete", async () => {
+    class User extends Type {
+      static connection = quiet();
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    await User.insert({ name: "Ann" });
+    await User.insert({ name: "Bob" });
+    await User.insert({ name: "Cy" });
+
+    const users = await User.load();
+    const [ann, bob, cy] = [1, 2, 3].map(id => EditUser.get(id));
+
+    await ann.delete();
+    await User.delete(2);
+    await EditUser.delete({ name: "Cy" });
+
+    for (const entity of [...users, ann, bob, cy])
+      expect(entity.get(null)).toBe(true);
+
+    await expect(EditUser.get(1)).rejects.toThrow("No EditUser found with id 1");
+  })
+
+  it("will settle every loaded instance on other writes", async () => {
+    class User extends Type {
+      static connection = quiet();
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    await User.insert({ name: "Ann" });
+
+    const edit = await EditUser.get(1);
+
+    await User.insert({ id: 1, name: "Bob" }, { conflict: "update" });
+    expect(edit.name).toBe("Bob");
+
+    await User.update({ name: "Bob" }, { name: "Cy" });
+    expect(edit.name).toBe("Cy");
+
+    await User.connection.update("user", 1, { name: "Dee" });
+    await User.load();
+    expect(edit.name).toBe("Dee");
+  })
+
+  it("will settle every loaded instance of the row", async () => {
+    class User extends Type {
+      static connection = quiet();
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    await User.insert({ name: "Ann" });
+
+    const user = await User.get(1);
+    const edit = EditUser.get(1);
+
+    await edit.set({ name: "Bob" });
+
+    expect(user.name).toBe("Bob");
+
+    await User.update(1, { name: "Cy" });
+
+    expect(edit.name).toBe("Cy");
+  })
+
+  it("will settle after the write and reject on failure", async () => {
+    class User extends Type {
+      static connection = quiet();
+      name = str();
+    }
+
+    class EditUser extends User {}
+
+    await User.insert({ name: "Ann" });
+
+    const edit = await EditUser.get(1);
+    const update = spy(User.connection, "update");
+    let release!: () => void;
+
+    update.mockImplementationOnce(() => new Promise<void>(resolve => release = resolve));
+
+    const pending = edit.set({ name: "Bob" });
+    const settled = vi.fn();
+
+    Promise.resolve(pending).then(settled);
+    await new Promise(resolve => setTimeout(resolve));
+
+    expect(settled).not.toHaveBeenCalled();
+    expect(edit.name).toBe("Ann");
+
+    release();
+
+    await expect(pending).resolves.toEqual(["name"]);
+    expect(edit.name).toBe("Bob");
+
+    update.mockRejectedValueOnce(new Error("offline"));
+
+    await expect(edit.set({ name: "Cy" })).rejects.toThrow("offline");
+    expect(edit.name).toBe("Bob");
+  })
 })
 
 describe("types", () => {

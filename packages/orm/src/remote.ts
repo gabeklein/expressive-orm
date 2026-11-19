@@ -1,4 +1,4 @@
-import { Connection, NAMED } from './Connection';
+import { Connection, LISTED, NAMED } from './Connection';
 import type { Query } from './query/Query';
 import { type Field, present } from './Field';
 import { RECENT } from './fields';
@@ -124,6 +124,7 @@ class Remote extends Connection {
         for (const type of this.using) {
           delete (type as { connection?: unknown }).connection;
           NAMED.delete(type);
+          LISTED.delete(type);
         }
 
         throw new Error(`${other.name} and ${type.name} share table ${ref} - a Remote can't tell them apart.`);
