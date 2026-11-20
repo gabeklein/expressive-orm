@@ -106,7 +106,7 @@ const edit = await EditUser.get(1); // no query - same row as `user`
 await edit.set({ name: "Ann" });    // user.name is "Ann" too
 ```
 
-Leave views out of the connection - listing one beside the class it views throws. A listed class keeps its own table, so give a subclass `static table` for a table of its own with the same columns. Inherited `rows()` relations work on a view as on its parent.
+Leave views out of the connection - listing one beside the class it views throws. A listed class keeps its own table, so give a subclass `static table` for a table of its own with the same columns. Inherited `many()` relations work on a view as on its parent.
 
 Every entity has an incrementing integer `id`. Declare it with `key` to rename the column or change its type:
 
@@ -400,11 +400,11 @@ await users[0].set({ age: 36 });
 ## Relations
 
 ```ts
-import { Type, lazy, one, rows, str } from '@expressive/sql';
+import { Type, lazy, one, many, str } from '@expressive/sql';
 
 class Author extends Type {
   name = str();
-  posts = rows(Post, "author");
+  posts = many(Post, "author");
 }
 
 class Post extends Type {
@@ -416,7 +416,7 @@ class Post extends Type {
 
 `author = one(Other)` stores `author_id` - `{ column }` names another, and two fields on one column throw - and loads the related entity with its parent; with `lazy`, on first read. A related entity is a reference: shared by every parent pointing at its row, never owned or destroyed by them. `set`, an insert or a filter takes an entity, an id or a row.
 
-`rows(Other, key?)` is a handle on the rows pointing back - `query`, `load`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class. `insert` creates the entity as `Type.new` does, foreign key filled.
+`many(Other, key?)` is a handle on the rows pointing back - `query`, `load`, `one` and `insert` with the foreign key applied. `key` is needed only when `Other` has more than one relation to this class. `insert` creates the entity as `Type.new` does, foreign key filled.
 
 ```ts
 const author = await Author.new({ name: "Gabe" });

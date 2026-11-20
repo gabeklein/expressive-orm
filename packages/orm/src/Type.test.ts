@@ -7,7 +7,7 @@ import { Memory } from './memory';
 import { Query } from './query/Query';
 import { Type } from './Type';
 import { asc, desc, equal, greaterThan, isIn, isLike, isNull, lessThan, notEqual, notNull, Where } from './where';
-import { bool, date, json, key, lazy, now, num, one, optional, orNull, rows, str, uuid } from '.';
+import { bool, date, json, key, lazy, now, num, one, optional, orNull, many, str, uuid } from '.';
 
 function spy<K extends "select" | "insert" | "update" | "remove">(connection: Connection, key: K) {
   void connection[key];
@@ -1690,7 +1690,7 @@ describe("views", () => {
 
     class User extends connect() {
       name = str();
-      posts = rows(Post);
+      posts = many(Post);
     }
 
     class EditUser extends User {}
