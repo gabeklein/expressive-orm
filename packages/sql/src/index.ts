@@ -5,4 +5,4 @@ export { Generator } from './connection/Generator';
 export { sql } from './datatypes';
 export type { Engine } from './sqlite/engine';
 export { SQLiteConnection } from './sqlite/SQLiteConnection';
-export { d1 } from './sqlite/d1';
+export { sqlite } from './sqlite/open';

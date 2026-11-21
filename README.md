@@ -172,6 +172,18 @@ const lite = await PGLiteConnection.new([Account], "./data");
 
 Two optional members cover hosts without `BEGIN` and `COMMIT` on one connection. `transaction()` returns a session - the same four statements plus `commit()` and `rollback()` - and every statement inside `transaction(fn)` runs on it. `batch(sql)` runs statements atomically, and `sync` applies through it. A rebuild in a batch needs foreign keys off, or dropping the old table would cascade; on an engine that keeps them on, it is refused.
 
+### Migrations
+
+`sqlite(file, { migrations, seed })` opens a SQLite file as an `Engine` - the built-in loader, foreign keys on - after applying each `.sql` file in `migrations` not yet applied, in name order and tracked by name in `_migrations`, then `seed` if the file had no tables, all in one transaction. A failure rolls back and rejects. Hand the engine to a [session](#sessions) or a connection's `source`; it is the caller's to `close()`. Omit `file` for in memory.
+
+```ts
+import { sqlite } from "@expressive/sql";
+
+const engine = await sqlite("local.db", { migrations: "migrations", seed: "seed.sql" });
+
+await db.session(() => handle(request), engine);
+```
+
 ### SQLite hosts
 
 As `source`, `SQLiteConnection` also takes a Cloudflare D1 binding, a libSQL client or a libSQL address, told apart by shape - an object always goes in `{ source }`, and any other object in its place throws. A given binding or client is used as is, and `close()` leaves it open.
@@ -215,16 +227,6 @@ export default {
 ```
 
 A connection built without a source opens SQLite through the built-in loader the first time something runs outside a session - in workerd that rejects with `SQLiteConnection has no source, and no SQLite loads in this runtime`, so there run everything in a session and never await the connection itself. `session` checks its source before `fn` runs - something that isn't a D1 binding, libSQL client or `Engine`, such as `env` for `env.DB`, rejects at once. Sync the schema from a deploy step, not the Worker: `sync`, or awaiting the connection, inside a session on a source other than the connection's own rejects rather than check one request's database against the classes.
-
-Outside workerd - local dev, tests - `d1(file, { migrations, seed })` opens a SQLite file as a D1 binding, for `env.DB` where wrangler isn't running. On first use it applies each `.sql` file in `migrations` not yet applied, in name order and tracked in `d1_migrations` as `wrangler d1 migrations apply` does, then runs `seed` if the database had no tables - all in one transaction. Statements run one at a time and answer as D1's do, so the same binding serves `db.session`, `SQLiteConnection` and anything else taking D1, such as Better Auth. Omit `file` for in memory.
-
-```ts
-import { d1 } from "@expressive/sql";
-
-const DB = d1("local.db", { migrations: "migrations", seed: "seed.sql" });
-
-await db.session(() => handle(request), DB);
-```
 
 `sync` costs a few D1 round trips per table on each cold start, and applies as one batch. D1 has no interactive transactions - `transaction` throws. It keeps foreign keys on, so `sync(true, true)` refuses to rebuild a table.
 

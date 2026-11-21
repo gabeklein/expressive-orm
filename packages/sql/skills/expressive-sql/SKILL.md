@@ -56,6 +56,10 @@ Two optional members, for hosts without `BEGIN` and `COMMIT` on one connection:
 - `transaction()` - resolves a session, the four statements plus `commit()` and `rollback()`. Every statement inside `db.transaction(fn)` runs on it.
 - `batch(sql: string[])` - runs statements atomically; `sync` applies through it. A table rebuild in a batch needs foreign keys off, or dropping the old table cascades; an engine that keeps them on refuses it.
 
+### Migrations
+
+`sqlite(file?, { migrations?, seed? })` resolves an `Engine` on a SQLite file - built-in loader, foreign keys on. It first applies each unapplied `.sql` in `migrations` in name order (tracked by name in `_migrations`), then `seed` if the file had no tables - one transaction; a failure rolls back and rejects. Pass the engine to `db.session(fn, engine)` or as `{ source }`; `close()` is the caller's. Omit `file` for in memory.
+
 ### Hosts
 
 As `source`, `new` also takes a D1 binding, a libSQL `Client` or a libSQL address, told apart by shape. The second argument is a filename or address string, or `{ source, timestamps }` - any other object there throws, so an object source always goes in `{ source }`.
@@ -84,7 +88,6 @@ export default {
 ```
 
 - Per request - `db.session(() => handle(request), env.DB)` runs the request on that binding with its own identity map (`expressive-orm/SKILL.md#sessions`), so `get` never serves a row another isolate changed. A session takes a D1 binding, libSQL client or `Engine`, used as given and left open; it replaces swapping a connection's engine. In workerd, build the connection with no source (`SQLiteConnection.new(types)`) and never await it or run anything outside a session - a statement outside one rejects with `SQLiteConnection has no source, and no SQLite loads in this runtime`. `session` rejects an unknown source (say `env` for `env.DB`) before `fn` runs. `sync`, or awaiting the connection, inside a session on a source other than the connection's own rejects - sync from a deploy step.
-- Local D1 - `d1(file?, { migrations?, seed? })` opens a SQLite file as a D1 binding, for `env.DB` outside workerd (dev, tests). First use applies each unapplied `.sql` in `migrations` in name order, tracked in `d1_migrations` like wrangler, then `seed` if the file had no tables - one transaction. Statements run one at a time and answer as D1's; Better Auth takes it too. Omit `file` for in memory.
 - D1 - `sync` applies as one batch, a few round trips per table each cold start. `transaction` throws. Foreign keys stay on, so `sync(true, true)` refuses a rebuild.
 - libSQL address - `libsql:`, `https:`, `http:`, `ws:` or `wss:` opens `@libsql/client` 0.18+; token as `?authToken=`. Loaded at runtime, so under a bundler (Workers) pass a `createClient` client instead. An `undefined` or empty source opens in memory - check an address from the environment first.
 - Every libSQL client - each `transaction` is a libSQL write transaction (`BEGIN IMMEDIATE`) holding the connection's lock, so transactions run one at a time app-wide. `sync` is one batch; a rebuild runs through `client.migrate`, foreign keys off for it alone. Local libSQL enforces foreign keys by default; remote gets the server's setting.
