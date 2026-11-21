@@ -65,11 +65,11 @@
     "sql-formatter": "^10.7.2"
   },
   "devDependencies": {
-    "@expressive/mvc": "^0.97.0",
+    "@expressive/mvc": "^0.97.1",
     "tsdown": "^0.20.1"
   },
   "peerDependencies": {
-    "@expressive/mvc": "^0.97.0",
+    "@expressive/mvc": "^0.97.1",
     "better-sqlite3": ">=11.0.0",
     "sqlite3": ">=5.0.0"
   },
