@@ -18,32 +18,32 @@
       "name": "@expressive/orm",
       "version": "0.24.0",
       "devDependencies": {
-        "@expressive/mvc": "^0.96.0",
+        "@expressive/mvc": "^0.97.1",
         "fake-indexeddb": "^6.2.7",
         "tsdown": "^0.20.1",
       },
       "peerDependencies": {
-        "@expressive/mvc": "^0.96.0",
+        "@expressive/mvc": "^0.97.1",
       },
     },
     "packages/postgres": {
       "name": "@expressive/postgres",
       "version": "0.12.0",
       "dependencies": {
-        "@expressive/orm": "^0.23.0",
-        "@expressive/sql": "^0.13.1",
+        "@expressive/orm": "^0.24.0",
+        "@expressive/sql": "^0.14.0",
         "sql-formatter": "^10.7.2",
       },
       "devDependencies": {
         "@electric-sql/pglite": "^0.2.16",
-        "@expressive/mvc": "^0.96.0",
+        "@expressive/mvc": "^0.97.1",
         "@types/pg": "^8.11.11",
         "pg": "^8.14.0",
         "tsdown": "^0.20.1",
       },
       "peerDependencies": {
         "@electric-sql/pglite": ">=0.2.16",
-        "@expressive/mvc": "^0.96.0",
+        "@expressive/mvc": "^0.97.1",
         "pg": "^8.0.0",
       },
       "optionalPeers": [
@@ -63,11 +63,11 @@
         "sql-formatter": "^10.7.2",
       },
       "devDependencies": {
-        "@expressive/mvc": "^0.96.0",
+        "@expressive/mvc": "^0.97.1",
         "tsdown": "^0.20.1",
       },
       "peerDependencies": {
-        "@expressive/mvc": "^0.96.0",
+        "@expressive/mvc": "^0.97.1",
         "better-sqlite3": ">=11.0.0",
         "sqlite3": ">=5.0.0",
       },
@@ -158,7 +158,7 @@
 
     "@expressive/cli": ["@expressive/cli@0.2.0", "", { "peerDependencies": { "@expressive/mvc": "^0.94.5" }, "optionalPeers": ["@expressive/mvc"] }, "sha512-9OwqTq2AGuGVxhRZfsvGA380zjAjJz4AhYcQYx9n+DW6H0Bm3Khn+RVxrCZOdMzECoUuSvuKlIGkGiBob/sNAw=="],
 
-    "@expressive/mvc": ["@expressive/mvc@0.96.0", "", {}, "sha512-DpA0N6iN0cIGGy5lapjWfyAVvTchy47iiCIdvjzKIFbK3FO8g8MkMCOyI4jEyKZKURzi2f2YeOWw5Ylzql33hg=="],
+    "@expressive/mvc": ["@expressive/mvc@0.97.1", "", {}, "sha512-6pMZzGWj2+a8mnOFpCqyOacTPtcLC4crb8xmCqvQnUspIxUwCttHx61rA3D/LJrqh513GVTHeo5t+01gG7JAGw=="],
 
     "@expressive/orm": ["@expressive/orm@workspace:packages/orm"],
 

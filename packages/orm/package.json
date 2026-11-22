@@ -55,11 +55,11 @@
     "test": "bun run typecheck && bun run coverage"
   },
   "devDependencies": {
-    "@expressive/mvc": "^0.96.0",
+    "@expressive/mvc": "^0.97.1",
     "fake-indexeddb": "^6.2.7",
     "tsdown": "^0.20.1"
   },
   "peerDependencies": {
-    "@expressive/mvc": "^0.96.0"
+    "@expressive/mvc": "^0.97.1"
   }
 }
