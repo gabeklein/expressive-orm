@@ -25,7 +25,7 @@ An entity is a class extending `Type`, which extends [`@expressive/mvc`](https:/
 npm install @expressive/sql @expressive/mvc
 ```
 
-SQLite is built into Bun and Node 24. Elsewhere add one of `better-sqlite3`, `sqlite3` or `@libsql/client` (0.18 or later); the first found is used.
+SQLite is built into Bun and Node 24. Elsewhere add `better-sqlite3` or `sqlite3`; the first found is used. Any other SQLite is an [`Engine`](#sqlite-hosts) the app writes.
 
 For Postgres:
 
@@ -186,57 +186,56 @@ await db.session(() => handle(request), engine);
 
 ### SQLite hosts
 
-As `source`, `SQLiteConnection` also takes a Cloudflare D1 binding, a libSQL client or a libSQL address, told apart by shape - an object always goes in `{ source }`, and any other object in its place throws. A given binding or client is used as is, and `close()` leaves it open.
+Any SQLite the built-in loader can't open - a hosted or edge database, a driver of your own - plugs in as an `Engine`: `all`, `get`, `run` and `exec` over positional parameters, and `close`, plus `batch` and `transaction` where the host has them. Pass it as `{ source }`, or per call as a [session](#sessions)'s client. It is used as given - foreign keys are not switched on, and `close()` leaves it open. Any other object in its place throws.
 
-On Workers, open the connection once, from the first request's binding, and drop it when `sync` fails so the next request retries:
+The library ships no adapter for any particular service; the app writes its own, usually in a few lines. For example, an app on Cloudflare D1, whose binding runs batches atomically but has no interactive transactions, might carry:
 
 ```ts
-import { SQLiteConnection } from '@expressive/sql';
+import type { Engine } from '@expressive/sql';
 
-let ready: Promise<unknown> | undefined;
+export function d1(db: D1Database): Engine {
+  const statement = (sql: string, params: any[] = []) => db.prepare(sql).bind(...params);
 
-function open(DB: D1Database){
-  const db = SQLiteConnection.new([User], { source: DB });
-
-  return Promise.resolve(db).catch(async error => {
-    ready = undefined;
-    await db.close();
-    throw error;
-  });
+  return {
+    async all(sql, params) {
+      return (await statement(sql, params).all()).results;
+    },
+    async get(sql, params) {
+      return await statement(sql, params).first() ?? undefined;
+    },
+    async run(sql, params) {
+      return { changes: (await statement(sql, params).run()).meta.changes };
+    },
+    async exec(sql) {
+      await db.prepare(sql).run();
+    },
+    async batch(sql) {
+      await db.batch(sql.map(sql => db.prepare(sql)));
+    },
+    async transaction(): Promise<never> {
+      throw new Error("No interactive transactions on this host.");
+    },
+    async close() {}
+  };
 }
+```
+
+- `transaction` opens a transaction on its own handle, with `commit` and `rollback`. Without it the connection issues `BEGIN`, `COMMIT` and `ROLLBACK` through `exec`, which suits a host on a single connection. A host without interactive transactions rejects from `transaction`: `db.transaction` then rejects with that error before `fn` runs.
+- `batch` runs statements atomically. When present, `sync` applies through it in one call. A table rebuild needs foreign keys off - where `PRAGMA foreign_keys = OFF` doesn't take, `sync(true, true)` refuses the rebuild rather than cascade.
+
+To run each request on that request's host, with its own identity map so `get` never returns a row another process has since changed, wrap it in a [session](#sessions): `db.session(() => handle(request), d1(env.DB))`. A session takes any `Engine`, used as is and left open, and swaps nothing outside it. Transactions lock on the engine, so statements outside a session wait out one on the engine the connection was built with.
+
+```ts
+const db = SQLiteConnection.new([User], { timestamps: "iso" });   // no source - never awaited
 
 export default {
-  async fetch(request: Request, env: { DB: D1Database }) {
-    await (ready ??= open(env.DB));
-
-    return Response.json(await User.query());
+  async fetch(request: Request, env: Env) {
+    return db.session(() => handle(request), d1(env.DB));
   }
 };
 ```
 
-To run each request on that request's binding, and give it its own identity map so `get` never returns a row another isolate has since changed, wrap it in a [session](#sessions): `db.session(() => handle(request), env.DB)`. A session takes a D1 binding, a libSQL client or an `Engine`, used as is and left open, and swaps nothing outside it. Transactions lock on the source, so statements outside a session wait out one on the source the connection was built with.
-
-```ts
-const db = SQLiteConnection.new([User], { timestamps: "iso" });   // no source - never awaited in a Worker
-
-export default {
-  async fetch(request: Request, env: { DB: D1Database }) {
-    return db.session(() => handle(request), env.DB);
-  }
-};
-```
-
-A connection built without a source opens SQLite through the built-in loader the first time something runs outside a session - in workerd that rejects with `SQLiteConnection has no source, and no SQLite loads in this runtime`, so there run everything in a session and never await the connection itself. `session` checks its source before `fn` runs - something that isn't a D1 binding, libSQL client or `Engine`, such as `env` for `env.DB`, rejects at once. Sync the schema from a deploy step, not the Worker: `sync`, or awaiting the connection, inside a session on a source other than the connection's own rejects rather than check one request's database against the classes.
-
-`sync` costs a few D1 round trips per table on each cold start, and applies as one batch. D1 has no interactive transactions - `transaction` throws. It keeps foreign keys on, so `sync(true, true)` refuses to rebuild a table.
-
-```ts
-const turso = await SQLiteConnection.new([User], `libsql://app-org.turso.io?authToken=${process.env.TURSO_TOKEN}`);
-```
-
-An address starting `libsql:`, `https:`, `http:`, `ws:` or `wss:` opens a `@libsql/client` (0.18 or later), which reads the token from `?authToken=`. The address form loads `@libsql/client` at runtime, which a bundle such as a Worker's does not include - there, pass a client from `createClient` instead. An `undefined` or empty source opens in memory, so check an address read from the environment before passing it.
-
-Every libSQL client runs each `transaction` on a libSQL write transaction (`BEGIN IMMEDIATE`) holding the connection's lock, so transactions run one at a time across the app. `sync` applies as one batch; a table rebuild runs through the client's `migrate`, which turns foreign keys off for it alone. Local libSQL enforces foreign keys by default; `PRAGMA foreign_keys` is per connection, so a remote client gets the server's setting.
+A connection built without a source opens SQLite through the built-in loader the first time something runs outside a session - in a runtime without SQLite that rejects with `SQLiteConnection has no source, and no SQLite loads in this runtime`, so there run everything in a session and never await the connection itself. `session` checks its client before `fn` runs - something that isn't an `Engine`, such as `env` for `env.DB`, rejects at once. Sync the schema from a deploy step, not the request: `sync`, or awaiting the connection, inside a session on an engine other than the connection's own rejects rather than check one request's database against the classes.
 
 Without SQL, `Memory` keeps rows in arrays - for tests, prototypes and small apps. It binds classes like any connection:
 
@@ -567,7 +566,7 @@ const ann = await db.transaction(async () => {
 
 `transaction(fn)` runs `fn` in one database transaction: it commits when `fn` resolves, to its result, and rolls back when it throws, rethrowing. Statements inside - statics, `Query`, instance writes, and effects they trigger - join it without a handle. A nested `transaction` joins the open one, so a nested failure is undone only if it reaches the outer `fn`; caught, its writes commit with the rest. Instances change as writes land; a rollback restores what they changed, destroys entities created inside, and keeps entities deleted inside, which a commit then destroys. Values read into an instance inside a rolled-back transaction stay.
 
-On SQLite, PGlite and `Memory`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `Memory` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` from `process.getBuiltinModule` - Bun, Node 20.16+ or 22.3+, Deno, and Workers with `nodejs_compat` - and throws where that is missing, such as React Native, or PGlite or `Memory` in a browser. D1 refuses `transaction`.
+On SQLite, PGlite and `Memory`, other statements on the connection wait until it ends, and transactions run one at a time. `pg` runs each on its own client from the pool, side by side. On `Memory` a rollback restores every table and the next id, and subscribers hear of changes once it commits. It needs `AsyncLocalStorage` from `process.getBuiltinModule` - Bun, Node 20.16+ or 22.3+, Deno, and edge runtimes with Node's `async_hooks` - and throws where that is missing, such as React Native, or PGlite or `Memory` in a browser. An [`Engine`](#sqlite-hosts) without interactive transactions refuses `transaction`.
 
 ## Sessions
 
@@ -577,7 +576,7 @@ export default {
 };
 ```
 
-A connection keeps one identity map for the process: `get(id)` returns an entity already loaded without reading its row again, and only [live rows](#live-rows) keep it current. When other processes write to the same database - Workers isolates on one D1 or Postgres, several servers - wrap each request in `db.session(fn)`. Inside it the connection keeps a fresh identity map, so `get` and relations read their rows afresh and the same row loads into one entity per session; entities loaded inside follow no live rows and stay usable after `fn` settles. Code outside a session keeps the process-wide map.
+A connection keeps one identity map for the process: `get(id)` returns an entity already loaded without reading its row again, and only [live rows](#live-rows) keep it current. When other processes write to the same database - isolates or several servers on one database - wrap each request in `db.session(fn)`. Inside it the connection keeps a fresh identity map, so `get` and relations read their rows afresh and the same row loads into one entity per session; entities loaded inside follow no live rows and stay usable after `fn` settles. Code outside a session keeps the process-wide map.
 
 `db.session(fn, client)` also runs every statement inside on `client`, the driver's own handle, a transaction included: statements on one client - from any connection on it - join or wait out its open transaction, while other clients run alongside, and the handle a connection was built on counts as one. A driver that takes no client, like `Memory`, ignores it and runs transactions one at a time. The connection never closes a session's client. Like transactions, sessions need `AsyncLocalStorage` from `process.getBuiltinModule`.
 
@@ -587,37 +586,35 @@ A connection keeps one identity map for the process: `get(id)` returns an entity
 - Awaiting the connection inside a session on a client other than its own rejects rather than run `sync`, which belongs to the connection's own handle - await it outside any session, or sync the schema from a deploy step. Awaiting it unsynced inside a transaction on its handle rejects too, from any session - a rollback would undo the schema, and a sync already running waits for that transaction. A promise of the connection taken outside the transaction and awaited inside it can't be caught, and hangs: await the connection before opening a transaction on its handle.
 - `close()` destroys the entities of the process-wide map only; those loaded in a session stay, unbound.
 
-On Postgres the client is a `pg` `Client` or `Pool` for `PGConnection`, a `PGlite` for `PGLiteConnection`. A `Client` runs transactions one at a time, as it must; a `Pool` lends each transaction its own client. On Cloudflare Workers, open a client per request from Hyperdrive:
+On Postgres the client is a `pg` `Client` or `Pool` for `PGConnection`, a `PGlite` for `PGLiteConnection`. A `Client` runs transactions one at a time, as it must; a `Pool` lends each transaction its own client. Where each request needs its own connection, as in a serverless runtime, open a client per request:
 
 ```ts
 import pg from 'pg';
 
 const db = PGConnection.new(types, "postgres://localhost/app");
 
-export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext){
-    const client = new pg.Client({ connectionString: env.HYPERDRIVE.connectionString });
-    const background: Promise<unknown>[] = [];
+async function respond(request: Request, defer: (task: Promise<unknown>) => void){
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  const background: Promise<unknown>[] = [];
 
-    await client.connect();
+  await client.connect();
 
-    const response = db.session(() => handle(request, task => background.push(task)), client);
+  const response = db.session(() => handle(request, task => background.push(task)), client);
 
-    ctx.waitUntil(
-      response
-        .catch(() => {})
-        .then(() => Promise.allSettled(background))
-        .then(() => client.end())
-    );
+  defer(
+    response
+      .catch(() => {})
+      .then(() => Promise.allSettled(background))
+      .then(() => client.end())
+  );
 
-    return response;
-  }
-};
+  return response;
+}
 ```
 
-Work the request starts in the background still runs in the session, on its client - so end the client only once that work settles. Here `handle` hands it over instead of calling `ctx.waitUntil` itself; anything it starts after the response, and doesn't hand over, may find the client ended. Statements on one `Client` queue, one at a time, as `pg` requires; a `Pool` - `pg`'s or any with its `totalCount` and `idleCount` - runs them side by side.
+Work the request starts in the background still runs in the session, on its client - so end the client only once that work settles. Here `handle` hands it over, and `defer` is however the runtime keeps work alive past the response; anything started after the response, and not handed over, may find the client ended. Statements on one `Client` queue, one at a time, as `pg` requires; a `Pool` - `pg`'s or any with its `totalCount` and `idleCount` - runs them side by side.
 
-Statements outside a session use the connection's own pool, which opens a socket only when one runs - awaiting the connection runs `sync` there, so on Workers leave it unawaited and sync the schema from a deploy step. Inside a session with a client, `sync` and awaiting the connection reject. A `PGlite` given to `PGLiteConnection` counts as a client, so statements outside a session wait out a session's transaction on it.
+Statements outside a session use the connection's own pool, which opens a socket only when one runs - awaiting the connection runs `sync` there, so where each request brings its own client, leave it unawaited and sync the schema from a deploy step. Inside a session with a client, `sync` and awaiting the connection reject. A `PGlite` given to `PGLiteConnection` counts as a client, so statements outside a session wait out a session's transaction on it.
 
 ## Hooks
 
@@ -669,11 +666,11 @@ await client.query(`UPDATE task SET title = 'Final' WHERE id = $1`, [task.id]);
 - A delete destroys the entity.
 - An insert changes nothing loaded.
 
-`Memory` reports every write, floor or `Query`. Postgres uses LISTEN/NOTIFY: `sync` installs a trigger per table (Postgres 14+) - see [`@expressive/postgres`](packages/postgres). Listening holds a client from the first load until `close()`; where that can't be - Cloudflare Workers, Hyperdrive, a transaction-mode pooler - pass `{ live: false }`. Loaded entities then change only through `entity.set`, `Type.update` and deletes by id on that connection - a `Query` write, or another client's, leaves them as they were; read them again with `load`, `query` or in a fresh [session](#sessions). `sync` still installs the triggers - replacing their function and each table's trigger every time it runs - and every write still sends its full row through `pg_notify`, harmless with nobody listening. SQLite has no live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
+`Memory` reports every write, floor or `Query`. Postgres uses LISTEN/NOTIFY: `sync` installs a trigger per table (Postgres 14+) - see [`@expressive/postgres`](packages/postgres). Listening holds a client from the first load until `close()`; where that can't be - a serverless runtime, a transaction-mode pooler - pass `{ live: false }`. Loaded entities then change only through `entity.set`, `Type.update` and deletes by id on that connection - a `Query` write, or another client's, leaves them as they were; read them again with `load`, `query` or in a fresh [session](#sessions). `sync` still installs the triggers - replacing their function and each table's trigger every time it runs - and every write still sends its full row through `pg_notify`, harmless with nobody listening. SQLite has no live rows: neither `node:sqlite` nor `bun:sqlite` exposes an update hook.
 
 ## Datatypes
 
-A field declares a portable datatype; each connection decides how to store it. The same schema module - importing only `@expressive/orm` - binds to SQLite, D1, Postgres, `Memory` or a connection forwarding to a server, unchanged. `sql.*` is shorthand for the declaration; an object says the same: `str(sql.varchar(40))` is `str({ type: "varchar", length: 40 })`.
+A field declares a portable datatype; each connection decides how to store it. The same schema module - importing only `@expressive/orm` - binds to SQLite, Postgres, `Memory` or a connection forwarding to a server, unchanged. `sql.*` is shorthand for the declaration; an object says the same: `str(sql.varchar(40))` is `str({ type: "varchar", length: 40 })`.
 
 | Helper | Datatype | SQLite | Postgres |
 |---|---|---|---|
@@ -684,11 +681,11 @@ A field declares a portable datatype; each connection decides how to store it. T
 | `json` | - | TEXT | TEXT |
 | `one` | the related key's | the key's | the key's |
 
-SQLite's `timestamp` storage belongs to the connection: `SQLiteConnection.new(types, { source, timestamps })` takes `"ms"` (default, INTEGER epoch milliseconds), `"seconds"` (INTEGER epoch seconds, milliseconds dropped) or `"iso"` (ISO 8601 UTC text, readable in a DB browser or the D1 console). `sql.now` and `fallback: sql.now` render in the same storage, so `lessThan(sql.now)` compares like with like. `sync` refuses a timestamp column declared the other way - INTEGER under `"iso"`, TEXT under `"ms"` - and names the option that keeps it; a database written by 0.6 through 0.11 holds ISO text and needs `{ timestamps: "iso" }`.
+SQLite's `timestamp` storage belongs to the connection: `SQLiteConnection.new(types, { source, timestamps })` takes `"ms"` (default, INTEGER epoch milliseconds), `"seconds"` (INTEGER epoch seconds, milliseconds dropped) or `"iso"` (ISO 8601 UTC text, readable in a DB browser). `sql.now` and `fallback: sql.now` render in the same storage, so `lessThan(sql.now)` compares like with like. `sync` refuses a timestamp column declared the other way - INTEGER under `"iso"`, TEXT under `"ms"` - and names the option that keeps it; a database written by 0.6 through 0.11 holds ISO text and needs `{ timestamps: "iso" }`.
 
 A datatype of another helper, like `num(sql.text)`, is a type error, whatever the module imports. Options a factory doesn't take, like `precision` on `timestamp`, go in an object: `date({ type: "timestamp", precision: 3 })`. `@expressive/postgres` adds `sql.timestamptz` and `sql.timetz`.
 
-The field checks every value before it is written, the same on every side: a `str` is a string within `length`, a `num` an integer within its range unless `real`, `double` or decimal, a decimal within its precision and scale, a `bool` a boolean, a `date` a Date, date string or epoch milliseconds. A connection takes and returns plain values - Dates, booleans, numbers, JSON values - and stores them its own way: SQLite and D1 keep a `timestamp` as INTEGER epoch milliseconds and booleans as 1 or 0; Postgres keeps a `timestamp` without time zone as UTC. A `date({ type: "date" })` is a calendar day, not an instant: a Date gives its local day, a `"YYYY-MM-DD"` string is that day, and it reads back as local midnight - build one with `new Date(y, m - 1, d)`. It crosses every connection as the text `YYYY-MM-DD` and is stored that way, so a client and a server in different time zones agree on the day. `sql.now` on such a column is the database's UTC day. A `time` is a UTC time of day: stored `HH:MM:SS`, it crosses as a Date on 1970-01-01 UTC, an instant every zone reads alike. A SQL connection checks each value with its field again before storing it, so a row forwarded from a client meets the server's rules. `Connection.new` throws when a bound class has a field it can't store, like `SQLiteConnection can't store date type 'interval' (Event.length).`
+The field checks every value before it is written, the same on every side: a `str` is a string within `length`, a `num` an integer within its range unless `real`, `double` or decimal, a decimal within its precision and scale, a `bool` a boolean, a `date` a Date, date string or epoch milliseconds. A connection takes and returns plain values - Dates, booleans, numbers, JSON values - and stores them its own way: SQLite keeps a `timestamp` as INTEGER epoch milliseconds and booleans as 1 or 0; Postgres keeps a `timestamp` without time zone as UTC. A `date({ type: "date" })` is a calendar day, not an instant: a Date gives its local day, a `"YYYY-MM-DD"` string is that day, and it reads back as local midnight - build one with `new Date(y, m - 1, d)`. It crosses every connection as the text `YYYY-MM-DD` and is stored that way, so a client and a server in different time zones agree on the day. `sql.now` on such a column is the database's UTC day. A `time` is a UTC time of day: stored `HH:MM:SS`, it crosses as a Date on 1970-01-01 UTC, an instant every zone reads alike. A SQL connection checks each value with its field again before storing it, so a row forwarded from a client meets the server's rules. `Connection.new` throws when a bound class has a field it can't store, like `SQLiteConnection can't store date type 'interval' (Event.length).`
 
 ```ts
 import { Type, num, sql, str } from '@expressive/sql';
