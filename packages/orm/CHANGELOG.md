@@ -194,6 +194,14 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 # @expressive/orm
 
+## 0.25.0
+
+### Minor Changes
+
+- [#106](https://github.com/gabeklein/expressive-orm/pull/106) [`0e12269`](https://github.com/gabeklein/expressive-orm/commit/0e1226976e7c0f5aba77d04b463c78b376a88cb2) Breaking: the `rows()` relation is now `many()`, and its type `Rows` is `Many`. Rename the import and each call - arguments and behaviour are unchanged.
+
+- [#110](https://github.com/gabeklein/expressive-orm/pull/110) [`6ee5eec`](https://github.com/gabeklein/expressive-orm/commit/6ee5eec11c0d390e10b5ff3138ee909de9cb14cd) Peer `@expressive/mvc` `^0.97.1`, the current line. Upgrade mvc alongside.
+
 ## 0.24.0
 
 ### Minor Changes
