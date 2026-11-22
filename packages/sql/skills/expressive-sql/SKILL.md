@@ -56,6 +56,10 @@ Two optional members, for hosts without `BEGIN` and `COMMIT` on one connection:
 - `transaction()` - resolves a session, the four statements plus `commit()` and `rollback()`. Every statement inside `db.transaction(fn)` runs on it.
 - `batch(sql: string[])` - runs statements atomically; `sync` applies through it. A table rebuild in a batch needs foreign keys off, or dropping the old table cascades; an engine that keeps them on refuses it.
 
+### Migrations
+
+`sqlite(file?, { migrations?, seed? })` resolves an `Engine` on a SQLite file - built-in loader, foreign keys on. It first applies each unapplied `.sql` in `migrations` in name order (tracked by name in `_migrations`), then `seed` if the file had no tables - one transaction; a failure rolls back and rejects. Pass the engine to `db.session(fn, engine)` or as `{ source }`; `close()` is the caller's. Omit `file` for in memory.
+
 ### Hosts
 
 As `source`, `new` also takes a D1 binding, a libSQL `Client` or a libSQL address, told apart by shape. The second argument is a filename or address string, or `{ source, timestamps }` - any other object there throws, so an object source always goes in `{ source }`.

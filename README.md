@@ -172,6 +172,18 @@ const lite = await PGLiteConnection.new([Account], "./data");
 
 Two optional members cover hosts without `BEGIN` and `COMMIT` on one connection. `transaction()` returns a session - the same four statements plus `commit()` and `rollback()` - and every statement inside `transaction(fn)` runs on it. `batch(sql)` runs statements atomically, and `sync` applies through it. A rebuild in a batch needs foreign keys off, or dropping the old table would cascade; on an engine that keeps them on, it is refused.
 
+### Migrations
+
+`sqlite(file, { migrations, seed })` opens a SQLite file as an `Engine` - the built-in loader, foreign keys on - after applying each `.sql` file in `migrations` not yet applied, in name order and tracked by name in `_migrations`, then `seed` if the file had no tables, all in one transaction. A failure rolls back and rejects. Hand the engine to a [session](#sessions) or a connection's `source`; it is the caller's to `close()`. Omit `file` for in memory.
+
+```ts
+import { sqlite } from "@expressive/sql";
+
+const engine = await sqlite("local.db", { migrations: "migrations", seed: "seed.sql" });
+
+await db.session(() => handle(request), engine);
+```
+
 ### SQLite hosts
 
 As `source`, `SQLiteConnection` also takes a Cloudflare D1 binding, a libSQL client or a libSQL address, told apart by shape - an object always goes in `{ source }`, and any other object in its place throws. A given binding or client is used as is, and `close()` leaves it open.
