@@ -3647,3 +3647,37 @@ describe("load", () => {
     expect(gabe.name).toBe("Gabe");
   })
 })
+
+it("will not return a destroyed entity from get", async () => {
+  class User extends Type {
+    static connection = Memory.new();
+    name = str();
+  }
+
+  await User.insert({ name: "Ann" });
+
+  const user = await User.get(1);
+
+  user.set(null);
+
+  expect(User.get(1)).not.toBe(user);
+})
+
+it("will not write for an empty patch", async () => {
+  class User extends Type {
+    static connection = Memory.new();
+    name = str();
+    edited = date.updated();
+  }
+
+  await User.insert({ name: "Ann" });
+
+  const user = await User.get(1);
+  void User.connection.update;
+  const update = vi.spyOn(User.connection, "update");
+
+  await expect(user.set({})).resolves.toEqual([]);
+  await user.set({ name: undefined, className: "row" } as {});
+
+  expect(update).not.toHaveBeenCalled();
+})
