@@ -3648,7 +3648,7 @@ describe("load", () => {
   })
 })
 
-it.fails("will not return a destroyed entity from get", async () => {
+it("will not return a destroyed entity from get", async () => {
   class User extends Type {
     static connection = Memory.new();
     name = str();
@@ -3663,7 +3663,7 @@ it.fails("will not return a destroyed entity from get", async () => {
   expect(User.get(1)).not.toBe(user);
 })
 
-it.fails("will not write for an empty patch", async () => {
+it("will not write for an empty patch", async () => {
   class User extends Type {
     static connection = Memory.new();
     name = str();
@@ -3676,7 +3676,8 @@ it.fails("will not write for an empty patch", async () => {
   void User.connection.update;
   const update = vi.spyOn(User.connection, "update");
 
-  await user.set({});
+  await expect(user.set({})).resolves.toEqual([]);
+  await user.set({ name: undefined, className: "row" } as {});
 
   expect(update).not.toHaveBeenCalled();
 })

@@ -244,6 +244,19 @@ async function receive(connection: Type.Connection, { table, op, id, row }: Conn
   }
 }
 
+class Identity extends Map<unknown, Type> {
+  get(key: unknown) {
+    const entity = super.get(key);
+
+    if (entity && entity.get(null)) {
+      this.delete(key);
+      return;
+    }
+
+    return entity;
+  }
+}
+
 function register(type: typeof Type){
   const { connection } = type;
   const types = connection._identity();
@@ -253,7 +266,7 @@ function register(type: typeof Type){
     if (!types.size && types === connection._loaded && connection.subscribe && !connection.get(null))
       connection.get(null, connection.subscribe(change => receive(connection, change)));
 
-    types.set(type, map = new Map());
+    types.set(type, map = new Identity());
   }
 
   return map;
@@ -438,6 +451,7 @@ abstract class Type extends Model {
    * Write a patch to the row, then settle it into this entity.
    *
    * Resolves the keys that changed. `null` clears a nullable column. Columns with an `update` option are written too.
+   * A patch naming no column with a value writes nothing and resolves no keys.
    * Rejects for a fixed column, a deleted entity, or one still loading. Inside a transaction a rollback restores the entity.
    *
    * @example
@@ -1007,11 +1021,14 @@ async function persist(entity: Type, patch: Type.Update<Type>) {
   exists(entity);
 
   const type = entity.constructor as typeof Type;
+
+  if (!Object.entries(patch).some(([key, value]) => value !== undefined && type.fields.has(key)))
+    return settle(entity, {});
+
   const row = await type["prepare"](patch, true);
   const key = slot(entity.id);
 
-  if (Object.keys(row).length)
-    await type.connection.update(type.ref, locate(type, entity.id), row);
+  await type.connection.update(type.ref, locate(type, entity.id), row);
 
   const values = await decode(type, row, true);
 
