@@ -1,5 +1,37 @@
 # @expressive/sql
 
+## 0.15.0
+
+### Minor Changes
+
+- [#110](https://github.com/gabeklein/expressive-orm/pull/110) [`6ee5eec`](https://github.com/gabeklein/expressive-orm/commit/6ee5eec11c0d390e10b5ff3138ee909de9cb14cd) Peer `@expressive/mvc` `^0.97.1`, the current line. Upgrade mvc alongside.
+
+- [#109](https://github.com/gabeklein/expressive-orm/pull/109) [`f05f263`](https://github.com/gabeklein/expressive-orm/commit/f05f263ba7a3c4b507cf48875275873df63036b6) Breaking: `SQLiteConnection` no longer adapts vendor hosts. A Cloudflare D1 binding, a libSQL client and a `libsql:`/`https:`/`ws:` address are refused as a source or session client, and `@libsql/client` is gone from the built-in loader - it opens a file through `bun:sqlite`, `node:sqlite`, `better-sqlite3` or `sqlite3`. Any other host is an `Engine` the app writes and passes as `{ source }` or to `db.session(fn, engine)`. An engine without interactive transactions rejects from `transaction()`; `db.transaction(fn)` then rejects before `fn` runs.
+  
+  Migrating:
+  
+  - D1 - copy the adapter in the README's "SQLite hosts" (about 25 lines) and pass `d1(env.DB)` where you passed `env.DB`: `db.session(fn, d1(env.DB))`, `{ source: d1(env.DB) }`.
+  - libSQL or Turso - wrap the client in an `Engine`: `all`/`get`/`run` over `client.execute({ sql, args })` (`rows`, `rows[0]`, `{ changes: Number(rowsAffected) }`), `exec` over `executeMultiple`, `batch` over `client.batch(sql, "write")`, and `transaction` over `client.transaction("write")` with its `commit` and `rollback`. Pass the engine as `{ source }`.
+  - A local file opened only through `@libsql/client` - install `better-sqlite3`, or run on Bun or Node 24.
+
+- [#108](https://github.com/gabeklein/expressive-orm/pull/108) [`6671d06`](https://github.com/gabeklein/expressive-orm/commit/6671d06759335db61c6ad1af1074a57a299f1118) `sqlite(file, { migrations, seed })` opens a SQLite file as an `Engine` for `db.session(fn, engine)` or `{ source }`, after applying pending `.sql` migrations and seeding an empty file in one transaction.
+
+### Patch Changes
+
+- Updated dependencies [[`0e12269`](https://github.com/gabeklein/expressive-orm/commit/0e1226976e7c0f5aba77d04b463c78b376a88cb2), [`6ee5eec`](https://github.com/gabeklein/expressive-orm/commit/6ee5eec11c0d390e10b5ff3138ee909de9cb14cd)]:
+  - @expressive/orm@0.25.0
+
+## 0.14.0
+
+### Minor Changes
+
+- [#104](https://github.com/gabeklein/expressive-orm/pull/104) [`6ab19e0`](https://github.com/gabeklein/expressive-orm/commit/6ab19e07b62924febeeddbb0a6c06218bab40e14) Peer `@expressive/mvc` `^0.96.0`, the release `@expressive/ui`'s `form` builds on. Upgrade mvc alongside.
+
+### Patch Changes
+
+- Updated dependencies [[`6ab19e0`](https://github.com/gabeklein/expressive-orm/commit/6ab19e07b62924febeeddbb0a6c06218bab40e14), [`37153ce`](https://github.com/gabeklein/expressive-orm/commit/37153ce6646b28f8b790fb62a0a675ccfd170b7b), [`ef6d021`](https://github.com/gabeklein/expressive-orm/commit/ef6d021a19f49cd45b72684ad92ed5d840ccb5d4)]:
+  - @expressive/orm@0.24.0
+
 ## 0.13.1
 
 ### Patch Changes

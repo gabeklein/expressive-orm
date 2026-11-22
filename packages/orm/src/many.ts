@@ -7,8 +7,8 @@ type Related<T> = {
   [K in Exclude<keyof T, keyof Type>]-?: T[K] extends Type | undefined ? K : never;
 }[Exclude<keyof T, keyof Type>];
 
-/** A `rows()` field - `query`, `load`, `one` and `insert` scoped to the entity, `insert` filling the relation. */
-interface Rows<T extends Type, K extends keyof T> {
+/** A `many()` field - `query`, `load`, `one` and `insert` scoped to the entity, `insert` filling the relation. */
+interface Many<T extends Type, K extends keyof T> {
   query(where?: Type.Query<T>, limit?: undefined, offset?: number): Promise<Type.Columns<T>[]>;
   query(where: Type.Query<T> | undefined, limit: number, offset?: number): Type.Results<T>;
   query(where: Type.Query<T> | undefined, limit: number | undefined, offset?: number): Promise<Type.Columns<T>[]>;
@@ -31,11 +31,11 @@ interface Rows<T extends Type, K extends keyof T> {
  * Not a column - nothing loads until a method is called. Without a filter, `query()`, `load()` and `one()` take the newest first, as `Class` orders.
  *
  * @example
- * posts = rows(Post);
+ * posts = many(Post);
  */
-function rows<T extends Type, K extends keyof T = Related<T>>(Class: Type.Class<T>, field?: K){
+function many<T extends Type, K extends keyof T = Related<T>>(Class: Type.Class<T>, field?: K){
   return def((key, subject: Type) => {
-    let handle: Rows<T, K> | undefined;
+    let handle: Many<T, K> | undefined;
 
     return {
       enumerable: false,
@@ -61,8 +61,8 @@ function rows<T extends Type, K extends keyof T = Related<T>>(Class: Type.Class<
         };
       }
     };
-  }) as Rows<T, K>;
+  }) as Many<T, K>;
 }
 
-export { rows };
-export type { Rows };
+export { many };
+export type { Many };

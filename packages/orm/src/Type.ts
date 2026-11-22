@@ -5,12 +5,12 @@ import { FIELDS, Key, num, PEEK, placeholder, RECENT, write } from './fields';
 import { columns, Field, Fixes, fixes, match, Omits, Optional, present, row, underscore, updates } from './Field';
 import { Query } from './query/Query';
 import type { Moment } from './query/Value';
-import type { Rows } from './rows';
+import type { Many } from './many';
 import { desc, equal, Where } from './where';
 
 export type Stored<V> =
   unknown extends V ? true :
-  V extends Type.Class | Rows<any, any> | ((...args: any[]) => any) ? false :
+  V extends Type.Class | Many<any, any> | ((...args: any[]) => any) ? false :
   NonNullable<V> extends string | number | bigint | boolean | Date | Type ? true :
   "~object" extends keyof NonNullable<V> ? true : false;
 

@@ -1,6 +1,6 @@
 {
   "name": "@expressive/sql",
-  "version": "0.13.1",
+  "version": "0.15.0",
   "description": "Expressive ORM on SQL: entities, Query and an embedded SQLite store from one import.",
   "keywords": [
     "orm",
@@ -61,25 +61,19 @@
   },
   "dependencies": {
     "@expressive/cli": "^0.2.0",
-    "@expressive/orm": "^0.23.0",
+    "@expressive/orm": "^0.25.0",
     "sql-formatter": "^10.7.2"
   },
   "devDependencies": {
-    "@expressive/mvc": "^0.94.2",
-    "@libsql/client": "^0.18.0",
-    "miniflare": "^4.20260730.0",
+    "@expressive/mvc": "^0.97.1",
     "tsdown": "^0.20.1"
   },
   "peerDependencies": {
-    "@expressive/mvc": "^0.94.0",
-    "@libsql/client": ">=0.18.0",
+    "@expressive/mvc": "^0.97.1",
     "better-sqlite3": ">=11.0.0",
     "sqlite3": ">=5.0.0"
   },
   "peerDependenciesMeta": {
-    "@libsql/client": {
-      "optional": true
-    },
     "better-sqlite3": {
       "optional": true
     },

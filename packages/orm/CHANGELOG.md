@@ -194,6 +194,28 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 # @expressive/orm
 
+## 0.25.0
+
+### Minor Changes
+
+- [#106](https://github.com/gabeklein/expressive-orm/pull/106) [`0e12269`](https://github.com/gabeklein/expressive-orm/commit/0e1226976e7c0f5aba77d04b463c78b376a88cb2) Breaking: the `rows()` relation is now `many()`, and its type `Rows` is `Many`. Rename the import and each call - arguments and behaviour are unchanged.
+
+- [#110](https://github.com/gabeklein/expressive-orm/pull/110) [`6ee5eec`](https://github.com/gabeklein/expressive-orm/commit/6ee5eec11c0d390e10b5ff3138ee909de9cb14cd) Peer `@expressive/mvc` `^0.97.1`, the current line. Upgrade mvc alongside.
+
+## 0.24.0
+
+### Minor Changes
+
+- [#104](https://github.com/gabeklein/expressive-orm/pull/104) [`6ab19e0`](https://github.com/gabeklein/expressive-orm/commit/6ab19e07b62924febeeddbb0a6c06218bab40e14) Peer `@expressive/mvc` `^0.96.0`, the release `@expressive/ui`'s `form` builds on. Upgrade mvc alongside.
+
+- [#102](https://github.com/gabeklein/expressive-orm/pull/102) [`37153ce`](https://github.com/gabeklein/expressive-orm/commit/37153ce6646b28f8b790fb62a0a675ccfd170b7b) Entity types count a property as a column only when its value is a primitive, a `Date`, a related entity, `unknown`, or a `Field.Object<T>` - new, the type `json<T>()` now returns (bare `json()` stays `unknown`, and a nullable `T` keeps its `null`). A child model, a form or another non-column member no longer appears in `Insert`, `Columns`, `Compat` or a `Query` table, so `Type.new` and `insert` stop requiring it and query rows stop claiming it.
+  
+  Breaking for custom field helpers: one typed as an array, a plain object, or a union with one is no longer counted as a column unless it types its value as `Field.Object<T>`.
+
+- [#94](https://github.com/gabeklein/expressive-orm/pull/94) [`ef6d021`](https://github.com/gabeklein/expressive-orm/commit/ef6d021a19f49cd45b72684ad92ed5d840ccb5d4) A subclass that declares no fields of its own is a view on its parent's table: it reads and writes the parent's rows, `get(id)` builds it without a select from a row loaded or still loading through the parent or another of its views (not for a `subset` class), and every write or delete - instance or static, by id or filter, upserts and `load` included - settles or destroys each loaded instance of the row, whichever class loaded it.
+  
+  Breaking: such a subclass no longer defaults to a table named after itself. Give it `static table` to keep one. A parent holding only statics, such as a shared `connection`, still isn't a table, and a class listed in `Connection.new` is never a view - listing one beside the class it views throws unless it sets `static table`. A subclass's inherited `rows()` now resolve the parent's relation instead of throwing.
+
 ## 0.23.0
 
 ### Minor Changes

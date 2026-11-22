@@ -6,8 +6,8 @@ export { Field, json, key, str, num, bool, date, uuid, orNull, optional, unique,
 export type { Where } from './where';
 export { equal, notEqual, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, isLike, isNull, notNull, isIn, notIn, asc, desc } from './where';
 export { one, lazy } from './one';
-export { rows } from './rows';
-export type { Rows } from './rows';
+export { many } from './many';
+export type { Many } from './many';
 export { Memory, memory } from './memory';
 export { Remote } from './remote';
 export { Query } from './query/Query';

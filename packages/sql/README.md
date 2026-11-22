@@ -6,7 +6,7 @@ Entities on [`@expressive/mvc`](https://github.com/gabeklein/expressive-mvc) Mod
 npm install @expressive/sql @expressive/mvc
 ```
 
-SQLite is built into Bun (`bun:sqlite`) and Node 24 (`node:sqlite`). Elsewhere add one of `better-sqlite3`, `sqlite3` or `@libsql/client` (0.18 or later); the first found is used.
+SQLite is built into Bun (`bun:sqlite`) and Node 24 (`node:sqlite`). Elsewhere add `better-sqlite3` or `sqlite3`; the first found is used.
 
 ```ts
 import { Query, SQLiteConnection, Type, greaterThan, num, one, str } from '@expressive/sql';
@@ -42,7 +42,7 @@ await gabe.set({ name: "Gabriel" });
 await db.close();
 ```
 
-`SQLiteConnection.new(types, filename?)` or `SQLiteConnection.new(types, { source?, timestamps? })` binds the classes; awaiting it creates missing tables, adds missing columns and checks existing ones. SQLite cannot add a `unique` column or one defaulting to `"NOW"`; `sync` reports those. Omit `filename` for an in-memory database. `timestamps` is `"ms"` (default), `"seconds"` or `"iso"` - see [Datatypes](https://github.com/gabeklein/expressive-orm#datatypes). As `source`, pass a Cloudflare D1 binding, a libSQL client or a `libsql://` address - see [SQLite hosts](https://github.com/gabeklein/expressive-orm#sqlite-hosts).
+`SQLiteConnection.new(types, filename?)` or `SQLiteConnection.new(types, { source?, timestamps? })` binds the classes; awaiting it creates missing tables, adds missing columns and checks existing ones. SQLite cannot add a `unique` column or one defaulting to `"NOW"`; `sync` reports those. Omit `filename` for an in-memory database. `timestamps` is `"ms"` (default), `"seconds"` or `"iso"` - see [Datatypes](https://github.com/gabeklein/expressive-orm#datatypes). As `source`, pass an `Engine` for any other SQLite host - see [SQLite hosts](https://github.com/gabeklein/expressive-orm#sqlite-hosts).
 
 ## Also here
 

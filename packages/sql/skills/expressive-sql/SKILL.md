@@ -1,6 +1,6 @@
 ---
 name: expressive-sql
-description: Expressive ORM on SQL (@expressive/sql) - SQLiteConnection with a built-in or custom Engine, sync and plan, the expressive sql CLI, the sql.* datatype shorthand and codecs, and the SQL Connection and Generator base for dialects. Use when connecting entities to SQLite, Cloudflare D1 or libSQL and Turso, choosing column datatypes, syncing or checking a schema, plugging in a SQLite host, or writing a SQL driver.
+description: Expressive ORM on SQL (@expressive/sql) - SQLiteConnection with a built-in or custom Engine, sync and plan, the expressive sql CLI, the sql.* datatype shorthand and codecs, and the SQL Connection and Generator base for dialects. Use when connecting entities to SQLite, choosing column datatypes, syncing or checking a schema, plugging in a SQLite host, or writing a SQL driver.
 ---
 
 # @expressive/sql
@@ -11,7 +11,7 @@ Expressive ORM on SQL, with embedded SQLite. Re-exports `@expressive/orm` - enti
 npm install @expressive/sql @expressive/mvc
 ```
 
-SQLite is built into Bun (`bun:sqlite`) and Node 24 (`node:sqlite`). Elsewhere add one of `better-sqlite3`, `sqlite3` or `@libsql/client` (0.18 or later); the first found is used. For Postgres and live rows install `@expressive/postgres` (skill `expressive-postgres`).
+SQLite is built into Bun (`bun:sqlite`) and Node 24 (`node:sqlite`). Elsewhere add `better-sqlite3` or `sqlite3`; the first found is used. Any other SQLite is an `Engine` the app writes - see [Hosts](#hosts). For Postgres and live rows install `@expressive/postgres` (skill `expressive-postgres`).
 
 ## Connect
 
@@ -47,47 +47,43 @@ const engine: Engine = {
 const db = await SQLiteConnection.new([User], { source: engine });
 ```
 
-A given engine, binding or client is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
+A given engine is used as is - turn on foreign keys yourself where the host doesn't - and `close()` leaves it open.
 
-On React Native (Metro, iOS and Android) the built-in loader is swapped out: a filename or libSQL address rejects with `... does not load under React Native. Pass an Engine instead.` Expo web does not bundle `@expressive/sql`. `transaction` throws there - no `AsyncLocalStorage`.
+On React Native (Metro, iOS and Android) the built-in loader is swapped out: a filename rejects with `... does not load under React Native. Pass an Engine instead.` Expo web does not bundle `@expressive/sql`. `transaction` throws there - no `AsyncLocalStorage`.
 
 Two optional members, for hosts without `BEGIN` and `COMMIT` on one connection:
 
 - `transaction()` - resolves a session, the four statements plus `commit()` and `rollback()`. Every statement inside `db.transaction(fn)` runs on it.
 - `batch(sql: string[])` - runs statements atomically; `sync` applies through it. A table rebuild in a batch needs foreign keys off, or dropping the old table cascades; an engine that keeps them on refuses it.
 
+### Migrations
+
+`sqlite(file?, { migrations?, seed? })` resolves an `Engine` on a SQLite file - built-in loader, foreign keys on. It first applies each unapplied `.sql` in `migrations` in name order (tracked by name in `_migrations`), then `seed` if the file had no tables - one transaction; a failure rolls back and rejects. Pass the engine to `db.session(fn, engine)` or as `{ source }`; `close()` is the caller's. Omit `file` for in memory.
+
 ### Hosts
 
-As `source`, `new` also takes a D1 binding, a libSQL `Client` or a libSQL address, told apart by shape. The second argument is a filename or address string, or `{ source, timestamps }` - any other object there throws, so an object source always goes in `{ source }`.
+The package ships no adapter for any particular service - a hosted or edge SQLite is an `Engine` the app writes and passes as `{ source }` or a session's client. The second argument to `new` is a filename string or `{ source, timestamps }` - any other object there throws, so an engine always goes in `{ source }`.
 
-On Workers, open once from the first request's binding, and drop it when `sync` fails - a second `new` while entities hold a connection throws:
+A host whose binding runs batches atomically but has no interactive transactions - app code, not an export:
 
 ```ts
-let ready: Promise<unknown> | undefined;
+function hosted(db: Binding): Engine {
+  const statement = (sql: string, params: any[] = []) => db.prepare(sql).bind(...params);
 
-function open(DB: D1Database){
-  const db = SQLiteConnection.new([User], { source: DB });
-
-  return Promise.resolve(db).catch(async error => {
-    ready = undefined;
-    await db.close();
-    throw error;
-  });
+  return {
+    all: async (sql, params) => (await statement(sql, params).all()).results,
+    get: async (sql, params) => await statement(sql, params).first() ?? undefined,
+    run: async (sql, params) => ({ changes: (await statement(sql, params).run()).meta.changes }),
+    exec: async sql => { await db.prepare(sql).run() },
+    batch: async sql => { await db.batch(sql.map(sql => db.prepare(sql))) },
+    transaction: () => Promise.reject(new Error("No interactive transactions on this host.")),
+    close: async () => {}
+  };
 }
-
-export default {
-  async fetch(request: Request, env: { DB: D1Database }) {
-    await (ready ??= open(env.DB));
-    return Response.json(await User.query());
-  }
-};
 ```
 
-- Per request - `db.session(() => handle(request), env.DB)` runs the request on that binding with its own identity map (`expressive-orm/SKILL.md#sessions`), so `get` never serves a row another isolate changed. A session takes a D1 binding, libSQL client or `Engine`, used as given and left open; it replaces swapping a connection's engine. In workerd, build the connection with no source (`SQLiteConnection.new(types)`) and never await it or run anything outside a session - a statement outside one rejects with `SQLiteConnection has no source, and no SQLite loads in this runtime`. `session` rejects an unknown source (say `env` for `env.DB`) before `fn` runs. `sync`, or awaiting the connection, inside a session on a source other than the connection's own rejects - sync from a deploy step.
-- D1 - `sync` applies as one batch, a few round trips per table each cold start. `transaction` throws. Foreign keys stay on, so `sync(true, true)` refuses a rebuild.
-- libSQL address - `libsql:`, `https:`, `http:`, `ws:` or `wss:` opens `@libsql/client` 0.18+; token as `?authToken=`. Loaded at runtime, so under a bundler (Workers) pass a `createClient` client instead. An `undefined` or empty source opens in memory - check an address from the environment first.
-- Every libSQL client - each `transaction` is a libSQL write transaction (`BEGIN IMMEDIATE`) holding the connection's lock, so transactions run one at a time app-wide. `sync` is one batch; a rebuild runs through `client.migrate`, foreign keys off for it alone. Local libSQL enforces foreign keys by default; remote gets the server's setting.
-- A `migrate` rebuild refuses dangling rows (`foreign_key_check`) even where foreign keys are off.
+- Refusing transactions - `transaction()` rejects; `db.transaction(fn)` then rejects with that error before `fn` runs. Omitting `transaction` instead means `BEGIN`/`COMMIT` through `exec`, right only for a host on one connection.
+- Per request - `db.session(() => handle(request), hosted(env.DB))` runs the request on that engine with its own identity map (`expressive-orm/SKILL.md#sessions`), so `get` never serves a row another process changed. A session takes any `Engine`, used as given and left open. Where SQLite can't load, build the connection with no source (`SQLiteConnection.new(types)`) and never await it or run anything outside a session - a statement outside one rejects with `SQLiteConnection has no source, and no SQLite loads in this runtime`. `session` rejects a non-engine (say `env` for `env.DB`) before `fn` runs. `sync`, or awaiting the connection, inside a session on an engine other than the connection's own rejects - sync from a deploy step.
 
 ## Sync
 
@@ -140,7 +136,7 @@ class Product extends Type {
 ```
 
 - `num()` is a 32-bit integer - a fraction or a value outside 32-bit range throws on write. `sql.bigint` for large integers, `sql.real` or `sql.numeric(p, s)` for fractions.
-- A `timestamp`'s storage is the connection's: `SQLiteConnection.new(types, { source: "app.db", timestamps: "seconds" })`. `"ms"` (default) and `"seconds"` are INTEGER epoch values; `"iso"` is ISO 8601 UTC text, for reading in a DB browser or D1 console. Every connection to one file must agree. A database written by 0.6-0.11 holds ISO text - open it with `{ timestamps: "iso" }`.
+- A `timestamp`'s storage is the connection's: `SQLiteConnection.new(types, { source: "app.db", timestamps: "seconds" })`. `"ms"` (default) and `"seconds"` are INTEGER epoch values; `"iso"` is ISO 8601 UTC text, for reading in a DB browser. Every connection to one file must agree. A database written by 0.6-0.11 holds ISO text - open it with `{ timestamps: "iso" }`.
 - Options a factory doesn't take go in an object - `date({ type: "timestamp", precision: 3 })`.
 - `sql.now` is the database's current time in the column's storage - as a `fallback`, in a statics write or comparison (`lessThan(sql.now)`), or in a `Query`. Statics read it from the app's clock.
 - The SQL floor checks values again before storing, so rows forwarded from a client meet the same rules.

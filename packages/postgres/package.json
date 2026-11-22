@@ -1,6 +1,6 @@
 {
   "name": "@expressive/postgres",
-  "version": "0.11.1",
+  "version": "0.13.0",
   "description": "Postgres and PGLite connections for Expressive ORM, with live rows over LISTEN/NOTIFY.",
   "keywords": [
     "orm",
@@ -52,20 +52,20 @@
     "test": "bun run typecheck && bun run coverage"
   },
   "dependencies": {
-    "@expressive/orm": "^0.23.0",
-    "@expressive/sql": "^0.13.1",
+    "@expressive/orm": "^0.25.0",
+    "@expressive/sql": "^0.15.0",
     "sql-formatter": "^10.7.2"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.16",
-    "@expressive/mvc": "^0.94.2",
+    "@expressive/mvc": "^0.97.1",
     "@types/pg": "^8.11.11",
     "pg": "^8.14.0",
     "tsdown": "^0.20.1"
   },
   "peerDependencies": {
     "@electric-sql/pglite": ">=0.2.16",
-    "@expressive/mvc": "^0.94.0",
+    "@expressive/mvc": "^0.97.1",
     "pg": "^8.0.0"
   },
   "peerDependenciesMeta": {

@@ -4,7 +4,7 @@ import { codecs } from '../codecs';
 import { Connection } from '../connection/Connection';
 import { format } from 'sql-formatter';
 
-import { createEngine, type D1Database, Engine, host, type LibSQLClient, migrations } from './engine';
+import { createEngine, Engine, host } from './engine';
 import { missing } from './load';
 import { now as current, SQLiteGenerator, type Timestamps } from './SQLiteGenerator';
 
@@ -19,18 +19,18 @@ export declare namespace SQLiteConnection {
      */
     timestamps?: Timestamps;
     /**
-     * The database - a filename, a libSQL address, a D1 binding, a libSQL client or an `Engine`.
+     * The database - a filename or an `Engine`.
      *
      * Absent, the database is in memory - or, in a runtime where SQLite can't load, only sessions run.
      */
-    source?: string | Engine | D1Database | LibSQLClient;
+    source?: string | Engine;
   }
 }
 
 const OPTIONS = new Set(["source", "timestamps"]);
 
 function refuse(options: unknown, extra: boolean){
-  const object = "pass a D1 binding, libSQL client or Engine as { source }.";
+  const object = "pass an Engine as { source }.";
 
   if (extra)
     return "SQLiteConnection takes (types, options) - put timestamps beside the source: { source, timestamps }.";
@@ -50,10 +50,6 @@ function refuse(options: unknown, extra: boolean){
     return `SQLiteConnection options take source and timestamps, not ${unknown.join(", ")} - ${object}`;
 }
 
-type Source = Engine | D1Database | LibSQLClient;
-
-const HOSTED = new WeakMap<Source, Promise<Engine>>();
-
 type TableInfo = {
   name: string;
   type: string;
@@ -62,9 +58,10 @@ type TableInfo = {
 };
 
 /**
- * A connection to SQLite - a file, in memory, a libSQL address, a D1 binding, a libSQL client or a given `Engine`.
+ * A connection to SQLite - a file, in memory, or a given `Engine`.
  *
- * The built-in loader takes the first of `bun:sqlite`, `node:sqlite`, `better-sqlite3`, `sqlite3`, `@libsql/client`, with foreign keys on.
+ * The built-in loader takes the first of `bun:sqlite`, `node:sqlite`, `better-sqlite3`, `sqlite3`, with foreign keys on.
+ * Any other host - a remote or edge database - is an `Engine` the app writes and passes as `{ source }` or to `session`.
  * Awaiting it runs `sync`. No live rows.
  *
  * @example
@@ -84,12 +81,10 @@ export class SQLiteConnection extends Connection {
   /**
    * Bind `using` to a SQLite database. Construct with `SQLiteConnection.new`.
    *
-   * `options` is a source alone as a string, or `{ source, timestamps }` - any other object throws, so pass a D1 binding, libSQL client or `Engine` as `{ source }`.
+   * `options` is a source alone as a string, or `{ source, timestamps }` - any other object throws, so pass an `Engine` as `{ source }`.
    * Without `source`, the database is in memory. A filename opens through the built-in loader.
-   * A `libsql:`, `https:`, `http:`, `ws:` or `wss:` address opens a `@libsql/client` 0.18 or later - pass a token as `?authToken=`.
-   * A D1 binding, a libSQL client or an `Engine` is used as given - foreign keys are not switched on, and `close()` leaves it open.
-   * D1 refuses `transaction`. libSQL runs each `transaction` on a libSQL write transaction, one at a time.
-   * `session(fn, source)` runs `fn` on another D1 binding, libSQL client or `Engine`, used as given and left open.
+   * An `Engine` is used as given - foreign keys are not switched on, and `close()` leaves it open.
+   * `session(fn, engine)` runs `fn` on another `Engine`, used as given and left open.
    */
   constructor(using: Connection.Types, options: string | SQLiteConnection.Options = {}) {
     const refused = refuse(options, arguments.length > 2);
@@ -120,19 +115,16 @@ export class SQLiteConnection extends Connection {
   }
 
   _admit(client: object){
-    if (!HOSTED.has(client as Source))
-      HOSTED.set(client as Source, Promise.resolve(host(client as Source)));
+    host(client);
   }
 
   protected db(){
-    const client = this._session()?.client as Source | undefined;
+    const client = this._session()?.client;
 
     if (!client || client === this._client)
       return this.engine ??= this.#open();
 
-    this._admit(client);
-
-    return HOSTED.get(client)!;
+    return Promise.resolve(host(client));
   }
 
   async #open(){
@@ -338,13 +330,6 @@ export class SQLiteConnection extends Connection {
     const db = await this.db();
     const rebuilds = steps.some(step => step.action.startsWith("rebuild"));
     const sql = steps.flatMap(step => step.sql);
-    const migrate = migrations.get(db);
-
-    if (migrate && rebuilds) {
-      await intact(db);
-      return void await migrate(sql);
-    }
-
     const guard = rebuilds && (await db.get("PRAGMA foreign_keys"))?.foreign_keys;
 
     if (db.batch && !guard)

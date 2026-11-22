@@ -1,10 +1,10 @@
-import { bool, date, json, num, one, rows, str, Type, unique } from '@expressive/orm';
+import { bool, date, json, num, one, many, str, Type, unique } from '@expressive/orm';
 
 export function schema(){
   class Attorney extends Type {
     name = str();
     email = str({ type: "varchar", length: 40 }, unique);
-    claims = rows(Claim);
+    claims = many(Claim);
   }
 
   class Claim extends Type {

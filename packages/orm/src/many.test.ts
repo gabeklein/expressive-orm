@@ -4,10 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { str } from './fields';
 import { Memory } from './memory';
 import { one } from './one';
-import { rows } from './rows';
+import { many } from './many';
 import { Type } from './Type';
 
-describe("rows", () => {
+describe("many", () => {
   class Table extends Type {
     static connection = Memory.new();
   }
@@ -21,7 +21,7 @@ describe("rows", () => {
   class User extends Table {
     static table = "user";
     name = str();
-    profiles = rows(Profile);
+    profiles = many(Profile);
   }
 
   const ready = (async () => {
@@ -132,8 +132,8 @@ describe("explicit field", () => {
   class User extends Table {
     static table = "user";
     name = str();
-    authored = rows(Post, "author");
-    edited = rows(Post, "editor");
+    authored = many(Post, "author");
+    edited = many(Post, "editor");
   }
 
   class Post extends Table {
@@ -166,7 +166,7 @@ describe("errors", () => {
   it("will throw if no relationship found", async () => {
     class User extends Table {
       static table = "user"
-      articles = rows(Article)
+      articles = many(Article)
     }
 
     class Article extends Table {
@@ -181,7 +181,7 @@ describe("errors", () => {
   it("will throw if relationship is ambiguous", async () => {
     class User extends Table {
       static table = "user";
-      posts = rows(Post);
+      posts = many(Post);
     }
 
     class Post extends Table {
@@ -199,7 +199,7 @@ describe("errors", () => {
     class User extends Table {
       static table = "user"
       // @ts-expect-error
-      articles = rows(Article, "foobar")
+      articles = many(Article, "foobar")
     }
 
     class Article extends Table {
