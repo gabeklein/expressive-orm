@@ -16,7 +16,7 @@
     },
     "packages/orm": {
       "name": "@expressive/orm",
-      "version": "0.24.0",
+      "version": "0.25.0",
       "devDependencies": {
         "@expressive/mvc": "^0.97.1",
         "fake-indexeddb": "^6.2.7",
@@ -28,7 +28,7 @@
     },
     "packages/postgres": {
       "name": "@expressive/postgres",
-      "version": "0.12.0",
+      "version": "0.13.0",
       "dependencies": {
         "@expressive/orm": "^0.24.0",
         "@expressive/sql": "^0.14.0",
@@ -53,13 +53,13 @@
     },
     "packages/sql": {
       "name": "@expressive/sql",
-      "version": "0.14.0",
+      "version": "0.15.0",
       "bin": {
         "expressive": "./dist/bin.js",
       },
       "dependencies": {
-        "@expressive/cli": "^0.2.0",
-        "@expressive/orm": "^0.24.0",
+        "@expressive/cli": "^0.3.0",
+        "@expressive/orm": "^0.25.0",
         "sql-formatter": "^10.7.2",
       },
       "devDependencies": {
@@ -156,7 +156,7 @@
 
     "@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w=="],
 
-    "@expressive/cli": ["@expressive/cli@0.2.0", "", { "peerDependencies": { "@expressive/mvc": "^0.94.5" }, "optionalPeers": ["@expressive/mvc"] }, "sha512-9OwqTq2AGuGVxhRZfsvGA380zjAjJz4AhYcQYx9n+DW6H0Bm3Khn+RVxrCZOdMzECoUuSvuKlIGkGiBob/sNAw=="],
+    "@expressive/cli": ["@expressive/cli@0.3.0", "", { "peerDependencies": { "@expressive/mvc": "^0.97.1" }, "optionalPeers": ["@expressive/mvc"] }, "sha512-50Q6UkW5+BAC5xs7pLNPk5VnXrX9xbF1p+iQ/olNI4UGpZx3HvotLzU5nUgH5EmvpAYgzDzo5sn0QEM4/GL6lQ=="],
 
     "@expressive/mvc": ["@expressive/mvc@0.97.1", "", {}, "sha512-6pMZzGWj2+a8mnOFpCqyOacTPtcLC4crb8xmCqvQnUspIxUwCttHx61rA3D/LJrqh513GVTHeo5t+01gG7JAGw=="],
 
@@ -513,8 +513,6 @@
     "@changesets/config/picomatch": ["picomatch@4.0.7", "", {}, "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA=="],
 
     "@changesets/git/picomatch": ["picomatch@4.0.7", "", {}, "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA=="],
-
-    "@expressive/cli/@expressive/mvc": ["@expressive/mvc@0.94.2", "", {}, "sha512-IFI1qrG9O+jUnLopAPJEFJGqmBJWZinxxWjp81D5pXZUnyxK1P+tQzk8UgkP0l+UsOEY9mejSRUOeiVgmASMAQ=="],
 
     "ast-kit/@babel/parser": ["@babel/parser@8.0.0", "", { "dependencies": { "@babel/types": "^8.0.0" }, "bin": "./bin/babel-parser.js" }, "sha512-aLxAE+imI9bCcyaPrUDjBv3uSkWieifjLe0kuFOZF0zli0L6GCsTmsePnTr55adbIAgYz2zhN1vnFimCBUYcRQ=="],
 
