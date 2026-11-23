@@ -345,6 +345,10 @@ const users = await User.query({
 
 for await (const batch of User.query({ age: greaterThan(17) }, 100))
   console.log(batch.length);
+
+const page = User.query({ admin: true }, 20);
+const next = await page.more();                // the 20 after
+await User.query({ admin: true }, 20, next[19]); // resume after a row
 ```
 
 `query` and `insert` return plain rows: decoded values by property, a relation as its id, frozen. `insert` returns the stored row, with its `id` and database defaults. `query` with a filter needs only the driver's `select`, so it runs on any connection, a forwarding one included. `one(where?, expect?)` resolves the live entity instead - the [reference](#references) `get(id)` would give - settling a loaded one with the fetched row; it takes a filter, never an id.
@@ -353,7 +357,9 @@ Without a filter, `query`, `load` and `one` take the newest first: by the class'
 
 A read with a `limit` - `one` included - always has one order: the filter's `asc()` / `desc()`, else the newest first, then by `id` to break ties. So the same call returns the same rows, and batches line up.
 
-`query(where, limit, offset?)` resolves its first `limit` rows when awaited. Iterated with `for await`, it yields every match a batch of `limit` at a time - the awaited batch first, then one select per batch from where it left off, until a batch comes back short. Its first select runs at the call, whichever way it is used. Batches move by offset: a row inserted or deleted ahead of the reader shifts the rest, so a loop that deletes what it reads should re-read from the start rather than iterate. A `limit` of `0` reads every match in one batch. Without a `limit`, `query` is a plain promise. `Results` is a promise, so an `async` function returning one hands back only the first batch - return it from a plain function to keep it iterable. For live entities in batches, read ids with `query` and `load({ id: isIn(ids) })`.
+`query(where, limit, from?)` resolves its first `limit` rows when awaited. Iterated with `for await`, it yields every match a batch of `limit` at a time - the awaited batch first, then the rows after its last, until a batch comes back short. Its first select runs at the call, whichever way it is used. `more()` is the batch after, itself a `Results` - empty once a batch comes back short.
+
+Each batch continues from the last row's order values rather than an offset, so rows inserted or deleted ahead of the reader don't shift it - a loop may delete what it reads. That takes one select per order column at most: one for an incrementing `id`, up to two for a `date.created()` order. A batch whose last row has no value in an order column - a `null` under `asc()` - continues by offset. `from` as a number skips that many rows; as a row this read returned, the read resumes after it - one sent through JSON works, so a client can hand back the last row it got. Resuming after a row with no value in an order column throws. A `limit` of `0` reads every match in one batch. Without a `limit`, `query` is a plain promise. `Results` is a promise, so an `async` function returning one hands back only the first batch - return it from a plain function to keep it iterable. For live entities in batches, read ids with `query` and `load({ id: isIn(ids) })`.
 
 ```ts
 await User.insert(row, { conflict: "update" });                     // upsert on the primary key
