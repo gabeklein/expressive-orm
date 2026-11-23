@@ -1,5 +1,13 @@
 # @expressive/sql
 
+## 0.15.1
+
+### Patch Changes
+
+- [#113](https://github.com/gabeklein/expressive-orm/pull/113) [`55da392`](https://github.com/gabeklein/expressive-orm/commit/55da3926eac296b052a3b3e5ea2b1ee107955325) `expressive` joins installed `@expressive/*` packages through `main` instead of a hard-coded root: help lists only what is installed, each command parses with its own copy of `@expressive/cli`, and `expressive dev` is no longer an install hint when `@expressive/dev` is missing. Release alongside `@expressive/cli` 0.3.
+- Updated dependencies [[`48c2630`](https://github.com/gabeklein/expressive-orm/commit/48c2630de52e7264ce391d34fb7401afa1a20a14)]:
+  - @expressive/orm@0.25.1
+
 ## 0.15.0
 
 ### Minor Changes

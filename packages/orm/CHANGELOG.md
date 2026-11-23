@@ -194,6 +194,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 # @expressive/orm
 
+## 0.25.1
+
+### Patch Changes
+
+- [#105](https://github.com/gabeklein/expressive-orm/pull/105) [`48c2630`](https://github.com/gabeklein/expressive-orm/commit/48c2630de52e7264ce391d34fb7401afa1a20a14) A destroyed entity leaves the identity map: `get(id)`, `load`, relations and view reuse no longer return it, and the next `get(id)` selects again. `entity.set(patch)` writes nothing when the patch names no column with a value, so `set({})` or a patch of unknown keys no longer writes `update` columns such as `date.updated()`.
+
 ## 0.25.0
 
 ### Minor Changes
