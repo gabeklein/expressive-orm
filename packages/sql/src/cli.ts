@@ -110,6 +110,8 @@ class Sync extends Schema {
 }
 
 export default class Sql extends Model {
+  static help = "Check or sync a database schema against your entities.";
+
   check = cmd({ from: Check, help: "List what sync would change, without changing anything. Exits 1 if anything would." });
   sync = cmd({ from: Sync, help: "Create missing tables, columns and indexes. Drifted columns need --force." });
 }

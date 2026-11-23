@@ -60,7 +60,7 @@
     "test": "bun run typecheck && bun run coverage"
   },
   "dependencies": {
-    "@expressive/cli": "^0.2.0",
+    "@expressive/cli": "^0.3.0",
     "@expressive/orm": "^0.25.0",
     "sql-formatter": "^10.7.2"
   },

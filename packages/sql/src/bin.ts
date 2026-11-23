@@ -1,19 +1,6 @@
 #!/usr/bin/env node
-import { cmd, main } from '@expressive/cli';
-import { Model } from '@expressive/mvc';
+import { main } from '@expressive/cli';
 
-export { default } from './cli';
+import Sql from './cli';
 
-class Expressive extends Model {
-  dev = cmd({
-    peer: "@expressive/dev",
-    help: "Run the app - Vite with HMR. Use `dev build` for production."
-  });
-
-  sql = cmd({
-    lazy: () => import("./cli"),
-    help: "Check or sync a database schema against your entities."
-  });
-}
-
-main(import.meta, Expressive);
+export default main(import.meta, Sql, { as: "expressive" });
