@@ -2977,4 +2977,24 @@ describe("recency", () => {
     expect(batches).toEqual([["e", "c"], ["d", "a"], ["b"]]);
     expect((await Item.query({ group: 1 }, 2, 1)).map(x => x.id)).toEqual(["c", "d"]);
   })
+
+  it("will resume after a row sent through JSON", async () => {
+    class Item extends Type {
+      id = key({ type: "text" });
+      made = date.created();
+    }
+
+    await TestConnection.new([Item]);
+
+    for (const [id, at] of [["b", 1], ["a", 2], ["d", 2], ["c", 3]] as const)
+      await Item.insert({ id, made: new Date(at) });
+
+    const first = Item.query(undefined, 2);
+    const [, last] = await first;
+
+    await Item.delete({ id: "c" });
+
+    expect((await first.more()).map(x => x.id)).toEqual(["a", "b"]);
+    expect((await Item.query(undefined, 2, JSON.parse(JSON.stringify(last)))).map(x => x.id)).toEqual(["a", "b"]);
+  })
 })

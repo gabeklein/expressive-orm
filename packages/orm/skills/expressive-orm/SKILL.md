@@ -134,7 +134,8 @@ await User.one({ name: "Nobody" }, false);     // undefined if not found
 
 await User.query({ name: [isLike("G%"), asc()], age: [greaterThan(17), lessThan(65)] }, 10, 0);
 
-for await (const batch of User.query({ admin: true }, 100)) batch.length; // every match, 100 per select
+for await (const batch of User.query({ admin: true }, 100)) batch.length; // every match, 100 per batch
+await User.query({ admin: true }, 100, last);                              // the 100 after a row
 
 await User.count({ admin: true });                  // no query counts the table
 await User.update(gabe.id, { age: 36 });
@@ -142,13 +143,13 @@ await User.update({ admin: false }, { age: 0 });    // resolves rows changed
 await User.delete({ age: lessThan(18) });           // resolves rows deleted; empty query throws
 ```
 
-`query` and `insert` return plain rows - frozen, decoded by property, a relation as its id. `insert` returns the stored row with `id` and defaults. `query(where?, limit?, offset?)` needs only the driver's `select`, so it works on a forwarding connection; `query(callback)`, `count`, and `update` / `delete` by filter run as a `Query` and need `prepare`. `one(where?, expect?)` resolves the live entity, as `load(where, 1)` - it takes a filter only; use `get(id)` for an id. For a row by id, `query({ id })`.
+`query` and `insert` return plain rows - frozen, decoded by property, a relation as its id. `insert` returns the stored row with `id` and defaults. `query(where?, limit?, from?)` needs only the driver's `select`, so it works on a forwarding connection; `query(callback)`, `count`, and `update` / `delete` by filter run as a `Query` and need `prepare`. `one(where?, expect?)` resolves the live entity, as `load(where, 1)` - it takes a filter only; use `get(id)` for an id. For a row by id, `query({ id })`.
 
 Operators: `equal`, `notEqual`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `isLike`, `isIn`, `notIn`, `isNull`, `notNull`, `asc` / `desc`. A plain value is `equal`, `null` is `isNull`, an array applies each. `isLike` also matches a `json()` column's text.
 
 Without a filter, `query()`, `load()` and `one()` take the newest first - by the class's `date.created()` column, else an incrementing `id`; with neither, `one()` throws asking for a filter. A filter with a condition drops that order; add `asc()` / `desc()`. A read with a `limit` is always totally ordered, ties broken by `id`. `undefined`, as a value or an operator's argument, drops its condition.
 
-With a `limit`, `query` returns `Type.Results` - awaited, the first batch; `for await`, every match. Batches move by offset - don't delete what you iterate; re-read instead. There is no batched `load`; read ids by `query`, then `load({ id: isIn(ids) })`.
+With a `limit`, `query` returns `Type.Results` - awaited, the first batch; `for await`, every match; `more()`, the batch after. Batches continue from the last row's order values, so deleting or inserting while iterating doesn't shift them. To page across requests, pass the last row back as `from` - it survives JSON. A `null` in an order column falls back to offset, and resuming after such a row throws. There is no batched `load`; read ids by `query`, then `load({ id: isIn(ids) })`.
 
 On `Memory`, `isLike` is case-sensitive (SQLite's is ASCII case-insensitive) and `notIn([])` skips rows without a value (SQL matches every row).
 
