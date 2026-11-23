@@ -1408,6 +1408,229 @@ describe("batches", () => {
   })
 })
 
+describe("keyset", () => {
+  const names = (rows: { name: string }[]) => rows.map(x => x.name);
+
+  async function collect(batches: AsyncIterable<{ name: string }[]>){
+    const all: string[][] = [];
+
+    for await (const batch of batches)
+      all.push(names(batch));
+
+    return all;
+  }
+
+  it("will not shift when rows ahead are deleted", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    for (const name of ["A", "B", "C", "D", "E"])
+      await User.insert({ name });
+
+    const seen: string[][] = [];
+
+    for await (const batch of User.query({ id: asc() }, 2)) {
+      seen.push(names(batch));
+
+      if (seen.length == 1)
+        await User.delete({ name: "A" });
+    }
+
+    expect(seen).toEqual([["A", "B"], ["C", "D"], ["E"]]);
+  })
+
+  it("will not repeat when rows ahead are inserted", async () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    for (const name of ["A", "B", "C", "D", "E"])
+      await User.insert({ name });
+
+    const seen: string[][] = [];
+
+    for await (const batch of User.query(undefined, 2)) {
+      seen.push(names(batch));
+
+      if (seen.length == 1)
+        await User.insert({ name: "F" });
+    }
+
+    expect(seen).toEqual([["E", "D"], ["C", "B"], ["A"]]);
+  })
+
+  it("will continue through ties in a created order", async () => {
+    class Post extends connect() {
+      id = key({ type: "text" });
+      name = str();
+      made = date.created();
+    }
+
+    for (const [id, at] of [["a", 1], ["b", 2], ["c", 2], ["d", 2], ["e", 3]] as const)
+      await Post.connection.insert(Post.ref, { id, name: id, made: new Date(at) });
+
+    const { connection } = Post as { connection: { select: Function } };
+    const select = vi.fn(connection.select.bind(connection));
+
+    connection.select = select;
+
+    expect(await collect(Post.query(undefined, 2))).toEqual([["e", "d"], ["c", "b"], ["a"]]);
+    expect(await collect(Post.query({ made: asc() }, 2))).toEqual([["a", "b"], ["c", "d"], ["e"]]);
+    expect(select).toHaveBeenCalledTimes(8);
+  })
+
+  it("will keep a subset", async () => {
+    class Animal extends connect() {
+      static table = "animal";
+      name = str();
+      kind = str();
+    }
+
+    class Cat extends Animal {
+      static subset = { kind: "cat" };
+    }
+
+    for (const [name, kind] of [["A", "cat"], ["B", "dog"], ["C", "cat"], ["D", "cat"]])
+      await Animal.insert({ name, kind });
+
+    expect(await collect(Cat.query({ name: asc() }, 2))).toEqual([["A", "C"], ["D"]]);
+  })
+
+  it("will continue by offset after a row without an order value", async () => {
+    class Task extends connect() {
+      name = str();
+      rank = num({ nullable: true });
+    }
+
+    for (const [name, rank] of [["A", null], ["B", null], ["C", 1], ["D", 2]] as const)
+      await Task.insert({ name, rank });
+
+    expect(await collect(Task.query({ rank: asc(), id: asc() }, 1))).toEqual([["A"], ["B"], ["C"], ["D"]]);
+  })
+
+  it("will continue a composite key by offset", async () => {
+    const db = Memory.new();
+
+    class Account extends Type {
+      static connection = db;
+      name = str();
+    }
+
+    class Pick extends Type {
+      static connection = db;
+      id = key(() => [this.account, this.kind]);
+      account = one(Account);
+      kind = str();
+    }
+
+    await Account.insert({ name: "x" });
+
+    for (const kind of ["a", "b", "c"])
+      await Pick.insert({ account: 1, kind });
+
+    const kinds: string[][] = [];
+
+    for await (const batch of Pick.query({ kind: asc() }, 2))
+      kinds.push(batch.map(x => x.kind));
+
+    expect(kinds).toEqual([["a", "b"], ["c"]]);
+  })
+
+  describe("more", () => {
+    class User extends connect() {
+      name = str();
+    }
+
+    const ready = (async () => {
+      for (const name of ["A", "B", "C", "D", "E"])
+        await User.insert({ name });
+    })();
+
+    it("will read the next batch", async () => {
+      await ready;
+      const first = User.query({ id: asc() }, 2);
+      const second = first.more();
+
+      expect(names(await first)).toEqual(["A", "B"]);
+      expect(names(await second)).toEqual(["C", "D"]);
+      expect(names(await second.more())).toEqual(["E"]);
+      expect(await second.more().more()).toEqual([]);
+    })
+
+    it("will iterate from the next batch", async () => {
+      await ready;
+
+      expect(await collect(User.query({ id: asc() }, 2).more())).toEqual([["C", "D"], ["E"]]);
+      expect(await collect(User.query({ id: asc() }, 2, 1).more())).toEqual([["D", "E"]]);
+    })
+
+    it("will be empty after a short or unlimited batch", async () => {
+      await ready;
+
+      expect(await User.query({ id: asc() }, 5).more()).toEqual([]);
+      expect(await User.query({ id: asc() }, 0).more()).toEqual([]);
+      expect(await collect(User.query({ name: "Z" }, 2).more())).toEqual([]);
+    })
+
+    it("will reject with the batch before", async () => {
+      class Broken extends connect() {
+        name = str();
+      }
+
+      Object.defineProperty(Broken.connection, "select", { value: () => Promise.reject(new Error("down")) });
+
+      const first = Broken.query(undefined, 2);
+
+      await expect(first).rejects.toThrow("down");
+      await expect(first.more()).rejects.toThrow("down");
+    })
+  })
+
+  describe("resume", () => {
+    class Post extends connect() {
+      name = str();
+      made = date.created();
+      rank = num({ nullable: true });
+    }
+
+    const ready = (async () => {
+      for (const [name, at] of [["A", 1], ["B", 2], ["C", 2], ["D", 3]] as const)
+        await Post.connection.insert(Post.ref, { name, made: new Date(at), rank: name == "A" ? null : 1 });
+    })();
+
+    it("will resume after a row", async () => {
+      await ready;
+      const [, last] = await Post.query(undefined, 2);
+
+      expect(names(await Post.query(undefined, 2, last))).toEqual(["B", "A"]);
+      expect(await collect(Post.query(undefined, 1, last))).toEqual([["B"], ["A"]]);
+    })
+
+    it("will resume after a row through JSON", async () => {
+      await ready;
+      const [, last] = await Post.query(undefined, 2);
+      const sent = JSON.parse(JSON.stringify(last));
+
+      expect(names(await Post.query(undefined, 2, sent))).toEqual(["B", "A"]);
+    })
+
+    it("will read every row after a row without a limit", async () => {
+      await ready;
+      const [last] = await Post.query(undefined, 1);
+
+      expect(names(await Post.query(undefined, 0, last))).toEqual(["C", "B", "A"]);
+    })
+
+    it("will throw resuming after a row without an order value", async () => {
+      await ready;
+      const [row] = await Post.query({ name: "A" }, 1);
+
+      await expect(Post.query({ rank: asc() }, 2, row)).rejects.toThrow("Post.query() cannot resume after a row without rank, id.");
+    })
+  })
+})
+
 describe("limited order", () => {
   it("will order a limited filter by recency, then id", async () => {
     class Post extends connect() {

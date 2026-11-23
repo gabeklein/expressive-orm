@@ -91,8 +91,9 @@ declare namespace Type {
   /**
    * Rows read a batch at a time - await it for the first batch, iterate it for every batch.
    *
-   * From `query(where, limit, offset?)`. The first select runs at once; iterating starts with its batch, then selects `limit` more from where it left off until a batch comes back short.
-   * Batches move by offset - a row inserted or deleted ahead of the reader shifts the rest.
+   * From `query(where, limit, from?)`. The first select runs at once; iterating starts with its batch, then reads `limit` more after its last row until a batch comes back short.
+   * Each batch continues from the last row's order values, so rows written ahead of the reader do not shift it - up to two selects a batch for a `created()` order.
+   * A batch whose last row has no value in an order column continues by offset.
    * A `limit` of `0` reads every match in one batch.
    * An `async` function returning one resolves only the first batch - return it from a plain function to keep it iterable.
    *
@@ -100,7 +101,18 @@ declare namespace Type {
    * for await (const batch of User.query({ admin: true }, 100))
    *   batch.forEach(send);
    */
-  interface Results<T extends Type> extends Promise<Columns<T>[]>, AsyncIterable<Columns<T>[]> {}
+  interface Results<T extends Type> extends Promise<Columns<T>[]>, AsyncIterable<Columns<T>[]> {
+    /**
+     * The batch after this one - empty once a batch comes back short.
+     *
+     * Selects once this batch lands. Iterating it continues from there.
+     *
+     * @example
+     * const page = User.query({ admin: true }, 20);
+     * const next = await page.more();
+     */
+    more(): Results<T>;
+  }
 
   /** A filter value - a plain value (equal), an operator, or an array applying each. */
   type Conds<T> = Where | T | Conds<T>[]
@@ -799,7 +811,8 @@ abstract class Type extends Model {
    * Up to `limit` rows matching a filter - awaited, one batch; iterated, every match a batch at a time.
    *
    * A limited read is always in one order: the filter's `asc()` / `desc()`, else the class's newest first, then by id.
-   * `offset` skips that many first.
+   * `from` as a number skips that many first; as a row of this read, resumes after it - a row passed through JSON works.
+   * Resuming throws when that row has no value in an order column.
    *
    * @example
    * const latest = await User.query({ admin: true }, 20);
@@ -810,7 +823,7 @@ abstract class Type extends Model {
     this: Type.Class<T>,
     where: Type.Query<T> | undefined,
     limit: number,
-    offset?: number
+    from?: number | Type.Columns<T>
   ): Type.Results<T>;
   /** Rows matching a filter, up to `limit` when it is a number - then a `Type.Results`. */
   static query<T extends Type>(
@@ -819,9 +832,11 @@ abstract class Type extends Model {
     limit: number | undefined,
     offset?: number
   ): Promise<Type.Columns<T>[]>;
-  static query(this: Type.Class, where?: Type.Query<any> | ((self: any, where: Query.Where) => unknown), limit?: number, offset = 0){
+  static query(this: Type.Class, where?: Type.Query<any> | ((self: any, where: Query.Where) => unknown), limit?: number, from: number | Type.Columns<any> = 0){
     if (typeof where != "function")
-      return limit === undefined ? this.fetch(where, limit, offset) : results(this, where, limit, offset);
+      return limit === undefined
+        ? this.fetch(where, limit, from as number)
+        : results(this, where, limit, typeof from == "number" ? { at: from } : { after: from });
 
     return Query(from => {
       const self = from(this);
@@ -930,21 +945,68 @@ function settled(type: typeof Type, constraints: Type.Constraint[]): Type.Constr
   return added;
 }
 
-function results<T extends Type>(type: Type.Class<T>, where: Type.Query<T> | undefined, limit: number, offset: number): Type.Results<T> {
-  const first = type["fetch"](where, limit, offset);
+interface Cursor {
+  at?: number;
+  after?: Record<string, any>;
+  done?: boolean;
+}
 
-  return Object.assign(first, {
-    async *[Symbol.asyncIterator](){
-      for (let batch = await first, at = offset; batch.length; batch = await type["fetch"](where, limit, at)) {
-        yield batch;
+interface Batch<T extends Type> {
+  rows: Type.Columns<T>[];
+  next: Cursor;
+}
 
-        if (batch.length < limit || !limit)
-          return;
+function results<T extends Type>(type: Type.Class<T>, where: Type.Query<T> | undefined, limit: number, start: Cursor | Promise<Cursor>): Type.Results<T> {
+  const step = async (cursor: Cursor): Promise<Batch<T>> => {
+    const rows = cursor.done ? [] : await page(type, where, limit, cursor);
 
-        at += batch.length;
+    return {
+      rows,
+      next: {
+        at: cursor.at === undefined ? undefined : cursor.at + rows.length,
+        after: rows[rows.length - 1],
+        done: !limit || rows.length < limit
       }
+    };
+  };
+
+  const read = start instanceof Promise ? start.then(step) : step(start);
+
+  return Object.assign(read.then(batch => batch.rows), {
+    more: () => results(type, where, limit, read.then(batch => batch.next)),
+    async *[Symbol.asyncIterator](){
+      for (let batch = await read; batch.rows.length; batch = await step(batch.next))
+        yield batch.rows;
     }
   });
+}
+
+async function page<T extends Type>(type: Type.Class<T>, where: Type.Query<T> | undefined, limit: number, { at, after }: Cursor){
+  if (!after)
+    return type["fetch"](where, limit, at);
+
+  const filter = buildConstraints({ ...newest(type, where), ...type.subset });
+  const base = [...filter, ...settled(type, filter)];
+  const order = base.filter(([, op]) => op == "asc" || op == "desc");
+
+  if (order.some(([key]) => after[key] == null || type.fields.get(key)?.parts)) {
+    if (at === undefined)
+      throw new Error(`${type.name}.query() cannot resume after a row without ${order.map(([key]) => key).join(", ")}.`);
+
+    return type["fetch"](where, limit, at);
+  }
+
+  const rows: Type.Columns<T>[] = [];
+
+  for (let level = order.length; level-- && (!limit || rows.length < limit);) {
+    const [key, op] = order[level];
+    const pivot: Type.Constraint[] = order.slice(0, level).map(([key]) => [key, "=", after[key]]);
+
+    pivot.push([key, op == "asc" ? ">" : "<", after[key]]);
+    rows.push(...await type["fetch"]([...base, ...pivot], limit && limit - rows.length));
+  }
+
+  return rows;
 }
 
 function newest(type: typeof Type, where?: Type.Query<any>): Type.Query<any> | undefined {
